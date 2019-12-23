@@ -1,12 +1,12 @@
-# Specifications and arguments
+# Arguments and specifications
 
 ## Arguments
 
 A list of arguments (either for input values or return values) consist
 of unnamed and/or named variables; there can only be one unnamed variable
 of any given type.  An unnamed variable is either a variable with its
-name ommitted, or a variable whose type is the same as its identifier.
-(We ignore trailing or preceding underscores in the identifier.)  Each
+name ommitted, or a variable whose type is the same as its identifier
+(ignoring trailing or preceding underscores in the identifier).  Each
 argument has a type and an optional identifier.  Some examples:
 
 * `(INT index, INT)` - An argument list consisting of an unnamed `INT`
@@ -35,15 +35,21 @@ as positional arguments; they are all keyword based.
 
 ## Specifications
 
-We specify arguments using keywords, and there are advanced ways of
-doing this (for future work), but there are some sufficiently simple ways 
+When calling a function (or getting its return values), we do not require
+the order of the specification to match that of the argument list.
+Instead, we specify arguments using keywords, and there are advanced ways
+of doing this (for future work), but here are some sufficiently simple ways 
 of making a specification:
 
-1. Use a variable with the same identifier as the one in the argument list.
+1. Use a variable with the same identifier (ignoring trailing/leading
+   underscores) as the one in the argument list.
 
-2. Use an `UpperCamelCase` cast.
+2. Use an `UpperCamelCase` cast, i.e. `Identifier(...)` where `Identifier`
+   is the correct keyword identifier for the argument, and `...` is the
+   value you want to use for that variable.
 
-3. For an unnamed argument, create a variable on the fly using its `TYPE` cast.
+3. For an unnamed argument, create a variable on the fly using its 
+   `TYPE` cast.  E.g. `INT(1.234)` to create an integer from a double.
 
 Note that in all cases, order doesn't matter when specifying a list 
 of arguments!  Examples:
