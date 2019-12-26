@@ -27,7 +27,7 @@ class; your classes may require other initialization):
 
 Of course, it becomes a bit ambiguous if multiple constructor
 overloads have other parameters that they set, but these can all be 
-defined, but not necessarily assigned in other constructors.  (Of course,
+declared, but not necessarily assigned in other constructors.  (Of course,
 they will be default-initialized in constructors which do not specify them.)
 
 ```

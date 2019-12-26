@@ -1,6 +1,6 @@
 # Functions
 
-Functions are defined using the `FN` keyword, or `MD` for class methods.
+Functions are declared using the `FN` keyword, or `MD` for class methods.
 The return type comes before `FN`, an optional function name follows,
 and the function arguments follow in parentheses.  Examples:
 
@@ -88,7 +88,7 @@ Return values can be captured in various ways:
     INT value
     (x, greeting, Index(value)) = doSomething()
 
-    # or alternatively, you can define them inline:
+    # or alternatively, you can declare/init them inline:
 
     INT value
     (DBL x, STRING greeting, Index(value)) = doSomething()
