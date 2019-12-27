@@ -16,20 +16,20 @@ characters, as well as classes created by the user.  It is highly
 recommended to not use abbreviations (besides standard ones, e.g. HTML)
 when defining a class name.
 
-    | Identifier | Type description             |
-    |------------|------------------------------|
-    | BOOL       | boolean (1 bit unsigned)     |
-    | DBL, FLT64 | 64-bit floating-point number |
-    | FLT, FLT32 | 32-bit floating-point number |
-    | INT, INT64 | 64-bit signed integer        |
-    | INT32      | 32-bit signed integer        |
-    | INT16      | 16-bit signed integer        |
-    | INT8       | 8-bit signed integer         |
-    | STRING     | array of characters/letters  |
-    | UNS, UNS64 | 64-bit unsigned integer      |
-    | UNS32      | 32-bit unsigned integer      |
-    | UNS16      | 16-bit unsigned integer      |
-    | UNS8       | 8-bit unsigned integer       |
+| Identifier | Type description             |
+|------------|------------------------------|
+| BOOL       | boolean (1 bit unsigned)     |
+| DBL, FLT64 | 64-bit floating-point number |
+| FLT, FLT32 | 32-bit floating-point number |
+| INT, INT64 | 64-bit signed integer        |
+| INT32      | 32-bit signed integer        |
+| INT16      | 16-bit signed integer        |
+| INT8       | 8-bit signed integer         |
+| STRING     | array of characters/letters  |
+| UNS, UNS64 | 64-bit unsigned integer      |
+| UNS32      | 32-bit unsigned integer      |
+| UNS16      | 16-bit unsigned integer      |
+| UNS8       | 8-bit unsigned integer       |
 
 Templated types can be created using the syntax `NEW_...`, where `...`
 is any `UPPER_SNAKE_CASE` format, including a single character, e.g.
