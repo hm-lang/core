@@ -14,7 +14,7 @@ class NEW_T ITERATOR
         
         # value which provides the total number of elements which will
         # be iterated over, if available.
-        CONST(SIZE?) this.size
+        SIZE? CONST this.size
         
         # function which inserts a new value `newT` before the next value
         # in the iteration.  this function should only be defined if the
@@ -29,7 +29,7 @@ class NEW_T ITERATOR
         # TODO: we may want to allow multiple insert values, i.e., to
         # make this `FN? this.insert(NEW_T ITERATOR)`.
         
-        # function which deletes the current value at `peak`.
+        # function which deletes the current value at `peak()`.
         # it will not appear when calling `next()`.
         # the next value should also disappear from the underlying container,
         # and this function should not be defined unless that is happening.
@@ -40,7 +40,7 @@ class NEW_T ITERATOR
     # after calling this,
     #  calling `next()` is guaranteed to produce this value,
     #  unless `delete()` is called.
-    NEW_T? REF MD peak();
+    CONST_NEW_T? REF MD peak();
 
     # standard map and filter all in one.
     # the callback should return a null if the `NEW_U` instance

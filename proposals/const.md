@@ -7,17 +7,7 @@ reassigned/modified (even in the constructor).  Constant types
 are preceded with `CONST_` concatenated into the type, e.g.
 `CONST_INT` to indicate a constant `INT` variable.  
 
-TODO/NOTE: Maybe this next paragraph will be scrapped, see below:
-
-In case of a more complicated type, we can also use parentheses to
-group what is not modifiable together, e.g. `CONST(INT?)` to
-indicate a constant `INT MAYBE` type.  We may want to cascade the
-`CONST` to all types covered by the parentheses, e.g.
-`CONST(INT?)` --> `CONST_INT CONST_MAYBE`, so that the user is not
-allowed to change the reference (`MAYBE`) nor the underlying type (`INT`).
-
-`CONST(TYPE)` may be harder to understand/reason about, and
-is certainly harder to figure out what the `lowerCamelCase` identifier
-would be.  It also looks like a `MAP` type (`TYPE1[TYPE2]`), which
-is bad.  `const[TYPE]` would fix the latter problem, but would not
-fix the earlier issues.
+In case of a more complicated type, we use the syntax `SOME_TYPE CONST`
+to indicate that `SOME_TYPE` should be constant.  For example,
+`INT? CONST` indicates a constant `INT MAYBE` type.  No one is allowed
+to change the reference (the `MAYBE`), nor the `INT` value (if it exists).
