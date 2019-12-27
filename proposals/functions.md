@@ -30,6 +30,8 @@ following.  For example:
         return 0
 ```
 
+## Default initialization of return values
+
 Note that in hm-lang, most types can be default initialized, e.g.
 `INT()` is the same as `0`.  This fact can be used when initializing
 a function; the return variables will be automatically default
@@ -42,8 +44,33 @@ initialized if the function does not explicitly initialize them.
         elif dbl > 0
             return 1
         # automatically returns 0
+```
+
+You can also initialize the return value with your own value/function:
 
 ```
+    (INDEX index = -1) FN find(INT ARRAY, INT)
+        INDEX i = 0
+        while i < int_array.size
+            if int_array[i] == int
+                return Index(i)
+            ++i
+```
+
+## Default initialization of input values
+
+Input values will be default initialized if not specified, or
+initialized according to the value/function specified in the arguments.
+
+```
+    FN say(STRING greeting, STRING noun = "World", INT times = 1)
+        for INT < times
+            print("${greeting}, ${noun}!")
+
+    say(Greeting("Hello"), Times(2)) # prints "Hello, World!" twice
+```
+
+## Setting the return variables instead of explicitly returning them
 
 Because the return variables have identifiers, you can also refer to
 them by name inside the function.
@@ -77,6 +104,8 @@ can be default initialized if not already initialized in the function.
         # else, index will be zero, by default.
         return (Greeting("Hello!"), 1.2345)
 ```
+
+## Capturing return values
 
 Return values can be captured in various ways:
 
