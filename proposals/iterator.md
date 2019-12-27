@@ -17,9 +17,11 @@ class NEW_T ITERATOR
         CONST(SIZE?) this.size
         
         # function which inserts a new value `newT` before the next value
-        # in the iteration.  this value will not appear when calling `next()`,
+        # in the iteration.  this function should only be defined if the
+        # underlying container allows inserts to happen. 
+        # the inserted value will not appear when calling `next()`,
         # and classes which implement this should guarantee that any number
-        # of repeated `next()`s will not eventually return this inserted value.
+        # of repeated `next()`s will not eventually return the inserted value.
         # i.e., any values inserted into the underlying container during
         # iteration should not appear in this iterator (even if insertion does
         # affect some of the later values in the iterator).
@@ -29,6 +31,8 @@ class NEW_T ITERATOR
         
         # function which deletes the current value at `peak`.
         # it will not appear when calling `next()`.
+        # the next value should also disappear from the underlying container,
+        # and this function should not be defined unless that is happening.
         FN? this.delete()
     );
 
