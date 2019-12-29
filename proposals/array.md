@@ -16,6 +16,8 @@ class NEW_T ARRAY extends NEW_T CONTAINER, [INDEX, NEW_T] CONTAINER
     to [INDEX, NEW_T] ITERATOR;
 
     # access the array at the given index, either for getting or setting.
+    # accessing outside the bounds of the array will resize the array and
+    # create default initialized values up to that point.
     NEW_T GS MD this(INDEX);
 
     # get or set the size of the array.
@@ -31,6 +33,7 @@ class NEW_T ARRAY extends NEW_T CONTAINER, [INDEX, NEW_T] CONTAINER
     MD insert(NEW_T ITERATOR, INDEX at) = splice(newT_iterator, at, Delete(0))
     MD erase(INDEX, SIZE count) = splice(At(index), Delete(count))
 
+    # TODO: see if we can't put this into the ITERATOR class:
     # take elements from this array and put them into a new one.
     # INT ARRAY x = [1, 2, 3, 100, 9, 11]
     # INT ARRAY y = x.take($whereValue < 10)
