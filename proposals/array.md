@@ -32,14 +32,6 @@ class NEW_T ARRAY extends NEW_T CONTAINER, [INDEX, NEW_T] CONTAINER
 
     MD insert(NEW_T ITERATOR, INDEX at) = splice(newT_iterator, at, Delete(0))
     MD erase(INDEX, SIZE count) = splice(At(index), Delete(count))
-
-    # TODO: see if we can't put this into the ITERATOR class:
-    # take elements from this array and put them into a new one.
-    # INT ARRAY x = [1, 2, 3, 100, 9, 11]
-    # INT ARRAY y = x.take($whereValue < 10)
-    # # y == [1, 2, 3, 9]
-    # # x == [100, 11]
-    NEW_T ARRAY MD take(BOOL FN(NEW_T REF whereValue));
 ```
 
 We will probably change inheritance from `[INDEX, NEW_T] CONTAINER`

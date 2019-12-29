@@ -13,7 +13,8 @@ class NEW_T ITERATOR
         NEW_T? FN this.next()
         
         # value which provides the total number of elements which will
-        # be iterated over, if available.
+        # be iterated over, if available.  if there is a backing container,
+        # this is the original number of elements in the container.
         SIZE? CONST this.size
         
         # function which inserts a new value `newT` before the next value
@@ -46,4 +47,14 @@ class NEW_T ITERATOR
     # the callback should return a null if the `NEW_U` instance
     # should not be produced in the new iterator.
     NEW_U ITERATOR MD map(NEW_U? FN(NEW_T));
+
+    # take elements from this ITERATOR and put them into a new one,
+    # based on some filtering criterion.
+    # 
+    #   INT ARRAY x = [1, 2, 3, 100, 9, 11]
+    #   INT ARRAY y = ITERATOR(x).take($whereValue < 10)
+    #   # y == [1, 2, 3, 9]
+    #   # x == [100, 11]
+    # 
+    NEW_T ITERATOR MD take(BOOL FN(CONST_NEW_T REF whereValue));
 ```
