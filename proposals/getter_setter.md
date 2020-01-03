@@ -4,14 +4,24 @@ We make it easy to wrap a variable within getter/setter functions
 using the `GS` (Getter Setter) class.  The proposed API is:
 
 ```
-    class NEW_T GS
-        from(FN set(NEW_T), NEW_T FN get());
+    class NEW_T GS(FN set(NEW_T), NEW_T FN get(), FN? delete())
+        to NEW_T
+            return get()
 
         MD this = (NEW_T)
             set(newT)
 
-        to NEW_T
-            return get()
+        MD this = null
+            if delete
+                delete()
+            else
+                throw("`delete` not supported")
+
+        MD this = (NEW_T?)
+            if newTQ
+                this = newTQ
+            else
+                this = null
 ```
 
 Generally speaking, what looks like a class member variable is actually
