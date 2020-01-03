@@ -1,4 +1,4 @@
-# Visibility of class variables
+# Visibility
 
 When defining a class variable or member function, we declare it as
 public/private/protected based on the number of leading and trailing
@@ -84,3 +84,19 @@ declaring arguments for functions; it is better to use a preceding
     ex.setX(x)
     ex.setX(X(1234.5))
 ```
+
+## Visibility of types
+
+Similarly, types can be defined as protected/private within a given
+file/directory using leading/trailing underscore(s).  E.g.
+`PUBLIC_TYPE`, `PROTECTED_TYPE_`, and `PRIVATE_TYPE__`.
+
+ * Public types can be referenced and instantiated anywhere/globally.
+ * Protected types can only be instantiated directly in the same
+   directory as the original type declaration (note that subdirectories
+   are excluded).
+ * Private types can only be instantiated directly in the file where
+   they are defined/declared.
+
+Of course protected and private types can be instantiated indirectly,
+but they cannot be directly referenced outside of their visibility.
