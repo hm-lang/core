@@ -1,4 +1,4 @@
-# New/old
+# New/old identifiers
 
 We use new (and old) in a few different ways.
 
@@ -29,9 +29,32 @@ EXAMPLE ex(Times(5), Greeting("hello")) # normal initialization
 ex = NEW(Greeting("hey"), Noun("people")) # a NEW way to do it.
 ```
 
-## Templates
+## `NEW_TYPE` for templates
 
-These are discussed in [template classes](./template_class.md)
+For functions (and class methods), we use this syntax:
+
+```
+NEW_V FN doSomethingWithTemplates(NEW_T x, NEW_U y)
+    print("${x} -> ${y}")
+    return y    # transforms from NEW_U to NEW_V type.
+
+# NEW_V = DBL, NEW_T = INT, and NEW_U = STRING:
+DBL q = doSomethingWithTemplates(X(5), Y("1.2345"))
+```
+
+And of course, fewer templated types can be used in a function.
+Here's an example also with a class:
+
+```
+class NEW_T EXAMPLE(NEW_T value)
+    MD setFrom(NEW_U)
+        value = newU    # implicit conversion
+
+INT EXAMPLE x(Value(3))
+x.setFrom("50003")
+```
+
+For classes, see the discussion on [template classes](./template_class.md).
 
 ## Variable prefix to avoid duplicate identifiers
 
