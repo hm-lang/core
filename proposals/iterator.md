@@ -41,6 +41,21 @@ class NEW_T ITERATOR
     # after calling this,
     #  calling `next()` is guaranteed to produce this value,
     #  unless `delete()` is called.
+    # TODO: probably need to change `next()` to a method (`MD`) to handle this.
+    #  likewise for `delete()` and `insert(...)`.  still will need to pass
+    #  those in, but they will be wrapped here.
+    # TODO: we probably will have issues with `insert(...)` if someone
+    #  has called `peak()`; it may not be where people expect, e.g. in an array.
+    #   INT ARRAY x = [1, 2, 3, 4]
+    #   INT ITERATOR xIterator = x
+    #   xIterator.next() # 1
+    #   xIterator.peak() # 2
+    #   xIterator.insert(-5)    # x = [1, -5, 2, 3, 4] or [1, 2, -5, 3, 4] ???
+    #   xIterator.next() # 3    # x should be the former, based on comment.
+    #   xIterator.next() # 4
+    #   xIterator.next() # null
+    #  to make this work based on what the comment says, we probably need
+    #  to pass in a smarter `FN insert()` when creating the iterator.
     CONST_NEW_T? REF MD peak();
 
     # standard map and filter all in one.
