@@ -38,3 +38,10 @@ class NEW_T ARRAY extends NEW_T CONTAINER, [INDEX, NEW_T] CONTAINER
 
 We will probably change inheritance from `[INDEX, NEW_T] CONTAINER`
 to `MAP Key(INDEX) Value(NEW_T)` since that is also appropriate.
+
+Internally, `ARRAY` uses a lazily default-initialized array;
+only elements that are requested (at a given index) will be initialized.
+This guarantees that an element at a given index will only be initialized
+once, before being called with `GS.get()`.  If `GS.set(...)` is called
+before `GS.get()`, then the default-initialization will be skipped, and
+only the `set` initialization will be performed.
