@@ -17,7 +17,9 @@ class NEW_T ARRAY extends NEW_T CONTAINER, [INDEX, NEW_T] CONTAINER
 
     # access the array at the given index, either for getting or setting.
     # accessing outside the bounds of the array will resize the array and
-    # create default initialized values up to that point.
+    # create (lazily) default-initialized values up to that point.
+    # the `GS.delete` method is also supported, which will shift all
+    # values with larger indices down one.
     NEW_T GS MD this(INDEX);
 
     # get or set the size of the array.
