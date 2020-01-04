@@ -7,7 +7,7 @@ this syntax `:some.subdir.file` (without the `.hm` extension).  In case
 of needing to go up to the parent directory, a double `::` can be used,
 e.g. `::some.other.file` (corresponds to file `../some/other/file.hm`).
 A third colon `:::far.back` corresponds to `../../far/back.hm`, and so on.
-It is recommended to avoid using colons in your code structure.
+It is recommended to avoid using multiple colons in your code structure.
 
 There are a few options when importing external classes/functions.
 
