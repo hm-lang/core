@@ -2,10 +2,15 @@
 
 When defining a class variable or member function, we declare it as
 public/private/protected based on the number of leading and trailing
-underscores.  Public variables are declared without any leading or
-trailing underscores.  Protected variables are declared with a single
-leading or trailing underscore, but not both.  Private variables are
+underscores.  Public identifiers are declared without any leading or
+trailing underscores.  Protected identifiers are declared with a single
+leading or trailing underscore, but not both.  Private identifiers are
 declared with two leading, two trailing, or one of each underscore.
+
+Note: When referring to the variable/function/method outside of the
+declaration, *no leading/trailing underscores are necessary*.
+
+## Visibility of variables
 
  * Public variables are gettable/settable globally from anywhere.
  * Protected variables are gettable globally, but can only be set
@@ -84,6 +89,25 @@ declaring arguments for functions; it is better to use a preceding
     ex.setX(x)
     ex.setX(X(1234.5))
 ```
+
+## Visibility of functions/methods
+
+Functions and methods have the same rules, but differ from variables,
+since we don't want to distinguish "getting" a function from "calling"
+it (i.e., executing the function) at this point in time:
+
+ * Public functions are callable globally from anywhere.
+ * Protected functions are callable only by child classes or in other
+   files in the same directory as the original function.
+ * Private functions are callable only *within the same file*.
+
+To elaborate on why we don't want to consider functions as "gettable":
+"Getting" a function might correspond to obtaining a representation of
+what it does internally, or perhaps getting a memory address at which it
+is defined.  We don't allow any visibility into this (at the moment),
+though this may change if we want to allow functions to be allowed
+membership into `SET`s.
+
 
 ## Visibility of types
 
