@@ -45,3 +45,6 @@ This guarantees that an element at a given index will only be initialized
 once, before being called with `GS.get()`.  If `GS.set(...)` is called
 before `GS.get()`, then the default-initialization will be skipped, and
 only the `set` initialization will be performed.
+
+We may also want essentially this API above as an `INDEXED_CONTAINER`
+class, which `ARRAY`, `FIXED_ARRAY`, as well as `DEQUE` inherit from.
