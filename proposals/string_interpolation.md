@@ -33,3 +33,23 @@ simply use `\$` instead of `$` in the string.
 STRING x = "\${this will not actually execute}"
 print(x) # prints "${this will not actually execute}" without the quotes.
 ```
+
+## Advanced interpolation
+
+For ease of debugging, we might also want to introduce a special
+interpolation, `$${someExpression()}`, which prints out the string
+literal inside the parentheses, but also prints the value of the
+expression.  The literal is followed by a " -> ", then the value.
+For example:
+
+```
+INT x = 5
+print("debugging $${x}") # prints "debugging x -> 5"
+
+INT FN doSomething(INT)
+    return int / 2
+
+print("$${doSomething(x)}") # prints "doSomething(x) -> 2"
+```
+
+This should work regardless of debug state.
