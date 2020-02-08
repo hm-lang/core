@@ -74,17 +74,17 @@ Functions are by default `CONST`, i.e. they cannot be changed.
     # ERROR!  functions are constant/non-mutable by default.
 ```
 
-If you want to define a function which can change, use the `MUT` keyword:
+If you want to define a function which can change, use the `VAR` keyword:
 
 ```
-    MUT_FN hello()
+    VAR_FN hello()
         print("hello, world!")
 
     hello = FN()
         print("hey, you!")
     # ok!  hello is still mutable, based on its original definition.
 
-    hello = MUT_FN()
+    hello = VAR_FN()
         print("hi, friend.")
     # also ok.
 ```
@@ -111,10 +111,10 @@ We can also pass in functions to be member variables of classes.
     #
     # define a class with a modifiable lambda function:
     #
-    class MUT_FN_CLASS(INT MUT_FN this.hash(STRING));
+    class VAR_FN_CLASS(INT VAR_FN this.hash(STRING));
 
     # instantiate the class
-    MUT_FN_CLASS u(INT MUT_FN hash(STRING)
+    VAR_FN_CLASS u(INT VAR_FN hash(STRING)
         ...
         return 5
     )
@@ -146,12 +146,12 @@ nor a mutable static method:
 ```
     class WEIRD
         # errors:
-        MUT_MD hey(STRING)
+        VAR_MD hey(STRING)
             print("hi, ${string}")
         # ERROR!  Methods are already mutable by derived classes,
         # but cannot otherwise by reassigned.
 
-        MUT_CLASS_FN bad()
+        VAR_CLASS_FN bad()
             print("NOT ALLOWED")
         # ERROR!  class functions are not allowed to be changed.
 ```
