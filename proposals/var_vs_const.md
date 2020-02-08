@@ -34,6 +34,10 @@ INT VAR_FN doAnotherThing(STRING)
 doAnotherThing = $string.size + 1   # OK
 ```
 
+See [function keywords](./function_keywords.md) for some extra info
+in this regard.
+
+
 ## Auto types
 
 We may want to allow setting variables where we know the return type
