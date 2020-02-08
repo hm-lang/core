@@ -3,7 +3,7 @@
 A fixed array is an unresizable array of elements.
 
 ```
-class NEW_T FIXED_ARRAY extends NEW_T CONTAINER, [INDEX, NEW_T] CONTAINER
+class NEW_T FIXED_ARRAY extends NEW_T INDEXED_CONTAINER
     from(CONST_SIZE size);
     from(NEW_T ITERATOR);
     from([INDEX, NEW_T] ITERATOR);
@@ -21,9 +21,6 @@ class NEW_T FIXED_ARRAY extends NEW_T CONTAINER, [INDEX, NEW_T] CONTAINER
     # get the size of the array.
     get SIZE;
 ```
-
-We will probably change inheritance from `[INDEX, NEW_T] CONTAINER`
-to `MAP Key(INDEX) Value(NEW_T)` since that is also appropriate.
 
 Internally, the `FIXED_ARRAY` uses a lazily default-initialized array;
 only elements that are requested (at a given index) will be initialized.

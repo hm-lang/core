@@ -8,7 +8,7 @@ can iterate over the indices as well as the individual elements.
 The proposed API is this:
 
 ```
-class NEW_T ARRAY extends NEW_T CONTAINER, [INDEX, NEW_T] CONTAINER
+class NEW_T ARRAY extends NEW_T INDEXED_CONTAINER
     from(NEW_T ITERATOR);
     from([INDEX, NEW_T] ITERATOR);
 
@@ -36,8 +36,8 @@ class NEW_T ARRAY extends NEW_T CONTAINER, [INDEX, NEW_T] CONTAINER
     MD erase(INDEX, SIZE count) = splice(At(index), Delete(count))
 ```
 
-We will probably change inheritance from `[INDEX, NEW_T] CONTAINER`
-to `MAP Key(INDEX) Value(NEW_T)` since that is also appropriate.
+The parent class, `NEW_T INDEXED_CONTAINER`, is a combination class which
+inherits from `NEW_T CONTAINER` and `MAP Key(INDEX) Value(NEW_T)`.
 
 Internally, `ARRAY` uses a lazily default-initialized array;
 only elements that are requested (at a given index) will be initialized.
@@ -45,6 +45,3 @@ This guarantees that an element at a given index will only be initialized
 once, before being called with `GS.get()`.  If `GS.set(...)` is called
 before `GS.get()`, then the default-initialization will be skipped, and
 only the `set` initialization will be performed.
-
-We may also want essentially this API above as an `INDEXED_CONTAINER`
-class, which `ARRAY`, `FIXED_ARRAY`, as well as `DEQUE` inherit from.
