@@ -74,7 +74,8 @@ Functions are by default `CONST`, i.e. they cannot be changed.
     # ERROR!  functions are constant/non-mutable by default.
 ```
 
-If you want to define a function which can change, use the `VAR` keyword:
+If you want to define a function which can change, use the 
+[`VAR`](./var_vs_const.md) keyword:
 
 ```
     VAR_FN hello()
