@@ -3,6 +3,14 @@ import sys
 from statement import *
 
 def testStatementBuilder():
+    def test(fn):
+        try:
+            fn()
+            return 0
+        except Exception as e:
+            print('error in test %s: "%s"'%(fn.__name__, e), file=sys.stderr)
+            return 1
+
     errors = 0
 
     def setsIndentCorrectly():
@@ -34,6 +42,8 @@ def testStatementBuilder():
         statementBuilder.addLine('                        DBL x = 1.0')
         assert statementBuilder.indent == 24
 
+    errors += test(setsIndentCorrectly)
+
     def expectError(error, fn):
         try:
             statementBuilder = StatementBuilder()
@@ -42,6 +52,19 @@ def testStatementBuilder():
         except StatementError as e:
             se = str(e)
             assert se == error , 'expected error: "%s", got "%s"'%(error, se)
+
+    def complainsAboutLongLines():
+        def expectLongLineError(fn):
+            expectError('please refactor to avoid lines longer than 137 chars', fn)
+
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('x'*137) # should be ok
+
+        expectLongLineError(lambda sb: sb.addLine('y'*138))
+        expectLongLineError(lambda sb: sb.addLine('z'*139))
+        expectLongLineError(lambda sb: sb.addLine('w'*300))
+
+    errors += test(complainsAboutLongLines)
 
     def complainsAboutNonFourSpaceIndents():
         def expectIndentError(fn):
@@ -52,12 +75,16 @@ def testStatementBuilder():
         expectIndentError(lambda sb: sb.addLine('   z = 3'))
         expectIndentError(lambda sb: sb.addLine('     INT w = 3'))
 
+    errors += test(complainsAboutNonFourSpaceIndents)
+
     def complainsAboutHugeIndents():
         def expectIndentError(fn):
             expectError('please refactor to avoid indents more than 24 spaces', fn)
 
         expectIndentError(lambda sb: sb.addLine('                            x = 3'))
         expectIndentError(lambda sb: sb.addLine('                                y = 3'))
+
+    errors += test(complainsAboutHugeIndents)
 
     def addsTrailingNewlineIfNotPresent():
         statementBuilder = StatementBuilder()
@@ -67,6 +94,8 @@ def testStatementBuilder():
         statementBuilder = StatementBuilder()
         statementBuilder.addLine('        y = 7\n')
         assert statementBuilder.lines == ['        y = 7\n']
+
+    errors += test(addsTrailingNewlineIfNotPresent)
 
     def stripsEndOfLineCommentsAndAddsNewlineCharacter():
         statementBuilder = StatementBuilder()
@@ -85,6 +114,8 @@ def testStatementBuilder():
         statementBuilder.addLine('        z = 100  # asdf # asdf2 # \n')
         # it's important that a newline is added back:
         assert statementBuilder.lines == ['        z = 100  \n']
+
+    errors += test(stripsEndOfLineCommentsAndAddsNewlineCharacter)
 
     def stripsMidlineComments():
         statementBuilder = StatementBuilder()
@@ -108,40 +139,97 @@ def testStatementBuilder():
         statementBuilder.addLine('INT z = 1 #/ xyz /# + 53 # ignore here #/ asdf /# ')
         assert statementBuilder.lines == ['INT z = 1  + 53 \n']
 
+    errors += test(stripsMidlineComments)
+
     def complainsAboutBadMidlineComments():
         def expectMidlineCommentError(fn):
             expectError('midline comments #/ ... /# must end on the same line', fn)
 
         expectMidlineCommentError(lambda sb: sb.addLine('x #/   asdf asdf #\n'))
         expectMidlineCommentError(lambda sb: sb.addLine('    y = 2 #/  /# + 5 #/ '))
+
+    errors += test(complainsAboutBadMidlineComments)
    
     def complainsAboutTabIndents():
         def expectTabError(fn):
             expectError('no lines can begin with tabs: `\t`', fn)
 
         expectTabError(lambda sb: sb.addLine('\tx = 3'))
-        expectTabError(lambda sb: sb.addLine('\t\ty = 4'))
+        expectTabError(lambda sb: sb.addLine('	\ty = 4'))
         expectTabError(lambda sb: sb.addLine('\t\t\tz = 5'))
-        expectTabError(lambda sb: sb.addLine('    \t\t\tw = 6'))
+        expectTabError(lambda sb: sb.addLine('    	\t\tw = 6'))
         expectTabError(lambda sb: sb.addLine('        \tINT p = 9'))
-    
-    def test(fn):
-        try:
-            fn()
-            return 0
-        except Exception as e:
-            print('error in test %s: "%s"'%(fn.__name__, e), file=sys.stderr)
-            return 1
-    
-    errors += test(setsIndentCorrectly)
-    errors += test(complainsAboutNonFourSpaceIndents)
-    errors += test(complainsAboutHugeIndents)
-    errors += test(addsTrailingNewlineIfNotPresent)
-    errors += test(stripsEndOfLineCommentsAndAddsNewlineCharacter)
-    errors += test(stripsMidlineComments)
-    errors += test(complainsAboutBadMidlineComments)
+
     errors += test(complainsAboutTabIndents)
-    # TODO: add multiline comment tests
+   
+    def understandsMultilineComments():
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('===')
+        assert statementBuilder.inMultilineComment
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('===')
+        assert not statementBuilder.inMultilineComment
+        assert statementBuilder.isComplete()
+        assert statementBuilder.lines == []
+
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('    === ignores this')
+        assert statementBuilder.inMultilineComment
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('    ignores this, too')
+        assert statementBuilder.inMultilineComment
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('    === ignores this three')
+        assert not statementBuilder.inMultilineComment
+        assert statementBuilder.isComplete()
+        assert statementBuilder.lines == []
+
+        # nested multiline comment fragments ok!
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('    ===')
+        assert statementBuilder.inMultilineComment
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('     === bad indent ignored')
+        assert statementBuilder.inMultilineComment
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('     ===')
+        assert statementBuilder.inMultilineComment
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('        ===')
+        assert statementBuilder.inMultilineComment
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('    ===')
+        assert not statementBuilder.inMultilineComment
+        assert statementBuilder.isComplete()
+        assert statementBuilder.lines == []
+
+    errors += test(understandsMultilineComments)
+
+    def complainsAboutUnindentedLinesInMultilineComments():
+        def expectMultilineError(fn):
+            expectError('multiline comment `===` should be indented ' + 
+                'greater-equal to the starting line', fn)
+       
+        def unindentMultilineComment1(sb):
+            sb.addLine('    ===')
+            sb.addLine('    hello!') 
+            sb.addLine('this is bad!') 
+            sb.addLine('    not a problem') 
+            sb.addLine('    ===')
+        expectMultilineError(unindentMultilineComment1)
+
+        def unindentMultilineComment2(sb):
+            sb.addLine('        ===')
+            sb.addLine('    ===')
+        expectMultilineError(unindentMultilineComment2)
+
+        def unindentMultilineComment3(sb):
+            sb.addLine('        ===')
+            sb.addLine('hey')
+            sb.addLine('===')
+        expectMultilineError(unindentMultilineComment3)
+    
+    errors += test(complainsAboutUnindentedLinesInMultilineComments)
 
     return errors
 

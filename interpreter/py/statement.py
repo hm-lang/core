@@ -9,6 +9,10 @@ class StatementBuilder(object):
         self.seenSomething = False
 
     def addLine(self, line):
+        # TODO: possibly make an exception for backtick quotes:
+        if len(line) > 137:
+            raise StatementError('please refactor to avoid lines longer than 137 chars')
+
         # TODO: add Windows support \r\n.  probably use sys for that.
         if line[-1] != '\n':
             line = line + '\n'
