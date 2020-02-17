@@ -231,6 +231,134 @@ def testStatementBuilder():
     
     errors += test(complainsAboutUnindentedLinesInMultilineComments)
 
+    def isOkWithCorrectlyMatchedParenthesesOnSingleLine():
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('x = (5 + 5^(3 * 4 / (6 - 1)))')
+        assert statementBuilder.isComplete()
+
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('x = [5 + 5^[3 * 4] / [6 - 1]]')
+        assert statementBuilder.isComplete()
+
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('    x = {5 + {5^{3 * 4 / 6} - 1}}')
+        assert statementBuilder.isComplete()
+
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('        x = {5 + [5^(3 * {4} / [6 + 2]) - 1]}')
+        assert statementBuilder.isComplete()
+
+    errors += test(isOkWithCorrectlyMatchedParenthesesOnSingleLine)
+
+    def isOkWithCorrectlyMatchedParenthesesOnMultipleLines():
+        # test open parens are last on the line, closed parens are last on the line
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('x = 5 + (')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('    3 * {')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('        100 / [')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('            10 + 2 / ')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('            3')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('        ]')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('    }')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine(')')
+        assert statementBuilder.isComplete()
+
+        # test adding things after the parens
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('x = [5 + ')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('    {1 - ')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('        [ 10 + 3')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('            - 1 + 4 # comment1')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('            - 5 + 1 # comment2')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('        ] ^ 399')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('    }/100')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('] - 5')
+        assert statementBuilder.isComplete()
+
+        # test adding things before and after the parens
+        statementBuilder = StatementBuilder()
+        statementBuilder.addLine('x = {5 + ')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('    3 * {1 - ')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('        100 / [ 10 + 3')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('            *100 # comment')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('# oops, bad indent comment, but ok')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('            +101 # comment2')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('        -1 ] ^ 399')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('    +5}/100')
+        assert not statementBuilder.isComplete()
+        statementBuilder.addLine('><2} - 5')
+        assert statementBuilder.isComplete()
+
+    errors += test(isOkWithCorrectlyMatchedParenthesesOnMultipleLines)
+
+    def complainsAboutMismatchedParentheses():
+        def expectMismatchError(fn, openParen, closeParen):
+            expectError('mismatched parentheses: %s -> %s'%(openParen, closeParen), fn)
+
+        expectMismatchError(lambda sb: sb.addLine('x = 3 + (4 / 5]'), '(', ']')
+        expectMismatchError(lambda sb: sb.addLine('x = (4 / 5 - 1}'), '(', '}')
+        expectMismatchError(lambda sb: sb.addLine('x = {1/[500)+1}'), '[', ')')
+        expectMismatchError(lambda sb: sb.addLine('x = [1/500 - 1}'), '[', '}')
+        expectMismatchError(lambda sb: sb.addLine('x = {1/5 + 100]'), '{', ']')
+        expectMismatchError(lambda sb: sb.addLine('x = {1000/5)+12'), '{', ')')
+
+        def mismatchParenthesesOnMultipleLines(sb):
+            sb.addLine('x = {')
+            sb.addLine('    5 + (')
+            sb.addLine('        100')
+            sb.addLine('    }')
+            sb.addLine(')')
+
+        expectMismatchError(mismatchParenthesesOnMultipleLines, '(', '}')
+
+    errors += test(complainsAboutMismatchedParentheses)
+
+    def complainsAboutMismatchedParentheticalIndents():
+        def expectMismatchError(fn, openParen, closeParen):
+            expectError('indent of opening %s must match indent of closing %s'%(
+                    openParen, closeParen), fn)
+
+        def mismatchIndentsIncreasing(sb):
+            sb.addLine('x = {')
+            sb.addLine('    5 + (')
+            sb.addLine('        100')
+            sb.addLine('        )')
+            sb.addLine('}')
+
+        expectMismatchError(mismatchIndentsIncreasing, '(', ')')
+
+        def mismatchIndentsDecreasing(sb):
+            sb.addLine('x = {')
+            sb.addLine('    5 + (')
+            sb.addLine('        100 * [100 / 3')
+            sb.addLine('    ])')
+            sb.addLine('}')
+
+        expectMismatchError(mismatchIndentsDecreasing, '[', ']')
+
+    errors += test(complainsAboutMismatchedParentheticalIndents)
+
     return errors
 
 def runTests():
