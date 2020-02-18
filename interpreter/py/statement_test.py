@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
-import sys
 from statement import *
 from parenthetical import *
+from test import test, testSuite
 
 def testStatementBuilder():
-    def test(fn):
-        try:
-            fn()
-            return 0
-        except Exception as e:
-            print('error in test %s: "%s"'%(fn.__name__, e), file=sys.stderr)
-            return 1
-
     errors = 0
 
     def setsIndentCorrectly():
@@ -49,10 +41,11 @@ def testStatementBuilder():
         try:
             statementBuilder = StatementBuilder()
             fn(statementBuilder)
-            raise Exception("expected error: %s"%error)
         except Exception as e:
             se = str(e)
             assert se == error , 'expected error: "%s", got "%s"'%(error, se)
+            return
+        raise Exception("expected error: %s"%error)
 
     def complainsAboutLongLines():
         def expectLongLineError(fn):
@@ -377,10 +370,4 @@ def runTests():
     return testStatementBuilder() 
 
 if __name__ == '__main__':
-    errors = runTests()
-    if errors:
-        print('ran tests, got %d error(s)'%errors, file=sys.stderr)
-        sys.exit(1)
-    else:
-        print('ran tests, no errors!')
-
+    testSuite(runTests)

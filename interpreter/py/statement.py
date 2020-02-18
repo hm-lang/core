@@ -61,9 +61,8 @@ class StatementBuilder(object):
         self.addNormalLine(line, indent)
 
     def addNormalLine(self, line, indent):
-        nextIndex = self.parenthetical.consume(line, indent, indent)
-        if nextIndex >= 0:
-            raise StatementError('line finished an un-opened parenthesis: "%s"'%line[nextIndex])
+        nextIndex = self.parenthetical.consume(line, indent)
+        assert nextIndex < 0, 'root ParentheticalBuilder should consume everything'
         self.lines.append(line)
 
     def isComplete(self):
@@ -83,6 +82,7 @@ def getFirstNonSpaceCharacterIndex(line):
     return i
 
 def stripSingleLineComments(line, start):
+    # TODO: need to avoid commenting from # inside of strings.
     commentIndex = line.find('#', start)
     if commentIndex < 0:
         return line

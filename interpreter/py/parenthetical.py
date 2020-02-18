@@ -7,7 +7,7 @@ but Statements must parse for parentheses (to know if they are finished),
 so we break a Statement down into a sequence of parentheticals.
 '''
 class ParentheticalBuilder(object):
-    def __init__(self, indent, openParen = None):
+    def __init__(self, indent = 0, openParen = None):
         self.indent = indent
         self.openParen = openParen
 
@@ -15,16 +15,23 @@ class ParentheticalBuilder(object):
         self.internalParts = []
         self.nextParenBuilder = None
         # if there is no openParen, then the Parenthetical can be considered complete at any time.
-        self.completed = True if openParen is None else False
+        self.completed_ = True if openParen is None else False
 
     '''
-    eats part of the line to add to the parenthetical.  returns -1 if not yet finished. 
+    eats part of the line to add to the parenthetical.  returns -1 if the full line was consumed.
     otherwise returns the index after the close parenthesis that completes this parenthetical.
     TODO: should make line+indent its own class.
+    TODO: maybe even have a LineView class which includes the start index information.
     '''
-    def consume(self, line, indent, start):
+    def consume(self, line, indent):
+        assert indent >= self.indent, 'bad use of ParentheticalBuilder, it should have been descoped'
+        return self.consumeInternal_(line, indent, indent)
+
+    def consumeInternal_(self, line, indent, start):
+        assert self.openParen is None or self.isComplete() == False
+
         if self.nextParenBuilder:
-            start = self.nextParenBuilder.consume(line, indent, start)
+            start = self.nextParenBuilder.consumeInternal_(line, indent, start)
             if start < 0:
                 return -1
             # we finished a pair of internal parens:
@@ -43,7 +50,7 @@ class ParentheticalBuilder(object):
         if parenType < 3: # open paren:
             self.internalParts.append(line[start:parenIndex])
             self.nextParenBuilder = ParentheticalBuilder(indent, paren)
-            return self.consume(line, indent, parenIndex+1)
+            return self.consumeInternal_(line, indent, parenIndex+1)
 
         # close paren
         if self.openParen is None:
@@ -55,11 +62,11 @@ class ParentheticalBuilder(object):
                     self.openParen, paren))
 
         self.internalParts.append(line[start:parenIndex])
-        self.completed = True
+        self.completed_ = True
         return parenIndex + 1
 
     def isComplete(self):
-        return self.nextParenBuilder is None and self.completed == True
+        return self.nextParenBuilder is None and self.completed_ == True
 
 import re
 allParens = ['(', '[', '{', ')', ']', '}']
