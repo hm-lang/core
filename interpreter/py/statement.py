@@ -1,14 +1,15 @@
+from parenthetical import ParentheticalBuilder
+
 class StatementError(Exception):
     pass
 
 class StatementBuilder(object):
     def __init__(self):
         self.indent = 0
-        self.lines = []
+        self.parenthetical = None
         self.inMultilineComment = False
         # TODO: add backtick quote multiline
-        self.seenSomething = False
-        self.parenWithIndentStack = []
+        self.lines = []
 
     def addLine(self, line):
         # TODO: possibly make an exception for backtick quotes:
@@ -20,13 +21,13 @@ class StatementBuilder(object):
             line = line + '\n'
 
         indent = getFirstNonSpaceCharacterIndex(line)
-        if not self.seenSomething:
+        if self.parenthetical is None:
             if indent % 4 != 0:
                 raise StatementError('lines must indent four spaces')
             if indent > 24:
                 raise StatementError('please refactor to avoid indents more than 24 spaces')
             self.indent = indent
-            self.seenSomething = True
+            self.parenthetical = ParentheticalBuilder(indent)
 
         if self.inMultilineComment:
             self.handleMultilineCommentLine(line, indent)
@@ -60,31 +61,17 @@ class StatementBuilder(object):
         self.addNormalLine(line, indent)
 
     def addNormalLine(self, line, indent):
-        start = indent
-        while start < len(line):
-            parenIndex = getNextParenIndex(line, start)
-            if parenIndex < 0:
-                break
-            self.handleParen(line[parenIndex], indent)
-            start = parenIndex + 1
+        nextIndex = self.parenthetical.consume(line, indent, indent)
+        if nextIndex >= 0:
+            raise StatementError('line finished an un-opened parenthesis: "%s"'%line[nextIndex])
         self.lines.append(line)
 
-    def handleParen(self, paren, indent):
-        parens = ['(', '[', '{', ')', ']', '}']
-        parenType = parens.index(paren)
-        if parenType < 3: # open paren
-            self.parenWithIndentStack.append((parenType, indent))
-        else: # closed paren
-            lastOpenParenType, lastOpenParenIndent = self.parenWithIndentStack.pop()
-            if lastOpenParenType + 3 != parenType:
-                raise StatementError('mismatched parentheses: %s -> %s'%(
-                    parens[lastOpenParenType], parens[parenType]))
-            if indent != lastOpenParenIndent:
-                raise StatementError('indent of opening %s must match indent of closing %s'%(
-                    parens[lastOpenParenType], parens[parenType]))
-
     def isComplete(self):
-        return not self.inMultilineComment and len(self.parenWithIndentStack) == 0
+        return not self.inMultilineComment and self.parenthetical.isComplete()
+
+    def build(self):
+        if not self.isComplete():
+            raise StatementError('cannot build if not complete!')
 
 """ Returns the first non-space character index for the line """
 def getFirstNonSpaceCharacterIndex(line):
@@ -105,11 +92,3 @@ def stripSingleLineComments(line, start):
     if endMidlineCommentIndex < 0:
         raise StatementError('midline comments #/ ... /# must end on the same line')
     return line[:commentIndex] + stripSingleLineComments(line[endMidlineCommentIndex+2:], 0)
-
-import re
-parenRe = re.compile('[\\(\\)\\[\\]{}]')
-def getNextParenIndex(line, start):
-    match = parenRe.search(line, start)
-    if match is None:
-        return -1
-    return match.start()

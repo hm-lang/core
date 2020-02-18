@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 from statement import *
+from parenthetical import *
 
 def testStatementBuilder():
     def test(fn):
@@ -49,7 +50,7 @@ def testStatementBuilder():
             statementBuilder = StatementBuilder()
             fn(statementBuilder)
             raise Exception("expected error: %s"%error)
-        except StatementError as e:
+        except Exception as e:
             se = str(e)
             assert se == error , 'expected error: "%s", got "%s"'%(error, se)
 
@@ -311,6 +312,17 @@ def testStatementBuilder():
         assert statementBuilder.isComplete()
 
     errors += test(isOkWithCorrectlyMatchedParenthesesOnMultipleLines)
+
+    def complainsAboutSeeingClosedParenthesisFirst():
+        def expectAngry(fn, closeParen):
+            expectError('cannot close parentheses with %s, no open parenthesis.'%closeParen,
+                    fn)
+
+        expectAngry(lambda sb: sb.addLine('x = ] * 30000'), ']')
+        expectAngry(lambda sb: sb.addLine('    ) / 50000'), ')')
+        expectAngry(lambda sb: sb.addLine('        y +1}'), '}')
+
+    errors += test(complainsAboutSeeingClosedParenthesisFirst)
 
     def complainsAboutMismatchedParentheses():
         def expectMismatchError(fn, openParen, closeParen):
