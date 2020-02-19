@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from statement import *
-from parenthetical import *
 from test import test, testSuite
 
 def testStatementBuilder():
@@ -159,41 +158,41 @@ def testStatementBuilder():
     def understandsMultilineComments():
         statementBuilder = StatementBuilder()
         statementBuilder.addLine('===')
-        assert statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType == '#'
         assert not statementBuilder.isComplete()
         statementBuilder.addLine('===')
-        assert not statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType is None
         assert statementBuilder.isComplete()
         assert statementBuilder.lines == []
 
         statementBuilder = StatementBuilder()
         statementBuilder.addLine('    === ignores this')
-        assert statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType == '#'
         assert not statementBuilder.isComplete()
         statementBuilder.addLine('    ignores this, too')
-        assert statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType == '#'
         assert not statementBuilder.isComplete()
         statementBuilder.addLine('    === ignores this three')
-        assert not statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType is None
         assert statementBuilder.isComplete()
         assert statementBuilder.lines == []
 
         # nested multiline comment fragments ok!
         statementBuilder = StatementBuilder()
         statementBuilder.addLine('    ===')
-        assert statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType == '#'
         assert not statementBuilder.isComplete()
         statementBuilder.addLine('     === bad indent ignored')
-        assert statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType == '#'
         assert not statementBuilder.isComplete()
         statementBuilder.addLine('     ===')
-        assert statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType == '#'
         assert not statementBuilder.isComplete()
         statementBuilder.addLine('        ===')
-        assert statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType == '#'
         assert not statementBuilder.isComplete()
         statementBuilder.addLine('    ===')
-        assert not statementBuilder.inMultilineComment
+        assert statementBuilder.multilineType is None
         assert statementBuilder.isComplete()
         assert statementBuilder.lines == []
 

@@ -7,7 +7,8 @@ class StatementBuilder(object):
     def __init__(self):
         self.indent = 0
         self.parenthetical = None
-        self.inMultilineComment = False
+        # None for no multiline, '#' for multiline comment
+        self.multilineType = None
         # TODO: add backtick quote multiline
         self.lines = []
 
@@ -29,10 +30,11 @@ class StatementBuilder(object):
             self.indent = indent
             self.parenthetical = ParentheticalBuilder(indent)
 
-        if self.inMultilineComment:
-            self.handleMultilineCommentLine(line, indent)
-        else:
+        if self.multilineType is None:
             self.handleNormalLine(line, indent)
+        else:
+            assert self.multilineType == '#', 'invalid StatementBuilder state'
+            self.handleMultilineCommentLine(line, indent)
 
     def handleMultilineCommentLine(self, line, indent):
         if indent < self.indent:
@@ -43,11 +45,11 @@ class StatementBuilder(object):
                 # ignore nested multiline comments.
                 pass
             else:
-                self.inMultilineComment = False
+                self.multilineType = None
 
     def handleNormalLine(self, line, indent):
         if line.startswith('===', indent):
-            self.inMultilineComment = True
+            self.multilineType = '#'
             return
         line = stripSingleLineComments(line, indent)
         assert line[-1] == '\n', 'stripping comments invalidated the invariant'
@@ -66,7 +68,7 @@ class StatementBuilder(object):
         self.lines.append(line)
 
     def isComplete(self):
-        return not self.inMultilineComment and self.parenthetical.isComplete()
+        return self.multilineType is None and self.parenthetical.isComplete()
 
     def build(self):
         if not self.isComplete():
