@@ -17,6 +17,10 @@ def runTests():
     print('running parenthetical_test.py...')
     errors += parenthetical_test.runTests()
 
+    import quote_test
+    print('running quote_test.py...')
+    errors += quote_test.runTests()
+
     import statement_test
     print('running statement_test.py...')
     errors += statement_test.runTests()

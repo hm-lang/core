@@ -31,12 +31,12 @@ class StatementBuilder(object):
             self.parenthetical = ParentheticalBuilder(indent)
 
         if self.multilineType is None:
-            self.handleNormalLine(line, indent)
+            self.handleNormalLine_(line, indent)
         else:
             assert self.multilineType == '#', 'invalid StatementBuilder state'
-            self.handleMultilineCommentLine(line, indent)
+            self.handleMultilineCommentLine_(line, indent)
 
-    def handleMultilineCommentLine(self, line, indent):
+    def handleMultilineCommentLine_(self, line, indent):
         if indent < self.indent:
             raise StatementError('multiline comment `===` should be indented ' + 
                 'greater-equal to the starting line')
@@ -47,7 +47,7 @@ class StatementBuilder(object):
             else:
                 self.multilineType = None
 
-    def handleNormalLine(self, line, indent):
+    def handleNormalLine_(self, line, indent):
         if line.startswith('===', indent):
             self.multilineType = '#'
             return
@@ -60,9 +60,9 @@ class StatementBuilder(object):
             return
         if line[indent] == '\t':
             raise StatementError('no lines can begin with tabs: `\t`')
-        self.addNormalLine(line, indent)
+        self.addNormalLine_(line, indent)
 
-    def addNormalLine(self, line, indent):
+    def addNormalLine_(self, line, indent):
         nextIndex = self.parenthetical.consume(line, indent)
         assert nextIndex < 0, 'root ParentheticalBuilder should consume everything'
         self.lines.append(line)
@@ -85,6 +85,8 @@ def getFirstNonSpaceCharacterIndex(line):
 
 def stripSingleLineComments(line, start):
     # TODO: need to avoid commenting from # inside of strings.
+    # TODO: this needs to move into the parenthetical parser,
+    # since we can have comments inside of string interpolations
     commentIndex = line.find('#', start)
     if commentIndex < 0:
         return line

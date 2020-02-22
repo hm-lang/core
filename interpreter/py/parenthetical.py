@@ -13,7 +13,7 @@ class ParentheticalBuilder(object):
 
         # internalParts is a list of strings and/or sub-parentheticals.
         self.internalParts = []
-        self.nextParenBuilder = None
+        self.nextBuilder = None
         # if there is no openParen, then the Parenthetical can be considered complete at any time.
         self.completed_ = True if openParen is None else False
 
@@ -23,39 +23,59 @@ class ParentheticalBuilder(object):
     TODO: should make line+indent its own class.
     TODO: maybe even have a LineView class which includes the start index information.
     '''
-    def consume(self, line, indent):
+    def consume(self, line, indent, start = None):
         assert indent >= self.indent, 'bad use of ParentheticalBuilder, it should have been descoped'
-        return self.consumeInternal_(line, indent, indent)
+        assert line[-1] == '\n', 'line should end with newline character'
+        if start is None:
+            start = indent
+        return self.consumeInternal_(line, indent, start)
 
     def consumeInternal_(self, line, indent, start):
         assert self.openParen is None or self.isComplete() == False
 
-        if self.nextParenBuilder:
-            start = self.nextParenBuilder.consumeInternal_(line, indent, start)
+        if self.nextBuilder:
+            start = self.nextBuilder.consumeInternal_(line, indent, start)
             if start < 0:
                 return -1
             # we finished a pair of internal parens:
-            self.internalParts.append(self.nextParenBuilder)
-            self.nextParenBuilder = None
+            self.internalParts.append(self.nextBuilder.build())
+            self.nextBuilder = None
             # make sure to continue parsing on from here.
 
-        parenIndex = getNextParenIndex(line, start)
-        if parenIndex < 0:
+        specialIndex = getNextSpecialIndex(line, start)
+        if specialIndex < 0:
             self.internalParts.append(line[start:])
             return -1
 
-        paren = line[parenIndex]
-        parenType = allParens.index(paren)
+        special = line[specialIndex]
+        specialType = specialTypes.index(special)
+
+        if specialType < 6:
+            return self.consumeParen_(line, indent, start, specialIndex, special, specialType)
+      
+        from quote import QuoteBuilder
+        self.nextBuilder = QuoteBuilder()
+        return self.consumeInternal_(line, indent, specialIndex + 1)
+
+    def build(self):
+        # TODO
+        return self
+
+    def isComplete(self):
+        return self.nextBuilder is None and self.completed_ == True
+
+    def consumeParen_(self, line, indent, start, parenIndex, paren, parenType):
+        assert line[parenIndex] == paren, 'invalid state in ParentheticalBuilder!'
 
         if parenType < 3: # open paren:
             self.internalParts.append(line[start:parenIndex])
-            self.nextParenBuilder = ParentheticalBuilder(indent, paren)
+            self.nextBuilder = ParentheticalBuilder(indent, paren)
             return self.consumeInternal_(line, indent, parenIndex+1)
 
         # close paren
         if self.openParen is None:
             raise ParentheticalError('cannot close parentheses with %s, no open parenthesis.'%paren)
-        if allParens.index(self.openParen) != parenType - 3:
+        if specialTypes.index(self.openParen) != parenType - 3:
             raise ParentheticalError('mismatched parentheses: %s -> %s'%(self.openParen, paren))
         if indent != self.indent:
             raise ParentheticalError('indent of opening %s must match indent of closing %s'%(
@@ -65,14 +85,12 @@ class ParentheticalBuilder(object):
         self.completed_ = True
         return parenIndex + 1
 
-    def isComplete(self):
-        return self.nextParenBuilder is None and self.completed_ == True
-
 import re
-allParens = ['(', '[', '{', ')', ']', '}']
-parenRe = re.compile('[\\(\\)\\[\\]{}]')
-def getNextParenIndex(line, start):
-    match = parenRe.search(line, start)
+specialTypes = ['(', '[', '{', ')', ']', '}', '"']
+specialTypesRe = re.compile('[\\(\\)\\[\\]{}"]')
+def getNextSpecialIndex(line, start):
+    match = specialTypesRe.search(line, start)
     if match is None:
         return -1
     return match.start()
+
