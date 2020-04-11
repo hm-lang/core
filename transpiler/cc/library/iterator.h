@@ -1,20 +1,30 @@
 #ifndef LIBRARY__ITERATOR_H
 #define LIBRARY__ITERATOR_H
 
-#include <functional>
-#include <memory>
+#include "error.h"
 
-template<class T>
+#include <memory>
+#include <type_traits>
+#include <utility>
+
+template<class F>
 class Iterator {
 public:
-    // TODO: switch to using a class with a `T operator()` function instead of a std::function
-    Iterator<T>(std::function<std::unique_ptr<T>()> next_i) : next_internal(next_i) {
+    /**
+     * P is the return-type of a f() (where f is an instance of F),
+     * should be std::unique_ptr<T> of some internal type T.
+     */
+    typedef decltype(std::declval<F>()()) P;
+    typedef typename std::remove_pointer<decltype(std::declval<P>().get())>::type T;
+
+
+    Iterator(F next_i) : next_internal(next_i) {
         current = next_internal();
     }
 
-    std::unique_ptr<T> next() {
-        if (current.get() == nullptr) return nullptr;
-        std::unique_ptr<T> return_value = std::move(current);
+    P next() {
+        if (current.get() == nullptr) return P(nullptr);
+        P return_value = std::move(current);
         current = next_internal();
         return return_value;
     }
@@ -24,26 +34,83 @@ public:
     }
 
 private:
-    std::unique_ptr<T> current;
-    std::function<std::unique_ptr<T>()> next_internal;
+    P current;
+    F next_internal;
 };
 
 #ifndef NDEBUG
 #include "error.h"
+
+#include <functional>
+
+class Range {
+    int i = 0;
+    const int end;
+public:
+    Range(int _end) : end(_end) {
+    }
+
+    std::unique_ptr<int> operator() () {
+        if (i >= end) return std::unique_ptr<int>(nullptr);
+        return std::unique_ptr<int>(new int(i++));
+    }
+};
+
 void test_library__iterator() {
-    TEST(
-        int i = 0;
-        Iterator<double> iterator([&]() {
-            if (i < 5) return std::unique_ptr<double>(new double(2.0*i++));
+    {
+        int index = 0;
+        Iterator<std::function<std::unique_ptr<double>()>> iterator([&]() {
+            ERR("index = " << index);
+            if (index < 5) return std::unique_ptr<double>(new double(2.0*index++));
             return std::unique_ptr<double>(nullptr);
         });
 
-        EXPECT_EQUAL(*iterator.next().get(), 0.0);
-        EXPECT_EQUAL(*iterator.next().get(), 2.0);
-        EXPECT_EQUAL(*iterator.next().get(), 4.0);
-        EXPECT_EQUAL(*iterator.peak(), 6.0);
-        EXPECT_EQUAL(*iterator.next().get(), 6.0);
-        EXPECT_EQUAL(*iterator.next().get(), 8.0);
+        TEST(
+            std::unique_ptr<double> next = iterator.next();
+            EXPECT_POINTER_EQUAL(next.get(), 0.0);
+            next = iterator.next();
+            EXPECT_POINTER_EQUAL(next.get(), 2.0);
+            next = iterator.next();
+            EXPECT_POINTER_EQUAL(next.get(), 4.0);
+            next = iterator.next();
+            EXPECT_POINTER_EQUAL(next.get(), 6.0);
+            next = iterator.next();
+            EXPECT_POINTER_EQUAL(next.get(), 8.0);
+            next = iterator.next();
+            EXPECT_EQUAL(next.get(), nullptr);
+            EXPECT_EQUAL(iterator.peak(), nullptr);
+        );
+    }
+
+    TEST(
+        Range range(3);
+        Iterator iterator(range);
+
+        EXPECT_POINTER_EQUAL(iterator.peak(), 0);
+        EXPECT_POINTER_EQUAL(iterator.peak(), 0);
+        EXPECT_POINTER_EQUAL(iterator.peak(), 0);
+        EXPECT_POINTER_EQUAL(iterator.peak(), 0);
+
+        std::unique_ptr<int> next = iterator.next();
+        EXPECT_POINTER_EQUAL(next.get(), 0);
+
+        EXPECT_POINTER_EQUAL(iterator.peak(), 1);
+        EXPECT_POINTER_EQUAL(iterator.peak(), 1);
+        EXPECT_POINTER_EQUAL(iterator.peak(), 1);
+
+        next = iterator.next();
+        EXPECT_POINTER_EQUAL(next.get(), 1);
+
+        EXPECT_POINTER_EQUAL(iterator.peak(), 2);
+        EXPECT_POINTER_EQUAL(iterator.peak(), 2);
+        EXPECT_POINTER_EQUAL(iterator.peak(), 2);
+
+        next = iterator.next();
+        EXPECT_POINTER_EQUAL(next.get(), 2);
+
+        EXPECT_EQUAL(iterator.peak(), nullptr);
+        EXPECT_EQUAL(iterator.next().get(), nullptr);
+        EXPECT_EQUAL(iterator.peak(), nullptr);
         EXPECT_EQUAL(iterator.next().get(), nullptr);
         EXPECT_EQUAL(iterator.peak(), nullptr);
     );

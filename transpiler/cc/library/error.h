@@ -1,12 +1,14 @@
 #ifndef LIBRARY__ERROR_H
 #define LIBRARY__ERROR_H
 
+#include <cmath>
 #include <exception>
 #include <iostream>
 #include <streambuf>
 #include <string>
 #include <string.h>
 #include <sstream>
+#include <type_traits>
 
 class Error : public std::exception {
 public:
@@ -39,6 +41,14 @@ private:
     std::streambuf *const old_out;
 };
 
+template <class T, class U>
+bool check_equal(const T &x, const U &y) {
+    if constexpr (std::is_floating_point<T>::value || std::is_floating_point<U>::value) {
+        return std::abs(x - y) < 1e-7;
+    }
+    return x == y;
+}
+
 #define STRINGIFY(x) #x
 #define TO_STRING(x) STRINGIFY(x)
 #define AT __FILE__ ":" TO_STRING(__LINE__)
@@ -64,10 +74,25 @@ private:
         Capturer test_cout(std::cout); \
         TRY(x); \
     }
-#define EXPECT_EQUAL(a, b) if ((a) != (b)) { \
-        ERR(#a " = " << (a) << " != " #b " = " << (b)); \
+#define EXPECT_EQUAL(a, b) { \
+    auto av = (a); \
+    auto bv = (b); \
+    if (!check_equal(av, bv)) { \
+        ERR(#a " = " << av << " != " #b " = " << bv); \
         throw Error("expected " #a " to equal " #b, AT); \
-    }
+    } \
+}
+#define EXPECT_POINTER_EQUAL(a, b) { \
+    auto p = (a); \
+    auto bv = (b); \
+    if (p == nullptr) { \
+        ERR(#a " is a nullptr, can't hold value " #b " = " << bv); \
+        throw Error("expected pointer at " #a " to hold value " #b ", was nullptr", AT); \
+    } else if (!check_equal(*p, bv)) { \
+        ERR(#a " = " << *p << " != " #b " = " << bv); \
+        throw Error("expected pointer at " #a " to hold value " #b, AT); \
+    } \
+}
 #define EXPECT_THROW(exp, err) try { \
         exp; \
         throw Error("expected " #exp " to throw " #err, AT); \
