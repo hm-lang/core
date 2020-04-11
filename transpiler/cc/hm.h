@@ -6,6 +6,8 @@ namespace fs = std::filesystem;
 #include <string>
 #include <vector>
 
+namespace hm {
+
 class Hm {
 public:
     Hm(std::vector<fs::directory_entry> f, bool s);
@@ -18,5 +20,7 @@ private:
     std::vector<fs::directory_entry> files;
     const bool selected_files_only;
 };
+
+}
 
 #endif

@@ -8,7 +8,7 @@ namespace fs = std::filesystem;
 
 int main(int n_arguments, const char **arguments) {
     #ifndef NDEBUG
-    run_tests();
+    hm::run_tests();
     #endif
     std::vector<fs::directory_entry> files;
     bool selected_only = n_arguments > 1;
@@ -26,7 +26,7 @@ int main(int n_arguments, const char **arguments) {
             files.emplace_back(arguments[i]);
         }
     }
-    Hm hm(std::move(files), selected_only);
-    hm.convertAll();
+    hm::Hm master(std::move(files), selected_only);
+    master.convertAll();
     return 0;
 }

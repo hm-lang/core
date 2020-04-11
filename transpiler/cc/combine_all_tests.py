@@ -19,6 +19,7 @@ with open('test.h', 'w') as writable:
             continue
         writable.write('#include "%s"\n'%f)
 
+    writable.write('namespace hm {\n')
     # declare all test functions, though they should be defined somewhere.
     writable.write('#ifndef NDEBUG\n')
     for f in files:
@@ -40,5 +41,5 @@ with open('test.h', 'w') as writable:
     writable.write('}\n')
 
     writable.write('#endif\n') # end #ifndef NDEBUG
-    
+    writable.write('}\n') # end namespace hm
     writable.write('#endif\n') # end #ifndef TEST_H

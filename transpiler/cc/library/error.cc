@@ -1,5 +1,7 @@
 #include "error.h"
 
+namespace hm {
+
 #ifndef NDEBUG
 void test_library__error() {
     TEST(EXPECT_THROW(EXPECT_EQUAL(5, 100), "expected 5 to equal 100"));
@@ -75,3 +77,5 @@ void test_library__error() {
     );
 }
 #endif
+
+}

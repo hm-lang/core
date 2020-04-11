@@ -2,6 +2,8 @@
 
 #include "library/error.h"
 
+namespace hm {
+
 Hm::Hm(std::vector<fs::directory_entry> f, bool s) : files(f), selected_files_only(s) {
 }
 
@@ -20,3 +22,5 @@ void test_hm() {
 
 }
 #endif
+
+}

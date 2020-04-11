@@ -3,9 +3,12 @@
 
 #include "error.h"
 
+#include <functional>
 #include <memory>
 #include <type_traits>
 #include <utility>
+
+namespace hm {
 
 template<class F>
 class Iterator {
@@ -39,10 +42,6 @@ private:
 };
 
 #ifndef NDEBUG
-#include "error.h"
-
-#include <functional>
-
 class Range {
     int i = 0;
     const int end;
@@ -116,5 +115,5 @@ void test_library__iterator() {
     );
 }
 #endif
-
+}
 #endif

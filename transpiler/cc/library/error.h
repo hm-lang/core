@@ -10,6 +10,8 @@
 #include <sstream>
 #include <type_traits>
 
+namespace hm {
+
 class Error : public std::exception {
 public:
     const std::string message;
@@ -101,5 +103,5 @@ bool check_equal(const T &x, const U &y) {
     }
 
 #endif
-
+}
 #endif
