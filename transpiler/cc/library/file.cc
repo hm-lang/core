@@ -38,6 +38,7 @@ void test_library__file() {
             if (current_line.get()->content == "        // SPECIAL SENTINEL 1") {
                 break;
             }
+            ASSERT(line_number <= 1000);
         }
         current_line = file();
         EXPECT_EQUAL(current_line.get()->content, "        // SPECIAL SENTINEL 2");
@@ -46,6 +47,12 @@ void test_library__file() {
             EXPECT_EQUAL(current_line.get()->number, ++line_number);
             ASSERT(line_number <= 1000);
         }
+
+        // Ensure that calling it afterwards is also ok:
+        current_line = file();
+        EXPECT_EQUAL(current_line.get(), nullptr);
+        current_line = file();
+        EXPECT_EQUAL(current_line.get(), nullptr);
     );
 }
 #endif
