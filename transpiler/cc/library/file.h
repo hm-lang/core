@@ -2,11 +2,11 @@
 #define LIBRARY__FILE_H
 
 #include "error.h"
+#include "pointer.h"
 
 #include <filesystem>
 namespace fs = std::filesystem;
 #include <fstream>
-#include <memory>
 #include <string>
 
 namespace hm {
@@ -22,7 +22,7 @@ public:
     };
 
     /** Gets the next line of this file. */
-    std::unique_ptr<Line> operator() ();
+    ScopedQ<Line> operator() ();
 
 private:
     const fs::directory_entry entry;

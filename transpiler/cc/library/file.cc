@@ -7,24 +7,24 @@ File::File(fs::directory_entry _entry)
     ASSERT(entry.is_regular_file());
 }
 
-std::unique_ptr<File::Line> File::operator() () {
-    if (!input_stream.is_open()) return nullptr;
+ScopedQ<File::Line> File::operator() () {
+    if (!input_stream.is_open()) return ScopedQ<File::Line>(nullptr);
     std::string line_content;
     if (!std::getline(input_stream, line_content)) {
         input_stream.close();
-        return nullptr;
+        return ScopedQ<File::Line>(nullptr);
     }
-    return std::unique_ptr<File::Line>(new File::Line(
+    return ScopedQ<File::Line>::create(
         ++line_number,
         line_content
-    ));
+    );
 }
 
 #ifndef NDEBUG
 void test_library__file() {
     TEST(
         File file(fs::directory_entry(__FILE__));
-        std::unique_ptr<File::Line> current_line = file();
+        ScopedQ<File::Line> current_line = file();
         ASSERT(current_line.get() != nullptr);
         EXPECT_EQUAL(current_line.get()->content, "#include \"file.h\"");
         EXPECT_EQUAL(current_line.get()->number, 1);

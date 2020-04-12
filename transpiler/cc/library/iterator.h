@@ -2,24 +2,31 @@
 #define LIBRARY__ITERATOR_H
 
 #include "error.h"
+#include "pointer.h"
 
 #include <functional>
-#include <memory>
 #include <type_traits>
 #include <utility>
 
 namespace hm {
 
+template<class P>
+class RawIterator {
+public:
+    virtual ~RawIterator() {}
+
+    virtual P next() = 0;
+};
+
 template<class F>
 class Iterator {
 public:
     /**
-     * P is the return-type of a f() (where f is an instance of F),
-     * should be std::unique_ptr<T> of some internal type T.
+     * P is the return-type of f() (where f is an instance of F),
+     * should be a Pointer<T> of some internal type T.
      */
     typedef decltype(std::declval<F>()()) P;
     typedef typename std::remove_pointer<decltype(std::declval<P>().get())>::type T;
-
 
     Iterator(F next_i) : next_internal(next_i) {
         current = next_internal();
@@ -49,23 +56,23 @@ public:
     Range(int _end) : end(_end) {
     }
 
-    std::unique_ptr<int> operator() () {
-        if (i >= end) return std::unique_ptr<int>(nullptr);
-        return std::unique_ptr<int>(new int(i++));
+    ScopedQ<int> operator() () {
+        if (i >= end) return ScopedQ<int>(nullptr);
+        return ScopedQ<int>::create(i++);
     }
 };
 
 void test_library__iterator() {
     {
         int index = 0;
-        Iterator<std::function<std::unique_ptr<double>()>> iterator([&]() {
+        Iterator<std::function<ScopedQ<double>()>> iterator([&]() {
             ERR("index = " << index);
-            if (index < 5) return std::unique_ptr<double>(new double(2.0*index++));
-            return std::unique_ptr<double>(nullptr);
+            if (index < 5) return ScopedQ<double>::create(2.0*index++);
+            return ScopedQ<double>(nullptr);
         });
 
         TEST(
-            std::unique_ptr<double> next = iterator.next();
+            ScopedQ<double> next = iterator.next();
             EXPECT_POINTER_EQUAL(next.get(), 0.0);
             next = iterator.next();
             EXPECT_POINTER_EQUAL(next.get(), 2.0);
@@ -90,7 +97,7 @@ void test_library__iterator() {
         EXPECT_POINTER_EQUAL(iterator.peak(), 0);
         EXPECT_POINTER_EQUAL(iterator.peak(), 0);
 
-        std::unique_ptr<int> next = iterator.next();
+        ScopedQ<int> next = iterator.next();
         EXPECT_POINTER_EQUAL(next.get(), 0);
 
         EXPECT_POINTER_EQUAL(iterator.peak(), 1);
