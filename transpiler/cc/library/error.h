@@ -35,11 +35,13 @@ public:
         ostream.rdbuf(old_out);
     }
     std::string str() {
-        return out.str();
+        std::string result = out.str();
+        out.str("");
+        return result;
     }
 private:
     std::ostream& ostream;
-    const std::stringstream out;
+    std::stringstream out;
     std::streambuf *const old_out;
 };
 

@@ -8,11 +8,11 @@ File::File(fs::directory_entry _entry)
 }
 
 ScopedQ<File::Line> File::operator() () {
-    if (!input_stream.is_open()) return ScopedQ<File::Line>(nullptr);
+    if (!input_stream.is_open()) return ScopedQ<File::Line>();
     std::string line_content;
     if (!std::getline(input_stream, line_content)) {
         input_stream.close();
-        return ScopedQ<File::Line>(nullptr);
+        return ScopedQ<File::Line>();
     }
     return ScopedQ<File::Line>::create(
         ++line_number,

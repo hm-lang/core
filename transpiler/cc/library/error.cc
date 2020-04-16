@@ -75,6 +75,21 @@ void test_library__error() {
         std::cerr << "\n let me know if you think so, too\n";
         EXPECT_EQUAL(capture.str(), "there is good;\n let me know if you think so, too\n");
     );
+
+    TEST(
+        // Capturer::str() resets the internal string.
+        Capturer capture(std::cout);
+        std::cout << "hi";
+        EXPECT_EQUAL(capture.str(), "hi");
+        std::cout << "how is it going?";
+        EXPECT_EQUAL(capture.str(), "how is it going?");
+    );
+
+    TEST(
+        // Test output is automatically captured in test_cout
+        std::cout << "auto-captured";
+        EXPECT_EQUAL(test_cout.str(), "auto-captured");
+    );
 }
 #endif
 

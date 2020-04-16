@@ -14,6 +14,11 @@ public:
     virtual T *get() = 0;
 };
 
+template<class T> class Scoped;
+template<class T> class ScopedQ;
+template<class T> class Ref;
+template<class T> class RefQ;
+
 /**
  * A non-null pointer that is tied to the current scope. 
  * The underlying type (T) must be default-initializable.
@@ -40,6 +45,7 @@ private:
     Scoped(T *value) : ptr(value) {
         ASSERT(value != nullptr);
     }
+
     std::unique_ptr<T> ptr;
 };
 
@@ -53,11 +59,7 @@ private:
 template<class T>
 class ScopedQ : public Pointer<T> {
 public:
-    /**
-     * Throws if the passed-in pointer is non-null.
-     * Use ScopedQ<T>::create() instead.
-     */
-    ScopedQ(T *_ptr = nullptr) : ScopedQ(_ptr, false) {
+    ScopedQ() : ptr(nullptr) {
     }
 
     T *get() {
@@ -66,14 +68,13 @@ public:
 
     template<class... Args>
     static ScopedQ<T> create(Args&&... args) {
-        return ScopedQ(new T(std::forward<Args>(args)...), true);
+        return ScopedQ(new T(std::forward<Args>(args)...));
     }
 
 private:
-    ScopedQ(T *value, bool ok_for_non_null)
-            : ptr(ok_for_non_null ? value : nullptr) {
-        ASSERT(ok_for_non_null || value == nullptr);
+    ScopedQ(T *value) : ptr(value) {
     }
+
     std::unique_ptr<T> ptr;
 };
 

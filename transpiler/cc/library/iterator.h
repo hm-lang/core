@@ -23,7 +23,8 @@ class Iterator {
 public:
     /**
      * P is the return-type of f() (where f is an instance of F),
-     * should be a Pointer<T> of some internal type T.
+     * should be a PointerQ<T> of some internal type T.  Note that
+     * P() should be a null pointer type, i.e. P().get() == nullptr.
      */
     typedef decltype(std::declval<F>()()) P;
     typedef typename std::remove_pointer<decltype(std::declval<P>().get())>::type T;
@@ -33,7 +34,8 @@ public:
     }
 
     P next() {
-        if (current.get() == nullptr) return P(nullptr);
+        ASSERT(P().get() == nullptr);
+        if (current.get() == nullptr) return P();
         P return_value = std::move(current);
         current = next_internal();
         return return_value;
@@ -57,7 +59,7 @@ public:
     }
 
     ScopedQ<int> operator() () {
-        if (i >= end) return ScopedQ<int>(nullptr);
+        if (i >= end) return ScopedQ<int>();
         return ScopedQ<int>::create(i++);
     }
 };
@@ -68,7 +70,7 @@ void test_library__iterator() {
         Iterator<std::function<ScopedQ<double>()>> iterator([&]() {
             ERR("index = " << index);
             if (index < 5) return ScopedQ<double>::create(2.0*index++);
-            return ScopedQ<double>(nullptr);
+            return ScopedQ<double>();
         });
 
         TEST(
