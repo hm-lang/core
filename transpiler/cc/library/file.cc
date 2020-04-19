@@ -12,12 +12,12 @@ ScopedQ<File::Line> File::operator() () {
     std::string line_content;
     if (!std::getline(input_stream, line_content)) {
         input_stream.close();
-        return ScopedQ<File::Line>();
+        return ScopedQ<File::Line>(nullptr);
     }
-    return ScopedQ<File::Line>::create(
+    return ScopedQ<File::Line>(new File::Line(
         ++line_number,
         line_content
-    );
+    ));
 }
 
 #ifndef NDEBUG

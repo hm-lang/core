@@ -59,8 +59,8 @@ public:
     }
 
     ScopedQ<int> operator() () {
-        if (i >= end) return ScopedQ<int>();
-        return ScopedQ<int>::create(i++);
+        if (i >= end) return ScopedQ<int>(nullptr);
+        return ScopedQ<int>(new int(i++));
     }
 };
 
@@ -68,9 +68,8 @@ void test_library__iterator() {
     {
         int index = 0;
         Iterator<std::function<ScopedQ<double>()>> iterator([&]() {
-            ERR("index = " << index);
-            if (index < 5) return ScopedQ<double>::create(2.0*index++);
-            return ScopedQ<double>();
+            if (index < 5) return ScopedQ<double>(new double(2.0*index++));
+            return ScopedQ<double>(nullptr);
         });
 
         TEST(
