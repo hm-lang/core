@@ -72,13 +72,66 @@ For the `REF` and `REF?` types, the instance *must* outlive the variable and any
 
 ```
 ANIMAL baseClass(Type("liger"))
-ANIMAL KIN kin(Type("ok"))
+ANIMAL KIN kin(Type("tigon"))
 ANIMAL REF ref1 = baseClass # a `REF`erence doesn't own an instance, must get it elsewhere.
 ANIMAL REF ref2 = kin       # also ok.
 
-ANIMAL REF? maybeRef1      # starts out at null by default
+ANIMAL REF? maybeRef1       # starts out at null by default
 ANIMAL REF? maybeRef2 = kin
+maybeRef2 = baseClass       # ok
+maybeRef2 = null
 ```
+
+
+## Abstract base class
+
+Trying to instantiate an abstract base class without a default non-abstract child class
+will fail in hm-lang:
+
+```
+class ACTOR
+    MD nonAbstractMethod()
+        # this method is defined, so doesn't make ACTOR abstract
+        pass
+
+    MD act();   # a non-initialized method is considered abstract
+                # an abstract method makes a class abstract as well.
+
+class GREAT_ACTOR extends ACTOR
+    MD act()
+        print "everyone cried tears of cathartic joy"
+
+class DECENT_ACTOR extends ACTOR
+    MD act()
+        print "there was much rejoicing"
+
+ACTOR actor     # ERROR!  ACTOR is abstract.
+
+ACTOR KIN kin   # run-time error if kin.act() is called before actor is initialized with a non-abstract class
+kin = DECENT_ACTOR()    # OK
+```
+
+But you can set a default for the base class:
+
+```
+class STAR extends ACTOR
+    MD act()
+        print "even aliens heard and were amazed"
+
+default ACTOR = STAR
+
+ACTOR hiddenStar    # OK.
+hiddenStar.act()    # prints "even aliens heard and were amazed"
+
+ACTOR KIN hiddenStarKin # no more run-time error even if not initialized properly
+hiddenStarKin.act() # OK
+```
+
+Different defaults can be set for the same abstract base class, and used
+on a per-file basis, but exactly how conflicts will be resolved still needs
+to be decided.
+
+The `default` operator also has some other use-cases [detailed here](./default.md).
 
 
 ## Obscure hm-lang history
