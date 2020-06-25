@@ -36,7 +36,8 @@ We use the `KIN` type to name an owned pointer.  It is essentially a C++ `std::u
 but with the added feature that if the pointer is null (uninitialized) when asked for,
 a default instance of the wrapped type will be created.  The `KIN` type is useful because
 any descendant of the wrapped type is also allowed to be placed inside the variable --
-thus the kinship.
+thus the kinship.  We might take `!` as a short-hand for `KIN`, but we need to
+check with [lazy initialization](./lazy_initialization.md) to see if we can simplify.
 
 `MAYBE` types, e.g. `ANIMAL?`, are similar -- they can be any descendant of the wrapped
 type, but they can also be null.  To avoid multiple ways of doing things, a `KIN?` type will
