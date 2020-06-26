@@ -2,8 +2,7 @@
 
 Some computations are more costly than others, and we'd like to
 make it easy to perform a computation only when it's necessary.
-We may potentially reserve `!` after a type to indicate that
-the initialization is lazily performed.
+We reserve `!` after a type to indicate that the initialization is lazily performed.
 
 ```
     DBL someFunction()
@@ -44,7 +43,9 @@ triggers the original lazy initialization.
 ## Usage in function arguments and return values
 
 Lazy initialization will be used internally to define default
-input arguments, and/or short-circuit their initialization:
+input arguments, and/or short-circuit their initialization,
+in the case that their calculation is complicated:
+[TODO: revisit -- we don't want pointer-like arguments unless specified]
 
 ```
     FN doSomething(INT x = somethingComplicated(), DBL z)

@@ -26,21 +26,22 @@ goes out of scope:
 ```
 ANIMAL baseClass(Type("unknown"))   # internally does not use a pointer
 
-ANIMAL KIN kin(Type("general"))     # internally a pointer to an `ANIMAL`.
+ANIMAL! lazy(Type("general"))       # internally a pointer to an `ANIMAL`.
 
 ANIMAL? maybe1 = NEW(X(1))  # internally a nullable pointer to an `ANIMAL`.
 ANIMAL? maybe2 = null       # can leave out the null initialization, that is the default.
 ```
 
-We use the `KIN` type to name an owned pointer.  It is essentially a C++ `std::unique_ptr`,
+We use the `!` (`LAZY`) type to name an owned pointer.  It is essentially a C++ `std::unique_ptr`,
 but with the added feature that if the pointer is null (uninitialized) when asked for,
-a default instance of the wrapped type will be created.  The `KIN` type is useful because
-any descendant of the wrapped type is also allowed to be placed inside the variable --
-thus the kinship.  We might take `!` as a short-hand for `KIN`, but we need to
-check with [lazy initialization](./lazy_initialization.md) to see if we can simplify.
+it will either initialize to a default instance of the wrapped type, or it will use
+the initialization provided at its declaration.  The `LAZY` type is useful because
+any descendant of the wrapped type is also allowed to be placed inside the variable.
+There are some other quirks, so see also [lazy initialization](./lazy_initialization.md)
+for some extra details.
 
 `MAYBE` types, e.g. `ANIMAL?`, are similar -- they can be any descendant of the wrapped
-type, but they can also be null.  To avoid multiple ways of doing things, a `KIN?` type will
+type, but they can also be null.  To avoid multiple ways of doing things, a `LAZY?` type will
 throw a compiler error, recommending instead the unwrapped type followed by a `?`.
 Because `MAYBE` variables are allowed to be null, users are expected to check for this before
 using them.  This will be a compiler feature.
@@ -50,11 +51,11 @@ using them.  This will be a compiler feature.
 ANIMAL baseClass(Type("unknown"))
 baseClass = CAT(Whiskers(1)) # ERROR!!!
 
-# KIN types can be reset to any of the classes which descend from the original wrapped type:
-ANIMAL KIN kin(Type("shapeshifter"))
-kin = SNAKE(Length(100))
-kin = CAT(Whiskers(10))
-kin = ANIMAL(Type("back-to-parent")) # also fine.
+# LAZY types can be reset to any of the classes which descend from the original wrapped type:
+ANIMAL! lazy(Type("shapeshifter"))
+lazy = SNAKE(Length(100))
+lazy = CAT(Whiskers(10))
+lazy = ANIMAL(Type("back-to-parent")) # also fine.
 
 # MAYBE types can also be changed to any of the related classes:
 ANIMAL? maybe
@@ -73,12 +74,12 @@ For the `REF` and `REF?` types, the instance *must* outlive the variable and any
 
 ```
 ANIMAL baseClass(Type("liger"))
-ANIMAL KIN kin(Type("tigon"))
+ANIMAL! lazy(Type("tigon"))
 ANIMAL REF ref1 = baseClass # a `REF`erence doesn't own an instance, must get it elsewhere.
-ANIMAL REF ref2 = kin       # also ok.
+ANIMAL REF ref2 = lazy      # also ok.
 
 ANIMAL REF? maybeRef1       # starts out at null by default
-ANIMAL REF? maybeRef2 = kin
+ANIMAL REF? maybeRef2 = lazy
 maybeRef2 = baseClass       # ok
 maybeRef2 = null
 ```
@@ -108,8 +109,9 @@ class DECENT_ACTOR extends ACTOR
 
 ACTOR actor     # ERROR!  ACTOR is abstract.
 
-ACTOR KIN kin   # run-time error if kin.act() is called before actor is initialized with a non-abstract class
-kin = DECENT_ACTOR()    # OK
+ACTOR! lazy     # run-time error if lazy.act() is called before actor is initialized with a non-abstract class.
+                # eventually this could be a compile-time error (checking different branches)
+lazy = DECENT_ACTOR()   # OK
 ```
 
 But you can set a default for the base class:
@@ -124,8 +126,8 @@ default ACTOR = STAR
 ACTOR hiddenStar    # OK.
 hiddenStar.act()    # prints "even aliens heard and were amazed"
 
-ACTOR KIN hiddenStarKin # no more run-time error even if not initialized properly
-hiddenStarKin.act() # OK
+ACTOR! hiddenStarKin    # no more run-time error even if not initialized properly
+hiddenStarKin.act()     # OK
 ```
 
 Different defaults can be set for the same abstract base class, and used
