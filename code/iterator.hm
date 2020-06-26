@@ -1,76 +1,53 @@
-class NEW_T ITERATOR
-    NEW_T? FN nextInternal__();
-    FN? insertInternal__(NEW_T, BOOL beforePrevious);
-    FN? deleteInternal__(BOOL previous);
-    NEW_T?? advancedElement__
+class NEW_T ITERATOR(
+    ===
+    function which gets the next value of the iterator, or null
+    if the iterator is finished:
+    ===
+    NEW_T? FN next()
 
-    from(
-        # function which gets the next value of the iterator, or null
-        # if the iterator is finished:
-        NEW_T? FN next()
+    ===
+    function which gets the next value of the iterator, or null,
+    but it doesn't advance the underlying iterator.
+    the function itself can be null if this operation is not available for
+    the underlying data container.
+    ===
+    CONST_NEW_T REF? FN? peak()
 
-        # value which provides the total number of elements which will
-        # be iterated over, if available.  if there is a backing container,
-        # this is the original number of elements in the container.
-        SIZE? CONST this.size
+    ===
+    value which provides the total number of elements which will
+    be iterated over, if available.  if there is a backing container,
+    this is the original number of elements in the container.
+    ===
+    SIZE? CONST this.size
 
-        # function which inserts a new value `newT` before the next value
-        # in the iteration.  this function should only be defined if the
-        # underlying container allows inserts to happen. 
-        # the inserted value will not appear when calling `next()`,
-        # and classes which implement this should guarantee that any number
-        # of repeated `next()`s will not eventually return the inserted value.
-        # i.e., any values inserted into the underlying container during
-        # iteration should not appear in this iterator (even if insertion does
-        # affect some of the later values in the iterator).  containers should
-        # also guarantee that the value is inserted immediately.  we require
-        # access to insert one before the next value, in case the underlying
-        # `next()` was called internally to `peak()`.
-        FN? insert(NEW_T, BOOL beforePrevious)
-        # TODO: we may want to allow multiple insert values, i.e., to
-        # make this `FN? this.insert(NEW_T ITERATOR, BOOL previous)`.
+    ===
+    function which inserts a new value `newT` before the next value
+    in the iteration.  this function should only be defined if the
+    underlying container allows inserts to happen.
+    the inserted value will not appear when calling `next()`,
+    and classes which implement this should guarantee that any number
+    of repeated `next()`s will not eventually return the inserted value.
+    i.e., any values inserted into the underlying container during
+    iteration should not appear in this iterator (even if insertion does
+    affect some of the later values in the iterator).  containers should
+    also guarantee that the value is inserted immediately.
+    ===
+    FN? insert(NEW_T)
+    # TODO: we may want to allow multiple insert values, i.e., to
+    # make this `FN? this.insert(NEW_T ITERATOR)`.
 
-        # function which deletes the current value at `peak()`.
-        # it will not appear when calling `next()`.
-        # the next value should also disappear from the underlying container,
-        # and this function should not be defined unless that is happening.
-        FN? delete(BOOL previous)
-    )
-        this.insertInternal = insert
-        this.deleteInternal = delete
-        this.nextInternal = next
-
-    # provides the next value that will appear in the iterator.
-    # after calling this,
-    #  calling `next()` is guaranteed to produce this value,
-    #  unless `delete()` is called.
-    CONST_NEW_T? REF MD peak()
-        # TODO: make it clear that we're only pulling off one null here:
-        if advancedElement == null
-            advancedElement = nextInternal()
-        return advancedElement
-
-    # provides the next value that will come up in the iterator,
-    # or null if none.  this wraps the passed-in `next()` function,
-    # since we are allowed to `peak()` in advance.
-    NEW_T? MD next()
-        if advancedElement != null
-            return advancedElement.move()
-        else
-            return nextInternal()
-
-    # deletes the value that would come at `next()` from the iterator.
-    # this wraps the passed-in `delete(BOOL previous)` function, in
-    # case the `peak()` function is called here.
-    NEW_T? MD delete()
-        if advancedElement != null
-            deleteInternal(Previous(true))
-        else
-            deleteInternal(Previous(false))
-
-    # standard map and filter all in one.
-    # the callback should return a null if the `NEW_U` instance
-    # should not be produced in the new iterator.
+    ===
+    function which deletes the value at `peak()`, and returns it.
+    that value should also disappear from the underlying container,
+    and this function should not be defined unless that is happening.
+    ===
+    NEW_T? FN? remove()
+)
+    ===
+    standard map and filter all in one.
+    the callback should return a null if the `NEW_U` instance
+    should not be produced in the new iterator.
+    ===
     NEW_U ITERATOR MD map(NEW_U? FN(NEW_T)) = NEW(
         # TODO: support other things besides `next()`:
         NEW_U? FN new.next()
@@ -80,13 +57,27 @@ class NEW_T ITERATOR
                 if newUQ, return newUQ.move()
             return null
     )
+    # TODO: add map overload with a non-null NEW_U return value, so that we can
+    # add the known size as well.
 
-    # take elements from this ITERATOR and put them into a new one,
-    # based on some filtering criterion.
-    # 
-    #   INT ARRAY x = [1, 2, 3, 100, 9, 11]
-    #   INT ARRAY y = ITERATOR(x).take($whereValue < 10)
-    #   # y == [1, 2, 3, 9]
-    #   # x == [100, 11]
-    # 
+    ===
+    take elements from this ITERATOR and put them into a new one,
+    based on some filtering criterion.
+
+      INT ARRAY x = [1, 2, 3, 100, 9, 11]
+      INT ARRAY y = ITERATOR(x).take($whereValue < 10)
+      # y == [1, 2, 3, 9]
+      # x == [100, 11]
+    ===
     NEW_T ITERATOR MD take(BOOL FN(CONST_NEW_T REF whereValue))
+        assert remove != null && peak != null
+        return NEW(
+            NEW_T? FN new.next()
+                CONST_NEW_T REF? peaked
+                while (peaked = peak()) != null
+                    if fn(WhereValue(peaked))
+                        return remove()
+                    next()
+                return null
+        )
+
