@@ -77,3 +77,8 @@ The lazy initialized variable will probably be some extension
 of a `GS` (getter-setter) class, where the getter will automatically
 invoke the original initialization definition, if nothing has
 overridden it by using the setter.
+
+In the underlying code, the `LAZY` class is essentially a C++ `std::unique_ptr`,
+but with the added feature that if the pointer is null (uninitialized) when asked for,
+it will either initialize to a default instance of the wrapped type, or it will use
+the initialization provided at its declaration.

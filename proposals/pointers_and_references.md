@@ -1,10 +1,5 @@
 # Pointers
 
-Because our first milestone is to transpile to C++, we want to re-use some
-useful concepts from this language, but with hm-lang's unique spin.
-Our top user-facing goals are ease-of-use and native-executable speed/efficiency,
-with greater pointer safety baked in.
-
 Let's create an example class `ANIMAL` with a string `type` variable, and
 a few child classes `SNAKE` and `CAT` with their own extra variables.
 
@@ -16,6 +11,9 @@ class SNAKE(SIZE length = 0) extends ANIMAL(Type("snake"));
 class CAT(SIZE whiskers = 4) extends ANIMAL(Type("cat"));
 ```
 
+To implement in C++, any instance of these classes will be pointers,
+so that we can get inheritance working nicely out of the box.  These
+pointers will be tucked away safely so that management will be easy.
 
 ## Locally-scoped variables
 
@@ -24,38 +22,23 @@ the instances belong to the variable and will be destroyed when the variable
 goes out of scope:
 
 ```
-ANIMAL baseClass(Type("unknown"))   # internally does not use a pointer
-
-ANIMAL! lazy(Type("general"))       # internally a pointer to an `ANIMAL`.
+ANIMAL base(Type("unknown"))    # internally a pointer to an `ANIMAL`.
 
 ANIMAL? maybe1 = NEW(X(1))  # internally a nullable pointer to an `ANIMAL`.
 ANIMAL? maybe2 = null       # can leave out the null initialization, that is the default.
 ```
 
-We use the `!` (`LAZY`) type to name an owned pointer.  It is essentially a C++ `std::unique_ptr`,
-but with the added feature that if the pointer is null (uninitialized) when asked for,
-it will either initialize to a default instance of the wrapped type, or it will use
-the initialization provided at its declaration.  The `LAZY` type is useful because
-any descendant of the wrapped type is also allowed to be placed inside the variable.
-There are some other quirks, so see also [lazy initialization](./lazy_initialization.md)
-for some extra details.
-
-`MAYBE` types, e.g. `ANIMAL?`, are similar -- they can be any descendant of the wrapped
-type, but they can also be null.  To avoid multiple ways of doing things, a `LAZY?` type will
-throw a compiler error, recommending instead the unwrapped type followed by a `?`.
-Because `MAYBE` variables are allowed to be null, users are expected to check for this before
-using them.  This will be a compiler feature.
+Variables that are declared with an `ANIMAL` type are allowed to be instances of any
+descendant, e.g., `SNAKE` or `CAT`, though only the parent-type's methods will be accessible.
+`MAYBE` types (`?`), e.g. `ANIMAL?`, are similar -- they can be any descendant of the wrapped
+type, but they can also be null.  Because of this, users are expected to check for null
+before using `MAYBE` variables.  This will be a compiler feature.
 
 ```
-# this variable cannot be changed to a subclass, e.g. SNAKE or CAT:
-ANIMAL baseClass(Type("unknown"))
-baseClass = CAT(Whiskers(1)) # ERROR!!!
-
-# LAZY types can be reset to any of the classes which descend from the original wrapped type:
-ANIMAL! lazy(Type("shapeshifter"))
-lazy = SNAKE(Length(100))
-lazy = CAT(Whiskers(10))
-lazy = ANIMAL(Type("back-to-parent")) # also fine.
+ANIMAL base(Type("unknown"))
+base = CAT(Whiskers(1))     # OK
+base = SNAKE(Length(10))    # also ok
+print(base.length)          # ERROR! NOT OK, length is not a property of ANIMAL.
 
 # MAYBE types can also be changed to any of the related classes:
 ANIMAL? maybe
@@ -73,15 +56,17 @@ if (maybe != null) print(maybe.type)
 For the `REF` and `REF?` types, the instance *must* outlive the variable and any copies made of the variable.
 
 ```
-ANIMAL baseClass(Type("liger"))
-ANIMAL! lazy(Type("tigon"))
-ANIMAL REF ref1 = baseClass # a `REF`erence doesn't own an instance, must get it elsewhere.
-ANIMAL REF ref2 = lazy      # also ok.
+ANIMAL base(Type("liger"))
+ANIMAL REF ref1 = base      # a `REF`erence doesn't own an instance, must get it elsewhere.
 
-ANIMAL REF? maybeRef1       # starts out at null by default
-ANIMAL REF? maybeRef2 = lazy
-maybeRef2 = baseClass       # ok
-maybeRef2 = null
+ANIMAL? maybe(Type("tigon"))
+ANIMAL? REF ref2 = maybe    # a non-null reference to a possibly null ANIMAL.
+
+ANIMAL REF? refQ    # nullable reference, which if non-null, points to a non-null ANIMAL
+maybeRef = base     # ok
+
+ANIMAL? REF? superQ # nullable reference, which if non-null, points to a nullable ANIMAL
+superQ = maybe      # ok
 ```
 
 
@@ -108,10 +93,6 @@ class DECENT_ACTOR extends ACTOR
         print "there was much rejoicing"
 
 ACTOR actor     # ERROR!  ACTOR is abstract.
-
-ACTOR! lazy     # run-time error if lazy.act() is called before actor is initialized with a non-abstract class.
-                # eventually this could be a compile-time error (checking different branches)
-lazy = DECENT_ACTOR()   # OK
 ```
 
 But you can set a default for the base class:
@@ -125,9 +106,6 @@ default ACTOR = STAR
 
 ACTOR hiddenStar    # OK.
 hiddenStar.act()    # prints "even aliens heard and were amazed"
-
-ACTOR! hiddenStarKin    # no more run-time error even if not initialized properly
-hiddenStarKin.act()     # OK
 ```
 
 Different defaults can be set for the same abstract base class, and used
@@ -137,31 +115,56 @@ to be decided.
 The `default` operator also has some other use-cases [detailed here](./default.md).
 
 
-## Obscure hm-lang history
+## Implementation details
 
-An early proposal was to make all class instances effectively pointers, so
-that we could do things like this, for example:
+Maybe use the underlying C++ type in templates, but whenever using them as types, use a
+wrapped value, e.g.:
 
 ```
-MAP Key(STRING) Value(INT) employeeIdMap = HASH_MAP(ExpectedSize(10))
-...
-employeeIdMap = DLL_HASH_MAP(employeeIdMap) # convert to a DLL_HASH_MAP
+template <typename T>
+struct Maybe {};
+
+template <>
+struct Maybe<Object> {
+    typedef std::unique_ptr<Object> Type;
+
+    Object *get(Type &o) {
+        return o.get();
+    }
+};
+
+template <>
+struct Maybe<int> {
+    typedef int Type;
+
+    int *get(Type &i) {
+        return &i;
+    }
+};
+// and so on; maybe we generalize on unique_ptr and specify all numeric values.
 ```
 
-The upsides of this approach are:
+So that
+```
+class NEW_T PANCAKES(NEW_T? topping);
+```
+becomes
+```
+template <class NewT>
+struct Pancakes {
+protected:
+    Maybe<NewT> topping_;
+public:
+    Pancakes(Maybe<NewT> topping) : topping_(std::move(topping)) {}
 
-* it is very easy to perform moves/swaps between variables.
+    Maybe<NewT> getTopping() {
+        return topping_;
+    }
 
-* it does make things easier to use, since child types can be immediately
-  assigned to parent type variables.
-
-The downsides of this approach include:
-
-* many pointers need to be allocated everywhere, possibly leading to worse
-  memory fragmentation; there is better memory locality with the opposite approach.
-
-* it differs than the usual C++ approach, so the transpilation would require two
-  classes for each hm-lang class.  We would have an internal class, corresponding
-  to the real C++ class, and a different class -- essentially the C++ class
-  wrapped in a  `std::unique_ptr`.  We get even more redirects as we start wrapping
-  the class in e.g. `MAYBE` (`?`) or `REF` types.
+    Maybe<NewT> setTopping(Maybe<NewT> newTopping) {
+        Maybe<NewT> oldTopping = std::move(topping_);
+        topping_ = std::move(newTopping);
+        return std::move(oldTopping);
+    }
+};
+```
