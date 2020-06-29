@@ -122,26 +122,32 @@ wrapped value, e.g.:
 
 ```
 template <typename T>
-struct Maybe {};
+struct ScopedQ {
+    typedef std::unique_ptr<T> Type;
 
-template <>
-struct Maybe<Object> {
-    typedef std::unique_ptr<Object> Type;
+    static T *get(Type &t) {
+        return t.get();
+    }
+};
 
-    Object *get(Type &o) {
-        return o.get();
+template <typename T>
+struct Scoped {
+    typedef std::unique_ptr<T> Type;
+
+    static T *get(Type &t) {
+        return t.get();
     }
 };
 
 template <>
-struct Maybe<int> {
+struct Scoped<int> {
     typedef int Type;
 
-    int *get(Type &i) {
+    static int *get(Type &i) {
         return &i;
     }
 };
-// and so on; maybe we generalize on unique_ptr and specify all numeric values.
+// and so on, specifying all primitive types.
 ```
 
 So that
@@ -153,17 +159,22 @@ becomes
 template <class NewT>
 struct Pancakes {
 protected:
-    Maybe<NewT> topping_;
-public:
-    Pancakes(Maybe<NewT> topping) : topping_(std::move(topping)) {}
+    typename ScopedQ<NewT>::Type topping;
 
-    Maybe<NewT> getTopping() {
-        return topping_;
+public:
+    Pancakes(typename ScopedQ<NewT>::Type topping_) : topping(std::move(topping_)) {}
+
+    typename ScopedQ<NewT>::Type getTopping() {
+        return topping;
     }
 
-    Maybe<NewT> setTopping(Maybe<NewT> newTopping) {
-        Maybe<NewT> oldTopping = std::move(topping_);
-        topping_ = std::move(newTopping);
+    const typename ScopedQ<NewT>::Type &viewTopping() const {
+        return topping;
+    }
+
+    typename ScopedQ<NewT>::Type setTopping(typename ScopedQ<NewT>::Type newTopping) {
+        typename ScopedQ<NewT>::Type oldTopping = std::move(topping);
+        topping = std::move(newTopping);
         return std::move(oldTopping);
     }
 };

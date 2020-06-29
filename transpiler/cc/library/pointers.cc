@@ -1,4 +1,4 @@
-#include "pointer.h"
+#include "pointers.h"
 
 namespace hm {
 
@@ -10,108 +10,32 @@ Object *copy_held_value_into_new_pointer(const Object *o) {
 }
 
 #ifndef NDEBUG
-// TODO: add test namespace
-class Parent : public Object {
-public:
-    int id;
 
-    Parent(int i = -1) : id(i) {
-        std::cout << "Parent(" << id << ")";
-    }
-    Parent(const Parent& p) : Parent(p.id) {
-        std::cout << "{CC}";
-    }
-    Parent(Parent&& p) : Parent(p.id) {
-        std::cout << "{MC}";
-    }
-    virtual ~Parent() {
-        std::cout << "~Parent(" << id << ")";
-    }
+using namespace test;
 
-    virtual Parent *copy() const {
-        return new Parent(*this);
-    }
-};
-
-// TODO: why isn't the original Object copy_held_value_into_new_pointer good enough?
-template <>
-Parent *copy_held_value_into_new_pointer(const Parent *p) {
-    return p->copy();
-}
-
-class Child : public Parent {
-public:
-    std::string name;
-
-    Child(std::string n = "nil", int i = -2) : Parent(i), name(n) {
-        std::cout << "Child(" << name << ", " << this->id << ")";
-    }
-    Child(const Child& c) : Child(c.name, c.id) {
-        std::cout << "{CC}";
-    }
-    Child(Child&& c) : Child(c.name, c.id) {
-        std::cout << "{MC}";
-    }
-    virtual ~Child() {
-        std::cout << "~Child(" << name << ", " << this->id << ")";
-    }
-
-    virtual Child *copy() const {
-        return new Child(*this);
-    }
-};
-
-class Aunt : public Object {
-public:
-    std::string name;
-
-    Aunt(std::string n = "nil") : name(n) {
-        std::cout << "Aunt(" << name << ")";
-    }
-    Aunt(const Aunt& a) : Aunt(a.name) {
-        std::cout << "{CC}";
-    }
-    Aunt(Aunt&& a) : Aunt(std::move(a.name)) {
-        std::cout << "{MC}";
-    }
-    Aunt(const Child& c) : Aunt(c.name + "'s Aunt") {
-        std::cout << "{CC}";
-    }
-    Aunt(Child&& c) : Aunt(c.name + "'s Aunt") {
-        std::cout << "{MC}";
-    }
-    virtual ~Aunt() {
-        std::cout << "~Aunt(" << name << ")";
-    }
-
-    virtual Aunt *copy() const {
-        return new Aunt(*this);
-    }
-};
-
-void test_library__pointer() {
+void test_library__pointers() {
     TEST(
         // Default initialization
-        Scoped<int> s;
+        IScoped<int> s;
         EXPECT_POINTER_EQUAL(s.get(), 0);
 
-        ScopedQ<int> sQ;
+        IScopedQ<int> sQ;
         EXPECT_EQUAL(sQ.get(), nullptr);
 
-        // Ref cannot be default-initialized...
-        Ref<int> r(s.get());
+        // IRef cannot be default-initialized...
+        IRef<int> r(s.get());
         EXPECT_EQUAL(r.get(), s.get());
         *s.get() = 1234;
         EXPECT_POINTER_EQUAL(r.get(), 1234);
 
-        RefQ<int> rQ;
+        IRefQ<int> rQ;
         EXPECT_EQUAL(rQ.get(), nullptr);
     );
 
     TEST(
-        // Constructing Scoped
+        // Constructing IScoped
         {
-            Scoped<Parent> p(new Parent(1234));
+            IScoped<Parent<int>> p(new Parent<int>(1234));
             ASSERT(p.get() != nullptr);
             ++p.get()->id;
         }
@@ -119,12 +43,12 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Copy-constructing Scoped
+        // Copy-constructing IScoped
         {
-            Scoped<Parent> p(new Parent(1));
+            IScoped<Parent<int>> p(new Parent<int>(1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)");
 
-            Scoped<Parent> p2(p);
+            IScoped<Parent<int>> p2(p);
             EXPECT_EQUAL(test_cout.str(), "Parent(1){CC}");
             ASSERT(p2.get() != nullptr);
             ++p2.get()->id;
@@ -133,12 +57,12 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Copy-constructing Scoped with explicit Child class does deep copy
+        // Copy-constructing IScoped with explicit Child class does deep copy
         {
-            Scoped<Child> c(new Child("A", 1));
+            IScoped<Child<int>> c(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)");
 
-            Scoped<Parent> p(c);
+            IScoped<Parent<int>> p(c);
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1){CC}");
             ASSERT(p.get() != nullptr);
             ++p.get()->id;
@@ -149,12 +73,12 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Copy-constructing Scoped with implicit Child class does deep copy
+        // Copy-constructing IScoped with implicit Child class does deep copy
         {
-            Scoped<Parent> p(new Child("A", 1));
+            IScoped<Parent<int>> p(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)");
 
-            Scoped<Parent> p2(p);
+            IScoped<Parent<int>> p2(p);
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1){CC}");
             ASSERT(p.get() != nullptr);
             --p.get()->id;
@@ -165,13 +89,13 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Copy-constructing Scoped with related Child class uses that constructor
+        // Copy-constructing IScoped with related Child class uses that constructor
         {
-            Scoped<Child> c(new Child("A", 1));
+            IScoped<Child<int>> c(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)");
             ASSERT(c.get() != nullptr);
 
-            Scoped<Aunt> a(c);
+            IScoped<Aunt<int>> a(c);
             EXPECT_EQUAL(test_cout.str(), "Aunt(A's Aunt){CC}");
             ASSERT(c.get() != nullptr);
             c.get()->name = "formerly A";
@@ -182,14 +106,14 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Copy-assigning Scoped
+        // Copy-assigning IScoped
         {
-            Scoped<Parent> p(new Parent(100));
+            IScoped<Parent<int>> p(new Parent<int>(100));
             EXPECT_EQUAL(test_cout.str(), "Parent(100)");
             ASSERT(p.get() != nullptr);
             ++p.get()->id;
 
-            Scoped<Parent> p2(new Parent(3));
+            IScoped<Parent<int>> p2(new Parent<int>(3));
             EXPECT_EQUAL(test_cout.str(), "Parent(3)");
             ASSERT(p2.get() != nullptr);
             ++p2.get()->id;
@@ -203,12 +127,12 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Copy-assigning Scoped with explicit Child class does deep copy
+        // Copy-assigning IScoped with explicit Child class does deep copy
         {
-            Scoped<Child> c(new Child("A", 1));
+            IScoped<Child<int>> c(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)");
 
-            Scoped<Parent> p(new Parent(3));
+            IScoped<Parent<int>> p(new Parent<int>(3));
             EXPECT_EQUAL(test_cout.str(), "Parent(3)");
 
             p = c;
@@ -222,12 +146,12 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Copy-assigning Scoped with implicit Child class does deep copy
+        // Copy-assigning IScoped with implicit Child class does deep copy
         {
-            Scoped<Parent> p(new Child("A", 1));
+            IScoped<Parent<int>> p(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)");
 
-            Scoped<Parent> p2(new Parent(2));
+            IScoped<Parent<int>> p2(new Parent<int>(2));
             EXPECT_EQUAL(test_cout.str(), "Parent(2)");
 
             p2 = p;
@@ -241,13 +165,13 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Copy-assigning Scoped with related Child class uses that constructor
+        // Copy-assigning IScoped with related Child class uses that constructor
         {
-            Scoped<Child> c(new Child("A", 1));
+            IScoped<Child<int>> c(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)");
             ASSERT(c.get() != nullptr);
 
-            Scoped<Aunt> a(new Aunt("Sally"));
+            IScoped<Aunt<int>> a(new Aunt<int>("Sally"));
             EXPECT_EQUAL(test_cout.str(), "Aunt(Sally)");
 
             a = c;
@@ -261,13 +185,13 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Move-constructing Scoped only moves pointer
+        // Move-constructing IScoped only moves pointer
         {
-            Scoped<Parent> p(new Parent(123));
+            IScoped<Parent<int>> p(new Parent<int>(123));
             EXPECT_EQUAL(test_cout.str(), "Parent(123)");
-            Parent *ptr = p.get();
+            Parent<int> *ptr = p.get();
 
-            Scoped<Parent> p2(std::move(p));
+            IScoped<Parent<int>> p2(std::move(p));
             EXPECT_EQUAL(test_cout.str(), "");
             ASSERT(p2.get() != nullptr);
             EXPECT_EQUAL(p2.get(), ptr);
@@ -277,29 +201,29 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Move-constructing Scoped with explicit Child class only moves pointer
+        // Move-constructing IScoped with explicit Child class only moves pointer
         {
-            Scoped<Child> c(new Child("A", 1));
+            IScoped<Child<int>> c(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)");
-            Child *ptr = c.get();
+            Child<int> *ptr = c.get();
 
-            Scoped<Parent> p(std::move(c));
+            IScoped<Parent<int>> p(std::move(c));
             EXPECT_EQUAL(test_cout.str(), "");
             ASSERT(p.get() != nullptr);
-            EXPECT_EQUAL(p.get(), (Parent*)ptr);
+            EXPECT_EQUAL(p.get(), (Parent<int>*)ptr);
             ++p.get()->id;
         }
         EXPECT_EQUAL(test_cout.str(), "~Child(A, 2)~Parent(2)");
     );
 
     TEST(
-        // Move-constructing Scoped with implicit Child class only moves pointer
+        // Move-constructing IScoped with implicit Child class only moves pointer
         {
-            Scoped<Parent> p(new Child("A", 1));
+            IScoped<Parent<int>> p(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)");
-            Parent *ptr = p.get();
+            Parent<int> *ptr = p.get();
 
-            Scoped<Parent> p2(std::move(p));
+            IScoped<Parent<int>> p2(std::move(p));
             EXPECT_EQUAL(test_cout.str(), "");
             ASSERT(p2.get() != nullptr);
             EXPECT_EQUAL(p2.get(), ptr);
@@ -309,13 +233,13 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Move-constructing Scoped with related Child class will use move constructor
+        // Move-constructing IScoped with related Child class will use move constructor
         {
-            Scoped<Child> c(new Child("A", 1));
+            IScoped<Child<int>> c(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)");
             ASSERT(c.get() != nullptr);
 
-            Scoped<Aunt> a(std::move(c));
+            IScoped<Aunt<int>> a(std::move(c));
             EXPECT_EQUAL(test_cout.str(), "Aunt(A's Aunt){MC}~Child(A, 1)~Parent(1)");
             ASSERT(a.get() != nullptr);
             a.get()->name = "Best " + a.get()->name;
@@ -324,14 +248,14 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Move-assigning Scoped
+        // Move-assigning IScoped
         {
-            Scoped<Parent> p(new Parent(34));
+            IScoped<Parent<int>> p(new Parent<int>(34));
             EXPECT_EQUAL(test_cout.str(), "Parent(34)");
             ASSERT(p.get() != nullptr);
             ++p.get()->id;
 
-            p = Scoped<Parent>(new Parent(5));
+            p = IScoped<Parent<int>>(new Parent<int>(5));
             EXPECT_EQUAL(test_cout.str(), "Parent(5)~Parent(35)");
             ASSERT(p.get() != nullptr);
             --p.get()->id;
@@ -340,12 +264,12 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Move assigning Scoped with explicit Child class moves pointer
+        // Move assigning IScoped with explicit Child class moves pointer
         {
-            Scoped<Parent> p(new Parent(10));
+            IScoped<Parent<int>> p(new Parent<int>(10));
             EXPECT_EQUAL(test_cout.str(), "Parent(10)");
 
-            p = Scoped<Child>(new Child("A", 1));
+            p = IScoped<Child<int>>(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)~Parent(10)");
             ASSERT(p.get() != nullptr);
             ++p.get()->id;
@@ -354,12 +278,12 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Move-assigning Scoped with implicit Child class moves pointer
+        // Move-assigning IScoped with implicit Child class moves pointer
         {
-            Scoped<Parent> p(new Parent(10));
+            IScoped<Parent<int>> p(new Parent<int>(10));
             EXPECT_EQUAL(test_cout.str(), "Parent(10)");
 
-            p = Scoped<Parent>(new Child("A", 1));
+            p = IScoped<Parent<int>>(new Child<int>("A", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(A, 1)~Parent(10)");
             ASSERT(p.get() != nullptr);
             --p.get()->id;
@@ -368,12 +292,12 @@ void test_library__pointer() {
     );
 
     TEST(
-        // Move-assigning Scoped with related Child class uses that constructor
+        // Move-assigning IScoped with related Child class uses that constructor
         {
-            Scoped<Aunt> a(new Aunt("Gladys"));
+            IScoped<Aunt<int>> a(new Aunt<int>("Gladys"));
             EXPECT_EQUAL(test_cout.str(), "Aunt(Gladys)");
 
-            a = Scoped<Child>(new Child("B", 1));
+            a = IScoped<Child<int>>(new Child<int>("B", 1));
             EXPECT_EQUAL(test_cout.str(), "Parent(1)Child(B, 1)Aunt(B's Aunt){MC}~Child(B, 1)~Parent(1)~Aunt(Gladys)");
             ASSERT(a.get() != nullptr);
             a.get()->name = "Best " + a.get()->name;
@@ -381,7 +305,7 @@ void test_library__pointer() {
         EXPECT_EQUAL(test_cout.str(), "~Aunt(Best B's Aunt)");
     );
 
-    // TODO: ScopedQ, Ref, and RefQ tests.  also mixing from each type to each other.
+    // TODO: IScopedQ, IRef, and IRefQ tests.  also mixing from each type to each other.
 }
 #endif
 }

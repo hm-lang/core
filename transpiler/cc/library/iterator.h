@@ -2,7 +2,7 @@
 #define LIBRARY__ITERATOR_H
 
 #include "error.h"
-#include "pointer.h"
+#include "pointers.h"
 
 #include <functional>
 #include <type_traits>
@@ -21,6 +21,7 @@ public:
 template<class F>
 class Iterator {
 public:
+    // TODO: fix this now since we wrap types less eagerly
     /**
      * P is the return-type of f() (where f is an instance of F),
      * should be a PointerQ<T> of some internal type T.  Note that
@@ -58,22 +59,22 @@ public:
     Range(int _end) : end(_end) {
     }
 
-    ScopedQ<int> operator() () {
-        if (i >= end) return ScopedQ<int>(nullptr);
-        return ScopedQ<int>(new int(i++));
+    IScopedQ<int> operator() () {
+        if (i >= end) return IScopedQ<int>(nullptr);
+        return IScopedQ<int>(new int(i++));
     }
 };
 
 void test_library__iterator() {
     {
         int index = 0;
-        Iterator<std::function<ScopedQ<double>()>> iterator([&]() {
-            if (index < 5) return ScopedQ<double>(new double(2.0*index++));
-            return ScopedQ<double>(nullptr);
+        Iterator<std::function<IScopedQ<double>()>> iterator([&]() {
+            if (index < 5) return IScopedQ<double>(new double(2.0*index++));
+            return IScopedQ<double>(nullptr);
         });
 
         TEST(
-            ScopedQ<double> next = iterator.next();
+            IScopedQ<double> next = iterator.next();
             EXPECT_POINTER_EQUAL(next.get(), 0.0);
             next = iterator.next();
             EXPECT_POINTER_EQUAL(next.get(), 2.0);
@@ -98,7 +99,7 @@ void test_library__iterator() {
         EXPECT_POINTER_EQUAL(iterator.peak(), 0);
         EXPECT_POINTER_EQUAL(iterator.peak(), 0);
 
-        ScopedQ<int> next = iterator.next();
+        IScopedQ<int> next = iterator.next();
         EXPECT_POINTER_EQUAL(next.get(), 0);
 
         EXPECT_POINTER_EQUAL(iterator.peak(), 1);

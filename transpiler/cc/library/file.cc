@@ -7,14 +7,14 @@ File::File(fs::directory_entry _entry)
     ASSERT(entry.is_regular_file());
 }
 
-ScopedQ<File::Line> File::operator() () {
-    if (!input_stream.is_open()) return ScopedQ<File::Line>();
+IScopedQ<File::Line> File::operator() () {
+    if (!input_stream.is_open()) return IScopedQ<File::Line>();
     std::string line_content;
     if (!std::getline(input_stream, line_content)) {
         input_stream.close();
-        return ScopedQ<File::Line>(nullptr);
+        return IScopedQ<File::Line>(nullptr);
     }
-    return ScopedQ<File::Line>(new File::Line(
+    return IScopedQ<File::Line>(new File::Line(
         ++line_number,
         line_content
     ));
@@ -24,7 +24,7 @@ ScopedQ<File::Line> File::operator() () {
 void test_library__file() {
     TEST(
         File file(fs::directory_entry(__FILE__));
-        ScopedQ<File::Line> current_line = file();
+        IScopedQ<File::Line> current_line = file();
         ASSERT(current_line.get() != nullptr);
         EXPECT_EQUAL(current_line.get()->content, "#include \"file.h\"");
         EXPECT_EQUAL(current_line.get()->number, 1);

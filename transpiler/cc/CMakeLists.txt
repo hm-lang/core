@@ -18,7 +18,7 @@ enable_cxx_compiler_flag_if_supported("-Wextra")
 enable_cxx_compiler_flag_if_supported("-pedantic")
 enable_cxx_compiler_flag_if_supported("-std=c++17")
 
-file(GLOB SOURCES *.h *.cc library/*.h library/*.cc)
+file(GLOB SOURCES *.h *.cc library/*.h library/*.cc library/pointers/*.h library/pointers/*.cc)
 
 set(TestH "${CMAKE_CURRENT_SOURCE_DIR}/test.h")
 add_executable(${PROJECT_NAME} ${SOURCES} ${TestH})

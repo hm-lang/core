@@ -1,5 +1,5 @@
-#ifndef LIBRARY__POINTER_H
-#define LIBRARY__POINTER_H
+#ifndef LIBRARY__POINTERS_H
+#define LIBRARY__POINTERS_H
 
 #include "error.h"
 
@@ -41,10 +41,10 @@ public:
     }
 };
 
-template<class T> class Scoped;
-template<class T> class ScopedQ;
-template<class T> class Ref;
-template<class T> class RefQ;
+template<class T> class IScoped;
+template<class T> class IScopedQ;
+template<class T> class IRef;
+template<class T> class IRefQ;
 
 #define POINTER_SET_EQUAL_GUARD(o, do_this) \
     if ((void *)&o != (void*)this) { \
@@ -84,9 +84,9 @@ template<class T> class RefQ;
  * If passing in a pointer, the caller must not attempt to free it.
  */
 template<class T>
-class Scoped : public Pointer<T> {
+class IScoped : public Pointer<T> {
 public:
-    Scoped(T *p = nullptr) : ptr(take_with_default(p)) {}
+    IScoped(T *p = nullptr) : ptr(take_with_default(p)) {}
 
     T *get() const {
         // TODO: create a Lazy class, which creates the default for a nullptr here:
@@ -106,15 +106,15 @@ public:
         ptr.reset(p);
     }
 
-    virtual Scoped *copy() const {
-        return new Scoped<T>(*this);
+    virtual IScoped *copy() const {
+        return new IScoped<T>(*this);
     }
 
     // Copies from other pointers:
-    POINTER_MAKE_COPY_TEMPLATES(Scoped)
+    POINTER_MAKE_COPY_TEMPLATES(IScoped)
 
     // Moves from other pointers:
-    POINTER_MAKE_MOVE_TEMPLATES(Scoped)
+    POINTER_MAKE_MOVE_TEMPLATES(IScoped)
 
 protected:
     template<class U>
@@ -143,13 +143,13 @@ protected:
 /**
  * A possibly null pointer that is tied to the current scope. 
  * The underlying type (T) must be default-initializable.
- * The "Q" in ScopedQ stands for question mark, i.e. Scoped?.
+ * The "Q" in IScopedQ stands for question mark, i.e. IScoped?.
  * If passing in a pointer, the caller must not attempt to free it.
  */
 template<class T>
-class ScopedQ : public Pointer<T> {
+class IScopedQ : public Pointer<T> {
 public:
-    ScopedQ(T *p = nullptr) : ptr(p) {}
+    IScopedQ(T *p = nullptr) : ptr(p) {}
 
     T *get() const {
         return ptr.get();
@@ -163,15 +163,15 @@ public:
         ptr.reset(p);
     }
 
-    virtual ScopedQ *copy() const {
-        return new ScopedQ<T>(*this);
+    virtual IScopedQ *copy() const {
+        return new IScopedQ<T>(*this);
     }
 
     // Copies from other pointers:
-    POINTER_MAKE_COPY_TEMPLATES(ScopedQ)
+    POINTER_MAKE_COPY_TEMPLATES(IScopedQ)
 
     // Moves from other pointers:
-    POINTER_MAKE_MOVE_TEMPLATES(ScopedQ)
+    POINTER_MAKE_MOVE_TEMPLATES(IScopedQ)
 
 protected:
     template<class U>
@@ -202,9 +202,9 @@ protected:
  * The pointer is not owned by this class, and so will not be freed.
  */
 template<class T>
-class Ref : public Pointer<T> {
+class IRef : public Pointer<T> {
 public:
-    Ref(T *_ptr) : ptr(_ptr) {
+    IRef(T *_ptr) : ptr(_ptr) {
         ASSERT(ptr != nullptr);
     }
 
@@ -215,7 +215,7 @@ public:
 
     T *take() {
         ASSERT(ptr != nullptr);
-        // Since Ref doesn't own the pointer, it needs to create a new value
+        // Since IRef doesn't own the pointer, it needs to create a new value
         // since the caller expects to own the returned pointer and value.
         return copy_held_value_into_new_pointer(ptr);
     }
@@ -225,8 +225,8 @@ public:
         ptr = new_ptr;
     }
 
-    virtual Ref *copy() const {
-        return new Ref<T>(*this);
+    virtual IRef *copy() const {
+        return new IRef<T>(*this);
     }
 
 private:
@@ -236,12 +236,12 @@ private:
 /**
  * A possibly null pointer that MUST OUTLIVE the current scope. 
  * The pointer is not owned by this class, and so will not be freed.
- * The "Q" in RefQ stands for question mark, i.e. Ref?.
+ * The "Q" in IRefQ stands for question mark, i.e. IRef?.
  */
 template<class T>
-class RefQ : public Pointer<T> {
+class IRefQ : public Pointer<T> {
 public:
-    RefQ(T *_ptr = nullptr) : ptr(_ptr) {
+    IRefQ(T *_ptr = nullptr) : ptr(_ptr) {
     }
 
     T *get() const {
@@ -250,7 +250,7 @@ public:
 
     T *take() {
         if (ptr == nullptr) return nullptr;
-        // Since RefQ doesn't own the pointer, it needs to create a new value
+        // Since IRefQ doesn't own the pointer, it needs to create a new value
         // since the caller expects to own the returned pointer and value.
         return copy_held_value_into_new_pointer(ptr);
     }
@@ -259,13 +259,103 @@ public:
         ptr = p;
     }
 
-    virtual RefQ *copy() const {
-        return new RefQ<T>(*this);
+    virtual IRefQ *copy() const {
+        return new IRefQ<T>(*this);
     }
 
 private:
     T *ptr;
 };
+
+#ifndef NDEBUG
+namespace test {
+template <class T>
+class Parent : public Object {
+public:
+    T id;
+
+    Parent(T i = -1) : id(i) {
+        std::cout << "Parent(" << id << ")";
+    }
+    Parent(const Parent& p) : Parent(p.id) {
+        std::cout << "{CC}";
+    }
+    Parent(Parent&& p) : Parent(p.id) {
+        std::cout << "{MC}";
+    }
+    virtual ~Parent() {
+        std::cout << "~Parent(" << id << ")";
+    }
+
+    virtual Parent *copy() const {
+        return new Parent(*this);
+    }
+};
+
+// TODO: why isn't the original Object copy_held_value_into_new_pointer good enough?
+template <class T>
+Parent<T> *copy_held_value_into_new_pointer(const Parent<T> *p) {
+    return p->copy();
+}
+
+template <class T>
+class Child : public Parent<T> {
+public:
+    std::string name;
+
+    Child(std::string n = "nil", T i = -2) : Parent<T>(i), name(n) {
+        std::cout << "Child(" << name << ", " << this->id << ")";
+    }
+    Child(const Child& c) : Child(c.name, c.id) {
+        std::cout << "{CC}";
+    }
+    Child(Child&& c) : Child(c.name, c.id) {
+        std::cout << "{MC}";
+    }
+    virtual ~Child() {
+        std::cout << "~Child(" << name << ", " << this->id << ")";
+    }
+
+    virtual Child *copy() const {
+        return new test::Child(*this);
+    }
+};
+
+template <class T>
+class Aunt : public Object {
+public:
+    std::string name;
+
+    // Make the template feel useful.
+    T get() {
+        return T();
+    }
+
+    Aunt(std::string n = "nil") : name(n) {
+        std::cout << "Aunt(" << name << ")";
+    }
+    Aunt(const Aunt& a) : Aunt(a.name) {
+        std::cout << "{CC}";
+    }
+    Aunt(Aunt&& a) : Aunt(std::move(a.name)) {
+        std::cout << "{MC}";
+    }
+    Aunt(const Child<T>& c) : Aunt(c.name + "'s Aunt") {
+        std::cout << "{CC}";
+    }
+    Aunt(Child<T>&& c) : Aunt(c.name + "'s Aunt") {
+        std::cout << "{MC}";
+    }
+    virtual ~Aunt() {
+        std::cout << "~Aunt(" << name << ")";
+    }
+
+    virtual Aunt *copy() const {
+        return new Aunt(*this);
+    }
+};
+}
+#endif
 
 }
 

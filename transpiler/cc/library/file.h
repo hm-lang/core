@@ -2,7 +2,7 @@
 #define LIBRARY__FILE_H
 
 #include "error.h"
-#include "pointer.h"
+#include "pointers.h"
 
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -22,7 +22,7 @@ public:
     };
 
     /** Gets the next line of this file. */
-    ScopedQ<Line> operator() ();
+    IScopedQ<Line> operator() ();
 
 private:
     const fs::directory_entry entry;
