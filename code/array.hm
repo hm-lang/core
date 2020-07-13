@@ -1,45 +1,47 @@
-
 class NEW_T ARRAY
-    NEW_T GRSV MD this(INDEX) = NEW(
-        NEW_T FN new.get()
-            return get(index)
-        NEW_T FN new.remove()
-            return remove(index)
-        NEW_T FN new.set(NEW_T value)
-            return set(index, value)
-        CONST_NEW_T REF FN new.view()
-            return view(index)
-    )
+    class GRSV(INDEX, NEW_T ARRAY CONST_REF) extends NEW_T :GRSV
+        NEW_T MD get()
+            return newT_array_constRef.get(index)
+        NEW_T MD remove()
+            return newT_array_constRef.remove(index)
+        NEW_T MD set(NEW_T value)
+            return newT_array_constRef.set(index, value)
+        CONST_NEW_T REF MD view()
+            return newT_array_constRef.view(index)
 
-    class NEW_T VALUE_ITERATOR(
-        NEW_T ARRAY CONST_REF array__
-    ) extends NEW_T REMOVABLE_ITERATOR(array.size)
+    NEW_T GRSV MD this(INDEX) = NEW(index, this)
+
+    class VALUE_ITERATOR(
+        NEW_T ARRAY CONST_REF
+    ) extends NEW_T REMOVABLE_ITERATOR(newT_array_constRef.size)
         INDEX __ = 0
+
         NEW_T? MD next()
-            return index < array.size ? array.get(index++) : null
+            return index < newT_array_constRef.size ? newT_array_constRef.get(index++) : null
 
         CONST_NEW_T REF? MD peak()
-            return index < array.size ? array.view(index) : null
+            return index < newT_array_constRef.size ? newT_array_constRef.view(index) : null
 
         MD insert(NEW_T)
-            if index < array.size
-                array.insert(index++, newT)
+            if index < newT_array_constRef.size
+                newT_array_constRef.insert(index++, newT)
             else
-                array.append(newT)
-                index = array.size
+                newT_array_constRef.append(newT)
+                index = newT_array_constRef.size
 
         NEW_T? MD remove()
-            return index < array.size ? array.remove(index) : null
+            return index < newT_array_constRef.size ? newT_array_constRef.remove(index) : null
 
     class NEW_T INDEX_ITERATOR(
-        NEW_T ARRAY CONST_REF array__
-    ) extends [INDEX, NEW_T] ITERATOR(array.size)
-        INDEX new.index__ = 0
+        NEW_T ARRAY CONST_REF
+    ) extends [INDEX, NEW_T] ITERATOR(newT_array_constRef.size)
+        INDEX nextIndex__ = 0
+
         [INDEX, NEW_T]? MD next()
-            if new.index >= array.size
+            if nextIndex >= newT_array_constRef.size
                 return null
-            index = new.index++
-            newT = array.get(index)
+            index = nextIndex++
+            newT = newT_array_constRef.get(index)
 
     to NEW_T VALUE_ITERATOR = VALUE_ITERATOR(this)
     # TODO: make these automatic based on VALUE_ITERATOR's hierarchy:
