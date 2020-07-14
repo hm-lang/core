@@ -1,0 +1,11 @@
+===
+An abstract class which has a `peak()` method.  Used in a `PEAKABLE_ITERATOR`
+to indicate that the next value that will appear in the iteration can be seen
+without changing the `ITERATOR` or any underlying `CONTAINER` in any way.
+===
+class NEW_T PEAKABLE
+    ===
+    Returns a view (reference to constant value) of the next element,
+    or null if there are no further elements to iterate over.
+    ===
+    CONST_NEW_T REF? MD peak();
