@@ -1,0 +1,21 @@
+===
+An abstract class which has an `insert(NEW_T)` method.  Used in a specialized `ITERATOR`
+class to provide a way to insert a new value into the underlying `CONTAINER`.
+===
+class NEW_T INSERTABLE
+    ===
+    Inserts a new value into the underlying container, typically at a specific place.
+
+    For an `ITERATOR`, the new value comes before the next value in the iteration,
+    i.e., before `peak()`, but the inserted value will not appear when calling
+    `next()`.  The underlying container must allow inserts to happen, and it must
+    guarantee that the inserted value will not appear when calling any number of
+    `next()`s.  (Unless of course this value was already present later in the
+    iterator, but the newly inserted value should not appear.)  I.e., any new
+    values inserted into the underlying container during iteration should NOT
+    appear during iteration.  Containers should also guarantee that the value
+    is inserted immediately, so that testing for the presence of the new value
+    in the CONTAINER will immediately yield true.
+    ===
+    MD insert(NEW_T);
+

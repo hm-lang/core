@@ -1,5 +1,5 @@
 ===
-An abstract class which has a `remove()` method.  Used in a `REMOVABLE_ITERATOR`
+An abstract class which has a `remove()` method.  Used in a `ITERATOR.REMOVABLE`
 to indicate that the next value that will appear in the iteration can be removed,
 changing the `ITERATOR` (by not returning that value when calling `next()`) and
 also removing the value from the underlying `CONTAINER`.
@@ -10,4 +10,3 @@ class NEW_T REMOVABLE
     or it returns null if there is no current element at this position.
     ===
     NEW_T? MD remove();
-

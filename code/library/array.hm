@@ -1,5 +1,5 @@
 class NEW_T ARRAY
-    class GRSV(INDEX, NEW_T ARRAY CONST_REF) extends NEW_T :GRSV
+    class GRSV__(INDEX, NEW_T ARRAY CONST_REF) extends NEW_T GRSV
         NEW_T MD get()
             return newT_array_constRef.get(index)
         NEW_T MD remove()
@@ -9,11 +9,11 @@ class NEW_T ARRAY
         CONST_NEW_T REF MD view()
             return newT_array_constRef.view(index)
 
-    NEW_T GRSV MD this(INDEX) = NEW(index, this)
+    NEW_T GRSV MD this(INDEX) = ARRAY.GRSV(index, this)
 
     class VALUE_ITERATOR(
         NEW_T ARRAY CONST_REF
-    ) extends NEW_T REMOVABLE_ITERATOR(newT_array_constRef.size)
+    ) extends NEW_T ITERATOR.PEAKABLE_REMOVABLE(newT_array_constRef.size)
         INDEX __ = 0
 
         NEW_T? MD next()
@@ -43,12 +43,14 @@ class NEW_T ARRAY
             index = nextIndex++
             newT = newT_array_constRef.get(index)
 
-    to NEW_T VALUE_ITERATOR = VALUE_ITERATOR(this)
+    to NEW_T ARRAY.VALUE_ITERATOR = ARRAY.VALUE_ITERATOR(this)
     # TODO: make these automatic based on VALUE_ITERATOR's hierarchy:
-    to NEW_T REMOVABLE_ITERATOR = VALUE_ITERATOR(this)
-    to NEW_T ITERATOR = VALUE_ITERATOR(this)
+    to NEW_T ITERATOR.PEAKABLE_REMOVABLE = ARRAY.VALUE_ITERATOR(this)
+    to NEW_T ITERATOR.PEAKABLE = ARRAY.VALUE_ITERATOR(this)
+    to NEW_T ITERATOR.REMOVABLE = ARRAY.VALUE_ITERATOR(this)
+    to NEW_T ITERATOR = ARRAY.VALUE_ITERATOR(this)
 
-    to [INDEX, NEW_T] INDEX_ITERATOR = INDEX_ITERATOR(this)
+    to [INDEX, NEW_T] ARRAY.INDEX_ITERATOR = ARRAY.INDEX_ITERATOR(this)
     # TODO: make this automatic based on INDEX_ITERATOR's hierarchy:
-    to [INDEX, NEW_T] ITERATOR = INDEX_ITERATOR(this)
+    to [INDEX, NEW_T] ITERATOR = ARRAY.INDEX_ITERATOR(this)
 

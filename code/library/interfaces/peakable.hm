@@ -1,5 +1,5 @@
 ===
-An abstract class which has a `peak()` method.  Used in a `PEAKABLE_ITERATOR`
+An abstract class which has a `peak()` method.  Used in a `ITERATOR.PEAKABLE`
 to indicate that the next value that will appear in the iteration can be seen
 without changing the `ITERATOR` or any underlying `CONTAINER` in any way.
 ===

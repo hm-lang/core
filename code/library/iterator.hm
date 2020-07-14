@@ -1,54 +1,32 @@
-class NEW_T ITERATOR(
+class NEW_T ITERATOR(SIZE? CONST size) extends NEW_T NEXTABLE
     ===
-    function which gets the next value of the iterator, or null
+    Returns the next value of the iterator, or null
     if the iterator is finished:
     ===
-    NEW_T? FN next()
+    NEW_T? MD next();
 
-    ===
-    function which gets the next value of the iterator, or null,
-    but it doesn't advance the underlying iterator.
-    the function itself can be null if this operation is not available for
-    the underlying data container.
-    ===
-    CONST_NEW_T REF? FN? peak()
+    class LAMBDA(
+        ===
+        function which gets the next value of the iterator, or null
+        if the iterator is finished:
+        ===
+        NEW_T? FN new.next__()
 
-    ===
-    value which provides the total number of elements which will
-    be iterated over, if available.  if there is a backing container,
-    this is the original number of elements in the container.
-    ===
-    SIZE? CONST this.size
+        ===
+        value which provides the total number of elements which will
+        be iterated over, if available.  if there is a backing container,
+        this is the original number of elements in the container.
+        ===
+        SIZE? CONST new.size
+    ) extends NEW_T ITERATOR(new.size)
+        NEW_T? MD next() = new.next()
 
-    ===
-    function which inserts a new value `newT` before the next value
-    in the iteration.  this function should only be defined if the
-    underlying container allows inserts to happen.
-    the inserted value will not appear when calling `next()`,
-    and classes which implement this should guarantee that any number
-    of repeated `next()`s will not eventually return the inserted value.
-    i.e., any values inserted into the underlying container during
-    iteration should not appear in this iterator (even if insertion does
-    affect some of the later values in the iterator).  containers should
-    also guarantee that the value is inserted immediately.
-    ===
-    FN? insert(NEW_T)
-    # TODO: we may want to allow multiple insert values, i.e., to
-    # make this `FN? this.insert(NEW_T ITERATOR)`.
-
-    ===
-    function which deletes the value at `peak()`, and returns it.
-    that value should also disappear from the underlying container,
-    and this function should not be defined unless that is happening.
-    ===
-    NEW_T? FN? remove()
-)
     ===
     standard map and filter all in one.
     the callback should return a null if the `NEW_U` instance
     should not be produced in the new iterator.
     ===
-    NEW_U ITERATOR MD map(NEW_U? FN(NEW_T)) = NEW(
+    NEW_U ITERATOR MD map(NEW_U? FN(NEW_T)) = LAMBDA(
         # TODO: support other things besides `next()`:
         NEW_U? FN new.next()
             NEW_T? current
@@ -61,17 +39,57 @@ class NEW_T ITERATOR(
     # add the known size as well.
 
     ===
-    take elements from this ITERATOR and put them into a new one,
-    based on some filtering criterion.
-
-      INT ARRAY x = [1, 2, 3, 100, 9, 11]
-      INT ARRAY y = ITERATOR(x).take($whereValue < 10)
-      # y == [1, 2, 3, 9]
-      # x == [100, 11]
+    An abstract class for an iterator which defines a `peak()` method, which allows
+    users to see the next value in the iteration without changing the iterator.
     ===
-    NEW_T ITERATOR MD take(BOOL FN(CONST_NEW_T REF whereValue))
-        assert remove != null && peak != null
-        return NEW(
+    class PEAKABLE(SIZE? CONST size)
+            extends NEW_T :interfaces.PEAKABLE, NEW_T ITERATOR(size);
+
+    class NEW_T BUFFERED extends NEW_T ITERATOR.PEAKABLE
+        NEW_T? currentValue__
+
+        from(NEW_T ITERATOR this.old__)
+            ITERATOR.PEAKABLE.from(this.old.size)
+            currentValue = this.old.next()
+
+        CONST_NEW_T REF? MD peak()
+            return currentValue
+
+        NEW_T? MD next()
+            if currentValue != null
+                # TODO: nim-style a = b = c style moves.
+                newTQ = currentValue = old.next()
+
+    ===
+    An abstract class for an iterator which defines a `remove()` method, which allow users
+    to remove the next value in the iteration, which changes the iterator and underlying
+    container.
+    ===
+    class NEW_T REMOVABLE extends NEW_T :interfaces.REMOVABLE, NEW_T ITERATOR
+        pass
+
+    ===
+    An abstract class for an iterator which defines `peak()` and `remove()` methods,
+    which allow users to see the next value in the iteration without changing the iterator,
+    as well as remove the next value in the iteration (which does change the iterator and
+    the underlying container).
+    ===
+    # TODO: better way to annotate interfaces.  e.g. extends NEW_T ITERATOR & PEAKABLE & REMOVABLE
+    class NEW_T PEAKABLE_REMOVABLE extends
+            NEW_T :interfaces.PEAKABLE,
+            NEW_T :interfaces.REMOVABLE,
+            NEW_T ITERATOR
+        ===
+        Takes elements from this `ITERATOR` and puts them into a new one,
+        based on some filtering criterion.
+        ```
+        INT ARRAY x = [1, 2, 3, 100, 9, 11]
+        INT ARRAY y = x.take($whereValue < 10)
+        # y == [1, 2, 3, 9]
+        # x == [100, 11]
+        ```
+        ===
+        NEW_T ITERATOR MD take(BOOL FN(CONST_NEW_T REF whereValue)) = ITERATOR.LAMBDA(
             NEW_T? FN new.next()
                 CONST_NEW_T REF? peaked
                 while (peaked = peak()) != null
@@ -80,4 +98,3 @@ class NEW_T ITERATOR(
                     next()
                 return null
         )
-
