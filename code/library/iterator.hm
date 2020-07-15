@@ -22,21 +22,37 @@ class NEW_T ITERATOR(SIZE? CONST size) extends NEW_T NEXTABLE
         NEW_T? MD next() = new.next()
 
     ===
-    standard map and filter all in one.
-    the callback should return a null if the `NEW_U` instance
-    should not be produced in the new iterator.
+    Maps the values in the current `ITERATOR` into elements of a possibly
+    different type in a new iterator.  The callback provides the mapping
+    from this iterator's values to the returned one's values.
+    TODO: possibly make a MAPPED_PEAKABLE class to avoid creating a lambda function?
     ===
-    NEW_U ITERATOR MD map(NEW_U? FN(NEW_T)) = LAMBDA(
-        # TODO: support other things besides `next()`:
+    NEW_U ITERATOR MD map(NEW_U FN(NEW_T)) = NEW_U ITERATOR.LAMBDA(
+        size
+        NEW_U? FN new.next()
+            NEW_T? current = next()
+            if current != null
+                return fn(current)
+    )
+
+    ===
+    Combines map and filter functionality to produce a new iterator
+    from the current `ITERATOR`.  The provided callback should return
+    null if that value should not be returned in the new iterator,
+    and otherwise returns the new value converted from the old one.
+    ===
+    NEW_U ITERATOR MD map(NEW_U? FN(NEW_T)) = NEW_U ITERATOR.LAMBDA(
+        # TODO: support other things besides `next()`, e.g. peak():
         NEW_U? FN new.next()
             NEW_T? current
-            while (current = next()) != null
+            while true
+                current = next()
+                if current == null
+                    return
                 newUQ = fn(current)
-                if newUQ, return newUQ.move()
-            return null
+                if newUQ != null
+                    return
     )
-    # TODO: add map overload with a non-null NEW_U return value, so that we can
-    # add the known size as well.
 
     ===
     An abstract class for an iterator which defines a `peak()` method, which allows
@@ -46,19 +62,19 @@ class NEW_T ITERATOR(SIZE? CONST size) extends NEW_T NEXTABLE
             extends NEW_T :interfaces.PEAKABLE, NEW_T ITERATOR(size);
 
     class NEW_T BUFFERED extends NEW_T ITERATOR.PEAKABLE
-        NEW_T? currentValue__
+        NEW_T? nextValue__
 
         from(NEW_T ITERATOR this.old__)
             ITERATOR.PEAKABLE.from(this.old.size)
-            currentValue = this.old.next()
+            nextValue = this.old.next()
 
         CONST_NEW_T REF? MD peak()
-            return currentValue
+            return nextValue
 
         NEW_T? MD next()
-            if currentValue != null
+            if nextValue != null
                 # TODO: nim-style a = b = c style moves.
-                newTQ = currentValue = old.next()
+                newTQ = nextValue = old.next()
 
     ===
     An abstract class for an iterator which defines a `remove()` method, which allow users
