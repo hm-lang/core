@@ -5,22 +5,6 @@ class NEW_T ITERATOR(SIZE? CONST size) extends NEW_T NEXTABLE
     ===
     NEW_T? MD next();
 
-    class LAMBDA(
-        ===
-        function which gets the next value of the iterator, or null
-        if the iterator is finished:
-        ===
-        NEW_T? FN new.next__()
-
-        ===
-        value which provides the total number of elements which will
-        be iterated over, if available.  if there is a backing container,
-        this is the original number of elements in the container.
-        ===
-        SIZE? CONST new.size
-    ) extends NEW_T ITERATOR(new.size)
-        NEW_T? MD next() = new.next()
-
     ===
     Maps the values in the current `ITERATOR` into elements of a possibly
     different type in a new iterator.  The callback provides the mapping
@@ -54,63 +38,87 @@ class NEW_T ITERATOR(SIZE? CONST size) extends NEW_T NEXTABLE
                     return
     )
 
+===
+A version of the `ITERATOR` class whose `next()` is defined via a lambda
+function rather than implemented as a child-class method.
+===
+class NEW_T ITERATOR.LAMBDA(
     ===
-    An abstract class for an iterator which defines a `peak()` method, which allows
-    users to see the next value in the iteration without changing the iterator.
+    function which gets the next value of the iterator, or null
+    if the iterator is finished:
     ===
-    class PEAKABLE(SIZE? CONST size)
-            extends NEW_T :interfaces.PEAKABLE, NEW_T ITERATOR(size);
-
-    class NEW_T BUFFERED extends NEW_T ITERATOR.PEAKABLE
-        NEW_T? nextValue__
-
-        from(NEW_T ITERATOR this.old__)
-            ITERATOR.PEAKABLE.from(this.old.size)
-            nextValue = this.old.next()
-
-        CONST_NEW_T REF? MD peak()
-            return nextValue
-
-        NEW_T? MD next()
-            if nextValue != null
-                # TODO: nim-style a = b = c style moves.
-                newTQ = nextValue = old.next()
+    NEW_T? FN new.next__()
 
     ===
-    An abstract class for an iterator which defines a `remove()` method, which allow users
-    to remove the next value in the iteration, which changes the iterator and underlying
-    container.
+    value which provides the total number of elements which will
+    be iterated over, if available.  if there is a backing container,
+    this is the original number of elements in the container.
     ===
-    class NEW_T REMOVABLE extends NEW_T :interfaces.REMOVABLE, NEW_T ITERATOR
-        pass
+    SIZE? CONST new.size
+) extends NEW_T ITERATOR(new.size)
+    NEW_T? MD next() = new.next()
 
+
+===
+An abstract class for an iterator which defines a `peak()` method, which allows
+users to see the next value in the iteration without changing the iterator.
+===
+class NEW_T ITERATOR.PEAKABLE(SIZE? CONST size)
+        extends NEW_T :interfaces.PEAKABLE, NEW_T ITERATOR(size);
+
+class NEW_T ITERATOR.BUFFERED extends NEW_T ITERATOR.PEAKABLE
+    NEW_T? nextValue__
+
+    from(NEW_T ITERATOR this.old__)
+        # TODO: find a better syntax for parent from'ing:
+        ITERATOR.PEAKABLE.from(this.old.size)
+        nextValue = this.old.next()
+
+    CONST_NEW_T REF? MD peak()
+        return nextValue
+
+    NEW_T? MD next()
+        if nextValue != null
+            # TODO: nim-style a = b = c style moves.
+            newTQ = nextValue = old.next()
+
+===
+An abstract class for an iterator which defines a `remove()` method, which allow users
+to remove the next value in the iteration, which changes the iterator and underlying
+container.
+===
+class NEW_T ITERATOR.REMOVABLE extends NEW_T :interfaces.REMOVABLE, NEW_T ITERATOR
+    pass
+
+===
+An abstract class for an iterator which defines `peak()` and `remove()` methods,
+which allow users to see the next value in the iteration without changing the iterator,
+as well as remove the next value in the iteration (which does change the iterator and
+the underlying container).
+===
+# TODO: better way to annotate interfaces.  e.g. extends NEW_T ITERATOR & PEAKABLE & REMOVABLE
+class NEW_T ITERATOR.PEAKABLE_REMOVABLE extends
+        NEW_T :interfaces.PEAKABLE,
+        NEW_T :interfaces.REMOVABLE,
+        NEW_T ITERATOR
     ===
-    An abstract class for an iterator which defines `peak()` and `remove()` methods,
-    which allow users to see the next value in the iteration without changing the iterator,
-    as well as remove the next value in the iteration (which does change the iterator and
-    the underlying container).
+    Takes elements from this `ITERATOR` and puts them into a new one,
+    based on some filtering criterion.
+    ```
+    INT ARRAY x = [1, 2, 3, 100, 9, 11]
+    INT ARRAY y = x.take($whereValue < 10)
+    # y == [1, 2, 3, 9]
+    # x == [100, 11]
+    ```
     ===
-    # TODO: better way to annotate interfaces.  e.g. extends NEW_T ITERATOR & PEAKABLE & REMOVABLE
-    class NEW_T PEAKABLE_REMOVABLE extends
-            NEW_T :interfaces.PEAKABLE,
-            NEW_T :interfaces.REMOVABLE,
-            NEW_T ITERATOR
-        ===
-        Takes elements from this `ITERATOR` and puts them into a new one,
-        based on some filtering criterion.
-        ```
-        INT ARRAY x = [1, 2, 3, 100, 9, 11]
-        INT ARRAY y = x.take($whereValue < 10)
-        # y == [1, 2, 3, 9]
-        # x == [100, 11]
-        ```
-        ===
-        NEW_T ITERATOR MD take(BOOL FN(CONST_NEW_T REF whereValue)) = ITERATOR.LAMBDA(
-            NEW_T? FN new.next()
-                CONST_NEW_T REF? peaked
-                while (peaked = peak()) != null
-                    if fn(WhereValue(peaked))
-                        return remove()
-                    next()
-                return null
-        )
+    NEW_T ITERATOR MD take(BOOL FN(CONST_NEW_T REF whereValue)) = ITERATOR.LAMBDA(
+        NEW_T? FN new.next()
+            CONST_NEW_T REF? peaked
+            while true
+                peaked = peak()
+                if peaked == null
+                    return
+                if fn(WhereValue(peaked))
+                    return remove()
+                next()
+    )
