@@ -33,11 +33,11 @@ In case the child class has a more specific name, and we want to set it as
 the default for the parent type, we use this syntax:
 
 ```
-class MAP KEY VALUE
+class KEY VALUE MAP
     # ...
     VALUE GS ABSTRACT_MD this[KEY]
 
-class LINKED_HASH_MAP KEY VALUE extends KEY VALUE MAP
+class KEY VALUE LINKED_HASH_MAP extends KEY VALUE MAP
     # ...
     VALUE GS MD this[KEY]
         # implementation

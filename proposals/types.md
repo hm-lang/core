@@ -85,7 +85,7 @@ array is being defined.
     DBL[3] vector
 
     # declare a hash map of strings to integers;
-    # equivalent to `MAP Key(STRING) Value(INT) userIdMap`:
+    # equivalent to `Key(STRING) Value(INT) MAP userIdMap`:
     INT[STRING] userIdMap
 
     # declare a hash map that has a key composed of two types,
