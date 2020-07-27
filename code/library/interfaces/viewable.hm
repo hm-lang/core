@@ -1,0 +1,12 @@
+===
+An abstract class which has a `view()` method.  Used in getter-like classes
+that can also return an immutable picture of what the internal value is.
+===
+class NEW_T VIEWABLE
+    ===
+    Returns an immutable picture of the internal value held by this class instance.
+    Note that the underlying internal value can still change, but just not by using
+    this method.
+    ===
+    CONST_NEW_T REF MD view();
+
