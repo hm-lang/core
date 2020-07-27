@@ -1,0 +1,14 @@
+===
+An abstract class which has a `move()` method.  All types have this.
+It represents the fact that all type instances can be moved from one
+variable to another, though the earlier variable will be reset to
+avoid the situation where two variables hold onto the same instance.
+===
+class MOVABLE
+    ===
+    Returns the currently held internal value, and resets the internal
+    value to a blank state.
+    ===
+    THIS MD move();
+
+
