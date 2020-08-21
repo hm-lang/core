@@ -5,34 +5,56 @@ or by defining the class with the parent class prefix.  The latter
 helps to avoid the indent limit.
 
 ```
-class EXAMPLE
-    class NESTED_CLASS(INT, STRING)
-        MD doSomething()
-            for INT i < int
+class example
+    # define a nested class in the first way:  direct nesting:
+    class nestedClass(Int, String)
+        doSomething()
+            for int I < Int
                 print(string)
 
-    NESTED_CLASS _
-    MD setNestedClass(NESTED_CLASS new)
-        nestedClass = new.nestedClass 
+    # define a protected nestedClass instance, NestedClass:
+    nestedClass _
+    setNestedClass(nestedClass New)
+        NestedClass = New
 
-    OTHER_NESTED_CLASS _
-    MD setOtherNestedClass(OTHER_NESTED_CLASS new)
-        otherNestedClass = new.otherNestedClass 
+    # define a protected otherNestedClass instance, OtherNestedClass:
+    otherNestedClass _
+    setOtherNestedClass(otherNestedClass New)
+        OtherNestedClass = New 
 
+# define a nested class in the second way:  parent prefix:
 # Note this definition doesn't have to come before the first usage above:
-class EXAMPLE.OTHER_NESTED_CLASS(INT zazzle);
+class example.otherNestedClass(int Zazzle);
 
-EXAMPLE ex
-ex.setOtherNestedClass(NEW(Zazzle(1)))
-# TODO: make this syntax also work:
-# ex.setOtherNestedClass(Zazzle(1))
-print(ex.otherNestedClass.zazzle)
+example Ex
+Ex.setOtherNestedClass(Zazzle(1))
+print(Ex.OtherNestedClass.Zazzle)
 
-EXAMPLE.NESTED_CLASS nest(5, "hi")
-ex.setNestedClass(nest)
-ex.nestedClass.doSomething()
+example.nestedClass Nest(5, "hi")
+Ex.setNestedClass(Nest)
+Ex.NestedClass.doSomething()
 ```
 
 Nested classes are a good candidate for protected/private status.
 See [public/protected/private](./public_protected_private.md) for more
 discussion.
+
+## Implementation
+
+We probably would not actually do any nesting in C++, although that is possible.
+To make it easier to reference nested classes from outside the unnested class,
+we will probably do something like this:
+
+```
+class example {
+ /** logic **/
+};
+
+class example__nestedClass {
+ /** logic **/
+};
+
+class example__otherNestedClass {
+ /** logic **/
+};
+```

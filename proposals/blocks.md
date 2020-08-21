@@ -6,7 +6,7 @@ block without changing the indent.  Also, a line that is blank
 except for a comment will also not change the indent.  Examples:
 
 ```
-INT FN hello()
+Int hello()
     # indent 1
     print("this is a block at indent 1")
 
@@ -19,7 +19,7 @@ INT FN hello()
 But two blank lines will break a block:
 
 ```
-INT FN hello()
+Int hello()
     # notice two following blank lines, breaks the block:
 
 
@@ -30,7 +30,7 @@ INT FN hello()
 Or obviously an unindent will break the block:
 
 ```
-INT FN hello()
+Int hello()
     return 3
 
 print("unindenting breaks the block, obviously")

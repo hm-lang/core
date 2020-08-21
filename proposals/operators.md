@@ -17,10 +17,10 @@ Some basic operators/symbols you'll encounter along the way:
 |     !=    |  `x != 5` | check not equal; returns false iff LHS equals RHS.   |
 |    and    | `x and 3` | returns LHS if falsy, else RHS                       |
 |     or    |  `x or 3` | returns LHS if truthy, else RHS                      |
-|    xor    | `x xor 3` | returns null if LHS and RHS are both truthy or falsy otherwise returns the single truthy value |
+|    xor    | `x xor 3` | returns Null if LHS and RHS are both truthy or falsy otherwise returns the single truthy value |
 |     $     |  `x $= 3` | creates a [lambda function](lambda_functions.md)     |
 |     <<    |  `3 << 5` | bit-shift left (multiply LHS by 2^RHS)               |
-|     >>    |  `3 >> 1` | bit-shift right (integer divide LHS by 2^RHS)        |
+|     >>    |  `3 >> 1` | bit-shift right (divide LHS by 2^RHS)                |
 |     &     |  `2 & 4`  | bitwise and                                          |
 |     \|    |  `2 \| 4` | bitwise or                                           |
 |     ><    |  `x >< y` | returns bitwise xor of two operands                  |

@@ -13,58 +13,51 @@ declaration, *no leading/trailing underscores are necessary*.
 ## Visibility of variables
 
  * Public variables are gettable/settable globally from anywhere.
+
  * Protected variables are gettable globally, but can only be set
-   by child classes, or by other classes defined in the same directory
-   as the original class, i.e. *friend* classes (note that subdirectories
-   are excluded from being friends).
- * Private variables are gettable/settable only by the original class,
-   or by other classes/functions defined *within the same file* as the
-   original class.  (This allows for testing private variables/methods,
-   though this is not recommended.)
+   by friends of the class.
+
+ * Private variables are gettable/settable by the original class,
+   and are gettable by other friends of the class.
+
+One can qualify as a friend of a class in two different ways:
+
+1. You are a child class of the class in question.
+
+2. You are another class or function defined *within the same file*
+   as the class in question.
 
 ```
-    # FILE: root/example/example.hm
-    class EXAMPLE
-        DBL x
-        DBL y_
-        DBL z__
+# FILE: root/example/example.hm
+class example
+    dbl X   # public (get/set global)
+    dbl Y_  # protected (get global, settable by friends only)
+    dbl Z__ # private (gettable by friends only)
 
-    TEST example(FN()
-        EXAMPLE ex
-        print(ex.x) # great
-        ex.x = 1    # great
+test ExampleVisibility(fn()
+    example Ex
+    print(Ex.X) # great
+    Ex.X = 1    # great
 
-        print(ex.y) # no problem
-        ex.y = 2    # no problem
+    print(Ex.Y) # no problem
+    Ex.Y = 2    # no problem, test in this file is a friend.
 
-        print(ex.z) # OK, but not recommended
-        ex.z = 3    # OK, but not recommended
-    )
+    print(Ex.Z) # OK, but not recommended
+    Ex.Z = 3    # ERROR, cannot set private variables
+)
 
-    # FILE: root/example/friend.hm
-    class FRIEND_TO_EXAMPLE
-        EXAMPLE ex
-        MD doSomething()
-            print(ex.x)     # ok
-            ex.x = 1234.5   # ok
-            print(ex.y)     # ok
-            ex.y = 123.4    # ok
-            # print(ex.z)   # NOT ALLOWED
-            # ex.z = 3.1415 # NOT ALLOWED
+# FILE: root/example/neighbor.hm
+class neighbor 
+    example Ex
+    doSomething()
+        print(Ex.X)     # ok
+        Ex.X = 1234.5   # ok
+        print(Ex.Y)     # ok
+        Ex.Y = 123.4    # ERROR! NOT ALLOWED
+        print(Ex.Z)     # ERROR! NOT ALLOWED
+        Ex.Z = 3.1415   # ERROR! NOT ALLOWED
 
-    # FILE: root/example/subdir/not_a_friend.hm
-    class NOT_A_FRIEND_TO_EXAMPLE
-        EXAMPLE ex
-        MD doSomething()
-            print(ex.x)     # ok
-            ex.x = 1234.5   # ok
-            print(ex.y)     # ok
-            # ex.y = 1234.5 # NOT ALLOWED
-            # print(ex.z)   # NOT ALLOWED
-            # ex.z = 3.1415 # NOT ALLOWED
-
-    # and similarly for other files not in the same
-    # directory as root/example/example.hm
+# and similarly for other files not in the same directory.
 ```
 
 NOTE!  Regardless of the identifier used when *declaring* a variable,
@@ -72,55 +65,40 @@ the leading/trailing underscores are stripped when *using* it.  No
 one wants to remember the exact visibility of your variable.  This
 also means that you cannot use leading/trailing underscores when
 declaring arguments for functions; it is better to use a preceding
-`new` or `old` keyword , as in the following example:
+`New` or `Old` keyword, explained in more detail [here](./new.md).
 
-```
-    class EXAMPLE
-        DBL x__
-
-        DBL MD getX()
-            return x    # no leading/trailing underscores
-
-        DBL MD setX(DBL new.x)
-            x = new.x
-
-    EXAMPLE ex
-    DBL x = ex.getX() * 3
-    ex.setX(x)
-    ex.setX(X(1234.5))
-```
 
 ## Visibility of functions/methods
 
-Functions and methods have the same rules, but differ from variables,
-since we don't want to distinguish "getting" a function from "calling"
-it (i.e., executing the function) at this point in time:
+Calling a function or a method from a class requires as much privileges
+as *setting* a variable of similar visibility.  That is,
 
  * Public functions are callable globally from anywhere.
- * Protected functions are callable only by child classes or in other
-   files in the same directory as the original function.
- * Private functions are callable only *within the same file*.
 
-To elaborate on why we don't want to consider functions as "gettable":
-"Getting" a function might correspond to obtaining a representation of
-what it does internally, or perhaps getting a memory address at which it
-is defined.  We don't allow any visibility into this (at the moment),
-though this may change if we want to allow functions to be allowed
-membership into `SET`s.
+ * Protected functions are callable only by friends.
+
+ * Private functions are callable only within the same class.
+
+Private functions outside of a class wouldn't be callable at all, so
+these are compile-time errors.
 
 
 ## Visibility of types
 
-Similarly, types can be defined as protected/private within a given
-file/directory using leading/trailing underscore(s).  E.g.
-`PUBLIC_TYPE`, `PROTECTED_TYPE_`, and `PRIVATE_TYPE__`.
+Similarly, types can be defined as public/protected/private within a given
+file using leading/trailing underscore(s).  E.g. `publicType`,
+`protectedType_`, and `privateType__`.  Note that types are like functions,
+so they follow the same visibility rules:
 
  * Public types can be referenced and instantiated anywhere/globally.
- * Protected types can only be instantiated directly in the same
-   directory as the original type declaration (note that subdirectories
-   are excluded).
- * Private types can only be instantiated directly in the file where
-   they are defined/declared.
 
-Of course protected and private types can be instantiated indirectly,
+ * Protected types can only be instantiated by friends.
+
+ * Private types are only allowed nested within a class, and are only
+   instantiable within that class.
+
+Private types outside of a class wouldn't be instantiable at all, so
+they are forbidden.
+
+As a note: protected and private types can be instantiated indirectly,
 but they cannot be directly referenced outside of their visibility.

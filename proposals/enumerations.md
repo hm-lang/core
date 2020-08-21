@@ -1,96 +1,103 @@
 # Enumerate
 
 We can create a new type that exhaustively declares all possible values it can take.
-The syntax is `enum UPPER_SNAKE_CASE_TYPE_NAME` followed by an indented block with
-named values, with optional values they take.
+The syntax is `enum lowerCamelCase` followed by an indented block with named values
+(each an `UpperCamelCase` identifier), with optional values they take.  Enumerations
+are mutually exclusive -- no two values may be held simultaneously.  See
+[masks](./masks.md) for a similar class type that allows multiple options at once.
 
 ## Simple example
 
 ```
-enum BOOL
-    false = 0
-    true = 1
+enum bool
+    False = 0
+    True = 1
 ```
 
 Enums provide a few extra additional properties for free as well, including the number of
-values that are enumerated as well as some convenience methods.
+values that are enumerated via the static method `count()`, the min and max values `min()`, `max()`,
+and some convenience methods on any instance of the enumeration.
 
 ```
-BOOL test = false
+bool Test = False
 
 # use `isUpperCamelCaseName()` to check for equality:
-if test.isTrue(), print "test is true :("
-if test.isFalse(), print "test is false!"
+if Test.isTrue(), print "test is true :("
+if Test.isFalse(), print "test is false!"
 
 # get the size (number of enumerated values) of the enum:
-print "BOOL has ${BOOL.size} possibilities."
+print "bool has ${bool.count()} possibilities:"
+# get the lowest and highest values of the enum:
+print "starting at ${bool.min()} and going to ${bool.max()}"
 ```
 
-Because of this, it is illegal to create an `enum` that has `size` as an enumerated
-value name.  As a note, `ENUM.size` is not a legitimate value for the enum type;
-e.g. this would result in a compile-time failure:
+Because of this, it is a bit confusing to create an `enum enumName` that has `Count` as an
+enumerated value name, but it is not illegal, since we can still distinguish between the
+enumerated value (`enumName.Count`) and total number of enumerated values (`enumName.count()`).
 
-```
-BOOL value = BOOL.size  # ERROR!
-```
-
-Also note that the static `size` variable will be set to the total number of
+Also note that the static `count()` method will be set to the total number of
 enumerations, not the number +1 after the last enum value.  This can be confusing
 in case non-standard enumerations are chosen:
 
 ```
-enum SIGN
-    negative = -1
-    zero = 0
-    positive = 1
+enum sign
+    Negative = -1
+    Zero = 0
+    Positive = 1
 
-print SIGN.size  # prints 3
+print "sign has ${sign.count()} values" # prints 3 for count()
+print "starting at ${sign.min()} and going to ${sign.max()}" # -1 and 1
 
-enum WEIRD
-    x = 1
-    y = 2
-    z = 4
-    t = 8
+enum weird
+    X = 1
+    Y = 2
+    Z = 3
+    Q = 9
 
-print WEIRD.size # prints 4
+print weird.count() # prints 4
+print weird.min() # prints 1
+print weird.max() # prints 9
 ```
 
 ## Testing enums with lots of values
 
-Note that if you are checking many values, a `consider-case` statement may be more useful:
+Note that if you are checking many values, a `consider-case` statement may be more useful
+than testing each value against the various possibilities.  Also note that you don't need
+to explicitly set each enum value.
 
 ```
-enum OPTION
-    unselected
-    notAGoodOption
-    contentWithLife
-    betterOptionsOutThere
-    bestOptionStillComing
-    oopsYouMissedIt
-    nowYouWillBeSadForever
+enum option
+    Unselected
+    NotAGoodOption
+    ContentWithLife
+    BetterOptionsOutThere
+    BestOptionStillComing
+    OopsYouMissedIt
+    NowYouWillBeSadForever
 
-print "number of options should be 7:  ${OPTION.size}"
+print "number of options should be 7:  ${option.count()}"
 
-OPTION option = contentWithLife 
+option Option = ContentWithLife 
 
 # avoid doing this if you are checking many possibilities:
-if option.isNotAGoodOption()
+if Option.isNotAGoodOption()
     print "oh no"
+elif Option.isOopsYouMissedIt()
+    print "whoops"
 ...
 
-# instead, do this:
-consider option
-    case notAGoodOption
+# instead, consider doing this:
+consider Option
+    case NotAGoodOption
         print "oh no"
-    case bestOptionStillComing
+    case BestOptionStillComing
         print "was the best actually..."
-    case unselected # falls through in case of no intermediate line:
+    case Unselected # falls through in case of no intermediate line:
     default
         print "that was boring"
 ```
 
-See [consider case statements](./consider_case.md).  As seen in this example, you don't
-need to explicitly set each enum value.
+See [consider case statements](./consider_case.md).
 
 
 ## Default value of an enumeration
@@ -98,3 +105,5 @@ need to explicitly set each enum value.
 Defaults to whatever value is 0 (the first, if no values are specified).
 
 If no value is zero, then the first specified value is default.
+
+TODO: Consider allowing something like `default.option = NotAGoodOption`

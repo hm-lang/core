@@ -1,47 +1,48 @@
 # Array
 
 Arrays are one of the most important data collections to "get right."
-We will likely have arrays inherit from some parent `CONTAINER` class,
-and presumably it can be a collection of some type `NEW_T`, or it can
-also be thought of as a collection of `[INDEX, NEW_T]`, since people
+We will likely have arrays inherit from some parent `container` class,
+and presumably it can be a collection of template type `newT`, or it can
+also be thought of as a collection of `[Index, NewT]`, since people
 can iterate over the indices as well as the individual elements.
 The proposed API is this:
 
 ```
-class NEW_T ARRAY extends NEW_T INDEXED_CONTAINER
-    from(NEW_T ITERATOR);
-    from([INDEX, NEW_T] ITERATOR);
+class newT array extends NewT IndexedContainer
+    from(NewT Iterator);
+    from([Index, NewT] Iterator);
 
-    to NEW_T ITERATOR;
-    to [INDEX, NEW_T] ITERATOR;
+    to NewT Iterator;
+    to [Index, NewT] Iterator;
 
     # access the array at the given index, either for getting or setting.
     # accessing outside the bounds of the array will resize the array and
     # create (lazily) default-initialized values up to that point.
-    # the `GS.delete` method is also supported, which will shift all
+    # the `remove()` method is also supported, which will shift all
     # values with larger indices down one.
-    NEW_T GS MD this(INDEX);
+    # TODO: `This(Index)` may be hard to distinguish from a map definition.
+    NewT Grsv This(Index);
 
     # get or set the size of the array.
-    SIZE GS size;
+    Size Gs Size;
 
-    NEW_T MD shift();
-    NEW_T MD pop();
+    NewT shift();
+    NewT pop();
 
-    # insert elements from iterator starting at `INDEX at`, deleting
-    # `delete` numbers of elements of the original array first.
-    MD splice(NEW_T ITERATOR, INDEX at, SIZE delete);
+    # insert elements from iterator starting at `index At`, deleting
+    # `Delete` numbers of elements of the original array first.
+    splice(NewT Iterator, index At, size Delete);
 
-    MD insert(NEW_T ITERATOR, INDEX at) = splice(newT_iterator, at, Delete(0))
-    MD erase(INDEX, SIZE count) = splice(At(index), Delete(count))
+    insert(NewT Iterator, index At) = splice(NewT_Iterator, At, Delete(0))
+    erase(Index, size Count) = splice(At(Index), Delete(Count))
 ```
 
-The parent class, `NEW_T INDEXED_CONTAINER`, is a combination class which
-inherits from `NEW_T CONTAINER` and `MAP Key(INDEX) Value(NEW_T)`.
+The parent class, `newT indexedContainer`, is a combination class which
+inherits from `newT container` and `(index key Index, newT Value) map`.
 
-Internally, `ARRAY` uses a lazily default-initialized array;
+Internally, `array` uses a lazily default-initialized array;
 only elements that are requested (at a given index) will be initialized.
 This guarantees that an element at a given index will only be initialized
-once, before being called with `GS.get()`.  If `GS.set(...)` is called
-before `GS.get()`, then the default-initialization will be skipped, and
+once, before being called with `Grsv.get()`.  If `Grsv.set(...)` is called
+before `Grsv.get()`, then the default-initialization will be skipped, and
 only the `set` initialization will be performed.

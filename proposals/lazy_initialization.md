@@ -5,18 +5,18 @@ make it easy to perform a computation only when it's necessary.
 We reserve `!` after a type to indicate that the initialization is lazily performed.
 
 ```
-    DBL someFunction()
-        DBL x = 1234
-        INT! complicated = someComplicatedComputation(x)
-        if q == 1
-            print(complicated)
-        elif q == 2
-            x = -345.6
-            # will run `someComplicatedComputation` with the new `x` value
-            print(complicated)
+Dbl someFunction()
+    dbl X = 1234
+    int! Complicated = someComplicatedComputation(X)
+    if Q == 1
+        print(Complicated)
+    elif Q == 2
+        X = -345.6
+        # will run `someComplicatedComputation` with the new `X` value
+        print(Complicated)
 
-        # will only calculate this once in total, in this whole function:
-        return complicated
+    # will only calculate this once in total, in this whole function:
+    return Complicated
 ```
 
 The initialization of the variable is only performed once, so
@@ -30,55 +30,56 @@ variable is first used.
 We also allow short-circuiting the lazy initialization:
 
 ```
-    DBL! x = someComplicatedComputation()
-    if q
-        # do not perform `someComplicatedComputation()`
-        x = 3
-    print(x)
+dbl! X = someComplicatedComputation()
+if Q
+    # does not perform `someComplicatedComputation()`
+    X = 3
+print(X)
 ```
 
 The spec ensures that what appears to be a reassignment never 
-triggers the original lazy initialization.
+triggers the original lazy initialization.  (Unless of course,
+it is a get-then-set type operation, e.g. `+=`.)
 
 ## Usage in function arguments and return values
 
-Lazy initialization will be used internally to define default
+Lazy initialization *might* be used internally to define default
 input arguments, and/or short-circuit their initialization,
 in the case that their calculation is complicated:
 [TODO: revisit -- we don't want pointer-like arguments unless specified]
 
 ```
-    FN doSomething(INT x = somethingComplicated(), DBL z)
-        if z > 0
-            # `somethingComplicated` will never trigger, even
-            # if `x` was not defined in the calling arguments.
-            x = 0
-            print Warning("ignoring original value for x.")
-        doOtherThing(x, z)
+doSomething(int X = somethingComplicated(), dbl Z)
+    if Z > 0
+        # `somethingComplicated` will never trigger, even
+        # if `X` was not defined in the calling arguments.
+        X = 0
+        print Warning("ignoring original value for X.")
+    doOtherThing(X, Z)
 ```
 
 Also for return values:
 
 ```
-    (DBL = complicatedExpression(), STRING) FN doThings(INT times)
-        if times <= 0
-            # ensures `complicatedExpression()` is not evaluated:
-            dbl = 0.0
-            string = "invalid!"
-            return
-        else
-            dbl *= times
-            string = "it was performed"
+(Dbl = complicatedExpression(), String) doThings(int Times)
+    if Times <= 0
+        # ensures `complicatedExpression()` is not evaluated:
+        Dbl = 0.0
+        String = "invalid!"
+        return
+    else
+        Dbl *= Times # get-then-set operation.
+        String = "it was performed"
 ```
 
 ## Internal implementation
 
 The lazy initialized variable will probably be some extension
-of a `GS` (getter-setter) class, where the getter will automatically
+of a `gs` (getter-setter) class, where the getter will automatically
 invoke the original initialization definition, if nothing has
 overridden it by using the setter.
 
-In the underlying code, the `LAZY` class is essentially a C++ `std::unique_ptr`,
+In the underlying code, the `lazy` class is essentially a C++ `std::unique_ptr`,
 but with the added feature that if the pointer is null (uninitialized) when asked for,
 it will either initialize to a default instance of the wrapped type, or it will use
 the initialization provided at its declaration.

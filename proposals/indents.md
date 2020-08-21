@@ -7,25 +7,25 @@ has 5 or more levels of indentation.)  An indent consists of four spaces:
 
 ```
 # indent 0
-INT x = 0
+int X = 0
 
-FN doSomething()
+doSomething()
     # indent 1
     print("something was done")
 
-for INT i < 10
-    for INT j < 100
+for int I < 10
+    for int J < 100
         # indent 2
-        print("${i}, ${j}")
+        print("${I}, ${J}")
 
 # indent 0
-class EXAMPLE
+class example
     # indent 1
-    DBL MD doSomething(INT)
+    Dbl doSomething(Int)
         # indent 2
-        if int % 3 == 0
+        if Int % 3 == 0
             # indent 3
-            if int % 5 == 0
+            if Int % 5 == 0
                 # indent 4.  NO MORE ALLOWED AFTER THIS!
                 return 1.125
             return 1.0625

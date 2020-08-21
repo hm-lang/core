@@ -6,75 +6,78 @@ with `try`/`catch`/`finally` and `throw`.
 ```
 try
     mayThrowAnError()
-catch(ERROR e)
-    warn("we did catch an error: ${e}")
+catch(error E)
+    warn("we did catch an error: ${E}")
 finally
     print("runs after both cases: success or failure!")
 
-FN mayThrowAnError()
-    throw(ERROR("yes, this did in fact throw."))
+mayThrowAnError()
+    throw error("yes, this did in fact throw.")
+    # parentheses are optional, `throw(...)` also works.
 ```
 
 We will likely not require parentheses after a `catch` or `throw`,
 but we include them here as a first pass.
 
-In addition, each class automatically has a corresponding `ERROR`
+In addition, each class automatically has a corresponding `error`
 subclass, and errors from a child class can be caught by catching
 a parent error.  Any time a `throw` is used inside a class, the
-corresponding class' `ERROR` subclass will be thrown, unless a
+corresponding class' `error` subclass will be thrown, unless a
 more (or less) specific error type is used.
 
 ```
-class PARENT
-    MD doSomething(INT)
-        print("${int} from parent")
+class parent
+    doSomething(Int)
+        print("${Int} from parent")
 
-    MD throwAnError(STRING)
-        # throws a `PARENT.ERROR`:
-        throw(string)
+    throwAnError(String)
+        # throws a `parent.error`:
+        throw String
 
-class CHILD extends PARENT
-    MD doSomething(INT)
-        # throws a `CHILD.ERROR`:
-        throw("child un-implements this method.")
+class child extends parent
+    doSomething(Int)
+        # throws a `child.error`:
+        throw("child un-implements this method due to bad design choices.")
 
-    MD throwAnError(STRING)
-        # specifically throws a more generic `ERROR` type:
-        throw(ERROR(string))
+    throwAnError(String)
+        # specifically throws a more generic `error` type:
+        throw(error(String))
 
-CHILD child
+child Child
 try
-    child.doSomething(5)
-catch PARENT.ERROR e
-    # this will also catch the CHILD.ERROR
-    warn("parent error was ${e}")
+    Child.doSomething(5)
+catch parent.error E
+    # this will also catch the child.error
+    warn("parent error was ${E}")
+
+# note that a `catch parent.error` block will not catch the more generic `error`.
 ```
 
 As in other languages, we'll probably have the ability to catch
 different types of errors as multiple `catch` blocks.  The
-`ERROR` type will catch any error, but errors can escape
+`error` type will catch any error, but errors can escape
 the catch block if they are not a subtype of the caught errors.
 
 ```
-class A_CLASS(INT);
-class B_CLASS(DBL);
-class AA_CLASS(INT, DBL) extends A_CLASS;
+class aClass(Int);
+class bClass(Dbl);
+class abClass(Int, Dbl) extends aClass;
 
-# this will cause an ERROR to continue propagating up,
+# this will cause an error to continue propagating up,
 # possibly stopping execution of the program:
 try
-    A_CLASS a(3)
-    a.int /= 0
-catch B_CLASS.ERROR
-    print("should not produce a B_CLASS.ERROR")
-    print("A_CLASS.ERROR should be produced.")
+    aClass A(3)
+    A.Int /= 0
+catch bClass.error
+    print("should not produce a bClass.error")
+    print("aClass.error should be produced.")
     print("this block never executes!")
 
 # catching a child error using the parent error:
 try
-    AA_CLASS aa(5, 3.14)
-    aa.dbl /= 0.0
-catch A_CLASS.ERROR
+    abClass Ab(5, 3.14)
+    Ab.Dbl /= 0.0
+catch aClass.error
     print("shouldn't divide by zero.")
     print("your parent was watching!")
     print("this block should execute.")

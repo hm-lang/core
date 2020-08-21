@@ -9,23 +9,23 @@ name ommitted, or a variable whose type is the same as its identifier
 (ignoring trailing or preceding underscores in the identifier).  Each
 argument has a type and an optional identifier.  Some examples:
 
-* `(INT index, INT)` - An argument list consisting of an unnamed `INT`
-  (which can be accessed using the identifier `int`) and a named `INT`
-  (which can be accessed using the identifier `index`).
+* `(int Index, Int)` - An argument list consisting of an unnamed `int`
+  (which can be accessed using the identifier `Int`) and a named `int`
+  (which can be accessed using the identifier `Index`).
 
-* `(INT, DBL dbl, STRING string_)` - argument list for an unnamed `INT` 
-  (accessible via the identifier `int`), an unnamed `DBL` (accessible via
-  `dbl`, though this is a bit redundant), and an unnamed `STRING` 
-  (accessible via `string_` -- presumably so identified to avoid a name
+* `(Int, dbl Dbl, string New.String)` - argument list for an unnamed `int` 
+  (accessible via the identifier `Int`), an unnamed `dbl` (accessible via
+  `Dbl`, though this is redundant/discouraged), and an unnamed `string` 
+  (accessible via `New.String` -- presumably so identified to avoid a name
   conflict in the parent scope, but this is still considered unnamed).
 
-* `(INT, STRING greeting, INT)` - ERROR!  This argument list is invalid,
-  since it has two unnamed variables of the same type (i.e., `INT`).
+* `(Int, string Greeting, Int)` - ERROR!  This argument list is invalid,
+  since it has two unnamed variables of the same type (i.e., `int`).
 
-* `(DBL x, DBL y)` - An argument list consisting of two `DBL`s, one named
-  `x` and the other `y`.
+* `(dbl X, dbl Y)` - An argument list consisting of two `dbl`s, one named
+  `X` and the other `Y`.
 
-* `(STRING x, INT x)` - ERROR!  Each argument needs to have a unique
+* `(string X, int X)` - ERROR!  Each argument needs to have a unique
   identifier.
 
 By insisting on unique identifiers for variables we can do cool things
@@ -41,8 +41,8 @@ Instead, we specify arguments using keywords, and there are advanced ways
 of doing this (for future work), but here are some sufficiently simple ways 
 of making a specification:
 
-1. Use a variable with the same identifier (ignoring trailing/leading
-   underscores) as the one in the argument list.
+1. Use a variable with the same identifier (ignoring `New.` or `Old.`
+   prefixes and trailing/leading underscores) as the one in the argument list.
 
 2. Use an `UpperCamelCase` cast, i.e. `Identifier(...)` where `Identifier`
    is the correct keyword identifier for the argument, and `...` is the
@@ -50,37 +50,37 @@ of making a specification:
    use `Identifier=...`
 
 3. For an unnamed argument, create a variable on the fly using its 
-   `TYPE` cast.  E.g. `INT(1.234)` to create an integer from a double.
+   `type` cast.  E.g. `int(1.234)` to create an integer from a double.
 
 Note that in all cases, order doesn't matter when specifying a list 
 of arguments!  Examples:
 
-* For the argument list `(STRING greeting, STRING)`
+* For the argument list `(string Greeting, String)`
 
 ```
-    STRING noun = "world!"
-    (Greeting("hello"), noun)   # specifies the arguments
+    string Noun = "world!"
+    (Greeting("hello"), Noun)   # specifies the arguments
 
     (Greeting="hi", "friend")   # also ok.
 
-    STRING greeting = "hey"
-    (greeting, "dude")          # also valid specification
+    string Greeting = "hey"
+    (Greeting, "dude")          # also valid specification
 
-    ("grandparents", greeting)  # also valid.  order doesn't matter.
+    ("grandparents", Greeting)  # also valid.  order doesn't matter.
 ```
 
-* For an argument list `(INT, DBL, STRING)`:
+* For an argument list `(Int, Dbl, String)`:
 
 ```
-    INT x = 4
-    DBL = 3.4       # dbl is unnamed
-    STRING = "hey"  # string is unnamed
+    int X = 4
+    Dbl = 3.4       # Dbl is an unnamed dbl
+    String = "hey"  # String is unnamed
 
-    ("hashtag", x, dbl)     # specifies the arguments
+    ("hashtag", X, Dbl)     # specifies the arguments
 
-    (Int(x), string, dbl)   # also ok, a bit redundant (x is already an INT), but ok.
+    (int(X), String, Dbl)   # also ok, a bit redundant (x is already an INT), but ok.
 
-    (1.2345, INT(123.54), "pancakes")     # also valid specification
+    (1.2345, int(123.54), "pancakes")     # also valid specification
 
     (27, 64, "cubes")    # ERROR!  we don't know what is the `DBL`.
 ```
@@ -88,37 +88,37 @@ of arguments!  Examples:
 ## Unused/deleted arguments
 
 TODO:
-Consider allowing an `unused` or `deleted` token to indicate that you
+Consider allowing an `Unused` or `Deleted` token to indicate that you
 dynamically don't want to include an argument.  This is only useful if
 the function is overloaded, and you specifically want to target a different
 overload.  Otherwise, it's the same as passing null.
 
 ```
-    FISH[] FN getFish(INT count, STRING reason = "too lazy to think of one");
+    Fish[] getFish(int Count, string Reason = "too lazy to think of one");
 
-    INT count = 2
-    # The next line will set `reason` in the `getFish` function to the provided default,
-    # i.e., "too lazy to think of one", since there is no overload for `getFish(INT count)`:
-    FISH LIST = getFish(count, Reason(count < 5 ? deleted : "need lots of fish"))
+    int Count = 2
+    # The next line will set `Reason` in the `getFish` function to the provided default,
+    # i.e., "too lazy to think of one", since there is no overload for `getFish(int Count)`:
+    Fish[] list1 = getFish(Count, Reason(Unused if Count < 5 else "need lots of fish"))
 
-    # Since there is no overload, you can also replace `deleted` with `null`, and it
+    # Since there is no overload, you can also replace `deleted` with `Null`, and it
     # will do the same thing in the function (i.e., set `reason` to the default string):
-    FISH LIST list2 = getFish(count, Reason(count < 5 ? null : "need lots of fish"))
+    Fish[] list2 = getFish(Count, Reason(Null if Count < 5 else "need lots of fish"))
 ```
 
 On the other hand, if you have an overload, you can get different behavior:
 
 ```
-    CAT FN getCat(INT whiskers);
-    CAT FN getCat(INT whiskers, DBL weight);
+    Cat getCat(int Whiskers);
+    Cat getCat(int Whiskers, dbl Weight);
 
-    INT whiskers = 5
+    int Whiskers = 5
     # Dynamically determines whether to call the first function or the second:
-    CAT = getCat(whiskers, Weight(whiskers < 10 ? deleted : whiskers * 2.0))
+    Cat = getCat(Whiskers, Weight(Unused if Whiskers < 10 else Whiskers * 2.0))
 
     # This always calls the second function, but puts in the default value,
     # which in this case is the default for type `DBL`, i.e. 0.0
-    CAT cat2 = getCat(whiskers, Weight(null))
+    Cat cat2 = getCat(Whiskers, Weight(Null))
 ```
 
 This potentially makes the code slower, since we can't just use compile-time logic
@@ -132,56 +132,49 @@ specialized structs, complete with their own subclasses.  It might make sense to
 control a little bit:
 
 ```
-struct getCat_ARGUMENTS_base {
-    virtual Scoped<Cat> getCat(CallingClass *caller) {
+struct __getCat_specification_base {
+    virtual scoped<cat> getCat() {
         // first function overload
-        return caller->getCat(0); // whiskers = 0
+        return getCat_Whiskers(0); // whiskers = 0
+    }
+
+    scoped<cat> getCat_Whiskers(int Whiskers) { ... }
+
+    scoped<cat> getCat_Weight_Whiskers(double Weight, int Whiskers) { ... }
+};
+
+struct __mixin__int__Whiskers {
+    int Whiskers;
+};
+
+struct __mixin__double__Weight {
+    double Weight;
+};
+
+struct __getCat_specification_Whiskers
+        : public __getCat_specification_base,
+          public __mixin__int__Whiskers {
+    virtual scoped<cat> getCat() {
+        return getCat_Whiskers(Whiskers);
     }
 };
 
-struct getCat_MIXIN_whiskers {
-    int whiskers;
-};
-
-struct getCat_MIXIN_weight {
-    double weight;
-};
-
-struct getCat_ARGUMENTS_whiskers
-        : public getCat_ARGUMENTS_base,
-          public getCat_MIXIN_whiskers {
-    virtual Scoped<Cat> getCat(CallingClass *caller) {
-        // first function overload
-        return caller->getCat(whiskers);
+struct __getCat_specification_Weight
+        : public __getCat_specification_base,
+          public __mixin__double__Weight {
+    virtual scoped<cat> getCat() {
+        return getCat_Weight_Whiskers(Weight, 0);
     }
 };
 
-struct getCat_ARGUMENTS_weight
-        : public getCat_ARGUMENTS_base,
-          public getCat_MIXIN_weight {
-    virtual Scoped<Cat> getCat(CallingClass *caller) {
-        // second function overload
-        return caller->getCat(weight, /*whiskers*/ 0);
+struct __getCat_specification_Weight_Whiskers
+        : public __getCat_specification_base,
+          public __mixin__double__Weight,
+          public __mixin__int__Whiskers {
+    virtual scoped<cat> getCat() {
+        return getCat_Weight_Whiskers(Weight, Whiskers);
     }
 };
-
-struct getCat_ARGUMENTS_weight_whiskers
-        : public getCat_ARGUMENTS_base,
-          public getCat_MIXIN_weight,
-          public getCat_MIXIN_whiskers {
-    virtual Scoped<Cat> getCat(CallingClass *caller) {
-        // second function overload
-        return caller->getCat(weight, whiskers);
-    }
-};
-
-// So that deleting an argument would be a forceful conversion
-// a child-class to the parent class:
-
-getCat_ARGUMENTS_weight_whiskers args;
-// someone decides to delete weight, make a forced truncation:
-getCat_ARGUMENTS_whiskers newArgs = std::move(args);
-// use newArgs instead of args in function call.
 ```
 
 Or there might be a better way.

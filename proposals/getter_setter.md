@@ -1,15 +1,16 @@
-# Getter/setter properties
+# Getter/setter classes
 
 We make it easy to wrap a variable within getter/setter functions
-using the `GS` (Getter Swapper) class.  The proposed API is:
+using the `gs` (getter swapper) class.  The proposed API is:
 
 ```
-    class NEW_T GS(NEW_T FN get(), NEW_T old FN swap(NEW_T))
-        to NEW_T
-            return get()
+class newT gs(NewT get(), newT Old swap(NewT))
+    to newT
+        return get()
 
-        MD this = (NEW_T)
-            swap(newT)
+    # TODO: consistent syntax here:
+    newT Old This = (NewT)
+        return swap(NewT)
 ```
 
 Generally speaking, what looks like a class member variable is actually
@@ -18,31 +19,31 @@ change the behavior of how the variables work.  This might be harder to
 implement than expected, but here is the general idea:
 
 ```
-    class VECTOR2(DBL x, DBL y);
+class vector2(dbl X, dbl Y);
 
-    class UNIT_VECTOR2 extends VECTOR2
-        from(DBL x, DBL y)
-            normalize(x, y)
+class unitVector2 extends Vector2
+    from(dbl X, dbl Y)
+        normalize(X, Y)
 
-        get DBL x
-            return super.x
-        get DBL y
-            return super.y
+    get dbl X
+        return Vector2.X
+    get dbl Y
+        return Vector2.Y
 
-        set DBL x
-            normalize(new.x, y)
-        set DBL y
-            normalize(x, new.y)
+    set dbl X
+        normalize(New.X, Y)
+    set dbl Y
+        normalize(X, New.Y)
 
-        MD normalize__(DBL new.x, DBL new.y)
-            DBL r = (new.x^2 + new.y^2)^0.5
-            assert(r > 0, OrThrow("Cannot normalize to a unit vector!"))
-            super.x = new.x / r
-            super.y = new.y / r
+    normalize__(dbl New.X, dbl New.Y)
+        dbl R = (New.X^2 + New.Y^2)^0.5
+        assert(R > 0, OrThrow("Cannot normalize to a unit vector!"))
+        Vector2.X = New.X / R
+        Vector2.Y = New.Y / R
 ```
 
 In the latter case, we can access the original class's getters/setters
-using the `super` keyword.
+using the parent class' name (e.g. `Vector2`).
 
 
 ## Other mixins
@@ -53,83 +54,54 @@ or return something else if it is reasonable.  Similarly, the `remove` function
 must do something reasonable if it is called twice, or throw.
 
 ```
-    class NEW_T GRS(NEW_T FN remove(), NEW_T FN GS.get(), NEW_T old FN GS.swap(NEW_T)) extends NEW_T GS
-        MD this = null
-            remove()
+class newT grs(NewT remove(), NewT Gs.get(), newT Old Gs.swap(NewT)) extends NewT Gs
+    This = Null
+        remove()
 
-        MD this = (NEW_T?)
-            if newTQ
-                swap(newTQ)
-            else
-                remove()
+    NewT This = (NewT?)
+        if NewT?
+            return swap(newTQ)
+        else
+            return remove()
 ```
 
 Here is a getter/setter that is also viewable, i.e., no copies will be made
 if we ask for just a view of the internal value.
 
 ```
-    class NEW_T GSV(
-        NEW_T FN GS.get()
-        NEW_T old FN GS.swap(NEW_T)
-        CONST_NEW_T REF FN view()
-    ) extends NEW_T GS
-        to CONST_NEW_T REF
-            return view()
+class newT Gsv(
+    NewT Gs.get()
+    newT Old Gs.swap(NewT)
+    ConstNewT ConstRef view()
+) extends NewT Gs
+    to ConstNewT ConstRef
+        return view()
 
-        from(NEW_T REF)
-            from(
-                NEW_T old FN swap(NEW_T)
-                    old = newTRef
-                    newTRef = newT
-                NEW_T FN get()
-                    return newTRef
-                CONST_NEW_T REF view()
-                    return newTRef
-            )
+    from(NewT Ref)
+        from(
+            newT Old swap(NewT)
+                Old = NewT_Ref
+                NewT_Ref = NewT
+            NewT get()
+                return NewT_Ref
+            ConstNewT ConstRef view()
+                return NewT_Ref
+        )
 ```
 
-Note that the `REF` type can be directly converted to a `GSV` type.
+Note that a `ref` type can be directly converted to a `Gsv` type.
 
-Finally, you can have a `GRSV` type which can be gotten, removed, swapped,
+Finally, you can have a `Grsv` type which can be gotten, removed, swapped,
 or viewed.
 
 ```
-    # TODO: probably need some work for this constructor to work out correctly.
-    # might need to make each G, R, S, V, its own class to avoid diamond problem.
-    class NEW_T GRSV(
-        NEW_T FN GRS.remove()
-        NEW_T FN GRS.get()
-        FN GRS.set(NEW_T)
-        CONST_NEW_T REF FN GSV.view()
-    ) extends NEW_T GSV, NEW_T GRS;
+# TODO: probably need some work for this constructor to work out correctly.
+# need to make each G, R, S, V, its own class to avoid diamond problem.
+class newT grsv(
+    NewT Grs.remove()
+    NewT Grs.get()
+    newT Old Grs.swap(newT)
+    ConstNewT ConstRef Gsv.view()
+) extends NewT Gsv, NewT Grs;
 ```
 
-## Simplify it??
-
-Unfortunately, these becomes run-time errors instead of compile-time errors:
-
-```
-    # TODO: possibly make these FN's abstract methods (MDs):
-    # then pointer types can just extend GATE.  we could create
-    # a LAMBDA_GATE class which does this:
-    class NEW_T GATE(
-        NEW_T FN get()
-        NEW_T old FN swap(NEW_T) = throw ERROR("unimplemented swap")
-        NEW_T FN remove() = throw ERROR("unimplemented remove")
-        CONST_NEW_T REF FN view() = throw ERROR("unimplemented view")
-    )
-        to NEW_T
-            return get()
-
-        to CONST_NEW_T REF
-            return view()
-
-        NEW_T MD this = (NEW_T)
-            return swap(newT)
-
-        # TODO - make setting equal be NIM-like:
-        NEW_T MD this = (NEW_T?)
-            if newTQ == null
-                return remove()
-            return swap(newTQ)
-```

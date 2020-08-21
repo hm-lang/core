@@ -1,104 +1,89 @@
 # Types
 
-Types are written in `UPPER_SNAKE_CASE` format, and require at least
-two non-numeric characters.  This allows us to distinguish types from
-`UpperCamelCase` casts (for specifications), which are allowed to be
-a single (non-numeric) character.  E.g., `PK43` is a valid type,
-whereas `X` is not a valid type (but would be a valid specification).
+Types are written in `lowerCamelCase` format, i.e., any identifier
+that starts with a lower case letter.
 
-Primitive types are written using abbreviations, e.g. `INT` for integer
-(specifically a 64-bit signed integer) and `DBL` for double.  Still,
+Primitive types are written using abbreviations, e.g. `int` for integer
+(specifically a 64-bit signed integer) and `dbl` for double.  Still,
 primitive types can be considered as first-class citizens, i.e., they
 can be inherited from, and they can still have methods defined on them.
 
-Non-primitive types include things like `STRING` for an array of
+Non-primitive types include things like `string` for an array of
 characters, as well as classes created by the user.  It is highly
-recommended to not use abbreviations (besides standard ones, e.g. HTML)
+recommended to not use abbreviations (besides standard ones, e.g. html)
 when defining a class name.
 
 | Identifier | Type description             |
 |------------|------------------------------|
-| BOOL       | boolean (1 bit unsigned)     |
-| DBL, FLT64 | 64-bit floating-point number |
-| FLT, FLT32 | 32-bit floating-point number |
-| INT, INT64 | 64-bit signed integer        |
-| INT32      | 32-bit signed integer        |
-| INT16      | 16-bit signed integer        |
-| INT8       | 8-bit signed integer         |
-| STRING     | array of characters/letters  |
-| UNS, UNS64 | 64-bit unsigned integer      |
-| UNS32      | 32-bit unsigned integer      |
-| UNS16      | 16-bit unsigned integer      |
-| UNS8       | 8-bit unsigned integer       |
+| bool       | boolean (1 bit unsigned)     |
+| dbl, f64   | 64-bit floating-point number |
+| flt, f32   | 32-bit floating-point number |
+| int, i64   | 64-bit signed integer        |
+| i32        | 32-bit signed integer        |
+| i16        | 16-bit signed integer        |
+| i8         | 8-bit signed integer         |
+| string     | array of characters/letters  |
+| uint, u64  | 64-bit unsigned integer      |
+| u32        | 32-bit unsigned integer      |
+| u16        | 16-bit unsigned integer      |
+| u8         | 8-bit unsigned integer       |
 
-Templated types can be created using the syntax `NEW_...`, where `...`
-is any `UPPER_SNAKE_CASE` format, including a single character, e.g.
-`NEW_T` or `NEW_TYPE`.  Declaring a variable with a certain type is
-as easy as using this syntax:
+## Variables
 
-```
-    DBL x   # declare a variable `x` which is a `DBL`
-    INT     # declare a variable `int` which is an `INT`
-```
-
-Variables that are declared are initialized (perhaps lazily),
-either by default (to zero) or explicitly.
-
-## Functions
-
-Functions are declared using `FN` (or `MD` for a method inside a class).
-An optional return type comes before this identifier, and the arguments
-follow within parentheses.  Functions of course have their own types, 
-which can be written out as the function declaration without the function
-name.
+Declaring a variable with a simple type follows these rules:
 
 ```
-    FN()    # declare function `fn` with no arguments and no outputs
-    # -> type `FN()`
+# these variables are default-initialized to 0:
+dbl X   # declare a variable `X` which is a `dbl`
+Int     # declare a variable `Int` which is an `int`
 
-    # declare function `hello` which returns an integer,
-    # and takes one string argument named `noun`:
-    INT FN hello(STRING noun)
-    # -> type `INT FN(STRING noun)`
+# you can also initialize the variable yourself.
+string Greeting = "hello"   # declare a variable `Greeting` and assign it the value "hello"
+String = "world!"           # declare a variable `String` and assign it the value "world!"
+# those were both `string` types.
 ```
 
-## Arrays and map types
+Variables that are declared are always initialized (perhaps lazily),
+even if no definition is provided.  I.e., the variables `X` and `Int`
+above are guaranteed to be 0.
 
-Because we use an explicit `FN` keyword to create functions, we have
-special meanings for a type that is followed by parentheses.  In
-hm-lang, all parentheses are equal: `() == {} == []`, but of course
-they must match at each level.  If the parentheses are empty, an
-array is being defined; if the parentheses include another type, a
-map is being defined; and if a number is in the parentheses, a fixed
-array is being defined.
+## Functions, arrays, and map types
+
+In hm-lang, all parentheses are equal: `() == {} == []`, but of course
+they must match at each level.  They can be used to define functions,
+arrays, and maps, depending on the context.  Functions use lowerCamelCase
+for their names.  Note that when specifying types for functions, arrays,
+and maps, we need a named type (e.g. `int Name` or `Int` which is an `int Int`).
+Names allow us to ensure that the order of inputs/outputs to these complex types
+doesn't matter.
 
 ```
-    # declare a function named `doStuff` that takes a `STRING` argument
-    INT FN doStuff(STRING)
+# declare a function named `doStuff` that takes a `string` argument
+Int doStuff(String)
 
-    # declare an (automatically resizing) array named `values`;
-    # equivalent to `INT ARRAY values`:
-    INT[] values    
+# declare an (resizable) array named `Values`;
+# equivalent to `Int array Values`:
+Int[] Values
 
-    # declare an array with a fixed size named `vector`;
-    # equivalent to `DBL FIXED_ARRAY vector(Size(3))`
-    DBL[3] vector
+# declare an array with a fixed size named `Vector`;
+# equivalent to `Dbl fixedArray Vector(Size(3))`
+Dbl[3] Vector
 
-    # declare a hash map of strings to integers;
-    # equivalent to `Key(STRING) Value(INT) MAP userIdMap`:
-    INT[STRING] userIdMap
+# declare a hash map of strings to integers;
+# equivalent to `(string Key, int Value) map UserIdMap`:
+Int[String] UserIdMap
 
-    # declare a hash map that has a key composed of two types,
-    # one of which is named:
-    DBL[STRING, INT priority] fancyMap
-    fancyMap["jam", Priority(3)] = 1.234
-    fancyMap["jam", Priority(1)] = 2.5
+# declare a hash map that has a key composed of two types,
+# one of which is named:
+Dbl[String, int Priority] FancyMap
+FancyMap["jam", Priority(3)] = 1.234
+FancyMap["jam", Priority(1)] = 2.5
 ```
 
-Note that the `MAP` type is actually an abstract class, so the exact
-child class (e.g. `HASH_MAP` or `DLL_HASH_MAP`) that is used will
+Note that the `map` type is actually an abstract class, so the exact
+child class (e.g. `hashMap` or `linkedHashMap`) that is used will
 depend on a particular design choice made in hm-lang.  Likely we will
-want to make the default `MAP` subclass as frustration-free as possible,
+want to make the default `map` subclass as surprise-free as possible,
 rather than as fast as possible.  I.e., we will likely use a
-`DLL_HASH_MAP`, where the order of insertion will be reflected in the
+`linkedHashMap`, where the order of insertion will be reflected in the
 order of iteration.

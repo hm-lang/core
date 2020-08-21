@@ -2,88 +2,88 @@
 
 We use new (and old) in a few different ways.
 
-* `NEW` is a way to instantiate a class, usually as the right-hand-side
-  of some expression, e.g. `SOME_CLASS x = NEW(Greeting("hello"), Times(3))`
+* `new` is a way to instantiate a class, usually as the right-hand-side
+  of some expression, e.g. `someClass X = new(Greeting("hello"), Times(3))`
 
-* `NEW_TYPE` is a way to indicate a template type.  `TYPE` can be any
-  `UPPER_SNAKE_CASE` identifier, e.g. `NEW_T` or `NEW_SNAKE_PANCAKE`.
+* `newT` is a way to indicate a template type.  `T` can be any
+  `UpperCamelCase` identifier, e.g., making the full type `newSnakePancake`.
 
-* `new` can be used as a variable prefix to ensure variable identifiers are
-  unique, e.g. `new.x` in a class that already has an `x` variable defined.
-  We can also use `old` in this way, e.g. `old.valueWeCareAbout`.
+* `New` can be used as a variable prefix to ensure variable identifiers are
+  unique, e.g. `New.X` in a class that already has an `X` variable defined.
+  We can also use `Old` in this way, e.g. `Old.ValueWeCareAbout`.
 
-* `new` can be a shorthand for accessing the new value in a setter, with
-  the name of the variable following a period, e.g. `new.value`.
+* `New` can be a shorthand for accessing the new value in a setter, with
+  the name of the variable following a period, e.g. `New.Value`.
 
-## NEW class instance
+## new class instance
 
-We can create a new class instance using the `NEW` syntax.  Using `NEW`
+We can create a new class instance using the `new` syntax.  Using `new`
 creates a specification with the subsequent variable names, which
 can be converted into whatever class type is on the left-hand side.
 
 ```
-class EXAMPLE(INT times, STRING greeting, STRING noun = "world");
+class example(int Times, string Greeting, string Noun = "world");
 
-EXAMPLE ex(Times(5), Greeting("hello")) # normal initialization
+example Ex(Times(5), Greeting("hello")) # normal initialization
 
-ex = NEW(Greeting("hey"), Noun("people")) # a NEW way to do it.
+ex = new(Greeting("hey"), Noun("people")) # overwrite
 ```
 
-## `NEW_TYPE` for templates
+## `newType NewType` for templates
 
 For functions (and class methods), we use this syntax:
 
 ```
-NEW_V FN doSomethingWithTemplates(NEW_T x, NEW_U y)
-    print("${x} -> ${y}")
-    return y    # transforms from NEW_U to NEW_V type.
+NewV doSomethingWithTemplates(newT X, newU Y)
+    print("${X} -> ${Y}")
+    return Y    # transforms from newU to newV type.
 
-# NEW_V = DBL, NEW_T = INT, and NEW_U = STRING:
-DBL q = doSomethingWithTemplates(X(5), Y("1.2345"))
+# here, newV = dbl, newT = int, and newU = string:
+dbl Q = doSomethingWithTemplates(X(5), Y("1.2345"))
 ```
 
 And of course, fewer templated types can be used in a function.
 Here's an example also with a class:
 
 ```
-class NEW_T EXAMPLE(NEW_T value)
-    MD setFrom(NEW_U)
-        value = newU    # implicit conversion
+class newT example(newT Value)
+    setFrom(NewU)
+        Value = NewU    # implicit conversion
 
-INT EXAMPLE x(Value(3))
-x.setFrom("50003")
+int example X(Value(3))
+X.setFrom("50003")
 ```
 
 For classes, see the discussion on [template classes](./template_class.md).
 
 ## Variable prefix to avoid duplicate identifiers
 
-Here is an example of using `new.someVariableName`.  The specification
+Here is an example of using `New.SomeVariableName`.  The specification
 will use `SomeVariableName` (i.e., not prefixed with `New`).  Similarly,
-we can use `old` as a prefix.
+we can use `Old` as a prefix.
 
 ```
-class EXAMPLE(INT x)
-    INT MD set(INT new.x)
-        INT old.x = x
-        x = new.x
-        return old.x
+class example(int X)
+    Int set(int New.X)
+        int Old.X = X
+        X = New.X
+        return Old.X
 
-EXAMPLE ex(X(5))
-print(ex.set(X(1234))) # prints 5
+example Ex(X(5))
+print(Ex.set(X(1234))) # prints 5
 ```
 
 ## Setters
 
-Here is an example for using a `new.someVariableName` in a setter.
+Here is an example for using a `New.SomeVariableName` in a setter.
 
 ```
-class INVERSE
-    DBL x_
+class inverse
+    dbl X_
 
-    set DBL y
-        x = 1.0/new.y
+    set dbl Y
+        X = 1.0/New.Y
 
-    get DBL y
-        return 1.0/x
+    get dbl Y
+        return 1.0/X
 ```
