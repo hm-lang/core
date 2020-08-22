@@ -1,56 +1,62 @@
-class NEW_T ARRAY
-    class GRSV__(INDEX, NEW_T ARRAY CONST_REF) extends NEW_T GRSV
-        NEW_T MD get()
-            return newT_array_constRef.get(index)
-        NEW_T MD remove()
-            return newT_array_constRef.remove(index)
-        NEW_T MD set(NEW_T value)
-            return newT_array_constRef.set(index, value)
-        CONST_NEW_T REF MD view()
-            return newT_array_constRef.view(index)
+class newT array extends NewT IndexedContainer
+    class arrayGrsv__(Index, NewT Array constRef Array__) extends NewT Grsv
+        NewT get()
+            return Array.get(Index)
+        NewT remove()
+            return Array.remove(Index)
+        NewT swap(newT New)
+            return Array.swap(Index, New)
+        ConstNewT Ref view()
+            # TODO: try to condense `get` and `view` into a single method on the array.
+            return Array.view(Index)
 
-    NEW_T GRSV MD this(INDEX) = ARRAY.GRSV(index, this)
+    NewT Grsv This(Index) = arrayGrsv(Index, Array(This))
 
-    class VALUE_ITERATOR(
-        NEW_T ARRAY CONST_REF
-    ) extends NEW_T ITERATOR.PEAKABLE_REMOVABLE(newT_array_constRef.size)
-        INDEX __ = 0
+    class valueIterator_(
+        NewT Array constRef Array__
+    ) extends NewT iterator.IPR(Array.size())
+        Index __ = 0
 
-        NEW_T? MD next()
-            return index < newT_array_constRef.size ? newT_array_constRef.get(index++) : null
+        NewT? next()
+            return Array.get(Index++) if Index < Array.size() else Null
 
-        CONST_NEW_T REF? MD peak()
-            return index < newT_array_constRef.size ? newT_array_constRef.view(index) : null
-
-        MD insert(NEW_T)
-            if index < newT_array_constRef.size
-                newT_array_constRef.insert(index++, newT)
+        insert(NewT)
+            if Index < Array.size()
+                Array.insert(Index++, NewT)
             else
-                newT_array_constRef.append(newT)
-                index = newT_array_constRef.size
+                Array.append(NewT)
+                Index = Array.size()
 
-        NEW_T? MD remove()
-            return index < newT_array_constRef.size ? newT_array_constRef.remove(index) : null
+        ConstNewT Ref? peak()
+            # TODO: try to condense `get` and `view` into a single method on the array.
+            return Array.view(Index) if Index < Array.size() else Null
 
-    class NEW_T INDEX_ITERATOR(
-        NEW_T ARRAY CONST_REF
-    ) extends [INDEX, NEW_T] ITERATOR(newT_array_constRef.size)
-        INDEX nextIndex__ = 0
+        NewT? remove()
+            return Array.remove(Index) if Index < Array.size() else Null
 
-        [INDEX, NEW_T]? MD next()
-            if nextIndex >= newT_array_constRef.size
-                return null
-            index = nextIndex++
-            newT = newT_array_constRef.get(index)
+    # TODO: define valueIterator without insert and remove, on const view of the array and ref of NewT
 
-    to NEW_T ARRAY.VALUE_ITERATOR = ARRAY.VALUE_ITERATOR(this)
-    # TODO: make these automatic based on VALUE_ITERATOR's hierarchy:
-    to NEW_T ITERATOR.PEAKABLE_REMOVABLE = ARRAY.VALUE_ITERATOR(this)
-    to NEW_T ITERATOR.PEAKABLE = ARRAY.VALUE_ITERATOR(this)
-    to NEW_T ITERATOR.REMOVABLE = ARRAY.VALUE_ITERATOR(this)
-    to NEW_T ITERATOR = ARRAY.VALUE_ITERATOR(this)
+    class newT indexIterator_(
+        NewT Array constRef Array__
+    ) extends [Index, NewT] Iterator(Array.size())
+        index NextIndex__ = 0
 
-    to [INDEX, NEW_T] ARRAY.INDEX_ITERATOR = ARRAY.INDEX_ITERATOR(this)
-    # TODO: make this automatic based on INDEX_ITERATOR's hierarchy:
-    to [INDEX, NEW_T] ITERATOR = ARRAY.INDEX_ITERATOR(this)
+        [Index, NewT]? next()
+            if NextIndex >= Array.size()
+                return Null
+            Index = NextIndex++
+            NewT = Array.get(Index)
+
+        # TODO: should be able to define peak(), but it will be onto locally cached values.
+
+    # TODO: define indexIterator without peak, but on const view of the array and on ref of NewT
+
+    # TODO: make these automatic based on VALUE_iterator's hierarchy:
+    to NewT iterator.IPR = valueIterator(Array(This))
+    to NewT iterator.PR = valueIterator(Array(This))
+    to NewT iterator.P = valueIterator(Array(This))
+    to NewT iterator.R = valueIterator(Array(This))
+    to NewT iterator = valueIterator(Array(This))
+
+    to [Index, NewT] iterator = indexIterator(Array(This))
 

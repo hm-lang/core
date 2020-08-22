@@ -1,12 +1,12 @@
 " Vim syntax file
-" Language:	Metamorp
+" Language:	Hm-lang
 " Maintainer:	Lucas Wagner <lowagner@gmail.com>
-" Last Change:	2019-03-08
+" Last Change:	2020-08-21
 " Credits:	Zvezdan Petkovic, Neil Schemenauer, and Dmitry Vasiliev (python.vim) 
 "		Bram Moolenaar (c.vim)
 " Info:	Can copy to ~/.vim/syntax/hm.vim, then edit ~/.vim/filetype.vim
 "	to include a "*.hm" line:
-"		"au BufNewFile,BufRead *.hm		setf hm" to
+"		"au BufNewFile,BufRead *.hm		setf hm"
 if exists("b:current_syntax")
   finish
 endif
@@ -16,26 +16,26 @@ endif
 let s:cpo_save = &cpo
 set cpo&vim
 
-syn keyword hmSpecial	debug this abstract
+syn keyword hmSpecial	debug This this abstract
 
-syn keyword hmStatement	goto move return and or not swap from from_ from__ _from __from _from_
-syn keyword hmStatement	define get set settable gettable
-syn keyword hmStatement	enumerate conglomerate try catch throw as in assert
+syn keyword hmStatement	goto return and or not from from_ from__ _from __from _from_ to
+syn keyword hmStatement	define settable gettable
+syn keyword hmStatement	enum try catch throw as in assert
 syn keyword hmStatement	class
 syn keyword hmStatement	print printing warn warning
-syn keyword hmConditional	if elif else consider case default also
+syn keyword hmConditional	if then elif else consider case default also
 syn keyword hmRepeat	for while break continue on
-syn match hmLambdaVariable	/\$\v<[a-z][A-Z0-9a-z]*>/
-syn keyword hmInclude	include import
-"syn match	hmType	/[A-Z]+/
-syn match	hmType	"\v<[A-Z][A-Z_0-9]+>"
-syn match	hmSpecifier	/\v<[A-Z][A-Z0-9]*[a-z]+[A-Za-z0-9]*>/
+syn match hmLambdaVariable	/\$\v<[A-Z]\S*>/
+syn match hmLambdaFunction	/\$\v<[a-z]\S*>/
+syn match	hmType	"\v<[a-z][a-zA-Z_0-9]*\(@!"
+syn match	hmFunction		"\v<[a-z][a-zA-Z_0-9]*\ze\("
+syn match	hmSpecifier		"\v<[A-Z][A-Za-z0-9]*>"
 syn keyword  hmCcBlock	cc
 syn match   hmCcBlock	'@'
 syn match   hmComment	"#.*$" contains=hmTodo
 syn region hmComment	start="#/" end="/#"
 syn keyword hmTodo		FIXME NOTE NOTES TODO XXX contained
-syn match hmFile		"\v\:<[a-z_]*>"
+syn match hmFile		"\v\:<[A-Za-z_]*>"
 
 syn match	hmFormat		display "%\(\d\+\$\)\=[-+' #0*]*\(\d*\|\*\|\*\d\+\$\)\(\.\(\d*\|\*\|\*\d\+\$\)\)\=\([hlLjzt]\|ll\|hh\)\=\([aAbdiuoxXDOUfFeEgGcCsSpn]\|\[\^\=.[^]]*\]\)" contained
 syn match   hmEscape	display contained "\\." 
@@ -104,13 +104,11 @@ if !exists("hm_no_number_highlight")
 	\ "\%(^\|\W\)\zs\d*\.\d\+\%([eE][+-]\=\d\+\)\=[jJ]\=\>"
 endif
 
-syn keyword hmFunction	FN
-
 if !exists("hm_no_builtin_highlight")
-  syn keyword hmBuiltin	main TEST 
+  syn keyword hmBuiltin	main test
   syn keyword hmBuiltin NEW new old any
   syn keyword hmBuiltin	yield extends
-  syn keyword hmBuiltin	false null true
+  syn keyword hmBuiltin	False Null True Unspecified
   syn keyword hmBuiltin	unpack complete pass descope
   "syn keyword hmBuiltin	create delete reallocate allocate zero bits bytes attach absolve free copy
   syn keyword hmBuiltin	abs floor ceil min max
@@ -141,12 +139,12 @@ if version >= 508 || !exists("did_hm_syn_inits")
   HiLink hmEscape		Special
   HiLink hmStatement	Statement
   HiLink hmConditional	Conditional
-  HiLink hmType	Type
   HiLink hmRepeat		Repeat
   HiLink hmLambdaVariable		Statement
-  HiLink hmInclude		Include
-  HiLink hmFunction		Statement
-  HiLink hmSpecifier		Function
+  HiLink hmSpecifier		Normal
+  HiLink hmLambdaFunction		Function
+  HiLink hmFunction		Function
+  HiLink hmType	Function
   HiLink hmComment		Comment
   HiLink hmSpecial		Special
   HiLink hmFile		Statement
@@ -166,7 +164,7 @@ if version >= 508 || !exists("did_hm_syn_inits")
     HiLink hmNumber		Number
   endif
   if !exists("hm_no_builtin_highlight")
-    HiLink hmBuiltin	Function
+    HiLink hmBuiltin	Special
   endif
   HiLink hmSpaceError	Error
   delcommand HiLink

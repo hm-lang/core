@@ -1,9 +1,9 @@
-class NEW_T ITERATOR(SIZE? CONST size) extends NEW_T NEXTABLE
+class newT iterator(SIZE? CONST size) extends NewT Nextable
     ===
     Returns the next value of the iterator, or null
     if the iterator is finished:
     ===
-    NEW_T? MD next();
+    NewT? next();
 
     ===
     Maps the values in the current `ITERATOR` into elements of a possibly

@@ -1,23 +1,23 @@
 ===
 Returns the sum of the elements in an iterator.
 ===
-NEW_T FN sum(NEW_T ITERATOR)
-    for NEW_T new in ITERATOR
-        newT += new
+NewT sum(NewT Iterator)
+    for newT New in Iterator
+        NewT += New
 
-TEST sums(FN()
-    TEST integerSum(FN()
-        assert sum(INT i < 100) == 4950
+test Sums(fn()
+    test IntegerSum(fn()
+        assert sum(int I < 100) == 4950
     )
-    TEST integerSumFromArray(FN()
-        INT ARRAY = [4, 8, 16, 128, -1]
-        assert sum(int_array) == 155
+    test IntegerSumFromArray(fn()
+        Int Array = [4, 8, 16, 128, -1]
+        assert sum(Array) == 155
     )
-    TEST doubleSum(FN()
-        assert sum(DBL j < 200) ~= 19900.0
+    test DoubleSum(fn()
+        assert sum(dbl J < 200) ~= 19900.0
     )
-    TEST doubleSumFromArray(FN()
-        DBL ARRAY = [4.5, 8.5, 16.5, 128.5, -1.125]
-        assert sum(dbl_array) ~= 156.875
+    test DoubleSumFromArray(fn()
+        Dbl Array = [4.5, 8.5, 16.5, 128.5, -1.125]
+        assert sum(Array) ~= 156.875
     )
 )
