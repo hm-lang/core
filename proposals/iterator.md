@@ -9,7 +9,8 @@ The syntax for casting an iterable type to an `iterator` works like this:
 
 ```
 Int[] X = [1, 2, 3, 100, 9, 11]
-Int[] Y = iterator(X).take($WhereValue < 10)
+# NOTE: `iterator` isn't specific enough -- we need peak and remove for `take`:
+Int[] Y = iterator.pR(X).take($WhereValue < 10)
 # X == [100, 11]
 # Y == [1, 2, 3, 9]
 ```
@@ -27,7 +28,7 @@ methods.
 
 TODO: make a choice:
 
-1.  Force users to cast to `iterator`
+1.  Force users to cast to `iterator`that is peakable and removable
 2.  Define `map` on the `container` class, defering to the `iterator` approach
     (subclasses can create their own specialized implementation)
 3.  Use a special `->` operator which searches through `to` classes
@@ -35,11 +36,20 @@ TODO: make a choice:
 4.  Create a global `take` function (and similar), so you can do stuff like this.
 
 ```
-take(NewT iterator From, Bool fn(ConstNewT constRef WhereValue));
+NewT Iterator take(NewT iterator.pR From, Bool fn(ConstNewT constRef WhereValue));
 
 Int[] X = [1, 2, 3, 100, 9, 11]
 Int[] Y = take(From(X), $WhereValue < 10)
 ```
 
 The benefits of this approach are that casting is performed implicitly due
-to the naming of the `From` variable.
+to the naming of the `From` variable.  The downside is that this is a global
+function, and we want to minimize these, since we don't want *any* naming
+clashes.  We could make the `take` function a static (class) function on `iterator`:
+
+```
+NewT Iterator iterator.take(NewT iterator.pR From, Bool fn(ConstNewT constRef WhereValue));
+
+Int[] X = [1, 2, 3, 100, 9, 11]
+Int[] Y = iterator.take(From(X), $WhereValue < 10)
+```
