@@ -1,4 +1,5 @@
-class newT iterator(SIZE? CONST size) extends NewT Nextable
+# TODO: maybe make size getters/setters interfaces (Sizable and Resizable)
+class newT iterator(Size? const Size) extends NewT Nextable
     ===
     Returns the next value of the iterator, or null
     if the iterator is finished:
