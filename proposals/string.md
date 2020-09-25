@@ -105,17 +105,18 @@ print(X) # prints "${this will not actually execute}" without the quotes.
 For ease of debugging, we might also want to introduce a special
 interpolation, `$${someExpression()}`, which prints out the string
 literal inside the parentheses, but also prints the value of the
-expression.  The literal is followed by a " -> ", then the value.
+expression.  The literal is followed by a " = ", then the value.
+it will also be enclosed in whatever parentheses you chose.
 For example:
 
 ```
 int X = 5
-print("debugging $${X}") # prints "debugging X -> 5"
+print("debugging $${X}") # prints "debugging {X = 5}"
 
 Int doSomething(Int)
     return Int / 2
 
-print("$${doSomething(X)}") # prints "doSomething(X) -> 2"
+print("$$[doSomething(X)]") # prints "[doSomething(X) = 2]"
 ```
 
 This should work regardless of debug state.

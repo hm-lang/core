@@ -40,12 +40,10 @@ runSomething(Dbl fn(dbl Multiplier, Dbl))
 runSomething($Multiplier * ($Dbl + 1))
 ```
 
-## `$` prefixing a single function/method without arguments
-
-TODO: ensure this doesn't grammatically interfere with `$` arguments above.
+## `$$` prefixing a single function/method without arguments
 
 We can make a lambda function by prefixing a single function or
-method call with a `$`.  The following calls to `run` are equivalent;
+method call with a `$$`.  The following calls to `run` are equivalent;
 they create a lambda function which prints "hello, world!", and based
 on the `run` command they will be executed after 3 seconds.
 
@@ -55,11 +53,11 @@ run(After(Seconds(3)), fn()
     print("hello, world!")
 )
 
-# with $ operator pre-fixed to a single function name:
-run($print("hello, world!"), After(Seconds(3)))
+# with $$ operator pre-fixed to a single function name:
+run($$print("hello, world!"), After(Seconds(3)))
 ```
 
-For a class method, the `$` comes before the class instance:
+For a class method, the `$$` comes before the class instance:
 
 ```
 class greeter(string Greeting)
@@ -72,6 +70,6 @@ run(After(Seconds(3)), fn()
     Greeter.greet(Noun("world"))
 )
 
-# with $ operator prefixing the Instance.method() call:
-run(After(Seconds(3)), $Greeter.greet(Noun("world")))
+# with $$ operator prefixing the Instance.method() call:
+run(After(Seconds(3)), $$Greeter.greet(Noun("world")))
 ```
