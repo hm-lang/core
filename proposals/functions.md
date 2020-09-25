@@ -60,7 +60,11 @@ to another function; is the next bit another passed-in argument or the default
 definition of the function?
 
 
-## Function inputs (arguments) and outputs (return values)
+## Function inputs and outputs
+
+Function inputs (arguments) and outputs (return values) follow the
+[argument specification](./argument_specification.md) for the most part:  the
+only exception is that the return type can be omitted for a void-returning function.
 
 ### Default initialization of return values
 
@@ -166,7 +170,9 @@ print(X) # ok, X and other variables are still in scope based on indent, not par
 
 TODO
 
-## const-ness and more examples
+## Miscellaneous
+
+### const-ness and more examples
 
 Functions are by default `const`, i.e. they cannot be changed.
 
@@ -197,3 +203,82 @@ hello = fn() var
     print("hi, friend.")
 # also ok.
 ```
+
+### Making parentheses optional
+
+Some hm-lang built-in functions, e.g. `return` and `print`, do not require parentheses.
+It would be fun to do this for all functions.  It might not be grammatically pleasant
+to allow this for function definitions, but it would be nice to do it for function calls.
+
+For simple functions it doesn't seem too tricky:
+
+```
+# defining the function:
+Int hello(String)
+    print "hello, ${String}!"
+    return String.size()
+
+# calling the function:
+hello "world"   # equivalent to `hello("world")` or `hello String("world")` or `hello(String("world"))`
+```
+
+For void functions, we still require parentheses, since it's ambiguous with passing a function:
+
+```
+# defining the function:
+hello()
+    print "hello, world!"
+
+# calling the function:
+hello()     # can't do `hello` here, as that just returns the function address.
+```
+
+For functions with multiple return values, we always require parentheses around them:
+
+```
+# declaring the function:
+(Int, String, dbl Value) doSomething();
+
+# calling the function:
+(Int, String, dbl Value) = doSomething()
+print "got Int = ${Int} for $$[String] and $$(Value)"
+```
+
+For functions with multiple arguments:
+
+```
+# declaring the function:
+doSomething(Int, String, dbl Value);
+
+# calling the function, these are all equivalent:
+doSomething Int(3) String("Hello") Value(3.4)
+
+doSomething "Hello" Value(3.4) 3
+
+doSomething(Int=3, String="Hello", Value=3.4)
+
+doSomething
+        String = "Hello"
+        3
+        Value(3.4)
+```
+
+Would need to have an "Argument stack" (or blob) in the grammar.
+
+The only problem is ambiguity.  Suppose one argument is `Array`:
+
+```
+doSomething(Int Array, Int);
+
+doSomething Int(3) Array([1,2,3])
+```
+
+In this case, `Int(3) Array([1, 2, 3])` looks like it could be a definition for
+an array of elements whose type is an integer fixed-size array of length 3.
+
+We could disambiguate by requiring function calls to use `()`, indexing to use `[]`,
+so that an array with 3-integer values for each element would be defined as
+`Int[3] Array` instead of `Int(3) Array`.  Then `doSomething Int(3) Array([1,2,3])`
+always results in passing in an integer of value 3 and an array with elements 1, 2, 3.
+This would break one of the more fundamental equivalences (between parentheses) that
+hm-lang was originally trying to keep, but it might be worth it.
