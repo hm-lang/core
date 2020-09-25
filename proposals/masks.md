@@ -30,6 +30,12 @@ Options.isX()   # False, since Options is a combo of X and Z
 
 Options = T
 Options.isT()   # True, since Options is now solely T
+
+Options = None | X
+Options.hasNone()   # False
+Options.hasX()      # True
 ```
 
-
+The first flag can be zero, but note that this is the one option that cannot be set alongside
+any other option; i.e., `None | X` below will resolve to `X`, and similarly for any non-zero
+value.
