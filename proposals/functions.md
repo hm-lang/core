@@ -270,6 +270,8 @@ The only problem is ambiguity.  Suppose one argument is `Array`:
 ```
 doSomething(Int Array, Int);
 
+# are we setting Int to 3 and Int Array to [1, 2, 3]?
+# or are we passing in a 3-Integer-per-element Array?
 doSomething Int(3) Array([1,2,3])
 ```
 

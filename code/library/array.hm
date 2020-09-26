@@ -1,4 +1,10 @@
 class newT array extends NewT IndexedContainer
+    # TODO: this doesn't work if the array elements are more complicated types:
+    # e.g.
+    #   Int Array array Nested
+    #   Nested[0].append(5)
+    #   print Nested[0]     # will print empty array [] instead of [5]
+    # TODO: maybe make get(), ref(), set(), swap()
     class arrayGrsv__(Index, NewT Array constRef Array__) extends NewT Grsv
         NewT get()
             return Array.get(Index)
@@ -28,13 +34,25 @@ class newT array extends NewT IndexedContainer
                 Index = Array.size()
 
         ConstNewT Ref? peak()
-            # TODO: try to condense `get` and `view` into a single method on the array.
             return Array.view(Index) if Index < Array.size() else Null
 
         NewT? remove()
             return Array.remove(Index) if Index < Array.size() else Null
 
-    # TODO: define valueIterator without insert and remove, on const view of the array and ref of NewT
+    # TODO: maybe try to kill off const stuff.  it's confusing in C++, and it's not pretty here either.
+    # the benefit of const helps with some optimizations, e.g., thread-safety for multiple read-only ok.
+    # but you're still going to need mutexes and stuff to avoid other threads writing to an object.
+    class constValueIterator_(
+        NewT Array Ref const Array__
+    ) extends ConstNewT Ref iterator.P(Array.size())
+        Index __ = 0
+
+        ConstNewT Ref? next()
+            return Array.view(Index++) if Index < Array.size() else Null
+
+        # TODO: double check:
+        ConstNewT Ref Const Ref? peak()
+            return Array.view(Index) if Index < Array.size() else Null
 
     class newT indexIterator_(
         NewT Array constRef Array__
@@ -46,8 +64,6 @@ class newT array extends NewT IndexedContainer
                 return Null
             Index = NextIndex++
             NewT = Array.get(Index)
-
-        # TODO: should be able to define peak(), but it will be onto locally cached values.
 
     # TODO: define indexIterator without peak, but on const view of the array and on ref of NewT
 
