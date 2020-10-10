@@ -12,6 +12,7 @@ class newT array extends NewT IndexedContainer
             return Array.remove(Index)
         NewT swap(newT New)
             return Array.swap(Index, New)
+        # TODO: use `view` type here instead of `ConstType ref`
         ConstNewT Ref view()
             # TODO: try to condense `get` and `view` into a single method on the array.
             return Array.view(Index)

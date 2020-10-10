@@ -53,6 +53,8 @@ if (Maybe != Null) print(Maybe.Type)
 
 ## Pointers to instances not belonging to the variable
 
+### References
+
 For the `ref` and `ref?` types, the instance *must* outlive the variable and any copies made of the variable.
 
 ```
@@ -76,3 +78,18 @@ Maybe = new(Type("spidephant"))
 QQ != Null          # True, Maybe is now non-Null.
 ```
 
+TODO: clear up when a `ref` type is being reassigned (i.e., to point to another variable) versus
+when the original variable it points to is being reassigned.  Maybe use `from` explicitly to show
+when a new reference is being captured, and use equal signs to always reassign the underlying variable.
+
+### Views
+
+A view is a way to check in on the value of some variable without being able to modify it directly.
+
+```
+int MyInt = 3
+int view MyView = MyInt
+MyView = 5  # ERROR! does not compile.  MyView cannot modify MyInt, and cannot hold a reference to a temporary.
+```
+
+Note that `Type view` may be thought of as a `ConstType ref` class.
