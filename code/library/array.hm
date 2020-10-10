@@ -5,23 +5,19 @@ class newT array extends NewT IndexedContainer
     #   Nested[0].append(5)
     #   print Nested[0]     # will print empty array [] instead of [5]
     # TODO: maybe make get(), ref(), set(), swap()
-    class arrayGrsv__(Index, NewT Array constRef Array__) extends NewT Grsv
-        NewT get()
+    class arrayGsv__(Index, NewT Array constRef Array__) extends NewT gate.Gsv
+        NewT Ref get()
             return Array.get(Index)
-        NewT remove()
-            return Array.remove(Index)
         NewT swap(newT New)
             return Array.swap(Index, New)
-        # TODO: use `view` type here instead of `ConstType ref`
-        ConstNewT Ref view()
-            # TODO: try to condense `get` and `view` into a single method on the array.
+        NewT View ConstThis.view()
             return Array.view(Index)
 
-    NewT Grsv This(Index) = arrayGrsv(Index, Array(This))
+    NewT gate.Gsv This(Index) = arrayGsv(Index, Array(This))
 
     class valueIterator_(
         NewT Array constRef Array__
-    ) extends NewT iterator.IPR(Array.size())
+    ) extends NewT iterator.InsertablePeakableRemovable(Array.size())
         Index __ = 0
 
         NewT? next()
@@ -34,25 +30,22 @@ class newT array extends NewT IndexedContainer
                 Array.append(NewT)
                 Index = Array.size()
 
-        ConstNewT Ref? peak()
+        NewT View? ConstThis.peak()
             return Array.view(Index) if Index < Array.size() else Null
 
         NewT? remove()
             return Array.remove(Index) if Index < Array.size() else Null
 
-    # TODO: maybe try to kill off const stuff.  it's confusing in C++, and it's not pretty here either.
-    # the benefit of const helps with some optimizations, e.g., thread-safety for multiple read-only ok.
-    # but you're still going to need mutexes and stuff to avoid other threads writing to an object.
     class constValueIterator_(
-        NewT Array Ref const Array__
-    ) extends ConstNewT Ref iterator.P(Array.size())
+        NewT Array constView Array__
+    ) extends NewT View iterator.Peakable(Array.size())
         Index __ = 0
 
-        ConstNewT Ref? next()
+        NewT View? next()
             return Array.view(Index++) if Index < Array.size() else Null
 
-        # TODO: double check:
-        ConstNewT Ref Const Ref? peak()
+        # TODO: ensure that View View? can collapse to View?
+        NewT View? ConstThis.peak()
             return Array.view(Index) if Index < Array.size() else Null
 
     class newT indexIterator_(
@@ -68,11 +61,11 @@ class newT array extends NewT IndexedContainer
 
     # TODO: define indexIterator without peak, but on const view of the array and on ref of NewT
 
-    # TODO: make these automatic based on VALUE_iterator's hierarchy:
-    to NewT iterator.IPR = valueIterator(Array(This))
-    to NewT iterator.PR = valueIterator(Array(This))
-    to NewT iterator.P = valueIterator(Array(This))
-    to NewT iterator.R = valueIterator(Array(This))
+    # TODO: make these automatic based on valueIterator's hierarchy:
+    to NewT iterator.insertablePeakableRemovable = valueIterator(Array(This))
+    to NewT iterator.peakableRemovable = valueIterator(Array(This))
+    to NewT iterator.peakable = valueIterator(Array(This))
+    to NewT iterator.removable = valueIterator(Array(This))
     to NewT iterator = valueIterator(Array(This))
 
     to [Index, NewT] iterator = indexIterator(Array(This))

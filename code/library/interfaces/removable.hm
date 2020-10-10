@@ -1,12 +1,14 @@
 ===
-An abstract class which has a `remove()` method.  Used in a `ITERATOR.REMOVABLE`
+An abstract class which has a `remove()` method.  Used in a `iterator.removable`
 to indicate that the next value that will appear in the iteration can be removed,
-changing the `ITERATOR` (by not returning that value when calling `next()`) and
-also removing the value from the underlying `CONTAINER`.
+changing the `iterator` (by not returning that value when calling `next()`) and
+also removing the value from the underlying `container`.
 ===
-class NEW_T REMOVABLE
+class newT removable
     ===
     Removes an element, e.g. from any iterator or backing container,
     or it returns null if there is no current element at this position.
+    It would have been the element that appeared when calling `peak()`,
+    i.e., if the iterator also supports that.
     ===
-    NEW_T? MD remove();
+    NewT? remove();
