@@ -2,9 +2,9 @@
 An abstract class which has a `copy()` method.  Used in getter-like classes when
 a reference cannot be returned to the underlying value, but a copy can be.
 ===
-class NEW_T COPYABLE
+class newT copyable
     ===
     Returns a copy of the internal value held by this class instance.
     ===
-    NEW_T MD copy();
+    NewT copy();
 

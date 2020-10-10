@@ -1,5 +1,5 @@
 # TODO: maybe make size getters/setters interfaces (Sizable and Resizable)
-class newT iterator(Size? const Size) extends NewT Nextable
+class newT iterator(size? const Size) extends NewT Nextable
     ===
     Returns the next value of the iterator, or null
     if the iterator is finished:
@@ -7,89 +7,119 @@ class newT iterator(Size? const Size) extends NewT Nextable
     NewT? next();
 
     ===
-    Maps the values in the current `ITERATOR` into elements of a possibly
+    Maps the values in the current `iterator` into elements of a possibly
     different type in a new iterator.  The callback provides the mapping
     from this iterator's values to the returned one's values.
-    TODO: possibly make a MAPPED_PEAKABLE class to avoid creating a lambda function?
+    TODO: possibly make a mappedLambda iterator class to avoid creating a lambda?
+    TODO: closure concerns: either way, how do we know iterator/container will remain backed?
     ===
-    NEW_U ITERATOR MD map(NEW_U FN(NEW_T)) = NEW_U ITERATOR.LAMBDA(
-        size
-        NEW_U? FN new.next()
-            NEW_T? current = next()
-            if current != null
-                return fn(current)
+    NewU Iterator map(NewU fn(NewT)) = new(
+        Size
+        NewU? New.next()
+            newT? Current = next()
+            if Current != Null
+                return fn(Current)
     )
 
     ===
     Combines map and filter functionality to produce a new iterator
-    from the current `ITERATOR`.  The provided callback should return
-    null if that value should not be returned in the new iterator,
+    from the current `iterator`.  The provided callback should return
+    Null if that value should not be returned in the new iterator,
     and otherwise returns the new value converted from the old one.
     ===
-    NEW_U ITERATOR MD map(NEW_U? FN(NEW_T)) = NEW_U ITERATOR.LAMBDA(
+    NewU Iterator map(NewU? fn(NewT)) = new(
         # TODO: support other things besides `next()`, e.g. peak():
-        NEW_U? FN new.next()
-            NEW_T? current
-            while true
-                current = next()
-                if current == null
+        NewU? New.next()
+            newT? Current
+            while True
+                Current = next()
+                if current == Null
                     return
-                newUQ = fn(current)
-                if newUQ != null
+                # TODO: maybe allow access to NewU? variable using NewU? and NewUQ
+                NewUQ = fn(Current)
+                if NewUQ != null
                     return
     )
 
+    # TODO: make lambda-class implementations of abstract classes automatic.
+    NewT Iterator new(NewT? New.next(), size? const New.Size) = iterator.lambda(
+        New.Size
+        New.next
+    )
+
+    ===
+    Takes elements from an `iterator` and puts them into a new one,
+    based on some filtering criterion.
+    ```
+    Int array X = [1, 2, 3, 100, 9, 11]
+    Int array Y = iterator.take(From(X), $whereValue < 10)
+    # Y == [1, 2, 3, 9]
+    # X == [100, 11]
+    ```
+    ===
+    NewT Iterator take(NewT iterator.peakableRemovable ref From, Bool fn(NewT view WhereValue)) = new(
+        NewT? New.next()
+            NewT view? Peaked
+            while True
+                Peaked = From.peak()
+                if Peaked == Null
+                    return
+                if fn(WhereValue(Peaked))
+                    return From.remove()
+                From.next()
+    )
+
 ===
-A version of the `ITERATOR` class whose `next()` is defined via a lambda
+A version of the `iterator` class whose `next()` is defined via a lambda
 function rather than implemented as a child-class method.
+TODO: make lambda-class implementations of abstract classes automatic.
 ===
-class NEW_T ITERATOR.LAMBDA(
+class newT iterator.lambda_(
     ===
     function which gets the next value of the iterator, or null
     if the iterator is finished:
     ===
-    NEW_T? FN new.next__()
+    NewT? New.next__()
 
     ===
     value which provides the total number of elements which will
     be iterated over, if available.  if there is a backing container,
     this is the original number of elements in the container.
     ===
-    SIZE? CONST new.size
-) extends NEW_T ITERATOR(new.size)
-    NEW_T? MD next() = new.next()
+    size? const New.Size
+) extends NewT iterator(New.Size)
+    NewT? next() = New.next()
 
 
 ===
 An abstract class for an iterator which defines a `peak()` method, which allows
 users to see the next value in the iteration without changing the iterator.
 ===
-class NEW_T ITERATOR.PEAKABLE(SIZE? CONST size)
-        extends NEW_T :interfaces.PEAKABLE, NEW_T ITERATOR(size);
+class newT iterator.peakable(size? const Size)
+        extends NewT :interfaces.Peakable, NewT Iterator(Size);
 
-class NEW_T ITERATOR.BUFFERED extends NEW_T ITERATOR.PEAKABLE
-    NEW_T? nextValue__
+class newT iterator.buffered extends NewT iterator.Peakable
+    NewT? NextValue__
 
-    from(NEW_T ITERATOR this.old__)
+    from(NewT iterator This.Wrapped__)
         # TODO: find a better syntax for parent from'ing:
-        ITERATOR.PEAKABLE.from(this.old.size)
-        nextValue = this.old.next()
+        iterator.Peakable.from(This.Wrapped.Size)
+        NextValue = This.Wrapped.next()
 
-    CONST_NEW_T REF? MD peak()
-        return nextValue
+    NewT view? peak()
+        return NextValue
 
-    NEW_T? MD next()
-        if nextValue != null
+    NewT? next()
+        if NextValue != null
             # TODO: nim-style a = b = c style moves.
-            newTQ = nextValue = old.next()
+            NewTQ = NextValue = Wrapped.next()
 
 ===
 An abstract class for an iterator which defines a `remove()` method, which allow users
 to remove the next value in the iteration, which changes the iterator and underlying
 container.
 ===
-class NEW_T ITERATOR.REMOVABLE extends NEW_T :interfaces.REMOVABLE, NEW_T ITERATOR
-    pass
+class newT iterator.removable extends NewT :interfaces.Removable, NewT Iterator;
 
 ===
 An abstract class for an iterator which defines `peak()` and `remove()` methods,
@@ -98,28 +128,8 @@ as well as remove the next value in the iteration (which does change the iterato
 the underlying container).
 ===
 # TODO: better way to annotate interfaces.  e.g. extends NEW_T ITERATOR & PEAKABLE & REMOVABLE
-class NEW_T ITERATOR.PEAKABLE_REMOVABLE extends
-        NEW_T :interfaces.PEAKABLE,
-        NEW_T :interfaces.REMOVABLE,
-        NEW_T ITERATOR
-    ===
-    Takes elements from this `ITERATOR` and puts them into a new one,
-    based on some filtering criterion.
-    ```
-    INT ARRAY x = [1, 2, 3, 100, 9, 11]
-    INT ARRAY y = x.take($whereValue < 10)
-    # y == [1, 2, 3, 9]
-    # x == [100, 11]
-    ```
-    ===
-    NEW_T ITERATOR MD take(BOOL FN(CONST_NEW_T REF whereValue)) = ITERATOR.LAMBDA(
-        NEW_T? FN new.next()
-            CONST_NEW_T REF? peaked
-            while true
-                peaked = peak()
-                if peaked == null
-                    return
-                if fn(WhereValue(peaked))
-                    return remove()
-                next()
-    )
+# TODO: make sure that this "inherits" from iterator.removable even if not explicit.
+class newT iterator.peakableRemovable extends
+        NewT :interfaces.Peakable,
+        NewT :interfaces.Removable,
+        NewT Iterator

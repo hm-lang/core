@@ -1,11 +1,11 @@
 ===
-An abstract class which has a `next()` method.  Used in a `ITERATOR` to
+An abstract class which has a `next()` method.  Used in a `iterator` to
 provide the next value in the iteration.
 ===
-class NEW_T NEXTABLE
+class newT nextable
     ===
     Returns the next element to consider for iterating over,
     or null if there are no further elements to iterate over.
     ===
-    NEW_T? MD next();
+    NewT? next();
 
