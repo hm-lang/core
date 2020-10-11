@@ -59,28 +59,27 @@ For the `ref` and `ref?` types, the instance *must* outlive the variable and any
 
 ```
 animal Base(Type("liger"))
-animal ref Ref1 = Base      # a `ref`erence doesn't own an instance, must get it elsewhere.
+animal ref Ref1(Base)    # a `ref`erence doesn't own an instance, must get it elsewhere.
 
 animal? Maybe(Type("tigon"))
-animal? ref Ref2 = Maybe    # a non-null reference to a possibly null animal.
+animal? ref Ref2(Maybe) # a non-null reference to a possibly null animal.
 
 animal ref? RefQ    # nullable reference, which if non-null, points to a non-null animal
 RefQ == Null        # True!
-RefQ = Base         # ok
+RefQ = Ref(Base)    # this is how you switch the Ref
 RefQ != Null        # True!
+RefQ = Ref?(Null)   # this is how to reset to a null Ref
 
 animal? ref? QQ     # nullable reference, which if non-null, points to a nullable animal
 QQ == Null          # True!
-Maybe = Null        
-QQ = Maybe          # ok
+Maybe = Null        # resetting the Maybe
+QQ = Ref(Maybe)     # ok
 QQ == Null          # True, since Maybe is Null.
-Maybe = new(Type("spidephant"))
+Maybe = animal(Type("spidephant"))
 QQ != Null          # True, Maybe is now non-Null.
+QQ = Null           # NOTICE! this resets the variable Maybe to Null.
+QQ = Ref?(Null)     # reset the Ref to not point to anything
 ```
-
-TODO: clear up when a `ref` type is being reassigned (i.e., to point to another variable) versus
-when the original variable it points to is being reassigned.  Maybe use `from` explicitly to show
-when a new reference is being captured, and use equal signs to always reassign the underlying variable.
 
 ### Views
 
@@ -88,8 +87,12 @@ A view is a way to check in on the value of some variable without being able to 
 
 ```
 int MyInt = 3
-int view MyView = MyInt
+int view MyView(MyInt)
 MyView = 5  # ERROR! does not compile.  MyView cannot modify MyInt, and cannot hold a reference to a temporary.
+
+# since MyView is not a constView (but just a view), it can be switched using this:
+int MyOtherInt = 7
+MyView = View(MyOtherInt)
 ```
 
 Note that `Type view` may be thought of as a `ConstType ref` class.

@@ -70,8 +70,13 @@ Int[] Values
 Dbl[3] Vector
 
 # declare a hash map of strings to integers;
-# equivalent to `(string Key, int Value) map UserIdMap`:
-Int[String] UserIdMap
+# equivalent to `(string Key, int Value) map NameToIdMap`:
+Int[String] NameToIdMap
+
+# declare a hash map of Ints to Strings, and reserve some space:
+# equivalent to: `String[Int] IdToNameMap = new(Size(5))`
+# TODO: make sure this notation doesn't get confused with type/function declarations:
+String[Int] IdToNameMap(Size(5))
 
 # declare a hash map that has a key composed of two types,
 # one of which is named:
