@@ -1,21 +1,15 @@
 class newT array extends NewT IndexedContainer
-    # TODO: this doesn't work if the array elements are more complicated types:
-    # e.g.
-    #   Int Array array Nested
-    #   Nested[0].append(5)
-    #   print Nested[0]     # will print empty array [] instead of [5]
-    # TODO: maybe make get(), ref(), set(), swap()
-    class arrayGsv__(Index, NewT Array constRef Array__) extends NewT gate.Gsv
-        NewT Ref get()
-            return Array.get(Index)
+    class newT arrayRefable__(Index, NewT Array constRef Array__) extends NewT gate.Refable
+        NewT Ref ref()
+            return Array.ref(Index)
         NewT swap(newT New)
             return Array.swap(Index, New)
         NewT View ConstThis.view()
             return Array.view(Index)
 
-    NewT gate.Gsv This(Index) = arrayGsv(Index, Array(This))
+    NewT gate.Refable This(Index) = arrayRefable(Index, Array(This))
 
-    class valueIterator_(
+    class newT valueIterator_(
         NewT Array constRef Array__
     ) extends NewT iterator.InsertablePeakableRemovable(Array.size())
         Index __ = 0
@@ -36,7 +30,7 @@ class newT array extends NewT IndexedContainer
         NewT? remove()
             return Array.remove(Index) if Index < Array.size() else Null
 
-    class constValueIterator_(
+    class newT constValueIterator_(
         NewT Array constView Array__
     ) extends NewT View iterator.Peakable(Array.size())
         Index __ = 0

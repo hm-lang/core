@@ -1,9 +1,9 @@
 ===
-An abstract class which has a `get()` method.  Used in getters.
+An abstract class which has a `ref()` method.
 ===
-class newT gettable
+class newT refable
     ===
     Returns a reference of the internal value held by this class instance.
     This reference can be changed to immediately affect the internal value.
     ===
-    newT Ref get();
+    newT Ref ref();
