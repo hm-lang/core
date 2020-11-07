@@ -37,11 +37,11 @@ the default for the parent type, we use this syntax:
 ```
 class key value map
     # define an abstract method:
-    Value Grs This[Key];
+    Value Grsv This[Key];
 
 class key value linkedHashMap extends key value map
     # implement the method:
-    Value Grs This[Key]
+    Value Grsv This[Key]
         ... implementation ...
 
 default.map = linkedHashMap

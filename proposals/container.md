@@ -12,5 +12,5 @@ class newT container
     to NewT Iterator;
 
     # returns number of elements in the container.
-    get Size;
+    view Size;
 ```

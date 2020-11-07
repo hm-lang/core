@@ -47,7 +47,7 @@ Maybe = snake(Length(1)
 Maybe = animal(Type("back-to-parent"))
 Maybe = Null    # also ok.
 # must check for null before using!!
-if (Maybe != Null) print(Maybe.Type)
+if Maybe != Null { print(Maybe.Type) }
 ```
 
 
@@ -59,26 +59,26 @@ For the `ref` and `ref?` types, the instance *must* outlive the variable and any
 
 ```
 animal Base(Type("liger"))
-animal ref Ref1(Base)    # a `ref`erence doesn't own an instance, must get it elsewhere.
+animal ref Ref1 = new(Base)    # a `ref`erence doesn't own an instance, must get it elsewhere.
 
 animal? Maybe(Type("tigon"))
-animal? ref Ref2(Maybe) # a non-null reference to a possibly null animal.
+animal? ref Ref2 = new(Maybe) # a non-null reference to a possibly null animal.
 
 animal ref? RefQ    # nullable reference, which if non-null, points to a non-null animal
 RefQ == Null        # True!
-RefQ = Ref(Base)    # this is how you switch the Ref
+RefQ = new(Base)    # this is how you switch the Ref
 RefQ != Null        # True!
-RefQ = Ref?(Null)   # this is how to reset to a null Ref
+RefQ = new(Null)    # this is how to reset to a null Ref
 
 animal? ref? QQ     # nullable reference, which if non-null, points to a nullable animal
 QQ == Null          # True!
 Maybe = Null        # resetting the Maybe
-QQ = Ref(Maybe)     # ok
+QQ = new(Maybe)     # ok. also ok to do `QQ = ref(Maybe)`
 QQ == Null          # True, since Maybe is Null.
 Maybe = animal(Type("spidephant"))
 QQ != Null          # True, Maybe is now non-Null.
 QQ = Null           # NOTICE! this resets the variable Maybe to Null.
-QQ = Ref?(Null)     # reset the Ref to not point to anything
+QQ = new(Null)      # reset the Ref to not point to anything
 ```
 
 ### Views

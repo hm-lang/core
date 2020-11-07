@@ -47,6 +47,14 @@ Variables that are declared are always initialized (perhaps lazily),
 even if no definition is provided.  I.e., the variables `X` and `Int`
 above are guaranteed to be 0.
 
+Note that we don't allow C++ style instance definitions of variables;
+we always require an equals sign `=` to define a non-default variable.
+
+```
+string MyString("hello world")      # ERROR!  ok in C++, not in hm-lang.
+string MyString = "hello world"     # ok!
+```
+
 ## Functions, arrays, and map types
 
 In hm-lang, all parentheses are equal: `() == {} == []`, but of course
@@ -66,7 +74,7 @@ Int doStuff(String)
 Int[] Values
 
 # declare an array with a fixed size named `Vector`;
-# equivalent to `Dbl fixedArray Vector(Size(3))`
+# equivalent to `Dbl fixedArray Vector = new(Size(3))`
 Dbl[3] Vector
 
 # declare a hash map of strings to integers;
@@ -74,9 +82,7 @@ Dbl[3] Vector
 Int[String] NameToIdMap
 
 # declare a hash map of Ints to Strings, and reserve some space:
-# equivalent to: `String[Int] IdToNameMap = new(Size(5))`
-# TODO: make sure this notation doesn't get confused with type/function declarations:
-String[Int] IdToNameMap(Size(5))
+String[Int] IdToNameMap = new(Reserve(5))
 
 # declare a hash map that has a key composed of two types,
 # one of which is named:

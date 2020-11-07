@@ -1,66 +1,66 @@
 class newT array extends NewT IndexedContainer
-    class newT arrayRefable__(Index, NewT Array constRef Array__) extends NewT gate.Refable
+    class newT arrayRefable__(Index, NewT Array constRef ArrayRef__) extends NewT gate.Refable
         NewT Ref ref()
-            return Array.ref(Index)
+            return ArrayRef.ref(Index)
         NewT swap(newT New)
-            return Array.swap(Index, New)
+            return ArrayRef.swap(Index, New)
         NewT View ConstThis.view()
-            return Array.view(Index)
+            return ArrayRef.view(Index)
 
-    NewT gate.Refable This(Index) = arrayRefable(Index, Array(This))
+    NewT gate.Refable This(Index) = arrayRefable(Index, arrayRef(This))
 
     class newT valueIterator_(
-        NewT Array constRef Array__
-    ) extends NewT iterator.InsertablePeakableRemovable(Array.size())
+        NewT Array constRef ArrayRef__
+    ) extends NewT iterator.InsertablePeakableRemovable(ArrayRef.size())
         Index __ = 0
 
         NewT? next()
-            return Array.get(Index++) if Index < Array.size() else Null
+            return ArrayRef.get(Index++) if Index < ArrayRef.size() else Null
 
         insert(NewT)
-            if Index < Array.size()
-                Array.insert(Index++, NewT)
+            if Index < ArrayRef.size()
+                ArrayRef.insert(Index++, NewT)
             else
-                Array.append(NewT)
-                Index = Array.size()
+                ArrayRef.append(NewT)
+                Index = ArrayRef.size()
 
         NewT View? ConstThis.peak()
-            return Array.view(Index) if Index < Array.size() else Null
+            return ArrayRef.view(Index) if Index < ArrayRef.size() else Null
 
         NewT? remove()
-            return Array.remove(Index) if Index < Array.size() else Null
+            return ArrayRef.remove(Index) if Index < ArrayRef.size() else Null
 
     class newT constValueIterator_(
-        NewT Array constView Array__
-    ) extends NewT View iterator.Peakable(Array.size())
+        NewT Array constView ArrayView__
+    ) extends NewT View iterator.Peakable(ArrayView.size())
         Index __ = 0
 
         NewT View? next()
-            return Array.view(Index++) if Index < Array.size() else Null
+            return ArrayView.view(Index++) if Index < ArrayView.size() else Null
 
         # TODO: ensure that View View? can collapse to View?
         NewT View? ConstThis.peak()
-            return Array.view(Index) if Index < Array.size() else Null
+            return ArrayView.view(Index) if Index < ArrayView.size() else Null
 
     class newT indexIterator_(
-        NewT Array constRef Array__
-    ) extends [Index, NewT] Iterator(Array.size())
+        NewT Array constRef ArrayRef__
+    ) extends [Index, NewT] Iterator(ArrayRef.size())
         index NextIndex__ = 0
 
         [Index, NewT]? next()
-            if NextIndex >= Array.size()
+            if NextIndex >= ArrayRef.size()
                 return Null
             Index = NextIndex++
-            NewT = Array.get(Index)
+            NewT = ArrayRef.get(Index)
 
     # TODO: define indexIterator without peak, but on const view of the array and on ref of NewT
 
     # TODO: make these automatic based on valueIterator's hierarchy:
-    to NewT iterator.insertablePeakableRemovable = valueIterator(Array(This))
-    to NewT iterator.peakableRemovable = valueIterator(Array(This))
-    to NewT iterator.peakable = valueIterator(Array(This))
-    to NewT iterator.removable = valueIterator(Array(This))
-    to NewT iterator = valueIterator(Array(This))
+    to NewT iterator.insertablePeakableRemovable = valueIterator(arrayRef(This))
+    to NewT iterator.peakableRemovable = valueIterator(arrayRef(This))
+    to NewT iterator.peakable = valueIterator(arrayRef(This))
+    to NewT iterator.removable = valueIterator(arrayRef(This))
+    to NewT iterator = valueIterator(arrayRef(This))
 
-    to [Index, NewT] iterator = indexIterator(Array(This))
+    to [Index, NewT] iterator = indexIterator(arrayRef(This))
 
