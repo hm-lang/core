@@ -8,7 +8,7 @@ can iterate over the indices as well as the individual elements.
 The proposed API is this:
 
 ```
-class newT array extends NewT IndexedContainer
+class NewT Array extends NewT IndexedContainer
     from(NewT Iterator);
     from([Index, NewT] Iterator);
 
@@ -20,29 +20,31 @@ class newT array extends NewT IndexedContainer
     # create (lazily) default-initialized values up to that point.
     # the `remove()` method is also supported, which will shift all
     # values with larger indices down one.
-    # TODO: `This(Index)` may be hard to distinguish from a map definition.
-    NewT Grsv This(Index);
+    NewT gate.Removable This[Index];
 
     # get or set the size of the array.
-    Size Gs Size;
+    # shorthand:
+    # * MyArray.Size.get() -> MyArray.size()
+    # * MyArray.Size.set(5) -> MyArray.size(5)
+    Size gate.Settable Size;
 
     NewT shift();
     NewT pop();
 
     # insert elements from iterator starting at `index At`, deleting
     # `Delete` numbers of elements of the original array first.
-    splice(NewT Iterator, index At, size Delete);
+    splice(NewT Iterator, index At, size Deleting);
 
-    insert(NewT Iterator, index At) = splice(NewT_Iterator, At, Delete(0))
-    erase(Index, size Count) = splice(At(Index), Delete(Count))
+    insert(NewT Iterator, index At) = splice(Iterator, At, Deleting(0))
+    erase(Index, size Count) = splice(At(Index), Deleting(Count))
 ```
 
-The parent class, `newT indexedContainer`, is a combination class which
-inherits from `newT container` and `(index key Index, newT Value) map`.
+The parent class, `NewT IndexedContainer`, is a combination class which
+inherits from `NewT Container` and `(Index key Index, newT Value) Map`.
 
-Internally, `array` uses a lazily default-initialized array;
+Internally, `Array` uses a lazily default-initialized array;
 only elements that are requested (at a given index) will be initialized.
 This guarantees that an element at a given index will only be initialized
-once, before being called with `Grsv.get()`.  If `Grsv.set(...)` is called
-before `Grsv.get()`, then the default-initialization will be skipped, and
+once, before being called with its gate's `get()`.  If `set(...)` is called
+before `get()`, then the default-initialization will be skipped, and
 only the `set` initialization will be performed.

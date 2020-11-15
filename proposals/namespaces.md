@@ -15,7 +15,7 @@ There are a few options when importing external classes/functions.
    ```
    # inline where the external function/class is needed:
    :some.subdir.file.neededFunction()
-   :some.subdir.file.neededClass neededClassInstance
+   :some.subdir.file.neededClass NeededClassInstance
    ```
    The benefit of this notation is indicating the external usage of a
    file in the same spot that it is used, though the notation is a bit
@@ -28,7 +28,7 @@ There are a few options when importing external classes/functions.
 
    # as needed:
    SomeHm.neededFunction()
-   SomeHm.neededClass neededClassInstance
+   SomeHm.neededClass NeededClassInstance
    ```
    This syntax is great for indicating what external features are
    needed from a given file, and lowering the inline verbosity at

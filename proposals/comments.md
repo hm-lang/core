@@ -17,22 +17,6 @@ Examples:
 int X = 3 # end-of-line (EOL) comment
 
 dbl Y = 12.34 * #/ midline comment /# 5.678
-
-===
-multiline comment
-can go on as long as you like
-    ===
-    you can even nest multiline comments
-    ===
-
-    ===
-    you don't have to finish nested multiline comments.
-    this is still a comment.
-
-still a comment, no parse errors.
-===
-
-string Z = "hello" # this statement will run, of course
 ===
 this is a multiline comment.
     and you can even indent internally,
@@ -41,6 +25,8 @@ this is a multiline comment.
     ===
     and this will still be a comment.
 ===
+
+string Z = "hello" # this statement will run, of course
 ```
 
 ## Incorrect syntax: encountering an unindented line in a multiline comment

@@ -5,17 +5,17 @@ Defining a generic or templated class has the following syntax.
 ## Single template type
 
 For a class that will depend on a single type, you can use 
-`newIdentifier` where `Identifier` is an `UpperCamelCase`
+`NewIdentifier` where `Identifier` is an `UpperCamelCase`
 name of your choosing.  This effectively declares the new
-type, and it appears before the class name, e.g. `class newT myClass;`.
+type, and it appears before the class name, e.g. `class NewT MyClass;`.
 You can then use `newT` inside the class as a type declaration:
 
 ```
-class newT awesomeArray
+class NewT AwesomeArray
     NewT This[Index]
         return newT(Index)
 
-int awesomeArray A
+Int awesomeArray A
 print(A[3]) # should be 3
 ```
 
@@ -30,13 +30,14 @@ those identifiers can be used to declare variables of those types.
 For example, we can declare a `map` class with two template types,
 named `key` and `value`:
 
+TODO: maybe require parentheses:
 ```
-class key value map
+class Key Value Map
     key DefaultKey
     value DefaultValue
     
     ...
-    Value This(Key)
+    Value This[Key]
         ...
 ```
 
@@ -45,8 +46,8 @@ argument specification:
 
 ```
 (string Key, int Value) map Counter
-counter["blah"] = 3
-counter["heyeye"] += 10 # no throw, get() will instantiate a defualt integer
+Counter["blah"] = 3
+Counter["heyeye"] += 10 # no throw, get() will instantiate a defualt integer
 ```
 
 As is typical in hm-lang, the order of types specified for multiple template
@@ -62,9 +63,9 @@ type classes does not matter:
 Note that any inheritance can be made explicit with the `extends` keyword:
 
 ```
-class newT array extends [Index, NewT] Container;
+class NewT Array extends [Index, NewT] Container;
 
-class key value map extends [Key, Value] Container;
+class Key Value Map extends [Key, Value] Container;
 ```
 
 Right now there are no plans for making a "default" type
@@ -89,8 +90,8 @@ For multi-template-type class, e.g. `class key value map` defined above,
 we can also rename the types:
 
 ```
-(int value Rating, string key Game) map Database
+(Int value Rating, String key Game) map Database
 Database[Game("Pong")] = Rating(300)
 
-(string key Name, int value Age) Map
+(String key Name, Int value Age) Map
 Map[Name("Fred")] = Age(10)

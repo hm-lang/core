@@ -57,13 +57,10 @@ string MyString = "hello world"     # ok!
 
 ## Functions, arrays, and map types
 
-In hm-lang, all parentheses are equal: `() == {} == []`, but of course
-they must match at each level.  They can be used to define functions,
-arrays, and maps, depending on the context.  Functions use lowerCamelCase
-for their names.  Note that when specifying types for functions, arrays,
-and maps, we need a named type (e.g. `int Name` or `Int` which is an `int Int`).
-Names allow us to ensure that the order of inputs/outputs to these complex types
-doesn't matter.
+Functions use lowerCamelCase for their names.  Note that when specifying types
+for functions, arrays, and maps, we need a named type (e.g. `int Name` or
+`Int` which is an `int Int`).  Names allow us to ensure that the order of
+inputs/outputs to these complex types doesn't matter.
 
 ```
 # declare a function named `doStuff` that takes a `string` argument

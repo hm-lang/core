@@ -1,7 +1,7 @@
 # Enumerate
 
 We can create a new type that exhaustively declares all possible values it can take.
-The syntax is `enum lowerCamelCase` followed by an indented block with named values
+The syntax is `enum UpperCamelCase` followed by an indented block with named values
 (each an `UpperCamelCase` identifier), with optional values they take.  Enumerations
 are mutually exclusive -- no two values may be held simultaneously.  See
 [masks](./masks.md) for a similar class type that allows multiple options at once.
@@ -9,7 +9,7 @@ are mutually exclusive -- no two values may be held simultaneously.  See
 ## Simple example
 
 ```
-enum bool
+enum Bool
     False = 0
     True = 1
 ```
@@ -22,16 +22,18 @@ and some convenience methods on any instance of the enumeration.
 bool Test = False
 
 # use `isUpperCamelCaseName()` to check for equality:
-if Test.isTrue(), print "test is true :("
-if Test.isFalse(), print "test is false!"
+if Test.isTrue()
+    print "test is true :("
+if Test.isFalse()
+    print "test is false!"
 
 # get the size (number of enumerated values) of the enum:
-print "bool has ${bool.count()} possibilities:"
+print "Bool has ${bool.count()} possibilities:"
 # get the lowest and highest values of the enum:
 print "starting at ${bool.min()} and going to ${bool.max()}"
 ```
 
-Because of this, it is a bit confusing to create an `enum enumName` that has `Count` as an
+Because of this, it is a bit confusing to create an `enum EnumName` that has `Count` as an
 enumerated value name, but it is not illegal, since we can still distinguish between the
 enumerated value (`enumName.Count`) and total number of enumerated values (`enumName.count()`).
 
@@ -40,7 +42,7 @@ enumerations, not the number +1 after the last enum value.  This can be confusin
 in case non-standard enumerations are chosen:
 
 ```
-enum sign
+enum Sign
     Negative = -1
     Zero = 0
     Positive = 1
@@ -48,7 +50,7 @@ enum sign
 print "sign has ${sign.count()} values" # prints 3 for count()
 print "starting at ${sign.min()} and going to ${sign.max()}" # -1 and 1
 
-enum weird
+enum Weird
     X = 1
     Y = 2
     Z = 3
@@ -66,7 +68,7 @@ than testing each value against the various possibilities.  Also note that you d
 to explicitly set each enum value.
 
 ```
-enum option
+enum Option
     Unselected
     NotAGoodOption
     ContentWithLife
@@ -77,17 +79,17 @@ enum option
 
 print "number of options should be 7:  ${option.count()}"
 
-option Option = ContentWithLife 
+option Option1 = ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
-if Option.isNotAGoodOption()
+if Option1.isNotAGoodOption()
     print "oh no"
-elif Option.isOopsYouMissedIt()
+elif Option1.isOopsYouMissedIt()
     print "whoops"
 ...
 
 # instead, consider doing this:
-consider Option
+consider Option1
     case NotAGoodOption
         print "oh no"
     case BestOptionStillComing
@@ -106,4 +108,4 @@ Defaults to whatever value is 0 (the first, if no values are specified).
 
 If no value is zero, then the first specified value is default.
 
-TODO: Consider allowing something like `default.option = NotAGoodOption`
+TODO: Consider allowing something like `default.Option = NotAGoodOption`

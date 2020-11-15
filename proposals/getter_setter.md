@@ -1,16 +1,17 @@
 # Getter/setter classes
 
 We make it easy to wrap a variable within getter/setter functions
-using the `gs` (getter swapper) class.  The proposed API is:
+using the `gate` or one of its specialized subclassses.
 
 ```
-class newT gs(NewT get(), newT Old swap(NewT))
-    to newT
+# this is defined automatically based on gate.Settable:
+class NewT gate.settable.Lambda(NewT get(), set(NewT))
+    to NewT
         return get()
 
-    # TODO: consistent syntax here:
-    newT Old This = (NewT)
-        return swap(NewT)
+    NewT Old This = (NewT)
+        Old = get()
+        set(NewT)
 ```
 
 Generally speaking, what looks like a class member variable is actually
@@ -19,9 +20,9 @@ change the behavior of how the variables work.  This might be harder to
 implement than expected, but here is the general idea:
 
 ```
-class vector2(dbl X, dbl Y);
+class Vector2(dbl X, dbl Y);
 
-class unitVector2 extends Vector2
+class UnitVector2 extends Vector2
     from(dbl X, dbl Y)
         normalize(X, Y)
 
@@ -45,6 +46,14 @@ class unitVector2 extends Vector2
 In the latter case, we can access the original class's getters/setters
 using the parent class' name (e.g. `Vector2`).
 
+```
+vector2 Parent = new(X(5), Y(3))
+Parent.x(3) # equivalent to `Parent.X = 3`
+Parent.x()  # equivalent to `Parent.X`
+unitVector2 Unit = new(X(1), Y(4))
+Unit.x(5)   # uses the child setter. equivalent to `Unit.X = 5`
+```
+
 
 ## Other mixins
 
@@ -54,13 +63,13 @@ or return something else if it is reasonable.  Similarly, the `remove` function
 must do something reasonable if it is called twice, or throw.
 
 ```
-class newT grs(NewT remove(), NewT Gs.get(), newT Old Gs.swap(NewT)) extends NewT Gs
+class NewT gate.Removable
     This = Null
         remove()
 
     NewT This = (NewT?)
-        if NewT?
-            return swap(newTQ)
+        if NewT? != Null
+            return swap(NewT?)
         else
             return remove()
 ```
@@ -69,39 +78,11 @@ Here is a getter/setter that is also viewable, i.e., no copies will be made
 if we ask for just a view of the internal value.
 
 ```
-class newT Gsv(
-    NewT Gs.get()
-    newT Old Gs.swap(NewT)
-    ConstNewT ConstRef view()
-) extends NewT Gs
+class newT gate.Viewable
     to ConstNewT ConstRef
         return view()
-
-    from(NewT Ref)
-        from(
-            newT Old swap(NewT)
-                Old = NewT_Ref
-                NewT_Ref = NewT
-            NewT get()
-                return NewT_Ref
-            ConstNewT ConstRef view()
-                return NewT_Ref
-        )
 ```
 
-Note that a `ref` type can be directly converted to a `Gsv` type.
+Note that a `ref` type can be directly converted to a `gate.Refable` type.
 
-Finally, you can have a `Grsv` type which can be gotten, removed, swapped,
-or viewed.
-
-```
-# TODO: probably need some work for this constructor to work out correctly.
-# need to make each G, R, S, V, its own class to avoid diamond problem.
-class newT grsv(
-    NewT Grs.remove()
-    NewT Grs.get()
-    newT Old Grs.swap(newT)
-    ConstNewT ConstRef Gsv.view()
-) extends NewT Gsv, NewT Grs;
-```
-
+The specific hierarchy is explored in the code library.

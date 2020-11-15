@@ -19,7 +19,7 @@ for int I < 10
         print("${I}, ${J}")
 
 # indent 0
-class example
+class Example
     # indent 1
     Dbl doSomething(Int)
         # indent 2

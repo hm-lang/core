@@ -1,5 +1,5 @@
-class newT array extends NewT IndexedContainer
-    class newT arrayRefable__(Index, NewT Array constRef ArrayRef__) extends NewT gate.Refable
+class NewT Array extends NewT IndexedContainer
+    class NewT ArrayRefable__(Index, NewT Array constRef ArrayRef__) extends NewT gate.Refable
         NewT Ref ref()
             return ArrayRef.ref(Index)
         NewT swap(newT New)
@@ -7,9 +7,9 @@ class newT array extends NewT IndexedContainer
         NewT View ConstThis.view()
             return ArrayRef.view(Index)
 
-    NewT gate.Refable This(Index) = arrayRefable(Index, arrayRef(This))
+    NewT gate.Refable This[Index] = arrayRefable(Index, ArrayRef(This))
 
-    class newT valueIterator_(
+    class NewT ValueIterator_(
         NewT Array constRef ArrayRef__
     ) extends NewT iterator.InsertablePeakableRemovable(ArrayRef.size())
         Index __ = 0
@@ -30,7 +30,7 @@ class newT array extends NewT IndexedContainer
         NewT? remove()
             return ArrayRef.remove(Index) if Index < ArrayRef.size() else Null
 
-    class newT constValueIterator_(
+    class NewT ConstValueIterator_(
         NewT Array constView ArrayView__
     ) extends NewT View iterator.Peakable(ArrayView.size())
         Index __ = 0
@@ -42,7 +42,7 @@ class newT array extends NewT IndexedContainer
         NewT View? ConstThis.peak()
             return ArrayView.view(Index) if Index < ArrayView.size() else Null
 
-    class newT indexIterator_(
+    class NewT IndexIterator_(
         NewT Array constRef ArrayRef__
     ) extends [Index, NewT] Iterator(ArrayRef.size())
         index NextIndex__ = 0
@@ -56,11 +56,11 @@ class newT array extends NewT IndexedContainer
     # TODO: define indexIterator without peak, but on const view of the array and on ref of NewT
 
     # TODO: make these automatic based on valueIterator's hierarchy:
-    to NewT iterator.insertablePeakableRemovable = valueIterator(arrayRef(This))
-    to NewT iterator.peakableRemovable = valueIterator(arrayRef(This))
-    to NewT iterator.peakable = valueIterator(arrayRef(This))
-    to NewT iterator.removable = valueIterator(arrayRef(This))
-    to NewT iterator = valueIterator(arrayRef(This))
+    to NewT iterator.InsertablePeakableRemovable = valueIterator(ArrayRef(This))
+    to NewT iterator.PeakableRemovable = valueIterator(ArrayRef(This))
+    to NewT iterator.Peakable = valueIterator(ArrayRef(This))
+    to NewT iterator.Removable = valueIterator(ArrayRef(This))
+    to NewT Iterator = valueIterator(ArrayRef(This))
 
-    to [Index, NewT] iterator = indexIterator(arrayRef(This))
+    to [Index, NewT] Iterator = indexIterator(ArrayRef(This))
 

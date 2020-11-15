@@ -1,50 +1,66 @@
 # Default vs. abstract
 
 In hm-lang, some base classes are abstract; i.e., they cannot be directly
-instantiated.  For ease of use, however, when someone attempts to
-instantiate a base class, the default class for that base class will be
-instantiated instead.  (Child class instances are assignable to a parent
-class variable, if it is not [`const`](./var_vs_const.md).)  Default child
-classes can be declared using a `default.` prefix on the original parent
-class name, e.g.:
+instantiated.
 
 ```
-class greeter
+class Greeter
     sayHello(string To)
         print("${getGreeting()}, ${To}!")
 
     # declare a class method but do not define it:
     # this is how you make it an abstract method (and thus abstract class):
-    string getGreeting();
+    String getGreeting();
 
-class default.greeter
-    string getGreeting()
+greeter G   # ERROR! Greeter has no default class, it's abstract and not instantiable.
+```
+
+Classes cannot be directly declared as abstract,
+but methods are abstract when declared but not defined,
+and having any abstract methods defines an abstract class.
+
+To make life easier for users who don't care about the specific implementation
+of some abstract class, we can define a default implementation for that class.
+
+
+## Unnamed default classes
+
+Default child classes can be declared using a `default.` prefix on the original parent
+class name, e.g.:
+
+```
+class default.Greeter
+    # make a beautiful implementation of the parent's abstract class:
+    String getGreeting()
         return "hello"
 
 greeter G
 G.sayHello() # does not error
 ```
 
-Note that if nothing inside of the parent class had been defined as abstract,
-then the parent class would have been instantiable, and defining a default
-would have thrown a compile-time error.  Classes cannot be directly declared
-as abstract, but methods are abstract when declared but not defined, and
-having any abstract methods defines an abstract class.
+Note you don't have to use `extends Greeter` in the class definition.
+
+
+## Named default classes
 
 In case the child class has a more specific name, and we want to set it as
 the default for the parent type, we use this syntax:
 
 ```
-class key value map
+class (Key, Value) Map
     # define an abstract method:
-    Value Grsv This[Key];
+    Value gate.Removable This[Key];
 
-class key value linkedHashMap extends key value map
+class (Key, Value) LinkedHashMap extends (Key, Value) Map
     # implement the method:
-    Value Grsv This[Key]
+    Value gate.Removable This[Key]
         ... implementation ...
 
-default.map = linkedHashMap
+default Map = LinkedHashMap
 ```
 
 Only one default can be set for a parent class, and it cannot be overridden.
+
+## Automatic lambda implementations for abstract classes
+
+TODO

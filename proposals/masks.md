@@ -6,7 +6,8 @@ which are `or`d together (`|`) for the variable instance.  Under the hood, these
 unsigned integer types, `uint`.  Trying to assign a negative value will throw a compiler error.
 
 ```
-mask nonMutuallyExclusiveType
+# the mask is required to have types that are powers of two, except for 0:
+mask NonMutuallyExclusiveType
     None = 0
     X = 1
     Y = 2

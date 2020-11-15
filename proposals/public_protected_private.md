@@ -29,7 +29,7 @@ One can qualify as a friend of a class in two different ways:
 
 ```
 # FILE: root/example/example.hm
-class example
+class Example
     dbl X   # public (get/set global)
     dbl Y_  # protected (get global, settable by friends only)
     dbl Z__ # private (gettable by friends only)
@@ -47,7 +47,7 @@ test ExampleVisibility(fn()
 )
 
 # FILE: root/example/neighbor.hm
-class neighbor 
+class Neighbor
     example Ex
     doSomething()
         print(Ex.X)     # ok

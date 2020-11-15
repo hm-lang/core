@@ -9,12 +9,12 @@ have access to the `This` instance of the class; i.e., they can
 access all the member variables and call other methods of the instance.
 
 ```
-class someClass(int This.Value)
+class SomeClass(int This.Value)
     # method: can access `This`, e.g. `This.Value`:
     Int doSomething(String)
         return String.size() + 5 * Value
 
-someClass AnInstance = new(Value = 3)
+someClass AnInstance = new(Value(3))
 AnInstance.doSomething("blah")  # ok, using class method on an instance.
 
 someClass.doSomething("hey")    # ERROR, method cannot be called on class
@@ -30,7 +30,7 @@ TODO: make functions that don't refer to a `This` automatically static, as makin
 `class.new` functions all the time would be annoying.
 
 ```
-class someClass(int This.Value)
+class SomeClass(int This.Value)
     # static function; does not have access to `This`:
     Int class.getSize(String)
         return String.size()
@@ -39,14 +39,14 @@ class someClass(int This.Value)
 someClass.getSize("chamber")   # ok, using static function of class.
 
 # and they can also be used on an instance:
-someClass Instance = new(Value = 5)
+someClass Instance = new(Value(5))
 Instance.getSize("chalice")     # also ok.
 ```
 
 Trying to access `This` in a (static) class function will throw a compile error.
 
 ```
-class classWillThrowCompilerError(int This.Value)
+class ClassWillThrowCompilerError(int This.Value)
     Int class.getGreatValue()
         return Value * 1234 # ERROR!  This.Value is a member/instance variable.
 ```
@@ -75,10 +75,10 @@ TODO: can we make `const` lambda functions and methods indistinguishable from a 
 # TODO: maybe make `const` here optional, since it is clear we are passing
 # in a lambda function:
 #
-class fnClass(Int hash(String) const);    # also ok, `This.hash` for `hash`
+class FnClass(Int hash(String) const);    # also ok, `This.hash` for `hash`
 
 # an alternative definition of the same thing:
-class fnClass2
+class FnClass2
     # Note that the `const` keyword is necessary to declare this a lambda function;
     # without `const` this otherwise would be a class method:
     Int hash(String) const;
@@ -87,7 +87,7 @@ class fnClass2
         This.hash = hash
 
 # another valid representation of the same class:
-class fnClass3
+class FnClass3
     from(Int This.hash(String) const);
 
 # instantiate the class with an excellent "hash" function, very fast:
@@ -100,7 +100,7 @@ F.hash = Int fn(String)
 #
 # define a class with a modifiable lambda function:
 #
-class varFnClass(Int hash(String) var);
+class VarFnClass(Int hash(String) var);
 
 # instantiate the class
 varFnClass U = new(Int hash(String)
@@ -114,12 +114,12 @@ U.hash = Int fn(String)
 #
 # define a class with a hash method:
 #
-class methodClass(int Value)
+class MethodClass(int Value)
     Int hash(String)
         return Value * String.size()
 
 # instantiate:
-methodClass M = new(Value = 3)
+methodClass M = new(Value(3))
 
 # ERROR!  this fails.  since hash is a member function, 
 # i.e. class method, it cannot be changed (except by child classes).
@@ -130,7 +130,7 @@ M.hash = Int fn(String)
 Also, for completeness, there is no such thing as a mutable class function:
 
 ```
-class weird(int Times)
+class Weird(int Times)
     # ERROR!  class functions are not allowed to be changed.
     class.bad() var
         print("NOT ALLOWED")
@@ -143,7 +143,7 @@ We can also define lambda functions inside a class.  See also
 [lambda functions](./lambda_functions.md) for more on the fancy `$` notation.
 
 ```
-class example
+class Example
     # define a mutable lambda function, but initialize in the constructor:
     Int getMutable(Dbl) var;
 

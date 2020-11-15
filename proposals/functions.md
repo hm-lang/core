@@ -36,6 +36,7 @@ Note the trailing semicolons are only necessary because we are not
 initializing the function immediately.  Without the semicolon, we can
 initialize the function with the following input.
 
+
 ### Simple function definitions
 
 A function definition includes a declaration and the internal function logic
@@ -50,14 +51,7 @@ Int main(String[] Args)
     return 0
 ```
 
-TODO: add one-line function definitions, maybe using `fn() := print("3")`
-
-*Historical aside*:
-In older versions of hm-lang, we thought it would be ok to define a function
-on the same line using `fn(), print("single line function")` type syntax, but
-this leads to some grammar ambiguities when passing in a function as an argument
-to another function; is the next bit another passed-in argument or the default
-definition of the function?
+TODO: add one-line function definitions, maybe using `fn() = print("3")`
 
 
 ## Function inputs and outputs
@@ -65,6 +59,7 @@ definition of the function?
 Function inputs (arguments) and outputs (return values) follow the
 [argument specification](./argument_specification.md) for the most part:  the
 only exception is that the return type can be omitted for a void-returning function.
+
 
 ### Default initialization of return values
 
@@ -85,17 +80,17 @@ Int sign(Dbl)
 You can also initialize the return value with your own value/function:
 
 ```
-(Index = -1) find(Int[], Int)
+(Index = -1) find(Int[] In, Int)
     index I = 0
-    while I < IntS.size()
-        if IntS[I] == Int
+    while I < In.size()
+        if In[I] == Int
             return I
         ++I
 
 Int[] Stack = [1234, 2, 1]
-Index = find(Stack, 2)  # Index == 1 # 0-based indexing on arrays.
-index OfOne = find(1, Stack)  # OfOne == 2, of course.
-index X = find(-3, Stack)   # X == -1
+Index = find(In(Stack), 2)  # Index == 1 # 0-based indexing on arrays.
+index OfOne = find(1, In(Stack))  # OfOne == 2, of course.
+index X = find(-3, In(Stack))   # X == -1
 ```
 
 ### Default initialization of input values
@@ -127,7 +122,8 @@ them by name inside the function.
         Verb = "swim"
 ```
 
-This is particularly helpful for things like arrays:
+This is particularly helpful for return types like arrays, which are
+default initialized for you:
 
 ```
 Int[] getRange(Size)
@@ -153,7 +149,7 @@ or the initialization provided (by default if necessary).
 Named return values can be captured in various ways:
 
 ```
-(Dbl, string greeting, int Counter) doSomething();
+(Dbl, string Greeting, int Counter) doSomething();
 
 dbl X           # this doesn't need to be renamed, return `dbl` is unnamed.
 string Greeting # already named correctly
@@ -162,7 +158,7 @@ int Value       # not named correctly...
 
 # or alternatively, you can declare/init them inline:
 
-(dbl X, string Greeting, int counter Value) = doSomething()
+(dbl X, string Greeting, Int counter Value) = doSomething()
 print(X) # ok, X and other variables are still in scope based on indent, not parentheses.
 ```
 
@@ -230,7 +226,9 @@ hello()
     print "hello, world!"
 
 # calling the function:
-hello()     # can't do `hello` here, as that just returns the function address.
+hello()     # OK
+# TODO: check if ok??
+hello       # also works, you can't specifically pass function pointers around
 ```
 
 For functions with multiple return values, we always require parentheses around them:
@@ -255,32 +253,26 @@ doSomething Int(3) String("Hello") Value(3.4)
 
 doSomething "Hello" Value(3.4) 3
 
-doSomething(Int=3, String="Hello", Value=3.4)
+doSomething(Int(3), String("Hello"), Value(3.4))
 
-doSomething
-        String = "Hello"
-        3
-        Value(3.4)
+doSomething(
+    String("Hello")
+    3
+    Value(3.4)
+)
 ```
 
-Would need to have an "Argument stack" (or blob) in the grammar.
+May need to have an "Argument stack" (or blob) in the grammar.
 
-The only problem is ambiguity.  Suppose one argument is `Array`:
+If we want to avoid using parentheses when calling functions,
+the only problem is ambiguity.  Suppose one argument is `Array`:
 
 ```
 doSomething(Int Array, Int);
 
+# in the following:
 # are we setting Int to 3 and Int Array to [1, 2, 3]?
-# or are we passing in a 3-Integer-per-element Array?
+# or are we passing in a 3-Integer-per-element Array, e.g. Int[3] Array?
 doSomething Int(3) Array([1,2,3])
+# we are unambiguous since a 3-Integer-per-element Array is Int[3] Array, not Int(3) Array
 ```
-
-In this case, `Int(3) Array([1, 2, 3])` looks like it could be a definition for
-an array of elements whose type is an integer fixed-size array of length 3.
-
-We could disambiguate by requiring function calls to use `()`, indexing to use `[]`,
-so that an array with 3-integer values for each element would be defined as
-`Int[3] Array` instead of `Int(3) Array`.  Then `doSomething Int(3) Array([1,2,3])`
-always results in passing in an integer of value 3 and an array with elements 1, 2, 3.
-This would break one of the more fundamental equivalences (between parentheses) that
-hm-lang was originally trying to keep, but it might be worth it.

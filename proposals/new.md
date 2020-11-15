@@ -22,7 +22,7 @@ creates a specification with the subsequent variable names, which
 can be converted into whatever class type is on the left-hand side.
 
 ```
-class example(int Times, string Greeting, string Noun = "world");
+class Example(int Times, string Greeting, string Noun = "world");
 
 example Ex(Times(5), Greeting("hello")) # normal initialization
 
@@ -46,11 +46,11 @@ And of course, fewer templated types can be used in a function.
 Here's an example also with a class:
 
 ```
-class newT example(newT Value)
+class NewT Example(newT Value)
     setFrom(NewU)
         Value = NewU    # implicit conversion
 
-int example X(Value(3))
+Int example X(Value(3))
 X.setFrom("50003")
 ```
 
@@ -63,7 +63,7 @@ will use `SomeVariableName` (i.e., not prefixed with `New`).  Similarly,
 we can use `Old` as a prefix.
 
 ```
-class example(int X)
+class Example(int X)
     Int set(int New.X)
         int Old.X = X
         X = New.X
@@ -78,7 +78,7 @@ print(Ex.set(X(1234))) # prints 5
 Here is an example for using a `New.SomeVariableName` in a setter.
 
 ```
-class inverse
+class Inverse
     dbl X_
 
     set dbl Y

@@ -2,7 +2,7 @@
 An abstract class which has a `next()` method.  Used in a `iterator` to
 provide the next value in the iteration.
 ===
-class newT nextable
+class NewT Nextable
     ===
     Returns the next element to consider for iterating over,
     or null if there are no further elements to iterate over.

@@ -10,7 +10,7 @@ the function `take`:
 TODO: maybe make it a static function `iterator.take`
 
 ```
-NewT Iterator take(NewT iterator.pR From, Bool fn(NewT view WhereValue));
+NewT Iterator take(NewT iterator.peakableRemovable From, Bool fn(NewT view WhereValue));
 
 Int[] X = [1, 2, 3, 100, 9, 11]
 Int[] Y = take(From(X), $WhereValue < 10)

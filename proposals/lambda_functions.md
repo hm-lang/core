@@ -60,7 +60,7 @@ run($$print("hello, world!"), After(Seconds(3)))
 For a class method, the `$$` comes before the class instance:
 
 ```
-class greeter(string Greeting)
+class Greeter(string Greeting)
     greet(string Noun)
         print("${Greeting}, ${Noun}!")
 

@@ -1,7 +1,7 @@
 # Blocks
 
 A block is a set of lines at the same indent.  A single blank line
-(either empty or consisting entirely of spaces) can interrupt a
+(either empty or consisting of any number of spaces) can interrupt a
 block without changing the indent.  Also, a line that is blank
 except for a comment will also not change the indent.  Examples:
 

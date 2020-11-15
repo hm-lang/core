@@ -5,9 +5,9 @@ or by defining the class with the parent class prefix.  The latter
 helps to avoid the indent limit.
 
 ```
-class example
+class Example
     # define a nested class in the first way:  direct nesting:
-    class nestedClass(Int, String)
+    class NestedClass(Int, String)
         doSomething()
             for int I < Int
                 print(string)
@@ -24,7 +24,7 @@ class example
 
 # define a nested class in the second way:  parent prefix:
 # Note this definition doesn't have to come before the first usage above:
-class example.otherNestedClass(int Zazzle);
+class example.OtherNestedClass(int Zazzle);
 
 example Ex
 Ex.setOtherNestedClass(Zazzle(1))
@@ -46,15 +46,15 @@ To make it easier to reference nested classes from outside the unnested class,
 we will probably do something like this:
 
 ```
-class example {
+class Example {
  /** logic **/
 };
 
-class example__nestedClass {
+class Example__NestedClass {
  /** logic **/
 };
 
-class example__otherNestedClass {
+class Example__OtherNestedClass {
  /** logic **/
 };
 ```

@@ -3,7 +3,7 @@
 A fixed array is an unresizable array of elements.
 
 ```
-class newT fixedArray extends newT indexedContainer
+class NewT FixedArray extends NewT IndexedContainer
     from(Size);
     from(NewT Iterator);
     from([Index, NewT] Iterator);
@@ -16,15 +16,11 @@ class newT fixedArray extends newT indexedContainer
     # the `remove()` method is also supported, which will shift all
     # values with larger indices down one, and lazily initialize a new
     # value at the end of the array (so that the size remains constant).
-    NewT Grsv This(Index);
+    NewT gate.Removable This[Index];
 
     # get the size of the array.
     get Size;
 ```
 
-Internally, the `fixedArray` uses a lazily default-initialized array;
-only elements that are requested (at a given index) will be initialized.
-This guarantees that an element at a given index will only be initialized
-once, before being called with `Grsv.get()`.  If `Grsv.set(...)` is called
-before `Grsv.get()`, then the default-initialization will be skipped, and
-only the `set` initialization will be performed.
+Internally, the `FixedArray` uses a lazily default-initialized array.
+See [`Array`](./array.md) for more explanation.

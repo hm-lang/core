@@ -66,10 +66,9 @@ others to look at, and make it read-only.
 
 ## String interpolation
 
-Using `${}` or `$()` or `$[]` inside a string will automatically
-trigger string interpolation; i.e. the text inside the parentheses
-will be invoked as code and the result printed.  Multiple code
-interpolations are guaranteed to be run in the same order as they
+Using `${}` inside a string will automatically trigger string interpolation;
+i.e. the text inside the parentheses will be invoked as code and the result printed.
+Multiple code interpolations are guaranteed to be run in the same order as they
 are written in the source, regardless of translations, but it is
 highly recommended not to write interpolations that affect the 
 state and require a specific ordering.
@@ -79,8 +78,8 @@ int X = 3
 string Y = "value of X = ${X}"
 
 int Z = 5
-string A = `this is weird, $(X = Z + 5), please don't do it.
-            but if you must, $[Z = X - 3] always happens last.`
+string A = `this is weird, ${X = Z + 5}, please don't do it.
+            but if you must, ${Z = X - 3} always happens last.`
 
 # expected ordering:
 # (1) X = Z + 5     --> X = 10
@@ -106,17 +105,17 @@ For ease of debugging, we might also want to introduce a special
 interpolation, `$${someExpression()}`, which prints out the string
 literal inside the parentheses, but also prints the value of the
 expression.  The literal is followed by a " = ", then the value.
-it will also be enclosed in whatever parentheses you chose.
 For example:
 
 ```
 int X = 5
-print("debugging $${X}") # prints "debugging {X = 5}"
+print("debugging $${X}") # prints "debugging X = 5"
 
 Int doSomething(Int)
     return Int / 2
 
-print("$$[doSomething(X)]") # prints "[doSomething(X) = 2]"
+print("$${doSomething(X)}") # prints "doSomething(X) = 2"
 ```
+TODO: maybe see if we can also print/debug what X is in the above example.
 
 This should work regardless of debug state.

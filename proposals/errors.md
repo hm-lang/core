@@ -1,13 +1,13 @@
 # Error handling
 
-hm-lang will utilize a C++ style error handling mechanism,
+hm-lang will utilize a Java style error handling mechanism,
 with `try`/`catch`/`finally` and `throw`.
 
 ```
 try
     mayThrowAnError()
-catch(error E)
-    warn("we did catch an error: ${E}")
+catch Error
+    warn("we did catch an error: ${Error}")
 finally
     print("runs after both cases: success or failure!")
 
@@ -26,7 +26,7 @@ corresponding class' `error` subclass will be thrown, unless a
 more (or less) specific error type is used.
 
 ```
-class parent
+class Parent
     doSomething(Int)
         print("${Int} from parent")
 
@@ -34,23 +34,23 @@ class parent
         # throws a `parent.error`:
         throw String
 
-class child extends parent
+class Child extends Parent
     doSomething(Int)
-        # throws a `child.error`:
+        # throws a `child.Error`:
         throw("child un-implements this method due to bad design choices.")
 
     throwAnError(String)
         # specifically throws a more generic `error` type:
-        throw(error(String))
+        throw(Error(String))
 
 child Child
 try
     Child.doSomething(5)
-catch parent.error E
+catch(parent.Error)
     # this will also catch the child.error
-    warn("parent error was ${E}")
+    warn("parent error was ${Error}")
 
-# note that a `catch parent.error` block will not catch the more generic `error`.
+# note that the `catch(parent.Error)` block will not catch the more generic `Error`.
 ```
 
 As in other languages, we'll probably have the ability to catch
@@ -59,26 +59,26 @@ different types of errors as multiple `catch` blocks.  The
 the catch block if they are not a subtype of the caught errors.
 
 ```
-class aClass(Int);
-class bClass(Dbl);
-class abClass(Int, Dbl) extends aClass;
+class AClass(Int);
+class BClass(Dbl);
+class AbClass(Int, Dbl) extends AClass;
 
 # this will cause an error to continue propagating up,
 # possibly stopping execution of the program:
 try
-    aClass A(3)
+    aClass A = new(3)
     A.Int /= 0
-catch bClass.error
-    print("should not produce a bClass.error")
-    print("aClass.error should be produced.")
+catch bClass.Error
+    print("should not produce a bClass.Error")
+    print("aClass.Error should be produced.")
     print("this block never executes!")
 
 # catching a child error using the parent error:
 try
     abClass Ab(5, 3.14)
     Ab.Dbl /= 0.0
-catch aClass.error
-    print("shouldn't divide by zero.")
+catch aClass.Error
+    print("${Error}: shouldn't divide by zero.")
     print("your parent was watching!")
     print("this block should execute.")
 ```

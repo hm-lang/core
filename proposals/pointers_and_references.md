@@ -4,16 +4,18 @@ Let's create an example class `animal` with a string `type` variable, and
 a few child classes `snake` and `cat` with their own extra variables.
 
 ```
-class animal(string Type = "??");
+class Animal(string Type = "??");
 
-class snake(size Length = 0) extends animal(Type("snake"));
+class Snake(size Length = 0) extends Animal(Type("snake"));
 
-class cat(size Whiskers = 4) extends animal(Type("cat"));
+class Cat(size Whiskers = 4) extends Animal(Type("cat"));
 ```
 
 To implement in C++, any instance of these classes will be pointers,
 so that we can get inheritance working nicely out of the box.  These
 pointers will be tucked away safely so that management will be easy.
+TODO: consider making these `std::variant`s under the hood, see if that
+performance benefit is better (no heap allocation).
 
 ## Locally-scoped variables
 
@@ -59,18 +61,20 @@ For the `ref` and `ref?` types, the instance *must* outlive the variable and any
 
 ```
 animal Base(Type("liger"))
-animal ref Ref1 = new(Base)    # a `ref`erence doesn't own an instance, must get it elsewhere.
+# TODO: This is kinda ugly: `Base` should automatically be a `ref` type.
+# I can see why Stroustrup didn't want ref's to be reassignable...
+Animal ref Ref1 = new(Base)    # a `ref`erence doesn't own an instance, must get it elsewhere.
 
 animal? Maybe(Type("tigon"))
-animal? ref Ref2 = new(Maybe) # a non-null reference to a possibly null animal.
+Animal? ref Ref2 = new(Maybe) # a non-null reference to a possibly null animal.
 
-animal ref? RefQ    # nullable reference, which if non-null, points to a non-null animal
+Animal ref? RefQ    # nullable reference, which if non-null, points to a non-null animal
 RefQ == Null        # True!
 RefQ = new(Base)    # this is how you switch the Ref
 RefQ != Null        # True!
 RefQ = new(Null)    # this is how to reset to a null Ref
 
-animal? ref? QQ     # nullable reference, which if non-null, points to a nullable animal
+Animal? ref? QQ     # nullable reference, which if non-null, points to a nullable animal
 QQ == Null          # True!
 Maybe = Null        # resetting the Maybe
 QQ = new(Maybe)     # ok. also ok to do `QQ = ref(Maybe)`
@@ -87,7 +91,7 @@ A view is a way to check in on the value of some variable without being able to 
 
 ```
 int MyInt = 3
-int view MyView(MyInt)
+Int view MyView(MyInt)
 MyView = 5  # ERROR! does not compile.  MyView cannot modify MyInt, and cannot hold a reference to a temporary.
 
 # since MyView is not a constView (but just a view), it can be switched using this:

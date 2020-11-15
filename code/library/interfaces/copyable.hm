@@ -2,7 +2,7 @@
 An abstract class which has a `copy()` method.  Used in getter-like classes when
 a reference cannot be returned to the underlying value, but a copy can be.
 ===
-class newT copyable
+class NewT Copyable
     ===
     Returns a copy of the internal value held by this class instance.
     ===

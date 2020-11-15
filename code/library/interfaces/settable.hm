@@ -2,7 +2,7 @@
 An abstract class which has a `set()` method.  Used in setter-like classes
 which allow you to set the internal value.
 ===
-class newT settable
+class NewT Settable
     ===
     Sets the internal value held by this class to whatever is passed in,
     possibly gated by some logic to modify it based on class constraints.

@@ -2,7 +2,7 @@
 An abstract class which has an `insert(NewT)` method.  Used in a specialized `iterator`
 class to provide a way to insert a new value into the underlying `container`.
 ===
-class newT insertable
+class NewT Insertable
     ===
     Inserts a new value into the underlying container, typically at a specific place.
 
