@@ -79,16 +79,16 @@ class NewT iterator.Lambda_(
     function which gets the next value of the iterator, or null
     if the iterator is finished:
     ===
-    NewT? New.next__()
+    NewT? Internal.next()
 
     ===
     value which provides the total number of elements which will
     be iterated over, if available.  if there is a backing container,
     this is the original number of elements in the container.
     ===
-    size? const New.Size
-) extends NewT Iterator(New.Size)
-    NewT? next() = New.next()
+    size? const Internal.Size
+) extends NewT Iterator(Internal.Size)
+    NewT? next() = Internal.next()
 
 
 ===
