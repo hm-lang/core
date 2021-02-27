@@ -30,12 +30,11 @@ syn match hmLambdaFunction	/\$\v<[a-z]\S*>/
 syn match	hmType	"\v<[a-z][a-zA-Z_0-9]*\(@!"
 syn match	hmFunction		"\v<[a-z][a-zA-Z_0-9]*\ze\("
 syn match	hmSpecifier		"\v<[A-Z][A-Za-z0-9]*>"
-syn keyword  hmCcBlock	cc
-syn match   hmCcBlock	'@'
+syn region hmCcBlock start="cc{" end="}cc"
 syn match   hmComment	"#.*$" contains=hmTodo
 syn region hmComment	start="#/" end="/#"
 syn keyword hmTodo		FIXME NOTE NOTES TODO XXX contained
-syn match hmFile		"\v\:<[A-Za-z_]*>"
+syn match hmFile		"\v\@<[A-Za-z_]*>"
 
 syn match	hmFormat		display "%\(\d\+\$\)\=[-+' #0*]*\(\d*\|\*\|\*\d\+\$\)\(\.\(\d*\|\*\|\*\d\+\$\)\)\=\([hlLjzt]\|ll\|hh\)\=\([aAbdiuoxXDOUfFeEgGcCsSpn]\|\[\^\=.[^]]*\]\)" contained
 syn match   hmEscape	display contained "\\." 

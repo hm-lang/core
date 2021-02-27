@@ -45,7 +45,7 @@ of making a specification:
    e.g. `New.` or `Old.`, as well as trailing/leading underscores) as the one
    in the argument list.
 
-2. Use an `UpperCamelCase` variable declaration, i.e. `Identifier(...)`
+2. Use an `UpperCamelCase` variable declaration, i.e. `Identifier: ...`
    where `Identifier` is the correct keyword identifier for the argument,
    and `...` is the value you want to use for that variable.
 
@@ -59,7 +59,7 @@ of arguments!  Examples:
 
 ```
     string Noun = "world!"
-    (Greeting("hi"), "friend")  # ok.
+    (Greeting: "hi", "friend")  # ok.
 
     string Greeting = "hey"
     (Greeting, "dude")          # also valid specification
@@ -78,10 +78,12 @@ of arguments!  Examples:
 
     (int(X), String, Dbl)   # also ok, a bit redundant (x is already an int), but ok.
 
-    (1.2345, Int(123.54), "pancakes")   # also valid specification
+    (1.2345, Int: 123.54, "pancakes")   # also valid specification
 
     (27, 64, "cubes")    # ERROR!  we don't know what is the `dbl`.
 ```
+
+TODO: see if we can switch back to any parentheses type when declaring or specifying arguments
 
 ## Unspecified arguments
 
@@ -97,11 +99,11 @@ overload.  Otherwise, it's the same as passing null.
     int Count = 2
     # The next line will set `Reason` in the `getFish` function to the provided default,
     # i.e., "too lazy to think of one", since there is no overload for `getFish(int Count)`:
-    Fish[] list1 = getFish(Count, Reason(Unspecified if Count < 5 else "need lots of fish"))
+    Fish[] list1 = getFish(Count, Reason: Unspecified if Count < 5 else "need lots of fish")
 
     # Since there is no overload, you can also replace `Unspecified` with `Null`, and it
     # will do the same thing in the function (i.e., set `Reason` to the default string):
-    Fish[] list2 = getFish(Count, Reason(Null if Count < 5 else "need lots of fish"))
+    Fish[] list2 = getFish(Count, Reason: Null if Count < 5 else "need lots of fish")
 ```
 
 On the other hand, if you have an overload, you can get different behavior:
@@ -112,11 +114,11 @@ On the other hand, if you have an overload, you can get different behavior:
 
     int Whiskers = 5
     # Dynamically determines whether to call the first function or the second:
-    Cat = getCat(Whiskers, Weight(Unspecified if Whiskers < 10 else Whiskers * 2.0))
+    Cat = getCat(Whiskers, Weight: Unspecified if Whiskers < 10 else Whiskers * 2.0)
 
     # This always calls the second function, but puts in the default value,
     # which in this case is the default for type `DBL`, i.e. 0.0
-    Cat cat2 = getCat(Whiskers, Weight(Null))
+    Cat cat2 = getCat(Whiskers, Weight: Null)
 ```
 
 This potentially makes the code slower, since we can't just use compile-time logic

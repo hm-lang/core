@@ -7,7 +7,7 @@ class NewT Array extends NewT IndexedContainer
         NewT View ConstThis.view()
             return ArrayRef.view(Index)
 
-    NewT gate.Refable This[Index] = arrayRefable(Index, ArrayRef(This))
+    NewT gate.Refable This[Index] = arrayRefable(Index, ArrayRef: This)
 
     class NewT ValueIterator_(
         NewT Array constRef ArrayRef__
@@ -56,11 +56,11 @@ class NewT Array extends NewT IndexedContainer
     # TODO: define indexIterator without peak, but on const view of the array and on ref of NewT
 
     # TODO: make these automatic based on valueIterator's hierarchy:
-    to NewT iterator.InsertablePeakableRemovable = valueIterator(ArrayRef(This))
-    to NewT iterator.PeakableRemovable = valueIterator(ArrayRef(This))
-    to NewT iterator.Peakable = valueIterator(ArrayRef(This))
-    to NewT iterator.Removable = valueIterator(ArrayRef(This))
-    to NewT Iterator = valueIterator(ArrayRef(This))
+    to NewT iterator.InsertablePeakableRemovable = valueIterator(ArrayRef: This)
+    to NewT iterator.PeakableRemovable = valueIterator(ArrayRef: This)
+    to NewT iterator.Peakable = valueIterator(ArrayRef: This)
+    to NewT iterator.Removable = valueIterator(ArrayRef: This)
+    to NewT Iterator = valueIterator(ArrayRef: This)
 
-    to [Index, NewT] Iterator = indexIterator(ArrayRef(This))
+    to [Index, NewT] Iterator = indexIterator(ArrayRef: This)
 

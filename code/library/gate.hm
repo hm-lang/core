@@ -3,11 +3,11 @@ A wrapper for a value which can be viewable, swappable, and/or refable.
 While the interface definitions are mutually exclusive and can be combined
 in any way, in this wrapper we assume a strict hierarchy:
 
-    (1) `Gate` = `:interfaces.gettable`
-    (2) `gate.Settable` = (1) + `:interfaces.settable`
-    (3) `gate.Viewable` = (2) + `:interfaces.viewable`
-    (4) `gate.Swappable` = (3) + `:interfaces.swappable`
-    (5) `gate.Refable` = (4) + `:interfaces.refable`
+    (1) `Gate` = `@interfaces.gettable`
+    (2) `gate.Settable` = (1) + `@interfaces.settable`
+    (3) `gate.Viewable` = (2) + `@interfaces.viewable`
+    (4) `gate.Swappable` = (3) + `@interfaces.swappable`
+    (5) `gate.Refable` = (4) + `@interfaces.refable`
 
 A `Gate` corresponds to a getter in other languages: the underlying wrapped
 value can be copied using `get()` into a new value but not mutated.
@@ -26,15 +26,15 @@ passed back out (i.e., since it is a swap).
 A `gate.Refable` corresponds to a wrapped value which can be modified
 in any way, with/without copies, since a direct reference can be provided for it.
 ===
-class NewT Gate extends NewT :interfaces.Gettable;
+class NewT Gate extends NewT @interfaces.Gettable;
 
-class NewT gate.Settable extends NewT Gate, NewT :interfaces.Settable;
+class NewT gate.Settable extends NewT Gate, NewT @interfaces.Settable;
 
-class NewT gate.Viewable extends NewT gate.Settable, NewT :interfaces.Viewable;
+class NewT gate.Viewable extends NewT gate.Settable, NewT @interfaces.Viewable;
 
-class NewT gate.Swappable extends NewT gate.Viewable, NewT :interfaces.Swappable;
+class NewT gate.Swappable extends NewT gate.Viewable, NewT @interfaces.Swappable;
 
-class NewT gate.Refable extends NewT gate.Swappable, NewT :interfaces.Refable;
+class NewT gate.Refable extends NewT gate.Swappable, NewT @interfaces.Refable;
     ===
     We can put in sensible defaults for `set`, `get`, `view`, and `swap`.
 
@@ -80,4 +80,4 @@ class NewT gate.Refable extends NewT gate.Swappable, NewT :interfaces.Refable;
         # a `ref` type can be converted to a `view` type:
         return ref()
 
-# TODO: add gate.Removable extends gate.Refable, NewT :interfaces.Removable
+# TODO: add gate.Removable extends gate.Refable, NewT @interfaces.Removable

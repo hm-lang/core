@@ -3,8 +3,7 @@
 Types are written in `lowerCamelCase` format, i.e., any identifier
 that starts with a lower case letter.
 
-Primitive types are written using abbreviations, e.g. `int` for integer
-(specifically a 64-bit signed integer) and `dbl` for double.  Still,
+Primitive types are written using abbreviations, e.g. `dbl` for double.  Still,
 primitive types can be considered as first-class citizens, i.e., they
 can be inherited from, and they can still have methods defined on them.
 
@@ -18,12 +17,13 @@ when defining a class name.
 | bool       | boolean (1 bit unsigned)     |
 | dbl, f64   | 64-bit floating-point number |
 | flt, f32   | 32-bit floating-point number |
-| int, i64   | 64-bit signed integer        |
+| int        | arbitrary-bit signed integer |
+| int64      | 64-bit signed integer        |
 | i32        | 32-bit signed integer        |
 | i16        | 16-bit signed integer        |
 | i8         | 8-bit signed integer         |
 | string     | array of characters/letters  |
-| uint, u64  | 64-bit unsigned integer      |
+| u64        | 64-bit unsigned integer      |
 | u32        | 32-bit unsigned integer      |
 | u16        | 16-bit unsigned integer      |
 | u8         | 8-bit unsigned integer       |
@@ -71,21 +71,21 @@ Int doStuff(String)
 Int[] Values
 
 # declare an array with a fixed size named `Vector`;
-# equivalent to `Dbl fixedArray Vector = new(Size(3))`
+# equivalent to `Dbl fixedArray Vector = new(Size: 3)`
 Dbl[3] Vector
 
-# declare a hash map of strings to integers;
+# declare a linked hash map of strings to integers;
 # equivalent to `(string Key, int Value) map NameToIdMap`:
 Int[String] NameToIdMap
 
 # declare a hash map of Ints to Strings, and reserve some space:
-String[Int] IdToNameMap = new(Reserve(5))
+String[Int] IdToNameMap = new(Reserve: 5)
 
 # declare a hash map that has a key composed of two types,
 # one of which is named:
 Dbl[String, int Priority] FancyMap
-FancyMap["jam", Priority(3)] = 1.234
-FancyMap["jam", Priority(1)] = 2.5
+FancyMap["jam", Priority: 3] = 1.234
+FancyMap["jam", Priority: 1] = 2.5
 ```
 
 Note that the `map` type is actually an abstract class, so the exact

@@ -7,11 +7,12 @@ nested parentheses, and define it in the following indent+1 block:
 hello(string Noun)
     print("hello, ${Noun}!")
 
-hello(Noun("world"))
+hello(Noun:"world")
 ```
 
-Note that any pair of matching parentheses works to declare (or call) a function, 
+Note that any pair of matching parentheses works to declare (or call) a function,
 i.e. `fn()`, `fn[]`, and `fn{}` are equally valid.
+TODO: check if this is true again.
 
 ## Function definitions
 
@@ -88,9 +89,9 @@ You can also initialize the return value with your own value/function:
         ++I
 
 Int[] Stack = [1234, 2, 1]
-Index = find(In(Stack), 2)  # Index == 1 # 0-based indexing on arrays.
-index OfOne = find(1, In(Stack))  # OfOne == 2, of course.
-index X = find(-3, In(Stack))   # X == -1
+Index = find(In: Stack, 2)  # Index == 1 # 0-based indexing on arrays.
+index OfOne = find(1, In: Stack)  # OfOne == 2, of course.
+index X = find(-3, In: Stack)   # X == -1
 ```
 
 ### Default initialization of input values
@@ -103,7 +104,7 @@ say(string Greeting, string Noun = "World", int Times = 1)
     for Int < Times
         print("${Greeting}, ${Noun}!")
 
-say(Greeting("Hello"), Times(2)) # prints "Hello, World!" twice
+say(Greeting: "Hello", Times: 2) # prints "Hello, World!" twice
 ```
 
 ### Setting return variables by name
@@ -141,7 +142,7 @@ or the initialization provided (by default if necessary).
     if getSomeBoolean()
         Index = 1234
     # else, index will be zero, by default.
-    return (Greeting("Hello!"), 1.2345)
+    return (Greeting: "Hello!", 1.2345)
 ```
 
 ### Capturing named return values
@@ -154,7 +155,7 @@ Named return values can be captured in various ways:
 dbl X           # this doesn't need to be renamed, return `dbl` is unnamed.
 string Greeting # already named correctly
 int Value       # not named correctly...
-(X, Greeting, Counter(Value)) = doSomething()
+(X, Greeting, Counter: Value) = doSomething()
 
 # or alternatively, you can declare/init them inline:
 
@@ -215,7 +216,7 @@ Int hello(String)
     return String.size()
 
 # calling the function:
-hello "world"   # equivalent to `hello("world")` or `hello String("world")` or `hello(String("world"))`
+hello "world"   # equivalent to `hello("world")` or `hello String:"world"` or `hello(String:"world")`
 ```
 
 For void functions, we still require parentheses, since it's ambiguous with passing a function:
@@ -239,7 +240,7 @@ For functions with multiple return values, we always require parentheses around 
 
 # calling the function:
 (Int, String, dbl Value) = doSomething()
-print "got Int = ${Int} for $$[String] and $$(Value)"
+print "got Int = ${Int} for $${String} and $${Value}"
 ```
 
 For functions with multiple arguments:
@@ -249,30 +250,17 @@ For functions with multiple arguments:
 doSomething(Int, String, dbl Value);
 
 # calling the function, these are all equivalent:
-doSomething Int(3) String("Hello") Value(3.4)
+doSomething Int: 3, String: "Hello", Value: 3.4
 
-doSomething "Hello" Value(3.4) 3
+doSomething "Hello", Value: 3.4, 3
 
-doSomething(Int(3), String("Hello"), Value(3.4))
+doSomething(Int: 3, String: "Hello", Value: 3.4)
 
 doSomething(
-    String("Hello")
+    String: "Hello"
     3
-    Value(3.4)
+    Value: 3.4
 )
 ```
 
 May need to have an "Argument stack" (or blob) in the grammar.
-
-If we want to avoid using parentheses when calling functions,
-the only problem is ambiguity.  Suppose one argument is `Array`:
-
-```
-doSomething(Int Array, Int);
-
-# in the following:
-# are we setting Int to 3 and Int Array to [1, 2, 3]?
-# or are we passing in a 3-Integer-per-element Array, e.g. Int[3] Array?
-doSomething Int(3) Array([1,2,3])
-# we are unambiguous since a 3-Integer-per-element Array is Int[3] Array, not Int(3) Array
-```

@@ -6,11 +6,11 @@ instantiated.
 ```
 class Greeter
     sayHello(string To)
-        print("${getGreeting()}, ${To}!")
+        print("${greeting()}, ${To}!")
 
     # declare a class method but do not define it:
     # this is how you make it an abstract method (and thus abstract class):
-    String getGreeting();
+    String greeting();
 
 greeter G   # ERROR! Greeter has no default class, it's abstract and not instantiable.
 ```
@@ -31,7 +31,7 @@ class name, e.g.:
 ```
 class default.Greeter
     # make a beautiful implementation of the parent's abstract class:
-    String getGreeting()
+    String greeting()
         return "hello"
 
 greeter G

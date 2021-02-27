@@ -38,7 +38,7 @@ class UnitVector2 extends Vector2
 
     normalize__(dbl New.X, dbl New.Y)
         dbl R = (New.X^2 + New.Y^2)^0.5
-        assert(R > 0, OrThrow("Cannot normalize to a unit vector!"))
+        assert(R > 0, OrThrow: "Cannot normalize to a unit vector!")
         Vector2.X = New.X / R
         Vector2.Y = New.Y / R
 ```
@@ -47,10 +47,10 @@ In the latter case, we can access the original class's getters/setters
 using the parent class' name (e.g. `Vector2`).
 
 ```
-vector2 Parent = new(X(5), Y(3))
+vector2 Parent = new(X: 5, Y: 3)
 Parent.x(3) # equivalent to `Parent.X = 3`
 Parent.x()  # equivalent to `Parent.X`
-unitVector2 Unit = new(X(1), Y(4))
+unitVector2 Unit = new(X: 1, Y: 4)
 Unit.x(5)   # uses the child setter. equivalent to `Unit.X = 5`
 ```
 

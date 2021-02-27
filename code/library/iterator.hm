@@ -96,7 +96,7 @@ An abstract class for an iterator which defines a `peak()` method, which allows
 users to see the next value in the iteration without changing the iterator.
 ===
 class NewT iterator.Peakable(size? const Size)
-        extends NewT :interfaces.Peakable, NewT Iterator(Size);
+        extends NewT @interfaces.Peakable, NewT Iterator(Size);
 
 class NewT iterator.Buffered extends NewT iterator.Peakable
     NewT? NextValue__
@@ -119,7 +119,7 @@ An abstract class for an iterator which defines a `remove()` method, which allow
 to remove the next value in the iteration, which changes the iterator and underlying
 container.
 ===
-class NewT iterator.Removable extends NewT :interfaces.Removable, NewT Iterator;
+class NewT iterator.Removable extends NewT @interfaces.Removable, NewT Iterator;
 
 ===
 An abstract class for an iterator which defines `peak()` and `remove()` methods,
@@ -129,7 +129,7 @@ the underlying container).
 ===
 # TODO: better way to annotate interfaces.  e.g. extends NEW_T ITERATOR & PEAKABLE & REMOVABLE
 # TODO: make sure that this "inherits" from iterator.removable even if not explicit.
-class NewT iterator.PeakableRemovable extends
-        NewT :interfaces.Peakable,
-        NewT :interfaces.Removable,
+class NewT iterator.PeakableRemovable implements
+        NewT @interfaces.Peakable,
+        NewT @interfaces.Removable,
         NewT Iterator

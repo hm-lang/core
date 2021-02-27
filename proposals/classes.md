@@ -8,13 +8,14 @@ We have functions, called methods, which are defined on classes and
 have access to the `This` instance of the class; i.e., they can
 access all the member variables and call other methods of the instance.
 
+TODO: remove the `class X(typeY Z)` format, since that's a C++ holdover
 ```
 class SomeClass(int This.Value)
     # method: can access `This`, e.g. `This.Value`:
     Int doSomething(String)
         return String.size() + 5 * Value
 
-someClass AnInstance = new(Value(3))
+someClass AnInstance = new(Value: 3)
 AnInstance.doSomething("blah")  # ok, using class method on an instance.
 
 someClass.doSomething("hey")    # ERROR, method cannot be called on class
@@ -28,6 +29,8 @@ a `This` (since they are not a class instance method).
 
 TODO: make functions that don't refer to a `This` automatically static, as making
 `class.new` functions all the time would be annoying.
+BUT this would have problems for abstract methods -- what should they be?
+obviously we want them to be methods and not static class functions.
 
 ```
 class SomeClass(int This.Value)
@@ -39,7 +42,7 @@ class SomeClass(int This.Value)
 someClass.getSize("chamber")   # ok, using static function of class.
 
 # and they can also be used on an instance:
-someClass Instance = new(Value(5))
+someClass Instance = new(Value: 5)
 Instance.getSize("chalice")     # also ok.
 ```
 
@@ -80,7 +83,7 @@ class FnClass(Int hash(String) const);    # also ok, `This.hash` for `hash`
 # an alternative definition of the same thing:
 class FnClass2
     # Note that the `const` keyword is necessary to declare this a lambda function;
-    # without `const` this otherwise would be a class method:
+    # without `const` this otherwise would be an (abstract) class method:
     Int hash(String) const;
 
     from(Int hash(String))
@@ -119,7 +122,7 @@ class MethodClass(int Value)
         return Value * String.size()
 
 # instantiate:
-methodClass M = new(Value(3))
+methodClass M = new(Value: 3)
 
 # ERROR!  this fails.  since hash is a member function, 
 # i.e. class method, it cannot be changed (except by child classes).
@@ -161,7 +164,7 @@ class Example
         This.getMutable = Int fn(Dbl)
             return This.Value + Dbl
 
-example Example = new(Value(0))
+example Example = new(Value: 0)
 print(Example.getConstant(1234))    # prints 1
 print(Example.getConstant(-1337))   # prints -1
 print(Example.getMutable(1))       # prints 1

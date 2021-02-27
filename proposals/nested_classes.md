@@ -27,7 +27,7 @@ class Example
 class example.OtherNestedClass(int Zazzle);
 
 example Ex
-Ex.setOtherNestedClass(Zazzle(1))
+Ex.setOtherNestedClass(Zazzle: 1)
 print(Ex.OtherNestedClass.Zazzle)
 
 example.nestedClass Nest(5, "hi")

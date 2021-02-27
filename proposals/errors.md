@@ -41,7 +41,7 @@ class Child extends Parent
 
     throwAnError(String)
         # specifically throws a more generic `error` type:
-        throw(Error(String))
+        throw(Error: String)
 
 child Child
 try

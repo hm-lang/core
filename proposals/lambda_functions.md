@@ -35,7 +35,7 @@ a callback with multiple arguments:
 
 ```
 runSomething(Dbl fn(dbl Multiplier, Dbl))
-    print("Multiplier=1.5, Dbl=0.3: ${fn(Multiplier(1.5), 0.3)}")
+    print("Multiplier=1.5, Dbl=0.3: ${fn(Multiplier: 1.5, 0.3)}")
 
 runSomething($Multiplier * ($Dbl + 1))
 ```
@@ -48,13 +48,25 @@ they create a lambda function which prints "hello, world!", and based
 on the `run` command they will be executed after 3 seconds.
 
 ```
+# run function definition; runs passed-in function after a certain time duration.
+run(duration After, fn());
+
 # standard lambda function:
-run(After(Seconds(3)), fn()
+run(After: duration(Seconds: 3), fn()
     print("hello, world!")
 )
 
 # with $$ operator pre-fixed to a single function name:
-run($$print("hello, world!"), After(Seconds(3)))
+run($$print("hello, world!"), After: duration(Seconds: 3))
+
+# TODO: allow argument chaining so that this works:
+run($$print("hello, world!"), After: {Seconds: 3})
+
+# TODO: optionally, allow removing the {} braces:
+run($$print("hello, world!"), After: Seconds: 3)
+
+# TODO: or maybe even better:
+run($$print("hello, world!"), After.Seconds: 3)
 ```
 
 For a class method, the `$$` comes before the class instance:
@@ -64,12 +76,12 @@ class Greeter(string Greeting)
     greet(string Noun)
         print("${Greeting}, ${Noun}!")
 
-greeter Greeter(Greeting("hello"))
+greeter Greeter = new(Greeting: "hello")
 # standard lambda function:
-run(After(Seconds(3)), fn()
-    Greeter.greet(Noun("world"))
+run(After: duration(Seconds: 3), fn()
+    Greeter.greet(Noun: "world")
 )
 
 # with $$ operator prefixing the Instance.method() call:
-run(After(Seconds(3)), $$Greeter.greet(Noun("world")))
+run(After: {Seconds: 3}, $$Greeter.greet(Noun: "world"))
 ```

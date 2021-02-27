@@ -3,7 +3,7 @@
 Masks are generalized from [enumerations](./enumerations.md), and allow multiple
 values to be held simultaneously.  Each value can also be thought of as a flag or option,
 which are `or`d together (`|`) for the variable instance.  Under the hood, these are
-unsigned integer types, `uint`.  Trying to assign a negative value will throw a compiler error.
+unsigned integer types.  Trying to assign a negative value will throw a compiler error.
 
 ```
 # the mask is required to have types that are powers of two, except for 0:

@@ -83,7 +83,7 @@ NormalArray.append(3)
 
 # renamed type:
 string Name array A
-A.append(Name("Pat"))
+A.append(Name: "Pat")
 ```
 
 For multi-template-type class, e.g. `class key value map` defined above,

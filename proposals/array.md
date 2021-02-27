@@ -35,8 +35,8 @@ class NewT Array extends NewT IndexedContainer
     # `Delete` numbers of elements of the original array first.
     splice(NewT Iterator, index At, size Deleting);
 
-    insert(NewT Iterator, index At) = splice(Iterator, At, Deleting(0))
-    erase(Index, size Count) = splice(At(Index), Deleting(Count))
+    insert(NewT Iterator, index At) = splice(Iterator, At, Deleting: 0)
+    erase(Index, size Count) = splice(At: Index, Deleting: Count)
 ```
 
 The parent class, `NewT IndexedContainer`, is a combination class which

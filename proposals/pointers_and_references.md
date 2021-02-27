@@ -6,9 +6,9 @@ a few child classes `snake` and `cat` with their own extra variables.
 ```
 class Animal(string Type = "??");
 
-class Snake(size Length = 0) extends Animal(Type("snake"));
+class Snake(size Length = 0) extends Animal(Type: "snake");
 
-class Cat(size Whiskers = 4) extends Animal(Type("cat"));
+class Cat(size Whiskers = 4) extends Animal(Type: "cat");
 ```
 
 To implement in C++, any instance of these classes will be pointers,
@@ -24,9 +24,9 @@ the instances belong to the variable and will be destroyed when the variable
 goes out of scope:
 
 ```
-animal Base(Type("unknown"))    # internally a pointer to an `animal`.
+animal Base = new(Type: "unknown")    # internally a pointer to an `animal`.
 
-animal? Maybe1 = new(X(1))  # internally a nullable pointer to an `animal`.
+animal? Maybe1 = animal(Type: "!!")  # internally a nullable pointer to an `animal`.
 animal? Maybe2 = Null       # can leave out the null initialization, that is the default.
 ```
 
@@ -37,19 +37,19 @@ type, but they can also be null.  Because of this, users are expected to check f
 before using `maybe` variables.  This will be a compiler feature.
 
 ```
-animal Base(Type("unknown"))
-base = Cat(Whiskers(1))     # OK
-base = Snake(Length(10))    # also ok
+animal Base = new(Type: "unknown")
+Base = cat(Whiskers: 1)     # OK
+Base = snake(Length: 10)    # also ok
 print(Base.Length)          # ERROR! NOT OK, length is not a property of animal.
 
 # MAYBE types can also be changed to any of the related classes:
 animal? Maybe
-Maybe = cat(Whiskers(100)
-Maybe = snake(Length(1)
-Maybe = animal(Type("back-to-parent"))
+Maybe = cat(Whiskers: 100)
+Maybe = snake(Length: 1)
+Maybe = animal(Type: "back-to-parent")
 Maybe = Null    # also ok.
 # must check for null before using!!
-if Maybe != Null { print(Maybe.Type) }
+if Maybe != Null; print(Maybe.Type)
 ```
 
 
@@ -60,12 +60,12 @@ if Maybe != Null { print(Maybe.Type) }
 For the `ref` and `ref?` types, the instance *must* outlive the variable and any copies made of the variable.
 
 ```
-animal Base(Type("liger"))
+animal Base = new(Type: "liger")
 # TODO: This is kinda ugly: `Base` should automatically be a `ref` type.
 # I can see why Stroustrup didn't want ref's to be reassignable...
 Animal ref Ref1 = new(Base)    # a `ref`erence doesn't own an instance, must get it elsewhere.
 
-animal? Maybe(Type("tigon"))
+animal? Maybe = base(Type: "tigon")
 Animal? ref Ref2 = new(Maybe) # a non-null reference to a possibly null animal.
 
 Animal ref? RefQ    # nullable reference, which if non-null, points to a non-null animal
@@ -79,7 +79,7 @@ QQ == Null          # True!
 Maybe = Null        # resetting the Maybe
 QQ = new(Maybe)     # ok. also ok to do `QQ = ref(Maybe)`
 QQ == Null          # True, since Maybe is Null.
-Maybe = animal(Type("spidephant"))
+Maybe = animal(Type: "spidephant")
 QQ != Null          # True, Maybe is now non-Null.
 QQ = Null           # NOTICE! this resets the variable Maybe to Null.
 QQ = new(Null)      # reset the Ref to not point to anything
