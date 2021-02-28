@@ -49,14 +49,14 @@ Technically, the `string` type is an abstract base class, which
 encompasses things like specialized character arrays.
 
 ```
-class string extends Utf8 IndexedContainer
+class String extends Utf8 IndexedContainer
     # ...
 
-class charArray extends String
+class CharArray extends String
     Char Array_
     # ...
 
-default.string = charArray
+Default.string = charArray
 ```
 
 ## String view

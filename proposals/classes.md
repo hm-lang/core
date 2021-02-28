@@ -9,6 +9,7 @@ have access to the `This` instance of the class; i.e., they can
 access all the member variables and call other methods of the instance.
 
 TODO: remove the `class X(typeY Z)` format, since that's a C++ holdover
+TODO: unless we decide to go with lowercase `class x(typeY Z)` since that's sort of accurate.
 ```
 class SomeClass(int This.Value)
     # method: can access `This`, e.g. `This.Value`:

@@ -25,11 +25,11 @@ of some abstract class, we can define a default implementation for that class.
 
 ## Unnamed default classes
 
-Default child classes can be declared using a `default.` prefix on the original parent
+Default child classes can be declared using a `Default.` prefix on the original parent
 class name, e.g.:
 
 ```
-class default.Greeter
+class Default.Greeter
     # make a beautiful implementation of the parent's abstract class:
     String greeting()
         return "hello"
@@ -56,7 +56,7 @@ class (Key, Value) LinkedHashMap extends (Key, Value) Map
     Value gate.Removable This[Key]
         ... implementation ...
 
-default Map = LinkedHashMap
+Default.map = linkedHashMap
 ```
 
 Only one default can be set for a parent class, and it cannot be overridden.

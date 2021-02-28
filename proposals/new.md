@@ -2,6 +2,7 @@
 
 We use new (and old) in a few different ways.
 
+TODO: remove `new()` and just do {} initialization
 * `new` is a way to instantiate a class, usually as the right-hand-side
   of some expression, e.g. `someClass X = new(Greeting: "hello", Times: 3)`
 

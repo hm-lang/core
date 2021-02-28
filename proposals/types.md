@@ -7,10 +7,10 @@ Primitive types are written using abbreviations, e.g. `dbl` for double.  Still,
 primitive types can be considered as first-class citizens, i.e., they
 can be inherited from, and they can still have methods defined on them.
 
-Non-primitive types include things like `string` for an array of
-characters, as well as classes created by the user.  It is highly
-recommended to not use abbreviations (besides standard ones, e.g. html)
-when defining a class name.
+Non-primitive types include things like `string` for a sequence of characters,
+`int` which is a big-integer type implementation, as well as classes created
+by the user.  It is highly recommended to not use abbreviations
+(besides standard ones, e.g. html) when defining a class name.
 
 | Identifier | Type description             |
 |------------|------------------------------|
@@ -18,11 +18,11 @@ when defining a class name.
 | dbl, f64   | 64-bit floating-point number |
 | flt, f32   | 32-bit floating-point number |
 | int        | arbitrary-bit signed integer |
-| int64      | 64-bit signed integer        |
+| i64        | 64-bit signed integer        |
 | i32        | 32-bit signed integer        |
 | i16        | 16-bit signed integer        |
 | i8         | 8-bit signed integer         |
-| string     | array of characters/letters  |
+| string     | sequence of characters       |
 | u64        | 64-bit unsigned integer      |
 | u32        | 32-bit unsigned integer      |
 | u16        | 16-bit unsigned integer      |

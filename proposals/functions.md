@@ -152,6 +152,8 @@ Named return values can be captured in various ways:
 ```
 (Dbl, string Greeting, int Counter) doSomething();
 
+# declare variables elsewhere, copy them in:
+
 dbl X           # this doesn't need to be renamed, return `dbl` is unnamed.
 string Greeting # already named correctly
 int Value       # not named correctly...
