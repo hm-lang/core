@@ -16,7 +16,7 @@ class SomeClass(int This.Value)
     Int doSomething(String)
         return String.size() + 5 * Value
 
-someClass AnInstance = new(Value: 3)
+someClass AnInstance(Value: 3)
 AnInstance.doSomething("blah")  # ok, using class method on an instance.
 
 someClass.doSomething("hey")    # ERROR, method cannot be called on class
@@ -43,7 +43,7 @@ class SomeClass(int This.Value)
 someClass.getSize("chamber")   # ok, using static function of class.
 
 # and they can also be used on an instance:
-someClass Instance = new(Value: 5)
+someClass Instance(Value: 5)
 Instance.getSize("chalice")     # also ok.
 ```
 
@@ -95,7 +95,7 @@ class FnClass3
     from(Int This.hash(String) const);
 
 # instantiate the class with an excellent "hash" function, very fast:
-fnClass F = new(Int hash(String) = 7)
+fnClass F(Int hash(String) = 7)
 
 # ERROR!  this fails, since hash is a constant function.
 F.hash = Int fn(String)
@@ -107,7 +107,7 @@ F.hash = Int fn(String)
 class VarFnClass(Int hash(String) var);
 
 # instantiate the class
-varFnClass U = new(Int hash(String)
+varFnClass U(Int hash(String)
     return 5
 )
 
@@ -123,7 +123,7 @@ class MethodClass(int Value)
         return Value * String.size()
 
 # instantiate:
-methodClass M = new(Value: 3)
+methodClass M(Value: 3)
 
 # ERROR!  this fails.  since hash is a member function, 
 # i.e. class method, it cannot be changed (except by child classes).
@@ -165,7 +165,7 @@ class Example
         This.getMutable = Int fn(Dbl)
             return This.Value + Dbl
 
-example Example = new(Value: 0)
+example Example(Value: 0)
 print(Example.getConstant(1234))    # prints 1
 print(Example.getConstant(-1337))   # prints -1
 print(Example.getMutable(1))       # prints 1

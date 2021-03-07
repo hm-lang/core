@@ -13,7 +13,7 @@ class NewT Iterator(size? const Size) extends NewT Nextable
     TODO: possibly make a mappedLambda iterator class to avoid creating a lambda?
     TODO: closure concerns: either way, how do we know iterator/container will remain backed?
     ===
-    NewU Iterator map(NewU fn(NewT)) = new(
+    NewU Iterator map(NewU fn(NewT)) = this(
         Size
         NewU? New.next()
             newT? Current = next()
@@ -27,7 +27,7 @@ class NewT Iterator(size? const Size) extends NewT Nextable
     Null if that value should not be returned in the new iterator,
     and otherwise returns the new value converted from the old one.
     ===
-    NewU Iterator map(NewU? fn(NewT)) = new(
+    NewU Iterator map(NewU? fn(NewT)) = this(
         # TODO: support other things besides `next()`, e.g. peak():
         NewU? New.next()
             newT? Current
@@ -42,7 +42,7 @@ class NewT Iterator(size? const Size) extends NewT Nextable
     )
 
     # TODO: make lambda-class implementations of abstract classes automatic.
-    NewT Iterator new(NewT? New.next(), size? const New.Size) = iterator.lambda(
+    NewT Iterator this(NewT? New.next(), size? const New.Size) = iterator.lambda(
         New.Size
         New.next
     )
@@ -57,7 +57,7 @@ class NewT Iterator(size? const Size) extends NewT Nextable
     # X == [100, 11]
     ```
     ===
-    NewT Iterator take(NewT iterator.PeakableRemovable ref From, Bool fn(NewT view WhereValue)) = new(
+    NewT Iterator take(NewT iterator.PeakableRemovable ref From, Bool fn(NewT view WhereValue)) = this(
         NewT? New.next()
             NewT view? Peaked
             while True

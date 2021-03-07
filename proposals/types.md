@@ -47,12 +47,22 @@ Variables that are declared are always initialized (perhaps lazily),
 even if no definition is provided.  I.e., the variables `X` and `Int`
 above are guaranteed to be 0.
 
-Note that we don't allow C++ style instance definitions of variables;
-we always require an equals sign `=` to define a non-default variable.
+TODO: double check:
+Note that we allow C++ style instance definitions of variables;
+or you can use an equals sign `=` to define a non-default variable.
 
 ```
-string MyString("hello world")      # ERROR!  ok in C++, not in hm-lang.
+string MyString("hello world")      # ok.
 string MyString = "hello world"     # ok!
+```
+
+The only concern is with ambiguity.
+TODO: check if there is any here...  it looks like it's ok since it will be a lowercase type here,
+and a hash map has an upper-case type before it.
+
+```
+myClass A(SomeType: 3)
+myClass B(SomeType)         # ambiguous?  is this a hash-table of MyClass[SomeType] ??
 ```
 
 ## Functions, arrays, and map types
@@ -71,7 +81,7 @@ Int doStuff(String)
 Int[] Values
 
 # declare an array with a fixed size named `Vector`;
-# equivalent to `Dbl fixedArray Vector = new(Size: 3)`
+# equivalent to `Dbl fixedArray Vector(Size: 3)`
 Dbl[3] Vector
 
 # declare a linked hash map of strings to integers;
@@ -79,7 +89,7 @@ Dbl[3] Vector
 Int[String] NameToIdMap
 
 # declare a hash map of Ints to Strings, and reserve some space:
-String[Int] IdToNameMap = new(Reserve: 5)
+String[Int] IdToNameMap(Reserve: 5)
 
 # declare a hash map that has a key composed of two types,
 # one of which is named:

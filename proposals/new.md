@@ -2,10 +2,6 @@
 
 We use new (and old) in a few different ways.
 
-TODO: remove `new()` and just do {} initialization
-* `new` is a way to instantiate a class, usually as the right-hand-side
-  of some expression, e.g. `someClass X = new(Greeting: "hello", Times: 3)`
-
 * `newT` is a way to indicate a template type.  `T` can be any
   `UpperCamelCase` identifier, e.g., making the full type `newSnakePancake`.
 
@@ -15,20 +11,6 @@ TODO: remove `new()` and just do {} initialization
 
 * `New` can be a shorthand for accessing the new value in a setter, with
   the name of the variable following a period, e.g. `New.Value`.
-
-## new class instance
-
-We can create a new class instance using the `new` syntax.  Using `new`
-creates a specification with the subsequent variable names, which
-can be converted into whatever class type is on the left-hand side.
-
-```
-class Example(int Times, string Greeting, string Noun = "world");
-
-example Ex = new(Times: 5, Greeting: "hello") # normal initialization
-
-ex = new(Greeting: "hey", Noun: "people") # overwrite
-```
 
 ## `newType NewType` for templates
 
@@ -51,7 +33,7 @@ class NewT Example(newT Value)
     setFrom(NewU)
         Value = NewU    # implicit conversion
 
-Int example X = new(Value: 3)
+Int example X(Value: 3)
 X.setFrom("50003")
 ```
 
@@ -70,7 +52,7 @@ class Example(int X)
         X = New.X
         return Old.X
 
-example Ex = new(X: 5))
+example Ex(X: 5))
 print(Ex.set(X: 1234)) # prints 5
 ```
 

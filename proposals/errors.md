@@ -66,7 +66,7 @@ class AbClass(Int, Dbl) extends AClass;
 # this will cause an error to continue propagating up,
 # possibly stopping execution of the program:
 try
-    aClass A = new(3)
+    aClass A = 3
     A.Int /= 0
 catch bClass.Error
     print("should not produce a bClass.Error")

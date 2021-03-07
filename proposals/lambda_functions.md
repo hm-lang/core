@@ -76,7 +76,7 @@ class Greeter(string Greeting)
     greet(string Noun)
         print("${Greeting}, ${Noun}!")
 
-greeter Greeter = new(Greeting: "hello")
+greeter Greeter(Greeting: "hello")
 # standard lambda function:
 run(After: duration(Seconds: 3), fn()
     Greeter.greet(Noun: "world")

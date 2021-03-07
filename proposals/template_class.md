@@ -86,12 +86,12 @@ string Name array A
 A.append(Name: "Pat")
 ```
 
-For multi-template-type class, e.g. `class key value map` defined above,
+For multi-template-type class, e.g. `class Key Value Map` defined above,
 we can also rename the types:
 
 ```
 (Int value Rating, String key Game) map Database
-Database[Game("Pong")] = Rating(300)
+Database[Game: "Pong"] = Rating: 300
 
 (String key Name, Int value Age) Map
-Map[Name("Fred")] = Age(10)
+Map[Name: "Fred"] = Age: 10

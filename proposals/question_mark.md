@@ -2,6 +2,7 @@
 
 Normally used for optional types, e.g. `Int?`.  In C++ the `?` symbol is a conditional ternary operator,
 but in hm-lang we use it for types, and it can be the last part of an identifier.
+TODO: see if we want to convert it to a Q, or if not, remove all Q usage.
 
 ```
 Int getDefault(Int?)

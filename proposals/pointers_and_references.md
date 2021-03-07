@@ -24,7 +24,7 @@ the instances belong to the variable and will be destroyed when the variable
 goes out of scope:
 
 ```
-animal Base = new(Type: "unknown")    # internally a pointer to an `animal`.
+animal Base(Type: "unknown")    # internally a pointer to an `animal`.
 
 animal? Maybe1 = animal(Type: "!!")  # internally a nullable pointer to an `animal`.
 animal? Maybe2 = Null       # can leave out the null initialization, that is the default.
@@ -37,7 +37,7 @@ type, but they can also be null.  Because of this, users are expected to check f
 before using `maybe` variables.  This will be a compiler feature.
 
 ```
-animal Base = new(Type: "unknown")
+animal Base(Type: "unknown")
 Base = cat(Whiskers: 1)     # OK
 Base = snake(Length: 10)    # also ok
 print(Base.Length)          # ERROR! NOT OK, length is not a property of animal.
@@ -57,32 +57,48 @@ if Maybe != Null; print(Maybe.Type)
 
 ### References
 
+TODO: maybe rename Ref -> Mirror or Shadow, or Embody, or maybe `Em (Body: SomeTypeInstance)`
+
 For the `ref` and `ref?` types, the instance *must* outlive the variable and any copies made of the variable.
+To create a reference type, we need special syntax since most variables on the RHS of equations are already
+`ref`-like, and we still want the reference to be able to modify the referent.  In the abstract:
 
 ```
-animal Base = new(Type: "liger")
-# TODO: This is kinda ugly: `Base` should automatically be a `ref` type.
-# I can see why Stroustrup didn't want ref's to be reassignable...
-Animal ref Ref1 = new(Base)    # a `ref`erence doesn't own an instance, must get it elsewhere.
+someType SomeTypeInstance
+someType ref MyReference(Mirroring: SomeTypeInstance)
+MyReference = AnotherInstance   # equivalent to copying AnotherInstance into SomeTypeInstance
+                                # AnotherInstance can be any type that can be copied into SomeType
+MyReference = (Mirroring: StillAnotherInstance)     # changing the reference;
+                                                    # StillAnotherInstance should be of SomeType.
+```
+
+And more concrete examples:
+
+```
+animal Base(Type: "liger")
+Animal ref Ref1(Mirroring: Base)    # a `ref`erence doesn't own an instance, must get it elsewhere.
 
 animal? Maybe = base(Type: "tigon")
-Animal? ref Ref2 = new(Maybe) # a non-null reference to a possibly null animal.
+# TODO: make `New.This this()` be the syntax for doing `new` in a class instead of `from`
+Animal? ref Ref2(Mirroring: Maybe) # a non-null reference to a possibly null animal.
 
 Animal ref? RefQ    # nullable reference, which if non-null, points to a non-null animal
 RefQ == Null        # True!
-RefQ = new(Base)    # this is how you switch the Ref
+RefQ = (Mirroring: Base)    # this is how you switch the Ref
 RefQ != Null        # True!
-RefQ = new(Null)    # this is how to reset to a null Ref
+RefQ = (Mirroring: Null)    # this is how to reset to a null Ref
 
 Animal? ref? QQ     # nullable reference, which if non-null, points to a nullable animal
 QQ == Null          # True!
 Maybe = Null        # resetting the Maybe
-QQ = new(Maybe)     # ok. also ok to do `QQ = ref(Maybe)`
-QQ == Null          # True, since Maybe is Null.
-Maybe = animal(Type: "spidephant")
-QQ != Null          # True, Maybe is now non-Null.
+QQ = (Mirroring: Maybe)     # ok.
+QQ == Null          # True, since Maybe is Null.  Would also be true if QQ mirrored Null
+QQ = animal(Type: "spidephant")     # changes Maybe!
+Maybe != Null       # True, Maybe is now non-Null.
 QQ = Null           # NOTICE! this resets the variable Maybe to Null.
-QQ = new(Null)      # reset the Ref to not point to anything
+QQ = Base           # This DOES NOT make QQ mirror Base (use `QQ = (Mirroring: Base)` for that);
+                    # it creates a copy of Base and stores it in Maybe.
+QQ = (Mirroring: Null)  # reset the Ref to not point to anything
 ```
 
 ### Views
@@ -96,7 +112,7 @@ MyView = 5  # ERROR! does not compile.  MyView cannot modify MyInt, and cannot h
 
 # since MyView is not a constView (but just a view), it can be switched using this:
 int MyOtherInt = 7
-MyView = View(MyOtherInt)
+MyView = view(MyOtherInt)
 ```
 
 Note that `Type view` may be thought of as a `ConstType ref` class.
