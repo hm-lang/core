@@ -49,10 +49,10 @@ Technically, the `string` type is an abstract base class, which
 encompasses things like specialized character arrays.
 
 ```
-class String extends Utf8 IndexedContainer
+class string() extends Utf8 indexedContainer()
     # ...
 
-class CharArray extends String
+class charArray() extends string()
     Char Array_
     # ...
 

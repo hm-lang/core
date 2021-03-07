@@ -26,15 +26,15 @@ passed back out (i.e., since it is a swap).
 A `gate.Refable` corresponds to a wrapped value which can be modified
 in any way, with/without copies, since a direct reference can be provided for it.
 ===
-class NewT Gate extends NewT @interfaces.Gettable;
+class NewT gate() extends NewT @interfaces.gettable();
 
-class NewT gate.Settable extends NewT Gate, NewT @interfaces.Settable;
+class NewT gate.settable() extends NewT gate(), NewT @interfaces.settable();
 
-class NewT gate.Viewable extends NewT gate.Settable, NewT @interfaces.Viewable;
+class NewT gate.viewable() extends NewT gate.settable(), NewT @interfaces.viewable();
 
-class NewT gate.Swappable extends NewT gate.Viewable, NewT @interfaces.Swappable;
+class NewT gate.swappable() extends NewT gate.viewable(), NewT @interfaces.swappable();
 
-class NewT gate.Refable extends NewT gate.Swappable, NewT @interfaces.Refable;
+class NewT gate.refable() extends NewT gate.swappable(), NewT @interfaces.refable();
     ===
     We can put in sensible defaults for `set`, `get`, `view`, and `swap`.
 
@@ -80,4 +80,4 @@ class NewT gate.Refable extends NewT gate.Swappable, NewT @interfaces.Refable;
         # a `ref` type can be converted to a `view` type:
         return ref()
 
-# TODO: add gate.Removable extends gate.Refable, NewT @interfaces.Removable
+# TODO: add gate.removable() extends gate.refable(), NewT @interfaces.removable()

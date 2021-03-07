@@ -28,13 +28,22 @@ One can qualify as a friend of a class in two different ways:
    as the class in question.
 
 ```
-# FILE: root/example/example.hm
-class Example
+class example()
     dbl X   # public (get/set global)
     dbl Y_  # protected (get global, settable by friends only)
     dbl Z__ # private (gettable by friends only)
 
-test ExampleVisibility(fn()
+class friendOfExample()
+    example Ex
+    doSomething()
+        print(Ex.X)     # ok
+        Ex.X = 1234.5   # ok
+        print(Ex.Y)     # ok
+        Ex.Y = 123.4    # ok
+        print(Ex.Z)     # ok
+        Ex.Z = 3.1415   # ERROR! NOT ALLOWED
+
+test ExampleVisibility = fn()
     example Ex
     print(Ex.X) # great
     Ex.X = 1    # great
@@ -44,20 +53,6 @@ test ExampleVisibility(fn()
 
     print(Ex.Z) # OK, but not recommended
     Ex.Z = 3    # ERROR, cannot set private variables
-)
-
-# FILE: root/example/neighbor.hm
-class Neighbor
-    example Ex
-    doSomething()
-        print(Ex.X)     # ok
-        Ex.X = 1234.5   # ok
-        print(Ex.Y)     # ok
-        Ex.Y = 123.4    # ERROR! NOT ALLOWED
-        print(Ex.Z)     # ERROR! NOT ALLOWED
-        Ex.Z = 3.1415   # ERROR! NOT ALLOWED
-
-# and similarly for other files not in the same directory.
 ```
 
 NOTE!  Regardless of the identifier used when *declaring* a variable,

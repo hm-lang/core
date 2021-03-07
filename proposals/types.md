@@ -47,22 +47,31 @@ Variables that are declared are always initialized (perhaps lazily),
 even if no definition is provided.  I.e., the variables `X` and `Int`
 above are guaranteed to be 0.
 
-TODO: double check:
-Note that we allow C++ style instance definitions of variables;
-or you can use an equals sign `=` to define a non-default variable.
+Note that we do not allow C++ style instance definitions of variables;
+you must use an equals sign `=` to define a non-default variable.
 
 ```
-string MyString("hello world")      # ok.
+string InvalidString("hello world") # ERROR, compiler error.
 string MyString = "hello world"     # ok!
+string OtherString = (
+    "hello world"     # also ok.
+)
 ```
 
-The only concern is with ambiguity.
-TODO: check if there is any here...  it looks like it's ok since it will be a lowercase type here,
-and a hash map has an upper-case type before it.
+The problem with C++-style initialization is suppose we have an unnamed variable
+(e.g. `int Int` or `myClass MyClass`) which doesn't have its type explicitly written out.
+It will look a bit like a hash-table definition (`ValueType[KeyType]`) when trying
+to initialize it.  This also makes it more consistent with default function arguments,
+which require `=`.  This code snippet illustrates the problem:
 
 ```
-myClass A(SomeType: 3)
-myClass B(SomeType)         # ambiguous?  is this a hash-table of MyClass[SomeType] ??
+class myClass(SomeType);
+
+SomeType = 5
+myClass A(SomeType: 3)  # not ambiguous
+myClass B(SomeType)     # a little ambiguous.  looks a bit lik a hash-table of MyClass[SomeType]
+MyClass(SomeType: 5)    # a little ambiguous, not sure what we're trying to do here.
+MyClass(SomeType)       # very ambiguous.  looks like a hash-table type.
 ```
 
 ## Functions, arrays, and map types
@@ -89,7 +98,7 @@ Dbl[3] Vector
 Int[String] NameToIdMap
 
 # declare a hash map of Ints to Strings, and reserve some space:
-String[Int] IdToNameMap(Reserve: 5)
+String[Int] IdToNameMap = (Reserve: 5)
 
 # declare a hash map that has a key composed of two types,
 # one of which is named:

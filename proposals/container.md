@@ -7,7 +7,7 @@ to and from an `iterator`, and it must have a way to determine the number
 of elements it holds, i.e., by getting its size.
 
 ```
-class NewT Container
+class NewT container()
     from(NewT Iterator);
     to NewT Iterator;
 

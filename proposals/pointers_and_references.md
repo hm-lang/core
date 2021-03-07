@@ -4,11 +4,11 @@ Let's create an example class `animal` with a string `type` variable, and
 a few child classes `snake` and `cat` with their own extra variables.
 
 ```
-class Animal(string Type = "??");
+class animal(string Type = "??");
 
-class Snake(size Length = 0) extends Animal(Type: "snake");
+class snake(size Length = 0) extends animal(Type: "snake");
 
-class Cat(size Whiskers = 4) extends Animal(Type: "cat");
+class cat(size Whiskers = 4) extends animal(Type: "cat");
 ```
 
 To implement in C++, any instance of these classes will be pointers,
@@ -24,7 +24,7 @@ the instances belong to the variable and will be destroyed when the variable
 goes out of scope:
 
 ```
-animal Base(Type: "unknown")    # internally a pointer to an `animal`.
+animal Base = Type: "unknown"   # internally a pointer to an `animal`.
 
 animal? Maybe1 = animal(Type: "!!")  # internally a nullable pointer to an `animal`.
 animal? Maybe2 = Null       # can leave out the null initialization, that is the default.
@@ -34,10 +34,10 @@ Variables that are declared with an `animal` type are allowed to be instances of
 descendant, e.g., `snake` or `cat`, though only the parent-type's methods will be accessible.
 `maybe` types (`?`), e.g. `animal?`, are similar -- they can be any descendant of the wrapped
 type, but they can also be null.  Because of this, users are expected to check for null
-before using `maybe` variables.  This will be a compiler feature.
+before using `maybe` variables.  See [nullable types](./nullable.md) for more info.
 
 ```
-animal Base(Type: "unknown")
+animal Base = Type: "unknown"
 Base = cat(Whiskers: 1)     # OK
 Base = snake(Length: 10)    # also ok
 print(Base.Length)          # ERROR! NOT OK, length is not a property of animal.

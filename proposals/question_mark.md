@@ -20,6 +20,9 @@ String getId(Int?)
     return "unknown"
 ```
 
+TODO: maybe automatically check for existence when using ? unless we already know it's non-Null.
+
+
 ## Ternary operator: inline if-else
 
 We can do an inline if-else statement like this:

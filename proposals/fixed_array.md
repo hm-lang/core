@@ -3,7 +3,7 @@
 A fixed array is an unresizable array of elements.
 
 ```
-class NewT FixedArray extends NewT IndexedContainer
+class NewT fixedArray() extends NewT IndexedContainer
     from(Size);
     from(NewT Iterator);
     from([Index, NewT] Iterator);

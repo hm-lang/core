@@ -8,7 +8,7 @@ can iterate over the indices as well as the individual elements.
 The proposed API is this:
 
 ```
-class NewT Array extends NewT IndexedContainer
+class NewT array() extends NewT indexedContainer()
     from(NewT Iterator);
     from([Index, NewT] Iterator);
 

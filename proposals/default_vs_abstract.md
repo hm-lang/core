@@ -4,7 +4,7 @@ In hm-lang, some base classes are abstract; i.e., they cannot be directly
 instantiated.
 
 ```
-class Greeter
+class greeter()
     sayHello(string To)
         print("${greeting()}, ${To}!")
 
@@ -29,7 +29,7 @@ Default child classes can be declared using a `Default.` prefix on the original 
 class name, e.g.:
 
 ```
-class Default.Greeter
+class Default.greeter()
     # make a beautiful implementation of the parent's abstract class:
     String greeting()
         return "hello"
@@ -47,11 +47,11 @@ In case the child class has a more specific name, and we want to set it as
 the default for the parent type, we use this syntax:
 
 ```
-class (Key, Value) Map
+class (Key, Value) map()
     # define an abstract method:
     Value gate.Removable This[Key];
 
-class (Key, Value) LinkedHashMap extends (Key, Value) Map
+class (Key, Value) linkedHashMap() extends (Key, Value) Map
     # implement the method:
     Value gate.Removable This[Key]
         ... implementation ...

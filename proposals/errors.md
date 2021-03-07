@@ -26,7 +26,7 @@ corresponding class' `error` subclass will be thrown, unless a
 more (or less) specific error type is used.
 
 ```
-class Parent
+class parent()
     doSomething(Int)
         print("${Int} from parent")
 
@@ -34,7 +34,7 @@ class Parent
         # throws a `parent.error`:
         throw String
 
-class Child extends Parent
+class child() extends Parent
     doSomething(Int)
         # throws a `child.Error`:
         throw("child un-implements this method due to bad design choices.")
@@ -59,9 +59,9 @@ different types of errors as multiple `catch` blocks.  The
 the catch block if they are not a subtype of the caught errors.
 
 ```
-class AClass(Int);
-class BClass(Dbl);
-class AbClass(Int, Dbl) extends AClass;
+class aClass(Int);
+class bClass(Dbl);
+class abClass(Int, Dbl) extends AClass;
 
 # this will cause an error to continue propagating up,
 # possibly stopping execution of the program:

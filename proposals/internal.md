@@ -7,11 +7,11 @@ the class methods.  `Internal` can not show up in a method's arguments (except i
 class has similar variables/methods as a parent class, but must distinguish them.
 
 ```
-class Parent
+class parent()
     doSomething()
         print("yay")
 
-class Child extends Parent
+class child() extends Parent
     # you can initialize an `Internal` value via a `from`:
     from(This.Internal.doSomething() = print("child class yay, too!"));
 

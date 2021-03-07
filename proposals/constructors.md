@@ -7,7 +7,7 @@ parameters can have variable names that shadow member variables.  That should
 make the following code at least a bit more clear:
 
 ```
-class SomeClass
+class someClass()
     int Value
     from(int Value)
         This.Value = Value
@@ -19,7 +19,7 @@ ends with a semicolon because no further logic in an indent is required (for thi
 class; your classes may require other initialization):
 
 ```
-class SomeClass
+class someClass()
     # int Value -- automatically defined and assigned based on this:
     from(int This.Value);
 ```
@@ -30,7 +30,7 @@ declared, but not necessarily assigned in other constructors.  (Of course,
 they will be default-initialized in constructors which do not specify them.)
 
 ```
-class SomeClass
+class someClass()
     from(int This.X);
     from(int This.Y);
     from(int This.X, int This.Z)
@@ -38,7 +38,7 @@ class SomeClass
 
 # equivalent to this:
 
-class SomeClass
+class someClass()
     int X
     int Y
     int Z
@@ -65,7 +65,7 @@ including default construction.  It is generally a good idea to have a public
 constructor for your class, but there are some exceptions, e.g. the `Ref` type.
 
 ```
-class SomeClass
+class someClass()
     from(string This.Name, int This.Age)
         print("Hi ${This.Name}, it looks like you are ${This.Age} years old!")
 

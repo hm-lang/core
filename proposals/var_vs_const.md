@@ -134,7 +134,7 @@ Int Array const Int_Array_Const = [-1, 5, 11]
 ```
 
 The arguments above are similar in case the contained type
-is some non-primitive type, e.g. `class Vector2(dbl X, dbl Y);`.
+is some non-primitive type, e.g. `class vector2(dbl X, dbl Y);`.
 In the case that the contained type is `const`, e.g.
 `vector2 const`, then you cannot reassign or change the instance,
 i.e. `Vector2.X = 3` is disallowed.

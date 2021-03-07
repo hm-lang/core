@@ -29,7 +29,7 @@ And of course, fewer templated types can be used in a function.
 Here's an example also with a class:
 
 ```
-class NewT Example(newT Value)
+class NewT example(newT Value)
     setFrom(NewU)
         Value = NewU    # implicit conversion
 
@@ -46,7 +46,7 @@ will use `SomeVariableName` (i.e., not prefixed with `New`).  Similarly,
 we can use `Old` as a prefix.
 
 ```
-class Example(int X)
+class example(int X)
     Int set(int New.X)
         int Old.X = X
         X = New.X
@@ -61,7 +61,7 @@ print(Ex.set(X: 1234)) # prints 5
 Here is an example for using a `New.SomeVariableName` in a setter.
 
 ```
-class Inverse
+class inverse()
     dbl X_
 
     set dbl Y

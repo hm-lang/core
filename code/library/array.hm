@@ -1,5 +1,5 @@
-class NewT Array extends NewT IndexedContainer
-    class NewT ArrayRefable__(Index, NewT Array constRef ArrayRef__) extends NewT gate.Refable
+class NewT array() extends NewT indexedContainer()
+    class NewT arrayRefable__(Index, NewT Array constRef ArrayRef__) extends NewT gate.refable()
         NewT Ref ref()
             return ArrayRef.ref(Index)
         NewT swap(newT New)
@@ -9,9 +9,9 @@ class NewT Array extends NewT IndexedContainer
 
     NewT gate.Refable This[Index] = arrayRefable(Index, ArrayRef: This)
 
-    class NewT ValueIterator_(
+    class NewT valueIterator_(
         NewT Array constRef ArrayRef__
-    ) extends NewT iterator.InsertablePeakableRemovable(ArrayRef.size())
+    ) extends NewT iterator.insertablePeakableRemovable(ArrayRef.size())
         Index __ = 0
 
         NewT? next()
@@ -30,9 +30,9 @@ class NewT Array extends NewT IndexedContainer
         NewT? remove()
             return ArrayRef.remove(Index) if Index < ArrayRef.size() else Null
 
-    class NewT ConstValueIterator_(
+    class NewT constValueIterator_(
         NewT Array constView ArrayView__
-    ) extends NewT View iterator.Peakable(ArrayView.size())
+    ) extends NewT View iterator.peakable(ArrayView.size())
         Index __ = 0
 
         NewT View? next()
@@ -42,9 +42,9 @@ class NewT Array extends NewT IndexedContainer
         NewT View? ConstThis.peak()
             return ArrayView.view(Index) if Index < ArrayView.size() else Null
 
-    class NewT IndexIterator_(
+    class NewT indexIterator_(
         NewT Array constRef ArrayRef__
-    ) extends [Index, NewT] Iterator(ArrayRef.size())
+    ) extends [Index, NewT] iterator(ArrayRef.size())
         index NextIndex__ = 0
 
         [Index, NewT]? next()

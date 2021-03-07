@@ -2,7 +2,7 @@
 An abstract class which has a `get()` method.  Used in getter-like classes
 which allow you to get a copy of the internal value held by the class.
 ===
-class NewT Gettable
+class NewT gettable()
     ===
     Returns a copy of the internal value held by this class.
     ===

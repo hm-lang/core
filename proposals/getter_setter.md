@@ -5,7 +5,7 @@ using the `gate` or one of its specialized subclassses.
 
 ```
 # this is defined automatically based on gate.Settable:
-class NewT gate.settable.Lambda(NewT get(), set(NewT))
+class NewT gate.settable.lambda(NewT get(), set(NewT))
     to NewT
         return get()
 
@@ -20,9 +20,9 @@ change the behavior of how the variables work.  This might be harder to
 implement than expected, but here is the general idea:
 
 ```
-class Vector2(dbl X, dbl Y);
+class vector2(dbl X, dbl Y);
 
-class UnitVector2 extends Vector2
+class unitVector2() extends Vector2
     from(dbl X, dbl Y)
         normalize(X, Y)
 
@@ -63,7 +63,7 @@ or return something else if it is reasonable.  Similarly, the `remove` function
 must do something reasonable if it is called twice, or throw.
 
 ```
-class NewT gate.Removable
+class NewT gate.removable()
     This = Null
         remove()
 
@@ -78,7 +78,7 @@ Here is a getter/setter that is also viewable, i.e., no copies will be made
 if we ask for just a view of the internal value.
 
 ```
-class newT gate.Viewable
+class newT gate.viewable()
     to ConstNewT ConstRef
         return view()
 ```
