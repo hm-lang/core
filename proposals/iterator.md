@@ -13,6 +13,8 @@ NewT Iterator iterator.take(NewT iterator.pR From, Bool fn(NewT view WhereValue)
 
 Int[] X = [1, 2, 3, 100, 9, 11]
 Int[] Y = iterator.take(From(X), $WhereValue < 10)
+# now X = [100, 11]
+# and Y = [1, 2, 3, 9]
 ```
 
 The benefits of this approach are that casting is performed implicitly due

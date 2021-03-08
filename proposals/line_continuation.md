@@ -20,7 +20,7 @@ indent (if not on the same line).  Some examples:
 ```
 int Something = (1234 + 5) * {
     12345 + someLongFunctionThatTakesALotOfSpace[
-        Value(1.234), Greeting("Hello")
+        Value: 1.234, Greeting: "Hello"
     ] * 5
 }
 ```

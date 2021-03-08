@@ -83,7 +83,14 @@ of arguments!  Examples:
     (27, 64, "cubes")    # ERROR!  we don't know what is the `dbl`.
 ```
 
-TODO: see if we can switch back to any parentheses type when declaring or specifying arguments
+In hm-lang, any type of parentheses are allowed to specify arguments.  Even no parentheses
+are sometimes allowed, though they are recommended for cases where multiple arguments are
+specified.  Nesting specifications are also possible:
+
+```
+    (NestedField: {Value1: 12, Value2: 15}, OtherNestedField: SimpleNestedValue: 100)
+```
+
 
 ## Unspecified arguments
 

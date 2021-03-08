@@ -33,7 +33,7 @@ class NewT example(newT Value)
     setFrom(NewU)
         Value = NewU    # implicit conversion
 
-Int example X(Value: 3)
+Int example X = (Value: 3)
 X.setFrom("50003")
 ```
 
@@ -52,7 +52,7 @@ class example(int X)
         X = New.X
         return Old.X
 
-example Ex(X: 5))
+example Ex = (X: 5)
 print(Ex.set(X: 1234)) # prints 5
 ```
 

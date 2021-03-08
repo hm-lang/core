@@ -14,5 +14,5 @@ class NewT container()
     # returns number of elements in the container.
     # shortcut:
     # * MyContainer.Size.get() -> MyContainer.size()
-    Size gate.Gettable Size;
+    Size gate.gettable Size;
 ```

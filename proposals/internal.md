@@ -11,7 +11,7 @@ class parent()
     doSomething()
         print("yay")
 
-class child() extends Parent
+class child() extends parent()
     # you can initialize an `Internal` value via a `from`:
     from(This.Internal.doSomething() = print("child class yay, too!"));
 

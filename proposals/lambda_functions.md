@@ -10,7 +10,7 @@ this syntax.  The arguments are prefixed with `$`.  Here is an example
 where we take an iterator and use it to create a list.
 
 ```
-# creates an iterator that goes from 0 to the passed in `int` (minus 1).
+# creates an iterator that goes from 0 to the passed in `Int` (minus 1).
 # TODO: closures won't work off the bat correctly, this needs to be a class.
 Int Iterator range(Int)
     int Current = 0
@@ -59,14 +59,11 @@ run(After: duration(Seconds: 3), fn()
 # with $$ operator pre-fixed to a single function name:
 run($$print("hello, world!"), After: duration(Seconds: 3))
 
-# TODO: allow argument chaining so that this works:
+# allow argument chaining so that this works:
 run($$print("hello, world!"), After: {Seconds: 3})
 
-# TODO: optionally, allow removing the {} braces:
+# optionally, allow removing the {} braces:
 run($$print("hello, world!"), After: Seconds: 3)
-
-# TODO: or maybe even better:
-run($$print("hello, world!"), After.Seconds: 3)
 ```
 
 For a class method, the `$$` comes before the class instance:
@@ -76,7 +73,7 @@ class greeter(string Greeting)
     greet(string Noun)
         print("${Greeting}, ${Noun}!")
 
-greeter Greeter(Greeting: "hello")
+greeter Greeter = (Greeting: "hello")
 # standard lambda function:
 run(After: duration(Seconds: 3), fn()
     Greeter.greet(Noun: "world")

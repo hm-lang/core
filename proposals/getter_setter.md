@@ -5,7 +5,7 @@ using the `gate` or one of its specialized subclassses.
 
 ```
 # this is defined automatically based on gate.Settable:
-class NewT gate.settable.lambda(NewT get(), set(NewT))
+class NewT gate.settable.lambda(NewT get(), set(NewT)) extends gate.settable()
     to NewT
         return get()
 
@@ -22,7 +22,7 @@ implement than expected, but here is the general idea:
 ```
 class vector2(dbl X, dbl Y);
 
-class unitVector2() extends Vector2
+class unitVector2() extends vector2()
     from(dbl X, dbl Y)
         normalize(X, Y)
 
@@ -47,10 +47,10 @@ In the latter case, we can access the original class's getters/setters
 using the parent class' name (e.g. `Vector2`).
 
 ```
-vector2 Parent(X: 5, Y: 3)
+vector2 Parent = (X: 5, Y: 3)
 Parent.x(3) # equivalent to `Parent.X = 3`
 Parent.x()  # equivalent to `Parent.X`
-unitVector2 Unit(X: 1, Y: 4)
+unitVector2 Unit = (X: 1, Y: 4)
 Unit.x(5)   # uses the child setter. equivalent to `Unit.X = 5`
 ```
 
@@ -83,6 +83,6 @@ class newT gate.viewable()
         return view()
 ```
 
-Note that a `ref` type can be directly converted to a `gate.Refable` type.
+Note that a `ref` type can be directly converted to a `gate.refable` type.
 
 The specific hierarchy is explored in the code library.

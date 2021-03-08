@@ -65,7 +65,7 @@ To create a reference type, we need special syntax since most variables on the R
 
 ```
 someType SomeTypeInstance
-someType ref MyReference(Mirroring: SomeTypeInstance)
+someType ref MyReference = (Mirroring: SomeTypeInstance)
 MyReference = AnotherInstance   # equivalent to copying AnotherInstance into SomeTypeInstance
                                 # AnotherInstance can be any type that can be copied into SomeType
 MyReference = (Mirroring: StillAnotherInstance)     # changing the reference;
@@ -76,11 +76,10 @@ And more concrete examples:
 
 ```
 animal Base(Type: "liger")
-Animal ref Ref1(Mirroring: Base)    # a `ref`erence doesn't own an instance, must get it elsewhere.
+Animal ref Ref1 = (Mirroring: Base) # a `ref`erence doesn't own an instance, must get it elsewhere.
 
 animal? Maybe = base(Type: "tigon")
-# TODO: make `New.This this()` be the syntax for doing `new` in a class instead of `from`
-Animal? ref Ref2(Mirroring: Maybe) # a non-null reference to a possibly null animal.
+Animal? ref Ref2 = (Mirroring: Maybe)   # a non-null reference to a possibly null animal.
 
 Animal ref? RefQ    # nullable reference, which if non-null, points to a non-null animal
 RefQ == Null        # True!
@@ -107,7 +106,7 @@ A view is a way to check in on the value of some variable without being able to 
 
 ```
 int MyInt = 3
-Int view MyView(MyInt)
+Int view MyView = MyInt
 MyView = 5  # ERROR! does not compile.  MyView cannot modify MyInt, and cannot hold a reference to a temporary.
 
 # since MyView is not a constView (but just a view), it can be switched using this:

@@ -4,15 +4,16 @@ We can create a function using a lowerCamelCase identifier followed by some
 nested parentheses, and define it in the following indent+1 block:
 
 ```
+# declare and define a function:
 hello(string Noun)
     print("hello, ${Noun}!")
 
-hello(Noun:"world")
+# call the function:
+hello(Noun: "world")
 ```
 
 Note that any pair of matching parentheses works to declare (or call) a function,
 i.e. `fn()`, `fn[]`, and `fn{}` are equally valid.
-TODO: check if this is true again.
 
 ## Function definitions
 
@@ -61,6 +62,32 @@ Function inputs (arguments) and outputs (return values) follow the
 [argument specification](./argument_specification.md) for the most part:  the
 only exception is that the return type can be omitted for a void-returning function.
 
+
+### Nested specifications
+
+We can explicitly or implicitly build nested field values in function arguments.
+
+```
+# consider the following class:
+class duration()
+    from(dbl Weeks, dbl Days, dbl Hours, dbl Minutes, dbl Seconds, dbl Microseconds, dbl Nanoseconds);
+    dbl microseconds();
+
+# which is used as an argument to the run function:
+run(duration After, fn());
+
+# we can specify arguments to run with a couple different methods:
+## explicitly construct a Duration:
+run(After: duration(Seconds: 3), fn() = print("Hello!"))
+
+## implicitly via nesting, with parentheses.
+## this requires the `After` field to be initializable via `(Seconds: 3)`:
+run(After: (Seconds: 3), fn() = print("Hello!"))
+
+## implicitly via nesting, without parentheses:
+## again, `After` needs to be initializable via `Seconds: 3`:
+run(After: Seconds: 3, fn() = print("Hello!"))
+```
 
 ### Default initialization of return values
 
@@ -157,10 +184,10 @@ Named return values can be captured in various ways:
 dbl X           # this doesn't need to be renamed, return `dbl` is unnamed.
 string Greeting # already named correctly
 int Value       # not named correctly...
-(X, Greeting, Counter: Value) = doSomething()
+# convert return spec "Counter" and put it into "Value" variable:
+(X, Greeting, counter Value) = doSomething()
 
-# or alternatively, you can declare/init them inline:
-
+# or if you want to do inline variable definitions, use this:
 (dbl X, string Greeting, Int counter Value) = doSomething()
 print(X) # ok, X and other variables are still in scope based on indent, not parentheses.
 ```

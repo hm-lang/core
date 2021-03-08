@@ -16,9 +16,6 @@ mayThrowAnError()
     # parentheses are optional, `throw(...)` also works.
 ```
 
-We will likely not require parentheses after a `catch` or `throw`,
-but we include them here as a first pass.
-
 In addition, each class automatically has a corresponding `error`
 subclass, and errors from a child class can be caught by catching
 a parent error.  Any time a `throw` is used inside a class, the
@@ -34,7 +31,7 @@ class parent()
         # throws a `parent.error`:
         throw String
 
-class child() extends Parent
+class child() extends parent()
     doSomething(Int)
         # throws a `child.Error`:
         throw("child un-implements this method due to bad design choices.")
@@ -61,7 +58,7 @@ the catch block if they are not a subtype of the caught errors.
 ```
 class aClass(Int);
 class bClass(Dbl);
-class abClass(Int, Dbl) extends AClass;
+class abClass(Int, Dbl) extends aClass(Int);
 
 # this will cause an error to continue propagating up,
 # possibly stopping execution of the program:
@@ -75,7 +72,7 @@ catch bClass.Error
 
 # catching a child error using the parent error:
 try
-    abClass Ab(5, 3.14)
+    abClass Ab = (5, 3.14)
     Ab.Dbl /= 0.0
 catch aClass.Error
     print("${Error}: shouldn't divide by zero.")
