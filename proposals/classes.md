@@ -6,7 +6,8 @@ If there are any variables that can be used to instantiate the class directly, y
 
 TODO: maybe switch from `class someClass()` to `Instance someClass()` or `SomeClass someClass()`
 or `someClass() extends Movable` if we want to make it clear that all classes should have a move.
-
+Or maybe even `Class someClass()` since creating a class is somewhat like creating a function,
+or maybe even `This someClass()`.
 
 ## Three types of class functions
 

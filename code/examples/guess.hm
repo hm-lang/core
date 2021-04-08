@@ -1,0 +1,24 @@
+String Arguments[String] parse(String[])
+    # TODO: this function does not handle : inside of quotation marks (e.g. "" or '').
+    stringQ CurrentKey = ""
+    for String in StringS
+        String[] Split = String.split(":")
+        consider Split.size()
+            case 0
+                continue
+            case 1
+                if CurrentKey != Null
+                    Arguments[CurrentKey.move()] = Split[0].move()
+                else
+                    CurrentKey = Split[0].move()
+            case 2
+                if CurrentKey == Null
+                    Arguments[Split[0].move()] = Arguments[Split[1].move()]
+                else
+                    throw "Invalid input: ${String} with a current key ready: ${CurrentKey}"
+            default
+                throw "Invalid input: ${String}"
+
+Int main(String[])
+    String[String] Arguments = parse(StringS)
+
