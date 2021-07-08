@@ -303,7 +303,7 @@ You can create template functions which can work for a variety of types
 using the `gen` keyword.
 
 ```
-gen(type) log(Type): type
+log gen(type) (Type): type
     print("got ${Type}")
     return Type
 
@@ -312,7 +312,11 @@ Vector3 := vector3(Y: 5)
 Result := log(Vector3)  # prints "got vector3(X: 0, Y: 5, Z: 0)".
 Vector3 == Result       # equals True
 
+# implicit type request:
 OtherResult := log(5)   # prints "got 5" and returns 5.
+
+# explicit type request:
+DblResult := log gen(dbl)(5)   # prints "got 5.0" and returns 5.0
 ```
 
 # declaring and using a class
@@ -419,16 +423,42 @@ WeirdAnimal := animal(
         animal.escape()
 )
 
-WeirdAnimal.escape()    # prints "... meanders ... comes back ... meanders away!!"
+WeirdAnimal.escape()    # prints "Waberoo ... meanders ... meanders back ... meanders away!!"
 ```
 
 ## template methods
 
-TODO
+You can define methods on your class that work for a variety of types.
+
+```
+someExample := class(object)(
+    Value: int
+    reset(Int): null
+        This.Value = Int
+    to gen(type)(): type
+        return type(Value)
+)
+
+SomeExample := someExample(5)
+
+# you can use type inference here based on variable taking the return value:
+ToString: string = SomeExample.to()
+
+# or you can explicitly ask for the type
+ToDbl := SomeExample.to gen(dbl)()
+
+# or you can explicitly ask like this:
+To64 := i64(SomeExample.to())
+```
 
 ## generic/template classes
 
+To create a generic class, you put the keyword `gen` in front of the
+`class` keyword, which is useful if your class inherits from a parent
+which is a generic/template class.
+
 ```
+# create a class with two generic types, `key` and `value`:
 genericClass := gen(key, value) class(object)(
     reset(This.Key: key, This.Value: value): null
 )
@@ -437,6 +467,6 @@ genericClass := gen(key, value) class(object)(
 ClassInstance := genericClass(Key: 5, Value: "hello")
 
 # creating an instance with template/generic types specified:
-OtherInstance := gen(key: dbl, value: string) genericClass(Key: 3, Value: 4)
+OtherInstance := genericClass gen(key: dbl, value: string) (Key: 3, Value: 4)
 # note the passed-in values will be converted into the correct type.
 ```
