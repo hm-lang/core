@@ -27,7 +27,7 @@ TODO: support for `u128` to `u512`, as well as `i128` to `i512`
 The default function name is `fn`, although if you are naming your function, you
 will not use `fn` when declaring/defining it.
 
-# declaring and using primitive variables
+# declaring and using variables
 
 Variables are named using `UpperCamelCase` identifiers.
 
@@ -49,7 +49,11 @@ Y: int = 5
 print(Y * 30)
 ```
 
-You can also define variables which cannot be reassigned.
+## declaring or making variables non-reassignable
+
+You can also define variables which cannot be reassigned.  Note however,
+that if the type is more complicated (i.e., with nested fields), a non-reassignable
+property does not necessarily mean that the variable is deeply constant.
 
 ```
 # declaring and setting a non-reassignable variable that holds a big integer
@@ -58,7 +62,59 @@ Z := 10     # or `Z := int(10)` if you want to be explicit
 Z += 7      # COMPILER ERROR!! Z is non-reassignable.
 ```
 
-# optional types
+If you want to be explicit about the type, you have multiple options:
+
+```
+# option 1:
+Y := dbl(3)
+
+# option 2:
+Y: dbl ;= 3
+```
+
+You can also make a variable non-reassignable for the remainder of the current block
+by using `;=`.  We use `;` instead of `:` so that we can ensure that we are
+overriding an existing in-scope variable rather than declaring a new one.
+
+```
+X: int = 4
+
+if SomeCondition
+    X ;= 7.4    # note this will be converted to an `int`.
+    # In this indented block, you can use X but not reassign it
+else
+    X ;= X  # lock X to whatever value it was for this block.
+    # You can still use X but not reassign it.
+
+print(X)    # will either be 7 (if SomeCondition was true) or 4 (if !SomeCondition)
+X += 5      # can modify X back in this block; there are no constraints here.
+```
+
+## nested/object types
+
+You can declare an object type inline with nested fields.  Objects defined
+like this are immutable; i.e., their fields are non-reassignable.
+
+```
+Vector: (X: dbl, Y: dbl, Z: dbl) = (X: 4, Y: 3, Z: 1.5)
+Vector.X += 4   # COMPILER ERROR, object is immutable
+
+# note however, as defined, Vector is reassignable:
+Vector = (X: 1, Y: 7.2)
+# note, missing fields will be default-initialized.
+Vector.Z == 0   # should be True.
+
+# to make an object variable non-reassignable, use `;=`
+Vector2: (X: dbl, Y: dbl) ;= (X: 3.75, Y: 3.25)
+Vector2.X += 3          # COMPILER ERROR, object is immutable
+Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is non-reassignable
+```
+
+## hiding variables for the remainder of the block
+
+TODO.  descopes/destructs if the variable was declared in that block.
+
+## optional types
 
 ```
 # TODO: do we want `X: int?` or `X: int|null`
@@ -145,6 +201,13 @@ q(fn(): bool
     return random()
 )   # will print one of the above due to randomness.
 ```
+
+## redefining a function
+
+Unlike variables, which can be reassigned (e.g. `X: int = 3`, then `X = 4`),
+functions are non-reassignable by default.
+
+TODO
 
 ## function overloads
 
