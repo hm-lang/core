@@ -259,6 +259,44 @@ greetings(To: "you", Say: "Hi")
 greetings(Times: 5, Say: "Hey", To: "Sam")
 ```
 
+Note that you can define the function arguments as reassignable (with `;`) or
+non-reassignable (with `:`) but that does **not** change the type of function.
+Whether the variables can be reassigned inside the function does not matter
+to the interface between function and caller.
+
+```
+# Note, these are not real overloads, and defining both would throw a COMPILE ERROR
+
+greetings(Say: string): null
+    print "${Say}, world!"
+
+greetings(Say; string): null
+    Say += " wow"
+    print "${Say}, world..."
+
+# COMPILE ERROR
+```
+
+Note also, overloads must be distinguishable based on argument **names**, not types.
+
+```
+fibonacci(Times: int): int
+    Previous ;= 1
+    Current ;= 0
+    for Count: int < Times
+        NextPrevious := Current
+        Current += Previous
+        Previous = NextPrevious
+    return Current
+
+fibonacci(Times: dbl): dbl
+    GoldenRatio: dbl = (1.0 + math.sqrt(5)) * 0.5
+    OtherRatio: dbl = (1.0 - math.sqrt(5)) * 0.5
+    return (GoldenRatio^Times - OtherRatio^Times) / math.sqrt(5)
+
+# COMPILE ERROR
+```
+
 ## function templates/generics
 
 You can create template functions which can work for a variety of types
