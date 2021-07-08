@@ -24,9 +24,6 @@ and similarly for `i8` to `i64`, using two's complement.  For example,
 
 TODO: support for `u128` to `u512`, as well as `i128` to `i512`
 
-The default function name is `fn`, although if you are naming your function, you
-will not use `fn` when declaring/defining it.
-
 # declaring and using variables
 
 Variables are named using `UpperCamelCase` identifiers.  The `:` symbol is used
@@ -45,7 +42,7 @@ Y = 123     # COMPILER ERROR, Y is non-reassignable.
 ```
 
 Reassignable variables can use `VariableName = Expression` after their first
-initialization, but they must be declared with a `@` symbol.
+initialization, but they must be declared with a `;` symbol.
 
 ```
 # declaring a reassignable variable that holds a big integer
