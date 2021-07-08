@@ -29,31 +29,45 @@ will not use `fn` when declaring/defining it.
 
 # declaring and using variables
 
-Variables are named using `UpperCamelCase` identifiers.
+Variables are named using `UpperCamelCase` identifiers.  The `:` symbol is used
+to declare non-reassignable variables, and `;` is used to declare reassignable
+variables.
 
 ```
-# declaring a variable that holds a big integer
-X: int
-
-# X is default-initialized to 0 if not specified.
-X += 5      # now X == 5 is True.
-```
-
-You can also initialize a variable inline.
-
-```
-# declaring and setting a variable that holds a big integer, starting with a value
+# declaring and setting a non-reassignable variable that holds a big integer
 Y: int = 5
+# also equivalent: `Y := 5` or `Y := int(5)`.
 
 # using the variable:
 print(Y * 30)
+
+Y = 123     # COMPILER ERROR, Y is non-reassignable.
 ```
 
-## declaring or making variables non-reassignable
+Reassignable variables can use `VariableName = Expression` after their first
+initialization, but they must be declared with a `@` symbol.
 
-You can also define variables which cannot be reassigned.  Note however,
-that if the type is more complicated (i.e., with nested fields), a non-reassignable
+```
+# declaring a reassignable variable that holds a big integer
+X; int
+
+# X is default-initialized to 0 if not specified.
+X += 5      # now X == 5 is True.
+
+# you can also define the value inline as well:
+W ;= 7
+# also equivalent, if you want to be explicit about the type.
+W; int = 7
+# also equivalent:
+W ;= int(7)
+```
+
+## more on non-reassignable variables
+
+You can define variables which cannot be reassigned, but note that if the
+type is more complicated (i.e., with nested fields), a non-reassignable
 property does not necessarily mean that the variable is deeply constant.
+I.e., object instances are deeply immutable, but class instances are not.
 
 ```
 # declaring and setting a non-reassignable variable that holds a big integer
@@ -62,29 +76,18 @@ Z := 10     # or `Z := int(10)` if you want to be explicit
 Z += 7      # COMPILER ERROR!! Z is non-reassignable.
 ```
 
-If you want to be explicit about the type, you have multiple options:
-
-```
-# option 1:
-Y := dbl(3)
-
-# option 2:
-Y: dbl ;= 3
-```
-
 You can also make a variable non-reassignable for the remainder of the current block
-by using `;=`.  We use `;` instead of `:` so that we can ensure that we are
-overriding an existing in-scope variable rather than declaring a new one.
+by using `::` prefix before the variable name.
 
 ```
-X: int = 4
+X; int = 4  # defined as reassignable
 
 if SomeCondition
-    X ;= 7.4    # note this will be converted to an `int`.
-    # In this indented block, you can use X but not reassign it
+    ::X = 7 # locks X after assigning it.
+            # For the remainder of this indented block, you can use X but not reassign it
 else
-    X ;= X  # lock X to whatever value it was for this block.
-    # You can still use X but not reassign it.
+    ::X     # lock X to whatever value it was for this block.
+            # You can still use X but not reassign it.
 
 print(X)    # will either be 7 (if SomeCondition was true) or 4 (if !SomeCondition)
 X += 5      # can modify X back in this block; there are no constraints here.
@@ -96,19 +99,33 @@ You can declare an object type inline with nested fields.  Objects defined
 like this are immutable; i.e., their fields are non-reassignable.
 
 ```
-Vector: (X: dbl, Y: dbl, Z: dbl) = (X: 4, Y: 3, Z: 1.5)
+Vector; (X: dbl, Y: dbl, Z: dbl) = (X: 4, Y: 3, Z: 1.5)
 Vector.X += 4   # COMPILER ERROR, object is immutable
 
-# note however, as defined, Vector is reassignable:
+# note however, as defined, Vector is reassignable since it was defined with `;`:
 Vector = (X: 1, Y: 7.2)
 # note, missing fields will be default-initialized.
 Vector.Z == 0   # should be True.
 
-# to make an object variable non-reassignable, use `;=`
-Vector2: (X: dbl, Y: dbl) ;= (X: 3.75, Y: 3.25)
+# to make an object variable non-reassignable, use := when defining:
+Vector2 := (X: 3.75, Y: 3.25)
+# or you can use `:` with an explicit type specifier and then `=`:
+Vector2: (X: dbl, Y: dbl) = (X: 3.75, Y: 3.25)
+# then these operations are invalid:
 Vector2.X += 3          # COMPILER ERROR, object is immutable
 Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is non-reassignable
 ```
+
+You can define a type/interface for objects you use multiple times.
+
+```
+vector2 := (X: dbl, Y: dbl)
+
+# you can use `vector2` now like any other type, e.g.:
+Vector2 := vector2(X: 5, Y: 10)
+```
+
+TODO: do we want to allow type definitions with mutable fields, e.g. (X; int, Y; dbl)
 
 ## hiding variables for the remainder of the block
 
@@ -204,10 +221,19 @@ q(fn(): bool
 
 ## redefining a function
 
-Unlike variables, which can be reassigned (e.g. `X: int = 3`, then `X = 4`),
-functions are non-reassignable by default.
+Just like with variables, to declare a reassignable function, use `;` instead of `:`.
 
-TODO
+```
+greetings(Noun: string); null
+    print "Hello, ${Noun}!"
+
+# you can use the function:
+greetings(Noun: "World")
+
+# or redefine it:
+greetings = fn(Noun: string); null
+    print "Hi, ${Noun}!"
+```
 
 ## function overloads
 
@@ -226,21 +252,22 @@ the `:=` symbols.
 ```
 exampleClass := class(
     # class instance variables can be defined here:
-    X: int
+    X; int
 
     # class methods can be defined as well:
     doSomething(Int): int
         return X + Int
 
+    # TODO: revisit with immutable fields (; vs. :)
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `reset` function:
-    reset(X: int)
+    reset(X: int): null
         This.X = X
 
     # or short-hand: `reset(This.X: int)` will automatically set `This.X` to the passed in `X`.
 )
 
-Example: exampleClass = (X: 5)
+Example; exampleClass = (X: 5)  # also equivalent, `Example ;= exampleClass(X: 5)`
 print(Example.doSomething(7))   # should print 12
 Example = exampleClass(X: 7)    # note: variable can be reassigned.
 Example.X -= 3                  # internal fields can be reassigned as well.
