@@ -322,7 +322,7 @@ Class definitions must be constant/non-reassignable, so they are declared using
 the `:=` symbols.
 
 ```
-exampleClass := class(
+exampleClass := class(object)(
     # class instance variables can be defined here:
     X; int
 
@@ -349,9 +349,78 @@ ConstVar.X += 3                 # internal fields can be reassigned
 ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 ```
 
-## method overloads
+## parent-child classes and method overloads
 
-TODO
+You can define parent-child class relationships like this.
+
+```
+animal := class(object)(
+    reset(This.Name: string): null
+
+    # define two methods on `animal`: `speak` and `go`.
+    # these are "abstract" methods, i.e., not implemented by this base class.
+    speak(): null
+    goes(): string
+
+    # this method is defined, so it's implemented by the base class.
+    # derived classes can still change it, though.
+    escape(): null
+        print "${Name} ${goes()} away!!"
+)
+
+snake := class(animal)(
+    # if no `reset` functions are defined,
+    # child classes will inherit their parent `reset()` methods.
+
+    speak(): null
+        print "hisss!"
+    goes(): string
+        return "slithers"
+)
+
+Snake := snake(Name: "Fred")
+Snake.escape()  # prints "Fred slithers away!!"
+
+cat := class(animal)(
+    # here we define a `reset` method, so the parent `reset` methods
+    # become hidden to users of this child class:
+    reset(): null
+        # can refer to parent methods using class name:
+        animal.reset(Name: "Cat-don't-care-what-you-name-it")
+
+    speak(): null
+        print "hisss!"
+    goes(): string
+        return "saunters"
+
+    escape(): null
+        print "CAT ESCAPES DARINGLY!"
+)
+
+Cat := cat()
+Cat.escape()    # prints "CAT ESCAPES DARINGLY!"
+```
+
+All abstract base classes also provide ways to instantiate using lambda functions.
+All abstract methods must be defined for the instance to be created, and if a
+`reset` method is defined on the parent, any arguments passed into the first reset
+(i.e., which is the default constructor) should be defined for the lambda class.
+
+```
+WeirdAnimal := animal(
+    Name: "Waberoo"
+    speak(): null
+        print "Meorooo"
+    goes(): string
+        return "meanders"
+    escape(): null
+        animal.escape()
+        print "${Name} ${goes()} back..."
+        animal.escape()
+)
+
+WeirdAnimal.escape()    # prints "... meanders ... comes back ... meanders away!!"
+```
 
 ## template methods
 
@@ -360,7 +429,7 @@ TODO
 ## generic/template classes
 
 ```
-genericClass := gen(key, value) class(
+genericClass := gen(key, value) class(object)(
     reset(This.Key: key, This.Value: value): null
 )
 
