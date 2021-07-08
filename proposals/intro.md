@@ -151,7 +151,7 @@ v(): int
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
-    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${atan(X, Y)}")
+    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${math.atan(X, Y)}")
 
 # function that takes a function as an argument and returns a function
 wow(Input.fn(): string): fn(): int
@@ -243,7 +243,24 @@ greetings = "Greetings, ${$Noun}!"
 
 ## function overloads
 
-TODO
+Functions can do different things based on the number/type of arguments passed in.
+
+```
+greetings(String): null
+    print "Hello, ${String}!"
+
+greetings(Say: string, To: string): null
+    print "${Say}, ${To}!"
+
+greetings(Say: string, To: string, Times: int): null
+    for Count: int < Times
+        greetings(Say, To)
+
+# so you call this in different ways:
+greetings("World")
+greetings(To: "you", Say: "Hi")
+greetings(Times: 5, Say: "Hey", To: "Sam")
+```
 
 ## function templates/generics
 
