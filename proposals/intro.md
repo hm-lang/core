@@ -231,8 +231,14 @@ greetings(Noun: string); null
 greetings(Noun: "World")
 
 # or redefine it:
+# option 1:
 greetings = fn(Noun: string); null
     print "Hi, ${Noun}!"
+# option 2:
+greetings(Noun: string); null
+    print "Hey, ${Noun}!"
+# option 3:
+greetings = "Greetings, ${$Noun}!"
 ```
 
 ## function overloads
@@ -241,7 +247,21 @@ TODO
 
 ## function templates/generics
 
-TODO
+You can create template functions which can work for a variety of types
+using the `gen` keyword.
+
+```
+gen(type) log(Type): type
+    print("got ${Type}")
+    return Type
+
+vector3 := (X: dbl, Y: dbl, Z: dbl)
+Vector3 := vector3(Y: 5)
+Result := log(Vector3)  # prints "got vector3(X: 0, Y: 5, Z: 0)".
+Vector3 == Result       # equals True
+
+OtherResult := log(5)   # prints "got 5" and returns 5.
+```
 
 # declaring and using a class
 
@@ -287,4 +307,15 @@ TODO
 
 ## generic/template classes
 
-TODO
+```
+genericClass := gen(key, value) class(
+    reset(This.Key: key, This.Value: value): null
+)
+
+# creating an instance using type inference:
+ClassInstance := genericClass(Key: 5, Value: "hello")
+
+# creating an instance with template/generic types specified:
+OtherInstance := gen(key: dbl, value: string) genericClass(Key: 3, Value: 4)
+# note the passed-in values will be converted into the correct type.
+```
