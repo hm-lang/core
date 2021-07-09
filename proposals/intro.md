@@ -1,4 +1,4 @@
-# primitive types
+# overview of types
 
 Standard types whose instances can take up an arbitrary amount of memory:
 
@@ -23,6 +23,12 @@ and similarly for `i8` to `i64`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
 
 TODO: support for `u128` to `u512`, as well as `i128` to `i512`
+
+## optional types
+
+```
+# TODO: do we want `X: int?` or `X: int|null`
+```
 
 # declaring and using variables
 
@@ -127,12 +133,6 @@ TODO: do we want to allow type definitions with mutable fields, e.g. (X; int, Y;
 ## hiding variables for the remainder of the block
 
 TODO.  descopes/destructs if the variable was declared in that block.
-
-## optional types
-
-```
-# TODO: do we want `X: int?` or `X: int|null`
-```
 
 # declaring, defining, and using a function
 
@@ -300,10 +300,10 @@ fibonacci(Times: dbl): dbl
 ## function templates/generics
 
 You can create template functions which can work for a variety of types
-using the `gen` keyword.
+using the `@(types...)` phrase after a function name.
 
 ```
-log gen(type) (Type): type
+log @(type) (Type): type
     print("got ${Type}")
     return Type
 
@@ -316,7 +316,7 @@ Vector3 == Result       # equals True
 OtherResult := log(5)   # prints "got 5" and returns 5.
 
 # explicit type request:
-DblResult := log gen(dbl)(5)   # prints "got 5.0" and returns 5.0
+DblResult := log @(dbl) (5)   # prints "got 5.0" and returns 5.0
 ```
 
 # declaring and using a class
@@ -435,7 +435,7 @@ someExample := class(object)(
     Value: int
     reset(Int): null
         This.Value = Int
-    to gen(type)(): type
+    to @(type) (): type
         return type(Value)
 )
 
@@ -445,7 +445,7 @@ SomeExample := someExample(5)
 ToString: string = SomeExample.to()
 
 # or you can explicitly ask for the type
-ToDbl := SomeExample.to gen(dbl)()
+ToDbl := SomeExample.to @(dbl) ()
 
 # or you can explicitly ask like this:
 To64 := i64(SomeExample.to())
@@ -453,13 +453,13 @@ To64 := i64(SomeExample.to())
 
 ## generic/template classes
 
-To create a generic class, you put the keyword `gen` in front of the
-`class` keyword, which is useful if your class inherits from a parent
-which is a generic/template class.
+To create a generic class, you put the expression `@(types...)` after the
+`class` keyword.  You can use these new types for any class inheritance
+from a parent which is a generic/template class.
 
 ```
 # create a class with two generic types, `key` and `value`:
-genericClass := gen(key, value) class(object)(
+genericClass := class @(key, value) (object) (
     reset(This.Key: key, This.Value: value): null
 )
 
@@ -467,6 +467,6 @@ genericClass := gen(key, value) class(object)(
 ClassInstance := genericClass(Key: 5, Value: "hello")
 
 # creating an instance with template/generic types specified:
-OtherInstance := genericClass gen(key: dbl, value: string) (Key: 3, Value: 4)
+OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
 # note the passed-in values will be converted into the correct type.
 ```
