@@ -470,3 +470,78 @@ ClassInstance := genericClass(Key: 5, Value: "hello")
 OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
 # note the passed-in values will be converted into the correct type.
 ```
+
+
+# standard container classes (and helpers)
+
+## arrays
+
+An array contains a list of elements in contiguous memory.  You can
+implicitly define an array using the notation `VariableName: type[]`,
+e.g. `MyArray: int[]` or `MyArray: array@(int)` for an integer array.
+
+TODO: we might define `int[]` internally as a contiguous deque.
+
+```
+# some relevant pieces of the class definition
+array := class @(type) (
+    ...
+    # always returns a non-null type, resizing the array to
+    # add default-initialized values if necessary:
+    This[Index: index]: type
+        ...
+    size(): index
+        ...
+    append(Type: type)
+        ...
+    pop(Index: index = -1)
+        ...
+    ...
+)
+```
+
+## hash maps
+
+A hash map can look up elements by key in O(1) time.  You can use the explicit
+way to define a map, e.g., `VariableName: map@(key: keyType, value: valueType)`,
+or you can use the implicit method, `VariableName: valueType[keyType]`.  E.g.,
+for a map from integers to strings, you can use: `MyMap: string[int]`.
+
+```
+# some relevant pieces of the class definition
+map := class @(key, value) (
+    ...
+    # always returns a non-null type, adding
+    # a default-initialized value if necessary:
+    This[Key]: value
+        ...
+    size(): index
+        ...
+    set()
+        ...
+    pop(Key)
+        ...
+    ...
+)
+```
+
+## sets
+
+TODO
+
+## iterator
+
+```
+iterator := class @(type) (
+    next(): type?
+    previous?(): type?
+    # returns next value of iterator without incrementing the iterator.
+    # recommended to be present if `remove` is present.
+    peak?(): type?
+    # present only if underlying container supports removing the current element (at `peak()`)
+    # returns the element, or null if no current element.
+    remove?(): type?
+    # present only if underlying container supports inserting a new element (before `peak()`)
+    insert?(Type): null
+)
+```
