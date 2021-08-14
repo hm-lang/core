@@ -65,7 +65,7 @@ W; int = 7
 W ;= int(7)
 ```
 
-## more on non-reassignable variables
+## temporarily locking non-reassignable variables
 
 You can define variables which cannot be reassigned, but note that if the
 type is more complicated (i.e., with nested fields), a non-reassignable
@@ -80,16 +80,16 @@ Z += 7      # COMPILER ERROR!! Z is non-reassignable.
 ```
 
 You can also make a variable non-reassignable for the remainder of the current block
-by using `::` prefix before the variable name.
+by using `::` after the variable name.
 
 ```
 X; int = 4  # defined as reassignable
 
 if SomeCondition
-    ::X = 7 # locks X after assigning it.
+    X:: = 7 # locks X after assigning it.
             # For the remainder of this indented block, you can use X but not reassign it
 else
-    ::X     # lock X to whatever value it was for this block.
+    X::     # lock X to whatever value it was for this block.
             # You can still use X but not reassign it.
 
 print(X)    # will either be 7 (if SomeCondition was true) or 4 (if !SomeCondition)
@@ -128,9 +128,32 @@ vector2 := (X: dbl, Y: dbl)
 Vector2 := vector2(X: 5, Y: 10)
 ```
 
+## nested reassignable fields, and how to deeply lock
+
 TODO: do we want to allow type definitions with mutable fields, e.g. (X; int, Y; dbl)
 probably ok for function arguments, but need to be careful with hash stability.
 e.g., (X: int, Y: int) can be used as a hash-table key, but (X; int, Y; int) cannot.
+
+```
+# vector2 has two reassignable fields, X and Y:
+vector2 := (X; dbl, Y; dbl)
+
+Vec2: vector2 = (X: 5, Y: 3)
+# you can change X and Y, but not reassign Vec2 (i.e., pointer stability)
+Vec2 = vector2(X: 6, Y: 3)  # COMPILE ERROR
+Vec2.X += 4                 # OK
+Vec2.Y -= 1                 # OK
+
+AnotherVec2; vector2 = (X: 3, Y: 4)
+AnotherVec2 = vector2(X: 6, Y: 3)   # OK
+AnotherVec2.X += 4                  # OK
+AnotherVec2.Y -= 1                  # OK
+```
+
+TODO: This difference is annoying between : and ;.  ideally we would have one declaration,
+with the const or non-const being explicit.  If const is present, then the object is
+deeply immutable (and non-reassignable), otherwise the object is mutable (and reassignable).
+Having deeply immutable and non-reassignable being different means the language is a bit confusing.
 
 ## hiding variables for the remainder of the block
 
@@ -510,6 +533,10 @@ ClassInstance := genericClass(Key: 5, Value: "hello")
 OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
 # note the passed-in values will be converted into the correct type.
 ```
+
+# modules
+
+TODO: find a better syntax for importing a module.  `math.sqrt` isn't good
 
 
 # standard container classes (and helpers)
