@@ -33,8 +33,8 @@ TODO: support for `u128` to `u512`, as well as `i128` to `i512`
 # declaring and using variables
 
 Variables are named using `UpperCamelCase` identifiers.  The `:` symbol is used
-to declare non-reassignable variables, and `;` is used to declare reassignable
-variables.
+to declare deeply constant, non-reassignable variables, and `;` is used to declare
+mutable, reassignable variables.
 
 ```
 # declaring and setting a non-reassignable variable that holds a big integer
@@ -45,6 +45,7 @@ Y: int = 5
 print(Y * 30)
 
 Y = 123     # COMPILER ERROR, Y is non-reassignable.
+Y += 3      # COMPILER ERROR, Y is deeply constant.
 ```
 
 Reassignable variables can use `VariableName = Expression` after their first
@@ -67,30 +68,21 @@ W ;= int(7)
 
 ## temporarily locking non-reassignable variables
 
-You can define variables which cannot be reassigned, but note that if the
-type is more complicated (i.e., with nested fields), a non-reassignable
-property does not necessarily mean that the variable is deeply constant.
-I.e., object instances are deeply immutable, but class instances are not.
+TODO: see if there's a better syntax for this.
+
+You can also make a variable non-reassignable and deeply constant
+for the remainder of the current block by using `;:` after the variable name.
 
 ```
-# declaring and setting a non-reassignable variable that holds a big integer
-Z := 10     # or `Z := int(10)` if you want to be explicit
-
-Z += 7      # COMPILER ERROR!! Z is non-reassignable.
-```
-
-You can also make a variable non-reassignable for the remainder of the current block
-by using `::` after the variable name.
-
-```
-X; int = 4  # defined as reassignable
+X; int = 4  # defined as mutable and reassignable
 
 if SomeCondition
-    X:: = 7 # locks X after assigning it.
+    X;: = 7 # locks X after assigning it.
             # For the remainder of this indented block, you can use X but not reassign it
+            # you also can't use mutable, i.e., non-const, methods on X.
 else
-    X::     # lock X to whatever value it was for this block.
-            # You can still use X but not reassign it.
+    X;:     # lock X to whatever value it was for this block.
+            # You can still use X but not reassign/mutate it.
 
 print(X)    # will either be 7 (if SomeCondition was true) or 4 (if !SomeCondition)
 X += 5      # can modify X back in this block; there are no constraints here.
@@ -98,12 +90,12 @@ X += 5      # can modify X back in this block; there are no constraints here.
 
 ## nested/object types
 
-You can declare an object type inline with nested fields.  Objects defined
-like this are immutable; i.e., their fields are non-reassignable.
+You can declare an object type inline with nested fields.  The nested fields defined
+with `:` are immutable, and `;` are mutable.
 
 ```
 Vector; (X: dbl, Y: dbl, Z: dbl) = (X: 4, Y: 3, Z: 1.5)
-Vector.X += 4   # COMPILER ERROR, object is immutable
+Vector.X += 4   # COMPILER ERROR, field `X` of object is immutable
 
 # note however, as defined, Vector is reassignable since it was defined with `;`:
 Vector = (X: 1, Y: 7.2)
@@ -122,38 +114,43 @@ Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is non-reassignable
 You can define a type/interface for objects you use multiple times.
 
 ```
-vector2 := (X: dbl, Y: dbl)
+vector3 := (X: dbl, Y: dbl, Z: dbl)
 
 # you can use `vector2` now like any other type, e.g.:
-Vector2 := vector2(X: 5, Y: 10)
+Vector3 := vector3(X: 5, Y: 10)
 ```
 
 ## nested reassignable fields, and how to deeply lock
 
-TODO: do we want to allow type definitions with mutable fields, e.g. (X; int, Y; dbl)
-probably ok for function arguments, but need to be careful with hash stability.
-e.g., (X: int, Y: int) can be used as a hash-table key, but (X; int, Y; int) cannot.
+We can also allow type definitions with mutable fields, e.g. `(X; int, Y; dbl)`.
+Depending on how the variable is defined, however, you may not be able to change
+the fields once they are set.  If you define the variable with `;`, then you
+can reassign the variable or modify the mutable fields.  But if you define the
+variable with `:`, the object is deeply constant, regardless of the field definitions.
 
 ```
 # vector2 has two reassignable fields, X and Y:
 vector2 := (X; dbl, Y; dbl)
 
-Vec2: vector2 = (X: 5, Y: 3)
-# you can change X and Y, but not reassign Vec2 (i.e., pointer stability)
-Vec2 = vector2(X: 6, Y: 3)  # COMPILE ERROR
-Vec2.X += 4                 # OK
-Vec2.Y -= 1                 # OK
+# when defined with `;`, the object is mutable and reassignable.
+MutableVec2; vector2 = (X: 3, Y: 4)
+MutableVec2 = vector2(X: 6, Y: 3)   # OK
+MutableVec2.X += 4                  # OK
+MutableVec2.Y -= 1                  # OK
 
-AnotherVec2; vector2 = (X: 3, Y: 4)
-AnotherVec2 = vector2(X: 6, Y: 3)   # OK
-AnotherVec2.X += 4                  # OK
-AnotherVec2.Y -= 1                  # OK
+# when defined with `:`, the object is deeply constant, so its fields cannot be changed:
+ImmutableVec2: vector2 = (X: 5, Y: 3)    # note you can use : when defining.
+ImmutableVec2 = vector2(X: 6, Y: 3)  # COMPILE ERROR, ImmutableVec2 is non-reassignable
+ImmutableVec2.X += 4                 # COMPILE ERROR, ImmutableVec2 is deeply constant
+ImmutableVec2.Y -= 1                 # COMPILE ERROR, ImmutableVec2 is deeply constant
 ```
 
-TODO: This difference is annoying between : and ;.  ideally we would have one declaration,
-with the const or non-const being explicit.  If const is present, then the object is
-deeply immutable (and non-reassignable), otherwise the object is mutable (and reassignable).
-Having deeply immutable and non-reassignable being different means the language is a bit confusing.
+When used as a map key, objects with nested fields become deeply constant,
+regardless of whether the internal fields were defined with `;` or `:`.
+I.e., the object is defined as if with a `:`.
+This is because we need key stability inside a map; we're not allowed
+to change the key or it could change places inside the map and collide
+with an existing key.
 
 ## hiding variables for the remainder of the block
 
@@ -179,6 +176,10 @@ v() := 600
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
     print("X = ${X}, Y = ${Y}, atan(Y, X) = ${math.atan(X, Y)}")
+    # Note this could also be defined more concisely using $$,
+    # which also prints the expression inside the parentheses with an equal sign and its value,
+    # although this will print `math.atan(X, Y) = ...`, e.g.:
+    # print("$${X}, $${Y}, $${math.atan(X, Y)}")
 
 # function that takes a function as an argument and returns a function
 wow(Input.fn(): string): fn(): int
@@ -186,10 +187,27 @@ wow(Input.fn(): string): fn(): int
         return Input.fn().size()
 ```
 
+## constant versus mutable arguments
+
+Functions can be defined with mutable or immutable arguments, but that does
+not change the function signature (see section on function overloads).
+The important difference is that arguments defined with `;` must be copied
+in from the outside (unless the external variable is already a temporary),
+whereas arguments defined with `:` can be referenced without a copy.  This
+is because arguments defined with `;` can be modified inside the function,
+and they should not modify any variables outside of the function, even if
+they are passed in.  Examples:
+
+```
+TODO
+```
+
 ## calling a function
 
 You can call functions with arguments in any order.  Arguments must be specified
-with the named identifiers in the function definition.
+with the named identifiers in the function definition.  The only exception is
+if the argument is "unnamed" (i.e., it has the same name as the type), then you
+don't need to specify its name.  We'll discuss that more in the next section.
 
 ```
 # definition:
@@ -210,10 +228,10 @@ TODO: Check if the syntax works out
 We also allow calling functions without parentheses for a single argument, like this:
 
 ```
-print(String)   # definition
+print(String): null     # definition, using an "unnamed" string, e.g., `String: string`.
 
 # example calls:
-print("Hello, world!")  # with parentheses
+print("Hello, world!")  # with parentheses, and without explicitly naming the variable
 print "Hello, world!"   # without
 ```
 
@@ -235,7 +253,7 @@ v 100, X: 10
 
 For functions with a single argument where the variable name doesn't matter,
 you can use "unnamed" variables.  For primitive types, the "unnamed" identifier
-is just the UpperCamelCase version of the lowerCamelCase type.
+is just the `UpperCamelCase` version of the `lowerCamelCase` type.
 
 ```
 # this function declaration is equivalent to `f(Int: int): int`:
@@ -316,9 +334,9 @@ greetings(To: "you", Say: "Hi")
 greetings(Times: 5, Say: "Hey", To: "Sam")
 ```
 
-Note that you can define the function arguments as reassignable (with `;`) or
-non-reassignable (with `:`) but that does **not** change the type of function.
-Whether the variables can be reassigned inside the function does not matter
+Note that you can define the function arguments as mutable (with `;`) or
+immutable (with `:`) but that does **not** change the type of function.
+Whether the variables can be mutated inside the function does not matter
 to the interface between function and caller.
 
 ```
@@ -331,7 +349,8 @@ greetings(Say; string): null
     Say += " wow"
     print "${Say}, world..."
 
-# COMPILE ERROR
+# COMPILE ERROR, function overloads of `greetings` only differ in mutability of arguments;
+# argument names must be unique in this case.
 ```
 
 Note also, overloads must be distinguishable based on argument **names**, not types.
@@ -351,7 +370,7 @@ fibonacci(Times: dbl): dbl
     OtherRatio: dbl = (1.0 - math.sqrt(5)) * 0.5
     return (GoldenRatio^Times - OtherRatio^Times) / math.sqrt(5)
 
-# COMPILE ERROR
+# COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 ```
 
 ## function templates/generics
@@ -411,8 +430,10 @@ print(Example.doSomething(7))   # should print 12
 Example = exampleClass(X: 7)    # note: variable can be reassigned.
 Example.X -= 3                  # internal fields can be reassigned as well.
 
+# note that if you define an instance of the class as immutable, you can only operate
+# on the class with functions that do not mutate it.
 ConstVar := exampleClass(X: 2)
-ConstVar.X += 3                 # internal fields can be reassigned
+ConstVar.X += 3                 # COMPILER ERROR! `ConstVar` is deeply constant.
 ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 ```
 
