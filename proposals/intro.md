@@ -648,13 +648,13 @@ array := class @type (object) (
     ...
     # always returns a non-null type, resizing the array to
     # add default-initialized values if necessary:
-    This[Index: index]: type
+    This[Index; index]; type
         ...
     size(): index
         ...
-    append(Type: type)
+    append(Type;): null
         ...
-    pop(Index: index = -1)
+    pop(Index: index = -1): type
         ...
     ...
 )
@@ -673,13 +673,13 @@ map := class @(key, value) (object) (
     ...
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
-    This[Key]: value
+    This[Key]; value
         ...
     size(): index
         ...
-    set()
+    set(Key;, Value;): null
         ...
-    pop(Key)
+    pop(Key): value
         ...
     ...
 )
@@ -703,13 +703,16 @@ print(NameDatabase[123.4])  # prints "John" with 60% probability, "Jane" with 40
 
 # note that the definition of the key is an immutable array; it's a compile error if the
 # mutable version of the array is used:
-# TODO: maybe switch to using named inputs/outputs (i.e., capitalized),
-# e.g. `StackDatabase[IntS]: String`
 StackDatabase[[]:int]; string
 StackDatabase[[1,2,3]] = "stack123"
 StackDatabase[[1,2,4]] = "stack124"
 print(StackDatabase[[1.0, 2.0, 3.1]])   # prints "stack123" with 90% probability, "stack124" with 10%
 # things get more complicated, of course, if all array elements are non-integer.
+# the array is cast to the key type ([]:int) first.
+StackDatabase[[2.2, 3.5, 4.8]] = "odd"
+# result could be stored in [2, 3, 4], [2, 3, 5], [2, 4, 4], [2, 4, 5],
+#                           [3, 3, 4], [3, 3, 5], [3, 4, 4], [3, 4, 5]
+# but the key is decided first, then the map is added to.
 ```
 
 ## sets
