@@ -241,7 +241,7 @@ greetings = fn(Noun: string); null
 # option 2:
 greetings = "Greetings, ${$Noun}!"
 # NOT OK: COMPILE ERROR: this looks like a redeclaration of the function, rather than a reassignment:
-greetings(Noun: string; null
+greetings(Noun: string); null
     print "Overwriting?"
 ```
 
