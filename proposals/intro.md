@@ -195,12 +195,45 @@ The important difference is that arguments defined with `;` must be copied
 in from the outside (unless the external variable is already a temporary),
 whereas arguments defined with `:` can be referenced without a copy.  This
 is because arguments defined with `;` can be modified inside the function,
-and they should not modify any variables outside of the function, even if
+but they should not modify any variables outside of the function, even if
 they are passed in.  Examples:
 
 ```
-TODO
+# this function makes a copy of whatever string is passed in:
+copiedArgumentFunction(CopyMe; string): string
+    CopyMe += "!!??"    # OK since CopyMe is defined as mutable via `;`.
+    print(CopyMe)
+    return CopyMe
+
+# this function just references whatever string is passed in (no copy):
+reffedArgumentFunction(Ref: string): string
+    print(ReferenceMe)
+    return ReferenceMe + "??!!"
+
+MyValue: string = "immutable"
+copiedArgumentFunction(CopyMe: MyValue) # prints "immutable!!??"
+print(MyValue)                          # prints "immutable"
+reffedArgumentFunction(Ref: MyValue)    # prints "immutable??!!"
+print(MyValue)                          # prints "immutable"
+
+Mutable; string = "mutable"
+copiedArgumentFunction(CopyMe: Mutable) # prints "mutable!!??"
+print(Mutable)                          # prints "mutable"
+reffedArgumentFunction(Ref: Mutable)    # prints "mutable??!!"
+print(Mutable)                          # prints "mutable"
 ```
+
+The reason that the `;` or `:` argument definition doesn't change the function
+signature is because in either case, the variables passed in from the outside
+are not affected by the internal parts of the function.  That is, the function
+cannot modify the external variables at all.
+
+TODO: figure out how to pass in an object pointer so that you can modify
+an object variable from the outside.  we could try to force these all
+to be object methods (e.g., on a class), but people might need it.
+Maybe define a method-type function: `someObjectType.myMethod(args...): returnType`
+which allows you to operate on an instance of `someObjectType` inside.
+Or maybe allow it based on the return type.
 
 ## calling a function
 
