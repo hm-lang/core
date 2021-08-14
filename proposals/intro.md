@@ -610,10 +610,37 @@ TODO: find a better syntax for importing a module.  `math.sqrt` isn't good
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
-implicitly define an array using the notation `VariableName: type[]`,
-e.g. `MyArray: int[]` or `MyArray: array@(int)` for an integer array.
+implicitly define an immutable array using the notation `VariableName[]: type1`
+or `VariableName: []: type1`, or explicitly using `array@type1` for the type `type1`.
+E.g. `MyArray[]: int`, `MyArray: []:int`, or `MyArray: array@int` for an integer array.
+The mutable versions are `VariableName[]; type1`, `VariableName; []; type1`, or
+`VariableName; array@type1`.
 
-TODO: we might define `int[]` internally as a contiguous deque.
+The unnamed version of an array of some type `type1` is `Type1S`,
+which you can read as `Type1`s (plural) or `Type1` + `S` (for stack -- archaic
+word for array).  Example usage and declarations:
+
+```
+# this is an immutable array:
+MyArray[]: dbl = [1.2, 3, 4.5]      # converts all to dbl
+MyArray.append(5)   # COMPILE ERROR: MyArray is immutable
+MyArray[1] += 5     # COMPILE ERROR: MyArray is immutable
+
+# the rest are mutable:
+[]; int         # an "unnamed" `IntS` array, which we can mutate.
+IntS.append(5)  # now IntS == [5]
+IntS[3] += 30   # now IntS == [5, 0, 0, 30]
+IntS[4] = 300   # now IntS == [5, 0, 0, 30, 300]
+IntS[2] -= 5    # now IntS == [5, 0, -5, 30, 300]
+
+StringS[]; string = ["hi", "there"] # also "unnamed", but the variable name is explicit.
+print(StringS.pop())                # prints "there".  now StringS == ["hi"]
+
+SuperArray; [];int
+```
+
+TODO: we might define `array` internally as a contiguous deque, so that
+we can pop or insert into the beginning at O(1)
 
 ```
 # some relevant pieces of the class definition
@@ -637,8 +664,8 @@ array := class @type (object) (
 
 A hash map can look up elements by key in O(1) time.  You can use the explicit
 way to define a map, e.g., `VariableName: map@(key: keyType, value: valueType)`,
-or you can use the implicit method, `VariableName: valueType[keyType]`.  E.g.,
-for a map from integers to strings, you can use: `MyMap: string[int]`.
+or you can use the implicit method, `VariableName[keyType]: valueType`.  E.g.,
+for a map from integers to strings, you can use: `MyMap[int]: string`.
 
 ```
 # some relevant pieces of the class definition
@@ -659,22 +686,26 @@ map := class @(key, value) (object) (
 ```
 
 Maps require a key type whose instances can hash to an integer or string-like value.
-E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `dbl[]`).
+E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array @dbl`).
 
 ```
-DblDatabase; dbl[int]       # OK, int is an OK key type
-DblDblDatabase; dbl[dbl]    # COMPILE ERROR, dbl is an invalid key type.
+DblDatabase[int]; dbl       # OK, int is an OK key type
+DblDblDatabase[dbl]; dbl    # COMPILE ERROR, dbl is an invalid key type.
 ```
 
 However, we allow casting from these prohibited types to allowed key types.  For example:
 
 ```
-NameDatabase; string[int]
+NameDatabase[int]; string
 NameDatabase[123] = "John"
 NameDatabase[124] = "Jane"
 print(NameDatabase[123.4])  # prints "John" with 60% probability, "Jane" with 40%.
 
-StackDatabase; string[int[]]
+# note that the definition of the key is an immutable array; it's a compile error if the
+# mutable version of the array is used:
+# TODO: maybe switch to using named inputs/outputs (i.e., capitalized),
+# e.g. `StackDatabase[IntS]: String`
+StackDatabase[[]:int]; string
 StackDatabase[[1,2,3]] = "stack123"
 StackDatabase[[1,2,4]] = "stack124"
 print(StackDatabase[[1.0, 2.0, 3.1]])   # prints "stack123" with 90% probability, "stack124" with 10%
