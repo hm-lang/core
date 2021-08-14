@@ -129,6 +129,8 @@ Vector2 := vector2(X: 5, Y: 10)
 ```
 
 TODO: do we want to allow type definitions with mutable fields, e.g. (X; int, Y; dbl)
+probably ok for function arguments, but need to be careful with hash stability.
+e.g., (X: int, Y: int) can be used as a hash-table key, but (X; int, Y; int) cannot.
 
 ## hiding variables for the remainder of the block
 
@@ -136,7 +138,8 @@ TODO.  descopes/destructs if the variable was declared in that block.
 
 # declaring, defining, and using a function
 
-Functions are named using `lowerCamelCase` identifiers.
+Functions are named using `lowerCamelCase` identifiers.  All functions
+must return something, and `null` is a valid return type.  (There is no "void" type.)
 
 ```
 # declaring a function with no arguments that returns a big integer
@@ -145,6 +148,10 @@ v(): int
 # setting/defining/initializing the function usually requires an indent+1 block following:
 v(): int
     return 600
+
+# but in simple cases like this you can also define inline:
+# TODO: Double check this is OK
+v() := 600
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
@@ -232,10 +239,10 @@ greetings(Noun: "World")
 greetings = fn(Noun: string); null
     print "Hi, ${Noun}!"
 # option 2:
-greetings(Noun: string); null
-    print "Hey, ${Noun}!"
-# option 3:
 greetings = "Greetings, ${$Noun}!"
+# NOT OK: COMPILE ERROR: this looks like a redeclaration of the function, rather than a reassignment:
+greetings(Noun: string; null
+    print "Overwriting?"
 ```
 
 ## function overloads
