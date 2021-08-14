@@ -24,6 +24,18 @@ and similarly for `i8` to `i64`, using two's complement.  For example,
 
 TODO: support for `u128` to `u512`, as well as `i128` to `i512`
 
+## casting between types
+
+The default rounding behavior for `dbl` (or `flt`) to `int` is to use stochastic rounding.
+This rounds 0.7 to 1 with probability 70% and to 0 with probability 30%, and similarly
+for other values (using the fractional part to determine the probability weights).
+
+```
+X: dbl = 5.43
+Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
+```
+
+
 ## optional types
 
 ```
@@ -644,6 +656,29 @@ map := class @(key, value) (object) (
         ...
     ...
 )
+```
+
+Maps require a key type whose instances can hash to an integer or string-like value.
+E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `dbl[]`).
+
+```
+DblDatabase; dbl[int]       # OK, int is an OK key type
+DblDblDatabase; dbl[dbl]    # COMPILE ERROR, dbl is an invalid key type.
+```
+
+However, we allow casting from these prohibited types to allowed key types.  For example:
+
+```
+NameDatabase; string[int]
+NameDatabase[123] = "John"
+NameDatabase[124] = "Jane"
+print(NameDatabase[123.4])  # prints "John" with 60% probability, "Jane" with 40%.
+
+StackDatabase; string[int[]]
+StackDatabase[[1,2,3]] = "stack123"
+StackDatabase[[1,2,4]] = "stack124"
+print(StackDatabase[[1.0, 2.0, 3.1]])   # prints "stack123" with 90% probability, "stack124" with 10%
+# things get more complicated, of course, if all array elements are non-integer.
 ```
 
 ## sets
