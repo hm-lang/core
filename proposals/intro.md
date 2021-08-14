@@ -163,6 +163,8 @@ wow(Input.fn(): string): fn(): int
         return Input.fn().size()
 ```
 
+## calling a function
+
 You can call functions with arguments in any order.  Arguments must be specified
 with the named identifiers in the function definition.
 
@@ -177,9 +179,34 @@ v(Y: 3, Y: 5.4)
 # if you already have variables X and Y, you don't need to re-specify their names:
 X := 5.4
 Y := 3
-v(X, Y)     # preferred.  also ok: `v(X: X, Y: Y)` but not idiomatic.
+v(X, Y)     # equivalent to `v(X: X, Y: Y)` but the redundancy is not idiomatic.
 v(Y, X)     # equivalent
 ```
+
+TODO: Check if the syntax works out
+We also allow calling functions without parentheses for a single argument, like this:
+
+```
+print(String)   # definition
+
+# example calls:
+print("Hello, world!")  # with parentheses
+print "Hello, world!"   # without
+```
+
+To specify multiple arguments, one must use parentheses to avoid ambiguity.
+However, if you are specifying a single, named argument, you can avoid using parentheses.
+
+```
+v(X: dbl, Int): null    # definition
+
+v 100       # executes v(X: 0.0, Int: 100)
+v X: 5      # executes v(X: 5, Int: 0)
+
+# COMPILE ERROR: need parentheses here, since commas bind less strongly than function-spaces:
+v 100, X: 10
+```
+
 
 ## unnamed arguments in functions
 
@@ -307,10 +334,12 @@ fibonacci(Times: dbl): dbl
 ## function templates/generics
 
 You can create template functions which can work for a variety of types
-using the `@(types...)` phrase after a function name.
+using the syntax `@(type1, type2, ...)` or `@type` (for just one generic type) 
+after a function name.
 
 ```
-log @(type) (Type): type
+# declaration equivalent to `log @(type) (Type); type`:
+log @type (Type): type
     print("got ${Type}")
     return Type
 
@@ -320,10 +349,14 @@ Result := log(Vector3)  # prints "got vector3(X: 0, Y: 5, Z: 0)".
 Vector3 == Result       # equals True
 
 # implicit type request:
-OtherResult := log(5)   # prints "got 5" and returns 5.
+OtherResult := log(5)   # prints "got 5" and returns the integer 5.
+
+# explicit generic request:
+DblResult := log @dbl (5)   # prints "got 5.0" and returns 5.0
 
 # explicit type request:
-DblResult := log @(dbl) (5)   # prints "got 5.0" and returns 5.0
+AnotherDblResult := log(dbl(4)) # prints "got 4.0" and returns 4.0
+# can also use `log dbl(4)` above or `log dbl 4` with function chaining.
 ```
 
 # declaring and using a class
@@ -472,7 +505,7 @@ genericClass := class @(key, value) (object) (
 
 # creating an instance using type inference:
 ClassInstance := genericClass(Key: 5, Value: "hello")
-
+ 
 # creating an instance with template/generic types specified:
 OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
 # note the passed-in values will be converted into the correct type.
@@ -491,7 +524,7 @@ TODO: we might define `int[]` internally as a contiguous deque.
 
 ```
 # some relevant pieces of the class definition
-array := class @(type) (
+array := class @type (object) (
     ...
     # always returns a non-null type, resizing the array to
     # add default-initialized values if necessary:
@@ -516,7 +549,7 @@ for a map from integers to strings, you can use: `MyMap: string[int]`.
 
 ```
 # some relevant pieces of the class definition
-map := class @(key, value) (
+map := class @(key, value) (object) (
     ...
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
@@ -539,7 +572,7 @@ TODO
 ## iterator
 
 ```
-iterator := class @(type) (
+iterator := class @type (object) (
     next(): type?
     previous?(): type?
     # returns next value of iterator without incrementing the iterator.
