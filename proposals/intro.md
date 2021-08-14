@@ -648,14 +648,16 @@ array := class @type (object) (
     ...
     # always returns a non-null type, resizing the array to
     # add default-initialized values if necessary:
-    This[Index; index]; type
-        ...
+    # TODO: maybe switch to getters and setters:
+    # `This[Index;](): value` and `This[Index;](Value;): value`
+    This[Index; index]: gate@type
+
     size(): index
-        ...
+
     append(Type;): null
-        ...
+
     pop(Index: index = -1): type
-        ...
+
     ...
 )
 ```
@@ -673,7 +675,9 @@ map := class @(key, value) (object) (
     ...
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
-    This[Key]; value
+    # TODO: maybe switch to getters and setters:
+    # `This[Key](): value` and `This[Key](Value;): value`
+    This[Key]: gate@value
         ...
     size(): index
         ...
