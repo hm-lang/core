@@ -207,8 +207,8 @@ copiedArgumentFunction(CopyMe; string): string
 
 # this function just references whatever string is passed in (no copy):
 reffedArgumentFunction(Ref: string): string
-    print(ReferenceMe)
-    return ReferenceMe + "??!!"
+    print(Ref)
+    return Ref + "??!!"
 
 MyValue: string = "immutable"
 copiedArgumentFunction(CopyMe: MyValue) # prints "immutable!!??"
