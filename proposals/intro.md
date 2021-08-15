@@ -611,6 +611,9 @@ E.g. `MyArray[]: int`, `MyArray: []:int`, or `MyArray: array@int` for an integer
 The mutable versions are `VariableName[]; type1`, `VariableName; []; type1`, or
 `VariableName; array@type1`.
 
+TODO: maybe use _ for an indexing operator.  `ArrayName_: int` and `ArrayName_5 = 3`
+for a map, the syntax would be `MapName_keyType: valueType`
+
 The unnamed version of an array of some type `type1` is `Type1S`,
 which you can read as `Type1`s (plural) or `Type1` + `S` (for stack -- archaic
 word for array).  Example usage and declarations:
@@ -730,3 +733,12 @@ iterator: class @type (object)
     # present only if underlying container supports inserting a new element (before `peak()`)
     insert?(Type): null
 ```
+
+# grammar/syntax
+
+* `lowerCamelCase`: identifier which starts with a lowercase alphabetical character.
+* `UpperCamelCase`: identifier which starts with an uppercase alphabetical character.
+
+
+TODO: support internationalization.  do we really require Upper/lower+CamelCase for variables/functions?
+or is the syntax unambiguous enough to not need them?
