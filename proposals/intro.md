@@ -425,7 +425,7 @@ using the syntax `@(type1, type2, ...)` or `@type` (for just one generic type)
 after a function name.
 
 ```
-# declaration equivalent to `log @(type) (Type); type`:
+# declaration equivalent to `log @(type) (Type): type`:
 log @type (Type): type
     print("got ${Type}")
     return Type
@@ -671,6 +671,7 @@ for a map from integers to strings, you can use: `MyMap[int]: string`.
 
 ```
 # some relevant pieces of the class definition
+# TODO: rethink class syntax, maybe remove () from indented block, it doesn't seem to fit.
 map := class @(key, value) (object) (
     ...
     # always returns a non-null type, adding
