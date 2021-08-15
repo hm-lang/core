@@ -425,35 +425,36 @@ using the syntax `@(type1, type2, ...)` or `@type` (for just one generic type)
 after a function name.
 
 ```
-# declaration equivalent to `log @(type) (Type): type`:
-log @type (Type): type
+# declaration equivalent to `logger @(type) (Type): type`:
+logger @type (Type): type
     print("got ${Type}")
     return Type
 
 vector3 := (X: dbl, Y: dbl, Z: dbl)
 Vector3 := vector3(Y: 5)
-Result := log(Vector3)  # prints "got vector3(X: 0, Y: 5, Z: 0)".
-Vector3 == Result       # equals True
+Result := logger(Vector3)   # prints "got vector3(X: 0, Y: 5, Z: 0)".
+Vector3 == Result           # equals True
 
 # implicit type request:
-OtherResult := log(5)   # prints "got 5" and returns the integer 5.
+OtherResult := logger(5)    # prints "got 5" and returns the integer 5.
 
 # explicit generic request:
-DblResult := log @dbl (5)   # prints "got 5.0" and returns 5.0
+DblResult := logger @dbl (5)    # prints "got 5.0" and returns 5.0
 
 # explicit type request:
-AnotherDblResult := log(dbl(4)) # prints "got 4.0" and returns 4.0
-# can also use `log dbl(4)` above or `log dbl 4` with function chaining.
+AnotherDblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
+# can also use `logger dbl(4)` above or `logger dbl 4` with function spaces.
 ```
 
 # declaring and using a class
 
-A class is defined with the `class` keyword with a `lowerCamelCase` identifier.
+A class is defined with the `class` keyword and a `lowerCamelCase` identifier.
 Class definitions must be constant/non-reassignable, so they are declared using
-the `:=` symbols.
+the `:` symbol.
+TODO: maybe allow {} to be optional enclosing braces.
 
 ```
-exampleClass := class(object)(
+exampleClass: class(object)
     # class instance variables can be defined here:
     X; int
 
@@ -468,7 +469,6 @@ exampleClass := class(object)(
         This.X = X
 
     # or short-hand: `reset(This.X: int)` will automatically set `This.X` to the passed in `X`.
-)
 
 Example; exampleClass = (X: 5)  # also equivalent, `Example ;= exampleClass(X: 5)`
 print(Example.doSomething(7))   # should print 12
@@ -487,7 +487,7 @@ ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 You can define parent-child class relationships like this.
 
 ```
-animal := class(object)(
+animal: class(object)
     reset(This.Name: string): null
 
     # define two methods on `animal`: `speak` and `go`.
@@ -499,9 +499,8 @@ animal := class(object)(
     # derived classes can still change it, though.
     escape(): null
         print "${Name} ${goes()} away!!"
-)
 
-snake := class(animal)(
+snake: class(animal)
     # if no `reset` functions are defined,
     # child classes will inherit their parent `reset()` methods.
 
@@ -509,12 +508,11 @@ snake := class(animal)(
         print "hisss!"
     goes(): string
         return "slithers"
-)
 
 Snake := snake(Name: "Fred")
 Snake.escape()  # prints "Fred slithers away!!"
 
-cat := class(animal)(
+cat: class(animal)
     # here we define a `reset` method, so the parent `reset` methods
     # become hidden to users of this child class:
     reset(): null
@@ -528,7 +526,6 @@ cat := class(animal)(
 
     escape(): null
         print "CAT ESCAPES DARINGLY!"
-)
 
 Cat := cat()
 Cat.escape()    # prints "CAT ESCAPES DARINGLY!"
@@ -560,13 +557,12 @@ WeirdAnimal.escape()    # prints "Waberoo ... meanders ... meanders back ... mea
 You can define methods on your class that work for a variety of types.
 
 ```
-someExample := class(object)(
+someExample: class(object)
     Value: int
     reset(Int): null
         This.Value = Int
     to @(type) (): type
         return type(Value)
-)
 
 SomeExample := someExample(5)
 
@@ -588,9 +584,8 @@ from a parent which is a generic/template class.
 
 ```
 # create a class with two generic types, `key` and `value`:
-genericClass := class @(key, value) (object) (
+genericClass: class @(key, value) (object)
     reset(This.Key: key, This.Value: value): null
-)
 
 # creating an instance using type inference:
 ClassInstance := genericClass(Key: 5, Value: "hello")
@@ -644,7 +639,7 @@ we can pop or insert into the beginning at O(1)
 
 ```
 # some relevant pieces of the class definition
-array := class @type (object) (
+array: class @type (object)
     ...
     # always returns a non-null type, resizing the array to
     # add default-initialized values if necessary:
@@ -659,7 +654,6 @@ array := class @type (object) (
     pop(Index: index = -1): type
 
     ...
-)
 ```
 
 ## hash maps
@@ -671,9 +665,7 @@ for a map from integers to strings, you can use: `MyMap[int]: string`.
 
 ```
 # some relevant pieces of the class definition
-# TODO: rethink class syntax, maybe remove () from indented block, it doesn't seem to fit.
-map := class @(key, value) (object) (
-    ...
+map: class @(key, value) (object)
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # TODO: maybe switch to getters and setters:
@@ -687,7 +679,6 @@ map := class @(key, value) (object) (
     pop(Key): value
         ...
     ...
-)
 ```
 
 Maps require a key type whose instances can hash to an integer or string-like value.
@@ -727,7 +718,7 @@ TODO
 ## iterator
 
 ```
-iterator := class @type (object) (
+iterator: class @type (object)
     next(): type?
     previous?(): type?
     # returns next value of iterator without incrementing the iterator.
@@ -738,5 +729,4 @@ iterator := class @type (object) (
     remove?(): type?
     # present only if underlying container supports inserting a new element (before `peak()`)
     insert?(Type): null
-)
 ```
