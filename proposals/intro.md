@@ -608,34 +608,39 @@ TODO: find a better syntax for importing a module.  `math.sqrt` isn't good
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
-implicitly define an immutable array using the notation `VariableName[]: type1`,
-or explicitly using `array@type1` for the type `type1`.
-E.g. `MyArray[]: int` or `MyArray: array@int` for an integer array.
-The mutable versions are `VariableName[]; type1` or `VariableName; array@type1`.
+define an immutable array explicitly using the notation `array@elementType`
+for the type `elementType`, or implicitly with the subscript operator, `_`
+(AKA "key" or "indexing" operator), using the notation `VariableName: elementType_`.
+E.g. `MyArray: int_` or `MyArray: array@int` for an integer array.
+The mutable versions of course use `;` instead of `:`.
 
-TODO: maybe use _ for an indexing operator.  `ArrayName_: int` and `ArrayName_5 = 3`
-for a map, the syntax would be `MapName_keyType: valueType`
-Standalone type could be `ArrayName: elementType_` and `MapName: valueType_keyType`
+Side note: as we will see, the subscript operator is usually a binary operator, i.e.,
+requiring two operands, `A _ B`, read "A subscript B".  We make an exception for the
+array type not to require a second operand -- in fact, adding one would create a
+different type, the map type.
 
-The unnamed version of an array of some type `type1` is `Type1S`,
-which you can read as `Type1`s (plural) or `Type1` + `S` (for stack -- archaic
-word for array).  Example usage and declarations:
+TODO: rethink ~ being the capitalization of _:
+
+The unnamed version of an array of some type `elementType` is `ElementType~`,
+which you can read as `ElementType`s (plural) or `ElementType` + `S` (for stack
+AKA array).  Example usage and declarations:
 
 ```
 # this is an immutable array:
-MyArray[]: dbl = [1.2, 3, 4.5]      # converts all to dbl
+MyArray: dbl_ = [1.2, 3, 4.5]       # converts all to dbl
 MyArray.append(5)   # COMPILE ERROR: MyArray is immutable
-MyArray[1] += 5     # COMPILE ERROR: MyArray is immutable
+MyArray_1 += 5      # COMPILE ERROR: MyArray is immutable
 
-# the rest are mutable:
-[]; int         # an "unnamed" `IntS` array, which we can mutate.
-IntS.append(5)  # now IntS == [5]
-IntS[3] += 30   # now IntS == [5, 0, 0, 30]
-IntS[4] = 300   # now IntS == [5, 0, 0, 30, 300]
-IntS[2] -= 5    # now IntS == [5, 0, -5, 30, 300]
+# mutable integer array:
+Int~;           # declaring a mutable, "unnamed" integer array, e.g. `Int~: int_`
+Int~.append(5)  # now Int~ == [5]
+Int~_3 += 30    # now Int~ == [5, 0, 0, 30]
+Int~_4 = 300    # now Int~ == [5, 0, 0, 30, 300]
+Int~_2 -= 5     # now Int~ == [5, 0, -5, 30, 300]
 
-StringS[]; string = ["hi", "there"] # also "unnamed", but the variable name is explicit.
-print(StringS.pop())                # prints "there".  now StringS == ["hi"]
+# mutable string array:
+StringArray; string_ = ["hi", "there"]
+print(StringArray.pop())    # prints "there".  now StringArray == ["hi"]
 ```
 
 TODO: we might define `array` internally as a contiguous deque, so that
@@ -648,8 +653,10 @@ array: class @type ()
     # always returns a non-null type, resizing the array to
     # add default-initialized values if necessary:
     # TODO: maybe switch to getters and setters:
-    # `This[Index;](): value` and `This[Index;](Value;): value`
-    This[Index; index]: gate@type
+    # `This_(Index;): value` and `This_(Index;, Value;): value`
+    # but then we'd have to figure out const ref vs. mutable on the return side as well.
+    # TODO: figure out const-ref and mutable with function return types, maybe via pointers.
+    This_(Index; index): gate@type
 
     size(): index
 
@@ -664,8 +671,16 @@ array: class @type ()
 
 A hash map can look up elements by key in O(1) time.  You can use the explicit
 way to define a map, e.g., `VariableName: map@(key: keyType, value: valueType)`,
-or you can use the implicit method, `VariableName[keyType]: valueType`.  E.g.,
-for a map from integers to strings, you can use: `MyMap[int]: string`.
+or you can use the implicit method with the subscript operator (`_`),
+`VariableName: valueType_keyType`.  You can read the operator `_` as "keyed by",
+e.g., `valueType_keyType` as "`valueType` keyed by `keyType`".  For example,
+for a map from integers to strings, you can use: `MyMap: int_string`.
+
+For simple types, one can create the "unnamed" version of a map using the
+"capitalization" of the `_` operator, `~`.  E.g., `String~Int` is the default
+variable name for the `string_int` map type (from integers to strings).
+Like `_`, `~` is read as "keyed by" in this case, so that `String~Int` is
+"String keyed by Int".
 
 ```
 # some relevant pieces of the class definition
@@ -673,8 +688,8 @@ map: class @(key, value) ()
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # TODO: maybe switch to getters and setters:
-    # `This[Key](): value` and `This[Key](Value;): value`
-    This[Key]: gate@value
+    # `This_(Key): value` and `This_(Key, Value;): value`
+    This_(Key): gate@value
         ...
     size(): index
         ...
@@ -689,28 +704,27 @@ Maps require a key type whose instances can hash to an integer or string-like va
 E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array @dbl`).
 
 ```
-DblDatabase[int]; dbl       # OK, int is an OK key type
-DblDblDatabase[dbl]; dbl    # COMPILE ERROR, dbl is an invalid key type.
+DblDatabase; dbl_int        # OK, int is an OK key type
+DblDblDatabase; dbl_dbl     # COMPILE ERROR, dbl is an invalid key type.
 ```
 
 However, we allow casting from these prohibited types to allowed key types.  For example:
 
 ```
-NameDatabase[int]; string
-NameDatabase[123] = "John"
-NameDatabase[124] = "Jane"
+NameDatabase; string_int
+NameDatabase_123 = "John"
+NameDatabase_124 = "Jane"
 print(NameDatabase[123.4])  # prints "John" with 60% probability, "Jane" with 40%.
 
 # note that the definition of the key is an immutable array; it's a compile error if the
 # mutable version of the array is used:
-# TODO: fix notation here.  maybe [int] for an integer array?
-StackDatabase[[]:int]; string
-StackDatabase[[1,2,3]] = "stack123"
-StackDatabase[[1,2,4]] = "stack124"
-print(StackDatabase[[1.0, 2.0, 3.1]])   # prints "stack123" with 90% probability, "stack124" with 10%
+StackDatabase; string_(int_)    # parentheses are grammatically unnecessary, subscripts go right to left
+StackDatabase_[1,2,3] = "stack123"
+StackDatabase_[1,2,4] = "stack124"
+print(StackDatabase_[1.0, 2.0, 3.1])    # prints "stack123" with 90% probability, "stack124" with 10%
 # things get more complicated, of course, if all array elements are non-integer.
 # the array is cast to the key type (integer array) first.
-StackDatabase[[2.2, 3.5, 4.8]] = "odd"
+StackDatabase_[2.2, 3.5, 4.8] = "odd"
 # result could be stored in [2, 3, 4], [2, 3, 5], [2, 4, 4], [2, 4, 5],
 #                           [3, 3, 4], [3, 3, 5], [3, 4, 4], [3, 4, 5]
 # but the key is decided first, then the map is added to.
