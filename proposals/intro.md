@@ -737,6 +737,7 @@ TODO
 ## iterator
 
 ```
+# TODO: consider switching back to `iterator := class@type()` style.
 iterator: class @type ()
     next(): type?
     previous?(): type?
