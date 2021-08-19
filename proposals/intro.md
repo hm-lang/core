@@ -126,7 +126,9 @@ Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is non-reassignable
 You can define a type/interface for objects you use multiple times.
 
 ```
-vector3 := (X: dbl, Y: dbl, Z: dbl)
+# a plain-old-data class with 3 non-reassignable fields, X, Y, Z:
+# TODO: maybe use vector3: class(X: ...)
+vector3: (X: dbl, Y: dbl, Z: dbl)
 
 # you can use `vector2` now like any other type, e.g.:
 Vector3 := vector3(X: 5, Y: 10)
@@ -142,7 +144,8 @@ variable with `:`, the object is deeply constant, regardless of the field defini
 
 ```
 # vector2 has two reassignable fields, X and Y:
-vector2 := (X; dbl, Y; dbl)
+# TODO: maybe use vector2: class(X: ...)
+vector2: (X; dbl, Y; dbl)
 
 # when defined with `;`, the object is mutable and reassignable.
 MutableVec2; vector2 = (X: 3, Y: 4)
@@ -454,7 +457,7 @@ the `:` symbol.
 TODO: maybe allow {} to be optional enclosing braces.
 
 ```
-exampleClass: class(object)
+exampleClass: class()
     # class instance variables can be defined here:
     X; int
 
@@ -487,7 +490,7 @@ ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 You can define parent-child class relationships like this.
 
 ```
-animal: class(object)
+animal: class()
     reset(This.Name: string): null
 
     # define two methods on `animal`: `speak` and `go`.
@@ -557,7 +560,7 @@ WeirdAnimal.escape()    # prints "Waberoo ... meanders ... meanders back ... mea
 You can define methods on your class that work for a variety of types.
 
 ```
-someExample: class(object)
+someExample: class()
     Value: int
     reset(Int): null
         This.Value = Int
@@ -584,7 +587,7 @@ from a parent which is a generic/template class.
 
 ```
 # create a class with two generic types, `key` and `value`:
-genericClass: class @(key, value) (object)
+genericClass: class @(key, value) ()
     reset(This.Key: key, This.Value: value): null
 
 # creating an instance using type inference:
@@ -605,14 +608,14 @@ TODO: find a better syntax for importing a module.  `math.sqrt` isn't good
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
-implicitly define an immutable array using the notation `VariableName[]: type1`
-or `VariableName: []: type1`, or explicitly using `array@type1` for the type `type1`.
-E.g. `MyArray[]: int`, `MyArray: []:int`, or `MyArray: array@int` for an integer array.
-The mutable versions are `VariableName[]; type1`, `VariableName; []; type1`, or
-`VariableName; array@type1`.
+implicitly define an immutable array using the notation `VariableName[]: type1`,
+or explicitly using `array@type1` for the type `type1`.
+E.g. `MyArray[]: int` or `MyArray: array@int` for an integer array.
+The mutable versions are `VariableName[]; type1` or `VariableName; array@type1`.
 
 TODO: maybe use _ for an indexing operator.  `ArrayName_: int` and `ArrayName_5 = 3`
 for a map, the syntax would be `MapName_keyType: valueType`
+Standalone type could be `ArrayName: elementType_` and `MapName: valueType_keyType`
 
 The unnamed version of an array of some type `type1` is `Type1S`,
 which you can read as `Type1`s (plural) or `Type1` + `S` (for stack -- archaic
@@ -633,8 +636,6 @@ IntS[2] -= 5    # now IntS == [5, 0, -5, 30, 300]
 
 StringS[]; string = ["hi", "there"] # also "unnamed", but the variable name is explicit.
 print(StringS.pop())                # prints "there".  now StringS == ["hi"]
-
-SuperArray; [];int
 ```
 
 TODO: we might define `array` internally as a contiguous deque, so that
@@ -642,7 +643,7 @@ we can pop or insert into the beginning at O(1)
 
 ```
 # some relevant pieces of the class definition
-array: class @type (object)
+array: class @type ()
     ...
     # always returns a non-null type, resizing the array to
     # add default-initialized values if necessary:
@@ -668,7 +669,7 @@ for a map from integers to strings, you can use: `MyMap[int]: string`.
 
 ```
 # some relevant pieces of the class definition
-map: class @(key, value) (object)
+map: class @(key, value) ()
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # TODO: maybe switch to getters and setters:
@@ -702,12 +703,13 @@ print(NameDatabase[123.4])  # prints "John" with 60% probability, "Jane" with 40
 
 # note that the definition of the key is an immutable array; it's a compile error if the
 # mutable version of the array is used:
+# TODO: fix notation here.  maybe [int] for an integer array?
 StackDatabase[[]:int]; string
 StackDatabase[[1,2,3]] = "stack123"
 StackDatabase[[1,2,4]] = "stack124"
 print(StackDatabase[[1.0, 2.0, 3.1]])   # prints "stack123" with 90% probability, "stack124" with 10%
 # things get more complicated, of course, if all array elements are non-integer.
-# the array is cast to the key type ([]:int) first.
+# the array is cast to the key type (integer array) first.
 StackDatabase[[2.2, 3.5, 4.8]] = "odd"
 # result could be stored in [2, 3, 4], [2, 3, 5], [2, 4, 4], [2, 4, 5],
 #                           [3, 3, 4], [3, 3, 5], [3, 4, 4], [3, 4, 5]
@@ -721,7 +723,7 @@ TODO
 ## iterator
 
 ```
-iterator: class @type (object)
+iterator: class @type ()
     next(): type?
     previous?(): type?
     # returns next value of iterator without incrementing the iterator.
