@@ -619,8 +619,6 @@ requiring two operands, `A _ B`, read "A subscript B".  We make an exception for
 array type not to require a second operand -- in fact, adding one would create a
 different type, the map type.
 
-TODO: rethink ~ being the capitalization of _:
-
 The unnamed version of an array of some type `elementType` is `ElementType~`,
 which you can read as `ElementType`s (plural) or `ElementType` + `S` (for stack
 AKA array).  Example usage and declarations:
@@ -643,8 +641,9 @@ StringArray; string_ = ["hi", "there"]
 print(StringArray.pop())    # prints "there".  now StringArray == ["hi"]
 ```
 
-TODO: we might define `array` internally as a contiguous deque, so that
-we can pop or insert into the beginning at O(1)
+The default implementation of `array` might be internally a contiguous deque,
+so that we can pop or insert into the beginning at O(1).  We might reserve
+`stack` for a contiguous list that grows in one direction only.
 
 ```
 # some relevant pieces of the class definition
@@ -714,7 +713,7 @@ However, we allow casting from these prohibited types to allowed key types.  For
 NameDatabase; string_int
 NameDatabase_123 = "John"
 NameDatabase_124 = "Jane"
-print(NameDatabase[123.4])  # prints "John" with 60% probability, "Jane" with 40%.
+print(NameDatabase_123.4)   # prints "John" with 60% probability, "Jane" with 40%.
 
 # note that the definition of the key is an immutable array; it's a compile error if the
 # mutable version of the array is used:
@@ -732,7 +731,25 @@ StackDatabase_[2.2, 3.5, 4.8] = "odd"
 
 ## sets
 
-TODO
+A set contains some elements, and makes checking for the existence of an element within
+fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certain properties
+(e.g., integer/string-like).  The syntax to define a set is `VariableName: set@elementType`
+to be explicit or `VariableName: _elementType` using the subscript operator `_` on the
+opposite side of the array type (i.e., the array looks like `arrayElementType_`).
+
+
+set: class @type ()
+    # returns true if the passed-in element is present in the set.
+    This_(Type): bool
+        ...
+    size(): index
+        ...
+    This += (Type;): null
+        ...
+    pop(): type
+        ...
+    ...
+```
 
 ## iterator
 
