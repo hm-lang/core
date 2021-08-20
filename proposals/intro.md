@@ -452,10 +452,9 @@ AnotherDblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
 A class is defined with the `class` keyword and a `lowerCamelCase` identifier.
 Class definitions must be constant/non-reassignable, so they are declared using
 the `:` symbol.
-TODO: maybe allow {} to be optional enclosing braces.
 
 ```
-exampleClass := class()
+exampleClass := class() {
     # class instance variables can be defined here:
     X; int
 
@@ -470,6 +469,7 @@ exampleClass := class()
         This.X = X
 
     # or short-hand: `reset(This.X: int)` will automatically set `This.X` to the passed in `X`.
+}
 
 Example; exampleClass = (X: 5)  # also equivalent, `Example ;= exampleClass(X: 5)`
 print(Example.doSomething(7))   # should print 12
@@ -488,7 +488,7 @@ ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 You can define parent-child class relationships like this.
 
 ```
-animal := class()
+animal := class() {
     reset(This.Name: string): null
 
     # define two methods on `animal`: `speak` and `go`.
@@ -500,8 +500,9 @@ animal := class()
     # derived classes can still change it, though.
     escape(): null
         print "${Name} ${goes()} away!!"
+}
 
-snake := class(animal)
+snake := class(animal) {
     # if no `reset` functions are defined,
     # child classes will inherit their parent `reset()` methods.
 
@@ -509,11 +510,12 @@ snake := class(animal)
         print "hisss!"
     goes(): string
         return "slithers"
+}
 
 Snake := snake(Name: "Fred")
 Snake.escape()  # prints "Fred slithers away!!"
 
-cat := class(animal)
+cat := class(animal) {
     # here we define a `reset` method, so the parent `reset` methods
     # become hidden to users of this child class:
     reset(): null
@@ -527,6 +529,7 @@ cat := class(animal)
 
     escape(): null
         print "CAT ESCAPES DARINGLY!"
+}
 
 Cat := cat()
 Cat.escape()    # prints "CAT ESCAPES DARINGLY!"
@@ -538,6 +541,8 @@ All abstract methods must be defined for the instance to be created, and if a
 (i.e., which is the default constructor) should be defined for the lambda class.
 
 ```
+# TODO: lambda functions defined using `functionName(args...) := returnValueStatement`
+# if that is ok with syntax/grammar.
 WeirdAnimal := animal(
     Name: "Waberoo"
     speak(): null
@@ -558,12 +563,13 @@ WeirdAnimal.escape()    # prints "Waberoo ... meanders ... meanders back ... mea
 You can define methods on your class that work for a variety of types.
 
 ```
-someExample := class()
+someExample := class() {
     Value: int
     reset(Int): null
         This.Value = Int
     to @(type) (): type
         return type(Value)
+}
 
 SomeExample := someExample(5)
 
@@ -585,8 +591,13 @@ from a parent which is a generic/template class.
 
 ```
 # create a class with two generic types, `key` and `value`:
-genericClass := class @(key, value) ()
+genericClass := class @(key, value) () {
     reset(This.Key: key, This.Value: value): null
+}
+# if this class is just POD, you can use the equivalent type:
+# genericClass := @(key, value) (Key: key, Value: value)
+# TODO: allow specifying generics inline, e.g. `genericClass := (Key: @key, Value: @value)`,
+# or `genericClass := (@Key, @Value)` for short.
 
 # creating an instance using type inference:
 ClassInstance := genericClass(Key: 5, Value: "hello")
@@ -645,7 +656,7 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 
 ```
 # some relevant pieces of the class definition
-array := class @type ()
+array := class @type () {
     ...
     # always returns a non-null type, resizing the array to
     # add default-initialized values if necessary:
@@ -662,6 +673,7 @@ array := class @type ()
     pop(Index: index = -1): type
 
     ...
+}
 ```
 
 ## hash maps
@@ -681,7 +693,7 @@ Like `_`, `~` is read as "keyed by" in this case, so that `String~Int` is
 
 ```
 # some relevant pieces of the class definition
-map := class @(key, value) ()
+map := class @(key, value) () {
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # TODO: maybe switch to getters and setters:
@@ -695,6 +707,7 @@ map := class @(key, value) ()
     pop(Key): value
         ...
     ...
+}
 ```
 
 Maps require a key type whose instances can hash to an integer or string-like value.
@@ -736,7 +749,7 @@ to be explicit or `VariableName: _elementType` using the subscript operator `_` 
 opposite side of the array type (i.e., the array looks like `arrayElementType_`).
 
 ```
-set := class @type ()
+set := class @type () {
     # returns true if the passed-in element is present in the set.
     This_(Type): bool
         ...
@@ -748,12 +761,13 @@ set := class @type ()
     pop(): type
         ...
     ...
+}
 ```
 
 ## iterator
 
 ```
-iterator := class @type ()
+iterator := class @type () {
     next(): type?
     previous?(): type?
     # returns next value of iterator without incrementing the iterator.
@@ -764,13 +778,30 @@ iterator := class @type ()
     remove?(): type?
     # present only if underlying container supports inserting a new element (before `peak()`)
     insert?(Type): null
+}
 ```
 
 # grammar/syntax
 
-* `lowerCamelCase`: identifier which starts with a lowercase alphabetical character.
+* `LowerCamelCase`: identifier which starts with a lowercase alphabetical character.
 * `UpperCamelCase`: identifier which starts with an uppercase alphabetical character.
 
+```
+# TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
+ClassDefinition := sequence([
+    keyword("class")
+    optional(TemplateArguments)
+    list(LowerCamelCase)    # parent class names
+    parentheses(Block)
+])
+
+# a list encompasses things like (), (TokenMatcher), (TokenMatcher, TokenMatcher), etc.,
+# but also lists with newlines if properly tabbed.
+list(TokenMatcher) := parentheses(fn(EndParen):
+    until(EndParen, repeat(CheckExit):
+        TokenMatcher CheckExit CommaOrBlockNewline
+    )
+)
 
 TODO: support internationalization.  do we really require Upper/lower+CamelCase for variables/functions?
 or is the syntax unambiguous enough to not need them?
