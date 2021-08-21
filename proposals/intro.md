@@ -943,7 +943,12 @@ Array_0 normalize() Z -= 0.5
 
 ```
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
-ClassDefinition := sequence([
+ClassDeclaration := sequence([
+    LowerCamelCase
+    oneOf([
+        operator(":=")
+        compileError(IfMatch: operator(";="), "Use := to declare classes")
+    ])
     keyword("class")
     optional(TemplateArguments)
     list(LowerCamelCase)    # parent class names
@@ -955,13 +960,31 @@ ClassDefinition := sequence([
 list(TokenMatcher) := parentheses(fn(EndParen) := until(
     EndParen
     repeat(CheckExit) := sequence([
-        TokenMatcher, CheckExit, CommaOrBlockNewline
+        TokenMatcher, CheckExit, CommaOrBlockNewline, CheckExit
     ])
 ))
 
+===
+# e.g.
+for Variable: variableType < UpperBoundExclusive
+    ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
+# or
+for Variable: variableType <= UpperBoundInclusive
+    ... use Variable from 0 to floor(UpperBoundInclusive) ...
+# TODO: support starting value, or just variable names
+Variable; variableType = 5
+for Variable;: < UpperBoundExclusive
+    ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
+# starting at number in the for loop
+for Variable := StartingValue, Variable < UpperBoundExclusive
+    ... use Variable from StartingValue ...
+===
 ForLoop := sequence([
     keyword("for")
-    TODO
+    VariableDeclaration
+    oneOf([operator("<"), operator("<=")])
+    Expression
+    Block
 ])
 
 TODO: support internationalization.  do we really require Upper/lower+CamelCase for variables/functions?
