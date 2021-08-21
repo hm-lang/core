@@ -45,29 +45,29 @@ Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 
 TODO: add ; : ,
 
-| Precedence| Operator  | Type/Usage        | Associativity | Name                      |
-|:---------:|:---------:|:-----------------:|:-------------:|:--------------------------|
-|   1       |   `_`     | binary: `A_B`     | RTL           | subscript/index/key       |
-|           |   `^`     | binary: `A^B`     | RTL           | superscript/power         |
-|           |   `^^`    | on fn: `a^^B(X)`  | RTL           | repeated application      |
-|   2       |   `[ ]`   | binary: `A B`     | RTL           | function call             |
-|   3       |   `&`     | binary: `A&B`     | LTR           | bitwise AND               |
-|           |   `\|`    | binary: `A\|B`    | LTR           | bitwise OR                |
-|           |   `><`    | binary: `A><B`    | LTR           | bitwise XOR               |
-|           |   `<>`    | unary:  `<>A`     | LTR           | bitwise flip              |
-|           |   `>>`    | binary: `A>>B`    | LTR           | bitwise right shift       |
-|           |   `<<`    | binary: `A<<B`    | LTR           | bitwise left shift        |
-|   4       |   `*`     | binary: `A*B`     | LTR           | multiply                  |
-|           |   `/`     | binary: `A/B`     | LTR           | divide                    |
-|           |   `//`    | binary: `A//B`    | LTR           | integer divide            |
-|   5       |   `+`     | binary: `A+B`     | LTR           | add                       |
-|           |   `-`     | binary: `A-B`     | LTR           | subtract                  |
-|   6       |   `==`    | binary: `A==B`    | LTR           | equality                  |
-|           |   `!=`    | binary: `A!=B`    | LTR           | inequality                |
-|   7       |   `&&`    | binary: `A&&B`    | LTR           | logical AND               |
-|           |  `\|\|`   | binary: `A\|\|B`  | LTR           | logical OR                |
-|   8       |   `=`     | binary: `A = B`   | LTR           | assignment                |
-|           |  `???=`   | binary: `A += B`  | LTR           | compound assignment       |
+| Precedence| Operator  | Name                      | Type/Usage        | Associativity |
+|:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
+|   1       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
+|           |   `^`     | superscript/power         | binary: `A^B`     |               |
+|           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
+|   2       |   `[ ]`   | function call             | binary: `A B`     | RTL           |
+|   3       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
+|           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
+|           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
+|           |   `<>`    | bitwise flip              | unary:  `<>A`     |               |
+|           |   `>>`    | bitwise right shift       | binary: `A>>B`    |               |
+|           |   `<<`    | bitwise left shift        | binary: `A<<B`    |               |
+|   4       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
+|           |   `/`     | divide                    | binary: `A/B`     |               |
+|           |   `//`    | integer divide            | binary: `A//B`    |               |
+|   5       |   `+`     | add                       | binary: `A+B`     | LTR           |
+|           |   `-`     | subtract                  | binary: `A-B`     |               |
+|   6       |   `==`    | equality                  | binary: `A==B`    | LTR           |
+|           |   `!=`    | inequality                | binary: `A!=B`    |               |
+|   7       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
+|           |  `\|\|`   | logical OR                | binary: `A\|\|B`  |               |
+|   8       |   `=`     | assignment                | binary: `A = B`   | LTR           |
+|           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 
 # declaring and using variables
 
