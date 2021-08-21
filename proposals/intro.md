@@ -173,6 +173,9 @@ TODO.  descopes/destructs if the variable was declared in that block.
 
 Functions are named using `lowerCamelCase` identifiers.  All functions
 must return something, and `null` is a valid return type.  (There is no "void" type.)
+TODO: Probably it's ok to avoid writing in the `null` return type; if no
+return type is specified, `null` is assumed, unless we writing an inline function
+where we can infer the return argument value immediately.
 
 ```
 # declaring a function with no arguments that returns a big integer
@@ -183,7 +186,6 @@ v(): int
     return 600
 
 # but in simple cases like this you can also define inline:
-# TODO: Double check this is OK
 v() := 600
 
 # function with X,Y double-precision float arguments that returns nothing
@@ -195,6 +197,8 @@ v(X: dbl, Y: dbl): null
     # print("$${X}, $${Y}, $${math.atan(X, Y)}")
 
 # function that takes a function as an argument and returns a function
+# TODO: input function must be scoped to survive however long `wow` can be called;
+# how do we want to do closure??
 wow(Input.fn(): string): fn(): int
     return fn(): int
         return Input.fn().size()
@@ -834,6 +838,44 @@ for Special; int < 5
 # prints "A: 0", "B: 1", "A: 3" "B: 4"
 ```
 
+# pointers/references
+
+TODO:
+How do we allow modifying an external instance inside a function?
+Do we use pointers?  (e.g., repurpose `@` for a pointer type?)
+Do we figure out a different way to reference an existing instance?
+
+E.g., for an array of some object type:
+```
+vector3 := class() {
+    X; dbl
+    Y; dbl
+    Z; dbl
+    norm() := math.sqrt(X^2 + Y^2 + Z^2)
+    # TODO: not sure about this syntax
+    normalize(): ref@this
+        Norm := norm()
+        assert(Norm > 1e-8)
+        X /= Norm
+        Y /= Norm
+        Z /= Norm
+        return This
+}
+
+# normalize can be chained:
+R1 := vector3(1, 2, 3).normalize()
+
+# but when used inside an array, will the changes affect the array element?
+Array; vector3_
+Array_0 = {X: 5} 
+Array_0 .normalize() .Z -= 0.5
+# e.g., does Array_0 now equal vector3(X: 1, Z: -0.5) ??
+
+# TODO: think a bit about how . works with numbers and subscripting.
+# is there a better way to drill down into a nested field/method of an object?
+# e.g., SomeObjectInstance someMethod(...), Vector3 X + Vector3 Y, etc.
+```
+
 # grammar/syntax
 
 * `LowerCamelCase`: identifier which starts with a lowercase alphabetical character.
@@ -850,11 +892,17 @@ ClassDefinition := sequence([
 
 # a list encompasses things like (), (TokenMatcher), (TokenMatcher, TokenMatcher), etc.,
 # but also lists with newlines if properly tabbed.
-list(TokenMatcher) := parentheses(fn(EndParen):
-    until(EndParen, repeat(CheckExit):
-        TokenMatcher CheckExit CommaOrBlockNewline
-    )
-)
+list(TokenMatcher) := parentheses(fn(EndParen) := until(
+    EndParen
+    repeat(CheckExit) := sequence([
+        TokenMatcher, CheckExit, CommaOrBlockNewline
+    ])
+))
+
+ForLoop := sequence([
+    keyword("for")
+    TODO
+])
 
 TODO: support internationalization.  do we really require Upper/lower+CamelCase for variables/functions?
 or is the syntax unambiguous enough to not need them?
