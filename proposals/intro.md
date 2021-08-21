@@ -709,7 +709,7 @@ OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
 Each file corresponds to its own module, with type `hm`.  You can import neighboring
 files with the syntax `RelativeModule := hm("relative/path/to/file.hm")`, optionally
 with the file extension (`.hm`) removed.  You can also use a prefix `/` to access a
-library path, e.g., `LibraryModule := hm("/library/path/to/file").  After import, you can 
+library path, e.g., `LibraryModule := hm("/library/path/to/file")`.  After import, you can 
 use public classes and functions defined in the file using member access syntax.
 
 ```
@@ -735,8 +735,8 @@ and in either case `\` for subsequent directory separators.  In this
 case, we require not using the ".hm" extension.
 
 ```
-# importing a file from a relative path:
-print(\path\to\relative\file methodFromFile("hello, world!"))
+# importing a function from a file in a relative path:
+print(\path\to\relative\file functionFromFile("hello, world!"))
 
 # importing a function from the math library:
 Angle := \\math atan2(X: 5, Y: -3)
