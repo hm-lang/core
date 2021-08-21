@@ -294,6 +294,34 @@ v X: 5      # executes v(X: 5, Int: 0)
 v 100, X: 10
 ```
 
+A function can have a function as an argument, and there are a few different ways to call
+it in that case.
+```
+# finds the integer input that produces "hello, world!" from the passed-in function, or -1
+# if it can't find it.
+detect(greet(Int): string): int
+    for Check: int < 100
+        if greet(Check) == "hello, world!"
+            return Check
+    return -1
+
+# if your function is named the same as the function argument, you can use it directly:
+greet(Int): string
+    return "hay"
+detect(greet)       # returns -1
+
+# if your function is not named the same, you can do argument renaming;
+# internally this does not create a new function:
+sayHi(Int): string
+    return "hello, world" + "!" * Int
+detect(greet: sayHi)    # returns 1
+
+# you can also create a lambda function named correctly inline -- the function
+# will not be available outside, after this call (it's scoped to the function arguments).
+detect(greet(Int): string
+    return "hello, world!!!!".substring(Length: Int)
+)   # returns 13
+```
 
 ## unnamed arguments in functions
 
@@ -783,6 +811,27 @@ iterator := class @type () {
     # present only if underlying container supports inserting a new element (before `peak()`)
     insert?(Type): null
 }
+```
+
+# standard flow constructs
+
+TODO -- description, plus `consider+case` and `if/else/elif`
+```
+# for-loop with counter that is immutable inside the for-loop's block:
+for Value: int < 10
+    # Value goes from 0 to 9 by 1;
+    # Value is not allowed to be mutated (defined with :).
+    # trying to mutate it throws a compiler error.
+    print Value
+# prints "0" to "9" on separate newlines.
+
+# for-loop whose counter can be modified inside the block.
+for Special; int < 5
+    print("A: ${Special}")
+    ++Special
+    print("B: ${Special}")
+    ++Special
+# prints "A: 0", "B: 1", "A: 3" "B: 4"
 ```
 
 # grammar/syntax
