@@ -45,12 +45,15 @@ Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 
 TODO: add ; : ,
 
+TODO: see if member access needs to be LTR
+
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
 |   1       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
 |           |   `^`     | superscript/power         | binary: `A^B`     |               |
 |           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
-|   2       |   `[ ]`   | function call             | binary: `A B`     | RTL           |
+|   2       |   `[ ]`   | function call             | on fn: `a B`      | RTL           |
+|           |   `[ ]`   | member access             | binary: `A B`     |               |
 |   3       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
 |           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
 |           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
@@ -134,19 +137,19 @@ with `:` are immutable, and `;` are mutable.
 
 ```
 Vector; (X: dbl, Y: dbl, Z: dbl) = (X: 4, Y: 3, Z: 1.5)
-Vector.X += 4   # COMPILER ERROR, field `X` of object is immutable
+Vector X += 4   # COMPILER ERROR, field `X` of object is immutable
 
 # note however, as defined, Vector is reassignable since it was defined with `;`:
 Vector = (X: 1, Y: 7.2)
 # note, missing fields will be default-initialized.
-Vector.Z == 0   # should be True.
+Vector Z == 0   # should be True.
 
 # to make an object variable non-reassignable, use := when defining:
 Vector2 := (X: 3.75, Y: 3.25)
 # or you can use `:` with an explicit type specifier and then `=`:
 Vector2: (X: dbl, Y: dbl) = (X: 3.75, Y: 3.25)
 # then these operations are invalid:
-Vector2.X += 3          # COMPILER ERROR, object is immutable
+Vector2 X += 3          # COMPILER ERROR, object is immutable
 Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is non-reassignable
 ```
 
@@ -175,14 +178,14 @@ vector2 := (X; dbl, Y; dbl)
 # when defined with `;`, the object is mutable and reassignable.
 MutableVec2; vector2 = (X: 3, Y: 4)
 MutableVec2 = vector2(X: 6, Y: 3)   # OK
-MutableVec2.X += 4                  # OK
-MutableVec2.Y -= 1                  # OK
+MutableVec2 X += 4                  # OK
+MutableVec2 Y -= 1                  # OK
 
 # when defined with `:`, the object is deeply constant, so its fields cannot be changed:
 ImmutableVec2: vector2 = (X: 5, Y: 3)    # note you can use : when defining.
 ImmutableVec2 = vector2(X: 6, Y: 3)  # COMPILE ERROR, ImmutableVec2 is non-reassignable
-ImmutableVec2.X += 4                 # COMPILE ERROR, ImmutableVec2 is deeply constant
-ImmutableVec2.Y -= 1                 # COMPILE ERROR, ImmutableVec2 is deeply constant
+ImmutableVec2 X += 4                 # COMPILE ERROR, ImmutableVec2 is deeply constant
+ImmutableVec2 Y -= 1                 # COMPILE ERROR, ImmutableVec2 is deeply constant
 ```
 
 When used as a map key, objects with nested fields become deeply constant,
@@ -217,18 +220,18 @@ v() := 600
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
-    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${math.atan(X, Y)}")
+    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${math atan(X, Y)}")
     # Note this could also be defined more concisely using $$,
     # which also prints the expression inside the parentheses with an equal sign and its value,
-    # although this will print `math.atan(X, Y) = ...`, e.g.:
-    # print("$${X}, $${Y}, $${math.atan(X, Y)}")
+    # although this will print `math atan(X, Y) = ...`, e.g.:
+    # print("$${X}, $${Y}, $${math atan(X, Y)}")
 
 # function that takes a function as an argument and returns a function
 # TODO: input function must be scoped to survive however long `wow` can be called;
 # how do we want to do closure??
-wow(Input.fn(): string): fn(): int
+wow(Input fn(): string): fn(): int
     return fn(): int
-        return Input.fn().size()
+        return Input fn() size()
 ```
 
 ## constant versus mutable arguments
@@ -275,7 +278,7 @@ cannot modify the external variables at all.
 TODO: figure out how to pass in an object pointer so that you can modify
 an object variable from the outside.  we could try to force these all
 to be object methods (e.g., on a class), but people might need it.
-Maybe define a method-type function: `someObjectType.myMethod(args...): returnType`
+Maybe define a method-type function: `someObjectType;;myMethod(args...): returnType`
 which allows you to operate on an instance of `someObjectType` inside.
 Or maybe allow it based on the return type.
 
@@ -350,7 +353,7 @@ detect(greet: sayHi)    # returns 1
 # you can also create a lambda function named correctly inline -- the function
 # will not be available outside, after this call (it's scoped to the function arguments).
 detect(greet(Int): string
-    return "hello, world!!!!".substring(Length: Int)
+    return "hello, world!!!!" substring(Length: Int)
 )   # returns 13
 ```
 
@@ -471,9 +474,9 @@ fibonacci(Times: int): int
     return Current
 
 fibonacci(Times: dbl): dbl
-    GoldenRatio: dbl = (1.0 + math.sqrt(5)) * 0.5
-    OtherRatio: dbl = (1.0 - math.sqrt(5)) * 0.5
-    return (GoldenRatio^Times - OtherRatio^Times) / math.sqrt(5)
+    GoldenRatio: dbl = (1.0 + math sqrt(5)) * 0.5
+    OtherRatio: dbl = (1.0 - math sqrt(5)) * 0.5
+    return (GoldenRatio^Times - OtherRatio^Times) / math sqrt(5)
 
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 ```
@@ -525,20 +528,20 @@ exampleClass := class() {
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `reset` function:
     reset(X: int): null
-        This.X = X
+        This X = X
 
-    # or short-hand: `reset(This.X: int)` will automatically set `This.X` to the passed in `X`.
+    # or short-hand: `reset(This X: int)` will automatically set `This X` to the passed in `X`.
 }
 
 Example; exampleClass = (X: 5)  # also equivalent, `Example ;= exampleClass(X: 5)`
-print(Example.doSomething(7))   # should print 12
+print(Example doSomething(7))   # should print 12
 Example = exampleClass(X: 7)    # note: variable can be reassigned.
-Example.X -= 3                  # internal fields can be reassigned as well.
+Example X -= 3                  # internal fields can be reassigned as well.
 
 # note that if you define an instance of the class as immutable, you can only operate
 # on the class with functions that do not mutate it.
 ConstVar := exampleClass(X: 2)
-ConstVar.X += 3                 # COMPILER ERROR! `ConstVar` is deeply constant.
+ConstVar X += 3                 # COMPILER ERROR! `ConstVar` is deeply constant.
 ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 ```
 
@@ -548,7 +551,7 @@ You can define parent-child class relationships like this.
 
 ```
 animal := class() {
-    reset(This.Name: string): null
+    reset(This Name: string): null
 
     # define two methods on `animal`: `speak` and `go`.
     # these are "abstract" methods, i.e., not implemented by this base class.
@@ -572,14 +575,14 @@ snake := class(animal) {
 }
 
 Snake := snake(Name: "Fred")
-Snake.escape()  # prints "Fred slithers away!!"
+Snake escape()  # prints "Fred slithers away!!"
 
 cat := class(animal) {
     # here we define a `reset` method, so the parent `reset` methods
     # become hidden to users of this child class:
     reset(): null
         # can refer to parent methods using class name:
-        animal.reset(Name: "Cat-don't-care-what-you-name-it")
+        animal reset(Name: "Cat-don't-care-what-you-name-it")
 
     speak(): null
         print "hisss!"
@@ -591,7 +594,7 @@ cat := class(animal) {
 }
 
 Cat := cat()
-Cat.escape()    # prints "CAT ESCAPES DARINGLY!"
+Cat escape()    # prints "CAT ESCAPES DARINGLY!"
 ```
 
 All abstract base classes also provide ways to instantiate using lambda functions.
@@ -609,12 +612,12 @@ WeirdAnimal := animal(
     goes(): string
         return "meanders"
     escape(): null
-        animal.escape()
+        animal escape()
         print "${Name} ${goes()} back..."
-        animal.escape()
+        animal escape()
 )
 
-WeirdAnimal.escape()    # prints "Waberoo ... meanders ... meanders back ... meanders away!!"
+WeirdAnimal escape()    # prints "Waberoo ... meanders ... meanders back ... meanders away!!"
 ```
 
 ## template methods
@@ -625,7 +628,7 @@ You can define methods on your class that work for a variety of types.
 someExample := class() {
     Value: int
     reset(Int): null
-        This.Value = Int
+        This Value = Int
     to @(type) (): type
         return type(Value)
 }
@@ -633,13 +636,13 @@ someExample := class() {
 SomeExample := someExample(5)
 
 # you can use type inference here based on variable taking the return value:
-ToString: string = SomeExample.to()
+ToString: string = SomeExample to()
 
 # or you can explicitly ask for the type
-ToDbl := SomeExample.to @(dbl) ()
+ToDbl := SomeExample to @(dbl) ()
 
 # or you can explicitly ask like this:
-To64 := i64(SomeExample.to())
+To64 := i64(SomeExample to())
 ```
 
 ## generic/template classes
@@ -651,7 +654,7 @@ from a parent which is a generic/template class.
 ```
 # create a class with two generic types, `key` and `value`:
 genericClass := class @(key, value) () {
-    reset(This.Key: key, This.Value: value): null
+    reset(This Key: key, This Value: value): null
 }
 # if this class is just POD, you can use the equivalent type:
 # genericClass := @(key, value) (Key: key, Value: value)
@@ -668,7 +671,7 @@ OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
 
 # modules
 
-TODO: find a better syntax for importing a module.  `math.sqrt` isn't good
+TODO: find a better syntax for importing a module.  `math sqrt` isn't good
 
 
 # standard container classes (and helpers)
@@ -694,19 +697,19 @@ AKA array).  Example usage and declarations:
 ```
 # this is an immutable array:
 MyArray: dbl_ = [1.2, 3, 4.5]       # converts all to dbl
-MyArray.append(5)   # COMPILE ERROR: MyArray is immutable
+MyArray append(5)   # COMPILE ERROR: MyArray is immutable
 MyArray_1 += 5      # COMPILE ERROR: MyArray is immutable
 
 # mutable integer array:
 Int~;           # declaring a mutable, "unnamed" integer array, e.g. `Int~; int_`
-Int~.append(5)  # now Int~ == [5]
+Int~ append(5)  # now Int~ == [5]
 Int~_3 += 30    # now Int~ == [5, 0, 0, 30]
 Int~_4 = 300    # now Int~ == [5, 0, 0, 30, 300]
 Int~_2 -= 5     # now Int~ == [5, 0, -5, 30, 300]
 
 # mutable string array:
 StringArray; string_ = ["hi", "there"]
-print(StringArray.pop())    # prints "there".  now StringArray == ["hi"]
+print(StringArray pop())    # prints "there".  now StringArray == ["hi"]
 ```
 
 The default implementation of `array` might be internally a contiguous deque,
@@ -878,7 +881,7 @@ vector3 := class() {
     X; dbl
     Y; dbl
     Z; dbl
-    norm() := math.sqrt(X^2 + Y^2 + Z^2)
+    norm() := math sqrt(X^2 + Y^2 + Z^2)
     # TODO: not sure about this syntax
     normalize(): ref@this
         Norm := norm()
@@ -890,17 +893,13 @@ vector3 := class() {
 }
 
 # normalize can be chained:
-R1 := vector3(1, 2, 3).normalize()
+R1 := vector3(1, 2, 3) normalize()
 
 # but when used inside an array, will the changes affect the array element?
 Array; vector3_
 Array_0 = {X: 5} 
-Array_0 .normalize() .Z -= 0.5
+Array_0 normalize() Z -= 0.5
 # e.g., does Array_0 now equal vector3(X: 1, Z: -0.5) ??
-
-# TODO: think a bit about how . works with numbers and subscripting.
-# is there a better way to drill down into a nested field/method of an object?
-# e.g., SomeObjectInstance someMethod(...), Vector3 X + Vector3 Y, etc.
 ```
 
 # grammar/syntax
