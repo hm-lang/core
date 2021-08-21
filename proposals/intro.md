@@ -683,7 +683,7 @@ way to define a map, e.g., `VariableName: map@(key: keyType, value: valueType)`,
 or you can use the implicit method with the subscript operator (`_`),
 `VariableName: valueType_keyType`.  You can read the operator `_` as "keyed by",
 e.g., `valueType_keyType` as "`valueType` keyed by `keyType`".  For example,
-for a map from integers to strings, you can use: `MyMap: int_string`.
+for a map from integers to strings, you can use: `MyMap: string_int`.
 
 For simple types, one can create the "unnamed" version of a map using the
 "capitalization" of the `_` operator, `~`.  E.g., `String~Int` is the default
