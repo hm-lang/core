@@ -65,7 +65,7 @@ TODO: add ; : ,
 |   6       |   `==`    | binary: `A==B`    | LTR           | equality                  |
 |           |   `!=`    | binary: `A!=B`    | LTR           | inequality                |
 |   7       |   `&&`    | binary: `A&&B`    | LTR           | logical AND               |
-|           |   `||`    | binary: `A||B`    | LTR           | logical OR                |
+|           |  `\|\|`   | binary: `A\|\|B`  | LTR           | logical OR                |
 |   8       |   `=`     | binary: `A = B`   | LTR           | assignment                |
 |           |  `???=`   | binary: `A += B`  | LTR           | compound assignment       |
 
