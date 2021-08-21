@@ -35,12 +35,63 @@ X: dbl = 5.43
 Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 ```
 
-
 ## optional types
 
 ```
 # TODO: do we want `X: int?` or `X: int|null`
 ```
+
+# operators and precedence
+
+Each table's entries have the same level of precedence,
+and tables are ordered by decreasing precedence.
+
+TODO: add ; : ,
+
+| Operator  | Type/Usage        | Associativity | Name                      |
+|:---------:|:-----------------:|:-------------:|:--------------------------|
+|   `_`     | binary: `A_B`     | RTL           | subscript/index/key       |
+|   `^`     | binary: `A^B`     | RTL           | superscript/power         |
+|   `^^`    | on fn: `a^^B(X)`  | RTL           | repeated application      |
+
+| Operator  | Type/Usage        | Associativity | Name                      |
+|:---------:|:-----------------:|:-------------:|:--------------------------|
+|   `[ ]`   | binary: `A B`     | RTL           | function call             |
+
+| Operator  | Type/Usage        | Associativity | Name                      |
+|:---------:|:-----------------:|:-------------:|:--------------------------|
+|   `&`     | binary: `A&B`     | LTR           | bitwise AND               |
+|   `|`     | binary: `A|B`     | LTR           | bitwise OR                |
+|   `><`    | binary: `A><B`    | LTR           | bitwise XOR               |
+|   `<>`    | unary:  `<>A`     | LTR           | bitwise flip              |
+|   `>>`    | binary: `A>>B`    | LTR           | bitwise right shift       |
+|   `<<`    | binary: `A<<B`    | LTR           | bitwise left shift        |
+
+| Operator  | Type/Usage        | Associativity | Name                      |
+|:---------:|:-----------------:|:-------------:|:--------------------------|
+|   `*`     | binary: `A*B`     | LTR           | multiply                  |
+|   `/`     | binary: `A/B`     | LTR           | divide                    |
+|   `//`    | binary: `A//B`    | LTR           | integer divide            |
+
+| Operator  | Type/Usage        | Associativity | Name                      |
+|:---------:|:-----------------:|:-------------:|:--------------------------|
+|   `+`     | binary: `A+B`     | LTR           | add                       |
+|   `-`     | binary: `A-B`     | LTR           | subtract                  |
+
+| Operator  | Type/Usage        | Associativity | Name                      |
+|:---------:|:-----------------:|:-------------:|:--------------------------|
+|   `==`    | binary: `A==B`    | LTR           | equality                  |
+|   `!=`    | binary: `A!=B`    | LTR           | inequality                |
+
+| Operator  | Type/Usage        | Associativity | Name                      |
+|:---------:|:-----------------:|:-------------:|:--------------------------|
+|   `&&`    | binary: `A&&B`    | LTR           | logical AND               |
+|   `||`    | binary: `A||B`    | LTR           | logical OR                |
+
+| Operator  | Type/Usage        | Associativity | Name                      |
+|:---------:|:-----------------:|:-------------:|:--------------------------|
+|   `=`     | binary: `A = B`   | LTR           | assignment                |
+|  `???=`   | binary: `A += B`  | LTR           | compound assignment       |
 
 # declaring and using variables
 
