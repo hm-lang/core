@@ -52,6 +52,7 @@ TODO: see if member access needs to be LTR
 |   1       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
 |           |   `^`     | superscript/power         | binary: `A^B`     |               |
 |           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
+|           |   `\`     | module import             | unary: `\A`       |               |
 |   2       |   `[ ]`   | function call             | on fn: `a B`      | RTL           |
 |           |   `[ ]`   | member access             | binary: `A B`     |               |
 |   3       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
@@ -254,11 +255,11 @@ v() := 600
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
-    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${math atan(X, Y)}")
+    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${\\math atan(X, Y)}")
     # Note this could also be defined more concisely using $$,
     # which also prints the expression inside the parentheses with an equal sign and its value,
-    # although this will print `math atan(X, Y) = ...`, e.g.:
-    # print("$${X}, $${Y}, $${math atan(X, Y)}")
+    # although this will print `\\math atan(X, Y) = ...`, e.g.:
+    # print("$${X}, $${Y}, $${\\math atan(X, Y)}")
 
 # function that takes a function as an argument and returns a function
 # TODO: input function must be scoped to survive however long `wow` can be called;
@@ -508,9 +509,9 @@ fibonacci(Times: int): int
     return Current
 
 fibonacci(Times: dbl): dbl
-    GoldenRatio: dbl = (1.0 + math sqrt(5)) * 0.5
-    OtherRatio: dbl = (1.0 - math sqrt(5)) * 0.5
-    return (GoldenRatio^Times - OtherRatio^Times) / math sqrt(5)
+    GoldenRatio: dbl = (1.0 + \\math sqrt(5)) * 0.5
+    OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
+    return (GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)
 
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 ```
@@ -705,8 +706,41 @@ OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
 
 # modules
 
-TODO: find a better syntax for importing a module.  `math sqrt` isn't good
+Each file corresponds to its own module, with type `hm`.  You can import neighboring
+files with the syntax `RelativeModule := hm("relative/path/to/file.hm")`, optionally
+with the file extension (`.hm`) removed.  You can also use a prefix `/` to access a
+library path, e.g., `LibraryModule := hm("/library/path/to/file").  After import, you can 
+use public classes and functions defined in the file using member access syntax.
 
+```
+# vector2.hm
+vector2 := class() {
+    reset(This X: dbl, This Y: dbl): null
+
+    dot(Vector2: vector2) := X * Vector2 X + Y * Vector2 Y
+}
+
+# main.hm
+Vector2Module := hm("vector2")  # .hm extension can be left off.
+Vector2 := Vector2Module vector2(X: 3, Y: 4)
+print(Vector2)
+# TODO, support destructuring in the future:
+# {vector2} := hm("vector2")
+```
+
+There is an inline notation for importing a neighboring file as well,
+which is recommended for avoiding unnecessary imports.  For this, we
+use backslash `\` for a relative path and `\\` for a library path,
+and in either case `\` for subsequent directory separators.  In this
+case, we require not using the ".hm" extension.
+
+```
+# importing a file from a relative path:
+print(\path\to\relative\file methodFromFile("hello, world!"))
+
+# importing a function from the math library:
+Angle := \\math atan2(X: 5, Y: -3)
+```
 
 # standard container classes (and helpers)
 
@@ -915,7 +949,7 @@ vector3 := class() {
     X; dbl
     Y; dbl
     Z; dbl
-    norm() := math sqrt(X^2 + Y^2 + Z^2)
+    norm() := \\math sqrt(X^2 + Y^2 + Z^2)
     # TODO: not sure about this syntax
     normalize(): ref@this
         Norm := norm()
