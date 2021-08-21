@@ -617,10 +617,10 @@ TODO: find a better syntax for importing a module.  `math.sqrt` isn't good
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
-define an immutable array explicitly using the notation `array@elementType`
+define an array explicitly using the notation `array@elementType`
 for the type `elementType`, or implicitly with the subscript operator, `_`
-(AKA "key" or "indexing" operator), using the notation `VariableName: elementType_`.
-E.g. `MyArray: int_` or `MyArray: array@int` for an integer array.
+(AKA "key" or "indexing" operator), using the notation `elementType_`.
+E.g. `MyArray: int_` or `MyArray: array@int` for an immutable integer array.
 The mutable versions of course use `;` instead of `:`.
 
 Side note: as we will see, the subscript operator is usually a binary operator, i.e.,
@@ -628,7 +628,7 @@ requiring two operands, `A _ B`, read "A subscript B".  We make an exception for
 array type not to require a second operand -- in fact, adding one would create a
 different type, the map type.
 
-The unnamed version of an array of some type `elementType` is `ElementType~`,
+The unnamed version of an array `elementType_` is `ElementType~`,
 which you can read as `ElementType`s (plural) or `ElementType` + `S` (for stack
 AKA array).  Example usage and declarations:
 
@@ -639,7 +639,7 @@ MyArray.append(5)   # COMPILE ERROR: MyArray is immutable
 MyArray_1 += 5      # COMPILE ERROR: MyArray is immutable
 
 # mutable integer array:
-Int~;           # declaring a mutable, "unnamed" integer array, e.g. `Int~: int_`
+Int~;           # declaring a mutable, "unnamed" integer array, e.g. `Int~; int_`
 Int~.append(5)  # now Int~ == [5]
 Int~_3 += 30    # now Int~ == [5, 0, 0, 30]
 Int~_4 = 300    # now Int~ == [5, 0, 0, 30, 300]
@@ -747,6 +747,7 @@ fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certa
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set@elementType`
 to be explicit or `VariableName: _elementType` using the subscript operator `_` on the
 opposite side of the array type (i.e., the array looks like `arrayElementType_`).
+The unnamed version of a set `_elementType` is `~ElementType`.
 
 ```
 set := class @type () {
@@ -755,9 +756,12 @@ set := class @type () {
         ...
     size(): index
         ...
+    # TODO: find a good way to indicate a method allows mutations on This.
+    # e.g., `This;; += (...)` and `This;;pop(): type`, or maybe `;;pop(): type` for short.
     # Adds an element to the set
     This += (Type;): null
         ...
+
     pop(): type
         ...
     ...
