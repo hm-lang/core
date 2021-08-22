@@ -758,9 +758,8 @@ requiring two operands, `A _ B`, read "A subscript B".  We make an exception for
 array type not to require a second operand -- in fact, adding one would create a
 different type, the map type.
 
-The unnamed version of an array `elementType_` is `ElementType~`,
-which you can read as `ElementType`s (plural) or `ElementType` + `S` (for stack
-AKA array).  Example usage and declarations:
+The unnamed version of an array does not depend on the element type;
+it is always `Array`.  Example usage and declarations:
 
 ```
 # this is an immutable array:
@@ -769,11 +768,11 @@ MyArray append(5)   # COMPILE ERROR: MyArray is immutable
 MyArray_1 += 5      # COMPILE ERROR: MyArray is immutable
 
 # mutable integer array:
-Int~;           # declaring a mutable, "unnamed" integer array, e.g. `Int~; int_`
-Int~ append(5)  # now Int~ == [5]
-Int~_3 += 30    # now Int~ == [5, 0, 0, 30]
-Int~_4 = 300    # now Int~ == [5, 0, 0, 30, 300]
-Int~_2 -= 5     # now Int~ == [5, 0, -5, 30, 300]
+Array: int_;    # declaring a mutable, "unnamed" integer array
+Array append(5) # now Array == [5]
+Array_3 += 30   # now Array == [5, 0, 0, 30]
+Array_4 = 300   # now Array == [5, 0, 0, 30, 300]
+Array_2 -= 5    # now Array == [5, 0, -5, 30, 300]
 
 # mutable string array:
 StringArray; string_ = ["hi", "there"]
@@ -814,12 +813,7 @@ or you can use the implicit method with the subscript operator (`_`),
 `VariableName: valueType_keyType`.  You can read the operator `_` as "keyed by",
 e.g., `valueType_keyType` as "`valueType` keyed by `keyType`".  For example,
 for a map from integers to strings, you can use: `MyMap: string_int`.
-
-For simple types, one can create the "unnamed" version of a map using the
-"capitalization" of the `_` operator, `~`.  E.g., `String~Int` is the default
-variable name for the `string_int` map type (from integers to strings).
-Like `_`, `~` is read as "keyed by" in this case, so that `String~Int` is
-"String keyed by Int".
+The default name for a map variable is `Map`, regardless of key or value type.
 
 ```
 # some relevant pieces of the class definition
@@ -877,7 +871,7 @@ fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certa
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set@elementType`
 to be explicit or `VariableName: _elementType` using the subscript operator `_` on the
 opposite side of the array type (i.e., the array looks like `arrayElementType_`).
-The unnamed version of a set `_elementType` is `~ElementType`.
+The "unnamed" variable name for a set is `Set`.
 
 ```
 set := class @type () {
@@ -972,12 +966,32 @@ Array_0 normalize() Z -= 0.5
 
 # grammar/syntax
 
-* `LowerCamelCase`: identifier which starts with a lowercase alphabetical character.
-* `UpperCamelCase`: identifier which starts with an uppercase alphabetical character.
+Note on terminology:
+
+* Declaration: declaring a variable or function (and its type) but not defining its value
+
+* Definition: declaration along with an assignment of the function or variable.
+
+* `Identifier`: starts with an alphabetical character, can have numerical characters after that.
+    Note that underscores are not permitted, since they are an operator.  
+
+* `LowerCamelCase`: Identifier which starts with a lowercase alphabetical character.
+
+* `UpperCamelCase`: Identifier which starts with an uppercase alphabetical character.
 
 ```
+===
+TODO: different types, e.g., lambda function
+===
+FunctionDeclaration := sequence([
+    LowerCamelCase
+    list(FunctionArgument)
+    operator(":")
+    TypeMatcher
+])
+
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
-ClassDeclaration := sequence([
+ClassDefinition := sequence([
     LowerCamelCase
     oneOf([
         operator(":=")
