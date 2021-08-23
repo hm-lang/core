@@ -980,14 +980,31 @@ Note on terminology:
 * `UpperCamelCase`: Identifier which starts with an uppercase alphabetical character.
 
 ```
-===
-TODO: different types, e.g., lambda function
-===
 FunctionDeclaration := sequence([
     LowerCamelCase
     list(FunctionArgument)
-    operator(":")
+    oneOf([operator(":"), operator(";")])
     TypeMatcher
+])
+
+FunctionDefinition := oneOf([
+    # fnName(Args...): returnType
+    #   BlockStatements
+    sequence([FunctionDeclaration, Block])
+    # fnName(Args...) := Statement
+    sequence([
+        LowerCamelCase
+        list(FunctionArgument)
+        oneOf([operator(":="), operator(";=")])
+        RhsStatement
+    ])
+])
+
+FunctionArgument := oneOf([
+    FunctionDefinition
+    FunctionDeclaration
+    VariableDefinition
+    VariableDeclaration
 ])
 
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
