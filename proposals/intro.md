@@ -786,14 +786,21 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 ```
 # some relevant pieces of the class definition
 array := class @type () {
-    ...
-    # always returns a non-null type, resizing the array to
-    # add default-initialized values if necessary:
-    # TODO: maybe switch to getters and setters:
-    # `This_(Index;): value` and `This_(Index;, Value;): value`
-    # but then we'd have to figure out const ref vs. mutable on the return side as well.
-    # TODO: figure out const-ref and mutable with function return types, maybe via pointers.
-    This_(Index; index): gate@type
+    # always returns a non-null type, adding
+    # a default-initialized type if necessary:
+    # returns a copy of the value at index, too.
+    This;;_(Index): type
+
+    # returns a Null if index is out of bounds in the array:
+    This_(Index): type?
+
+    # sets the value at the index, returning the old value:
+    This;;_(Index, Type;): type
+
+    # allows access to modify the internal value.  
+    # passes the current value at the index into the passed-in function (to be specific, moves it).
+    # the return value of the passed-in function will become the new value at the index.
+    This;;_(Index, fn(Type;): type): null
 
     size(): index
 
@@ -820,17 +827,23 @@ The default name for a map variable is `Map`, regardless of key or value type.
 map := class @(key, value) () {
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
-    # TODO: maybe switch to getters and setters:
-    # `This_(Key): value` and `This_(Key, Value;): value`
-    This_(Key): gate@value
-        ...
+    # returns a copy of the value at key, too.
+    This;;_(Key): value
+
+    # returns a Null if key is not in the map.
+    This_(Key): value?
+
+    # sets the value at the key, returning the old value:
+    This;;_(Key, Value;): value
+
+    # allows access to modify the internal value.  
+    # passes the current value at the key into the passed-in function (to be specific, moves it).
+    # the return value of the passed-in function will become the new value at the key.
+    This;;_(Key, fn(Value;): value): null
+
     size(): index
-        ...
-    set(Key;, Value;): null
-        ...
-    pop(Key): value
-        ...
-    ...
+
+    This;;pop(Key): value
 }
 ```
 
@@ -877,17 +890,13 @@ The "unnamed" variable name for a set is `Set`.
 set := class @type () {
     # returns true if the passed-in element is present in the set.
     This_(Type): bool
-        ...
-    size(): index
-        ...
-    # TODO: find a good way to indicate a method allows mutations on This.
-    # e.g., `This;; += (...)` and `This;;pop(): type`, or maybe `;;pop(): type` for short.
-    # Adds an element to the set
-    This += (Type;): null
-        ...
 
-    pop(): type
-        ...
+    size(): index
+
+    This;; += (Type;): null
+
+    This;;pop(): type
+
     ...
 }
 ```
@@ -936,6 +945,9 @@ TODO:
 How do we allow modifying an external instance inside a function?
 Do we use pointers?  (e.g., repurpose `@` for a pointer type?)
 Do we figure out a different way to reference an existing instance?
+Use a `fn(Value;): value` signature, which will get the moved
+value passed in to the function, then will use the passed out
+value to update the instance.  this gets rid of pointers.
 
 E.g., for an array of some object type:
 ```
