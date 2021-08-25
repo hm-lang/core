@@ -941,24 +941,32 @@ for Special; int < 5
 
 # pointers/references don't exist
 
-To modify a value that is held by another class, e.g., the
+To modify a value that is held by another class instance, e.g., the
 element of an array, we use a special function signature,
-`fn(Value;) value`.  The class will pass in the current value
+`fn(Value;) value`.  The class instance will pass in the current value
 to the function, which can be used to modify the value as desired.
 Whatever value the function returns will be used to replace the
-value held by the class.  This obviates the need for pointers,
+value held by the class instance.  This obviates the need for pointers,
 and can be done with syntactical sugar.
 
 ```
-ArrayArray; int__ = [[1,2,3]]
+ArrayArray; int__ = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
-ArrayArray_0 append(4)
+ArrayArray_0 append(4)  # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
 ArrayArray_(0, fn(Array; int_): int_
     Array append(4)
     return Array
 )
 ```
+
+This function approach avoids lifetime issues that can arise with pointers,
+because the function cannot escape with a reference to the element held
+by the class instance.  In languages with pointers, like C++, you could
+e.g. get a pointer to an element of an array, and later try to modify
+the element via the pointer.  The element might not exist anymore
+(e.g., the array was shrunk), and in the worst case, the array
+might not even exist (e.g., the array was descoped).
 
 # grammar/syntax
 
