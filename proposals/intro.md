@@ -719,6 +719,9 @@ OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
 
 # modules
 
+TODO: remove hm("asd/fdfs") it's disingenuous -- file paths need to be known
+at compile time.
+
 Each file corresponds to its own module, with type `hm`.  You can import neighboring
 files with the syntax `RelativeModule := hm("relative/path/to/file.hm")`, optionally
 with the file extension (`.hm`) removed.  You can also use a prefix `/` to access a
@@ -980,6 +983,10 @@ e.g. get a pointer to an element of an array, and later try to modify
 the element via the pointer.  The element might not exist anymore
 (e.g., the array was shrunk), and in the worst case, the array
 might not even exist (e.g., the array was descoped).
+
+TODO: make sure people can't get around this by passing in a method
+of an object as a function to some class instance's method, which
+then goes on to keep a copy of that function as a lambda.
 
 # grammar/syntax
 
