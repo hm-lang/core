@@ -725,9 +725,12 @@ at compile time, so referring to other files gets its own special notation.
 The backslash symbol, `\`, when used outside of a string, begins a file-system
 search in the current directory, and two backslashes becomes a search for
 a library module, e.g., `\\math`.  Subsequent subdirectories are separated
-using more backslashes, e.g., `\relative\path\to\file`, and `..` is allowed
-to go to the parent directory relative to the current directory.  Note
-that we don't include the `.hm` extension on the final file.
+using more backslashes, e.g., `\relative\path\to\file` to reference the file
+at `relative/path/to/file.hm`, and `..` is allowed between backslashes
+to go to the parent directory relative to the current directory, e.g.,
+`\..\subdirectory_in_parent_directory\some\other\file`.  Note that we don't
+include the `.hm` extension on the final file, and we allow underscores
+in file and directory names.
 
 For example, suppose we have two files, `vector2.hm` and `main.hm` in the same
 directory.  Each of these is considered a module, and we can use backslashes
