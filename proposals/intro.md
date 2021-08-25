@@ -234,7 +234,7 @@ with an existing key.
 
 TODO.  descopes/destructs if the variable was declared in that block.
 
-# declaring, defining, and using a function
+# functions
 
 Functions are named using `lowerCamelCase` identifiers.  All functions
 must return something, and `null` is a valid return type.  (There is no "void" type.)
@@ -557,11 +557,11 @@ AnotherDblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
 # can also use `logger dbl(4)` above or `logger dbl 4` with function spaces.
 ```
 
-# declaring and using a class
+# classes
 
 A class is defined with the `class` keyword and a `lowerCamelCase` identifier.
 Class definitions must be constant/non-reassignable, so they are declared using
-the `:` symbol.
+the `:=` symbol.
 
 ```
 exampleClass := class() {
