@@ -939,41 +939,25 @@ for Special; int < 5
 # prints "A: 0", "B: 1", "A: 3" "B: 4"
 ```
 
-# pointers/references
+# pointers/references don't exist
 
-TODO:
-How do we allow modifying an external instance inside a function?
-Do we use pointers?  (e.g., repurpose `@` for a pointer type?)
-Do we figure out a different way to reference an existing instance?
-Use a `fn(Value;): value` signature, which will get the moved
-value passed in to the function, then will use the passed out
-value to update the instance.  this gets rid of pointers.
+To modify a value that is held by another class, e.g., the
+element of an array, we use a special function signature,
+`fn(Value;) value`.  The class will pass in the current value
+to the function, which can be used to modify the value as desired.
+Whatever value the function returns will be used to replace the
+value held by the class.  This obviates the need for pointers,
+and can be done with syntactical sugar.
 
-E.g., for an array of some object type:
 ```
-vector3 := class() {
-    X; dbl
-    Y; dbl
-    Z; dbl
-    norm() := \\math sqrt(X^2 + Y^2 + Z^2)
-    # TODO: not sure about this syntax
-    normalize(): ref@this
-        Norm := norm()
-        assert(Norm > 1e-8)
-        X /= Norm
-        Y /= Norm
-        Z /= Norm
-        return This
-}
-
-# normalize can be chained:
-R1 := vector3(1, 2, 3) normalize()
-
-# but when used inside an array, will the changes affect the array element?
-Array; vector3_
-Array_0 = {X: 5} 
-Array_0 normalize() Z -= 0.5
-# e.g., does Array_0 now equal vector3(X: 1, Z: -0.5) ??
+ArrayArray; int__ = [[1,2,3]]
+# to modify the array held inside the array, we can use this syntax:
+ArrayArray_0 append(4)
+# but under the hood, this is converted to something like this:
+ArrayArray_(0, fn(Array; int_): int_
+    Array append(4)
+    return Array
+)
 ```
 
 # grammar/syntax
