@@ -719,14 +719,19 @@ OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
 
 # modules
 
-TODO: remove hm("asd/fdfs") it's disingenuous -- file paths need to be known
-at compile time.
+Every file in hm-lang is its own module, and we make it easy to reference
+code from other files to build applications.  All `.hm` files must be known
+at compile time, so referring to other files gets its own special notation.
+The backslash symbol, `\`, when used outside of a string, begins a file-system
+search in the current directory, and two backslashes becomes a search for
+a library module, e.g., `\\math`.  Subsequent subdirectories are separated
+using more backslashes, e.g., `\relative\path\to\file`, and `..` is allowed
+to go to the parent directory relative to the current directory.  Note
+that we don't include the `.hm` extension on the final file.
 
-Each file corresponds to its own module, with type `hm`.  You can import neighboring
-files with the syntax `RelativeModule := hm("relative/path/to/file.hm")`, optionally
-with the file extension (`.hm`) removed.  You can also use a prefix `/` to access a
-library path, e.g., `LibraryModule := hm("/library/path/to/file")`.  After import, you can 
-use public classes and functions defined in the file using member access syntax.
+For example, suppose we have two files, `vector2.hm` and `main.hm` in the same
+directory.  Each of these is considered a module, and we can use backslashes
+to invoke logic from these external files.
 
 ```
 # vector2.hm
@@ -737,18 +742,18 @@ vector2 := class() {
 }
 
 # main.hm
-Vector2Module := hm("vector2")  # .hm extension can be left off.
+Vector2Module: hm = \vector2    # .hm extension must be left off.
 Vector2 := Vector2Module vector2(X: 3, Y: 4)
 print(Vector2)
 # TODO, support destructuring in the future:
-# {vector2} := hm("vector2")
+# {vector2} := \vector2
 ```
 
-There is an inline notation for importing a neighboring file as well,
-which is recommended for avoiding unnecessary imports.  For this, we
-use backslash `\` for a relative path and `\\` for a library path,
-and in either case `\` for subsequent directory separators.  In this
-case, we require not using the ".hm" extension.
+You can use this backslash notation inline as well, which is recommended
+for avoiding unnecessary imports.  It will be a language feature to
+parse all imports when compiling a file, regardless of whether they're used,
+rather than to dynamically load modules.  This ensures that if another imported file
+has compile-time errors they will be known at compile time, not run time.
 
 ```
 # importing a function from a file in a relative path:
