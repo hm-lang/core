@@ -766,6 +766,15 @@ print(\path\to\relative\file functionFromFile("hello, world!"))
 Angle := \\math atan2(X: 5, Y: -3)
 ```
 
+To import a path that has special characters, just use the special characters
+inside the file.  For a path that has spaces (e.g., in file or directory names),
+use a parentheses that surround the path, e.g., `[\\library\path with spaces]` or
+`[\relative\path\with a space\to\a\great file]`.
+
+TODO: paths with backslashes, maybe use \\ for a backslash in a name, but then
+we have to do something different for library path.  could switch to requiring
+enclosing parentheses, e.g., `[/relative/path]` and `[//library/path]`.
+
 # standard container classes (and helpers)
 
 ## arrays
