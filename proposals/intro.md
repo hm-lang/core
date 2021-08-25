@@ -449,7 +449,7 @@ signature is because in either case, the variables passed in from the outside
 are not affected by the internal parts of the function.  That is, the function
 cannot modify the external variables at all.
 
-## move-modify-return paradigm
+## move-modify-return (MMR) pattern
 
 Since a function cannot modify variables outside of the function, any changes
 that are to be made outside of the function must be effected by using the
@@ -810,7 +810,7 @@ array := class @type () {
     # sets the value at the index, returning the old value:
     This;;_(Index, Type;): type
 
-    # allows access to modify the internal value.  
+    # allows access to modify the internal value, via MMR pattern.
     # passes the current value at the index into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the index.
     This;;_(Index, fn(Type;): type): null
@@ -849,7 +849,7 @@ map := class @(key, value) () {
     # sets the value at the key, returning the old value:
     This;;_(Key, Value;): value
 
-    # allows access to modify the internal value.  
+    # allows access to modify the internal value, via MMR pattern.
     # passes the current value at the key into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the key.
     This;;_(Key, fn(Value;): value): null
@@ -955,12 +955,12 @@ for Special; int < 5
 # pointers/references don't exist
 
 To modify a value that is held by another class instance, e.g., the
-element of an array, we use a special function signature,
-`fn(Value;) value`.  The class instance will pass in the current value
-to the function, which can be used to modify the value as desired.
-Whatever value the function returns will be used to replace the
+element of an array, we use the MMR pattern.  The class instance will
+pass in the current value (via a move) to a modifying function. 
+Whatever value the modifying function returns will be used to replace the
 value held by the class instance.  This obviates the need for pointers,
-and can be done with syntactical sugar.
+and though the explicit usage of the MMR pattern can look clumsy,
+we can make MMR invisible using some syntactical sugar.
 
 ```
 ArrayArray; int__ = [[1,2,3], [5]]
