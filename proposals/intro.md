@@ -269,54 +269,6 @@ wow(Input fn(): string): fn(): int
         return Input fn() size()
 ```
 
-## constant versus mutable arguments
-
-Functions can be defined with mutable or immutable arguments, but that does
-not change the function signature (see section on function overloads).
-The important difference is that arguments defined with `;` must be copied
-in from the outside (unless the external variable is already a temporary),
-whereas arguments defined with `:` can be referenced without a copy.  This
-is because arguments defined with `;` can be modified inside the function,
-but they should not modify any variables outside of the function, even if
-they are passed in.  Examples:
-
-```
-# this function makes a copy of whatever string is passed in:
-copiedArgumentFunction(CopyMe; string): string
-    CopyMe += "!!??"    # OK since CopyMe is defined as mutable via `;`.
-    print(CopyMe)
-    return CopyMe
-
-# this function just references whatever string is passed in (no copy):
-reffedArgumentFunction(Ref: string): string
-    print(Ref)
-    return Ref + "??!!"
-
-MyValue: string = "immutable"
-copiedArgumentFunction(CopyMe: MyValue) # prints "immutable!!??"
-print(MyValue)                          # prints "immutable"
-reffedArgumentFunction(Ref: MyValue)    # prints "immutable??!!"
-print(MyValue)                          # prints "immutable"
-
-Mutable; string = "mutable"
-copiedArgumentFunction(CopyMe: Mutable) # prints "mutable!!??"
-print(Mutable)                          # prints "mutable"
-reffedArgumentFunction(Ref: Mutable)    # prints "mutable??!!"
-print(Mutable)                          # prints "mutable"
-```
-
-The reason that the `;` or `:` argument definition doesn't change the function
-signature is because in either case, the variables passed in from the outside
-are not affected by the internal parts of the function.  That is, the function
-cannot modify the external variables at all.
-
-TODO: figure out how to pass in an object pointer so that you can modify
-an object variable from the outside.  we could try to force these all
-to be object methods (e.g., on a class), but people might need it.
-Maybe define a method-type function: `someObjectType;;myMethod(args...): returnType`
-which allows you to operate on an instance of `someObjectType` inside.
-Or maybe allow it based on the return type.
-
 ## calling a function
 
 You can call functions with arguments in any order.  Arguments must be specified
@@ -455,6 +407,67 @@ greetings = "Greetings, ${$Noun}!"
 greetings(Noun: string); null
     print "Overwriting?"
 ```
+
+## constant versus mutable arguments
+
+Functions can be defined with mutable or immutable arguments, but that does
+not change the function signature (see section on function overloads).
+The important difference is that arguments defined with `;` must be copied
+in from the outside (unless the external variable is already a temporary),
+whereas arguments defined with `:` can be referenced without a copy.  This
+is because arguments defined with `;` can be modified inside the function,
+but they should not modify any variables outside of the function, even if
+they are passed in.  Examples:
+
+```
+# this function makes a copy of whatever string is passed in:
+copiedArgumentFunction(CopyMe; string): string
+    CopyMe += "!!??"    # OK since CopyMe is defined as mutable via `;`.
+    print(CopyMe)
+    return CopyMe
+
+# this function just references whatever string is passed in (no copy):
+reffedArgumentFunction(Ref: string): string
+    print(Ref)
+    return Ref + "??!!"
+
+MyValue: string = "immutable"
+copiedArgumentFunction(CopyMe: MyValue) # prints "immutable!!??"
+print(MyValue)                          # prints "immutable"
+reffedArgumentFunction(Ref: MyValue)    # prints "immutable??!!"
+print(MyValue)                          # prints "immutable"
+
+Mutable; string = "mutable"
+copiedArgumentFunction(CopyMe: Mutable) # prints "mutable!!??"
+print(Mutable)                          # prints "mutable"
+reffedArgumentFunction(Ref: Mutable)    # prints "mutable??!!"
+print(Mutable)                          # prints "mutable"
+```
+
+The reason that the `;` or `:` argument definition doesn't change the function
+signature is because in either case, the variables passed in from the outside
+are not affected by the internal parts of the function.  That is, the function
+cannot modify the external variables at all.
+
+## move-modify-return paradigm
+
+Since a function cannot modify variables outside of the function, any changes
+that are to be made outside of the function must be effected by using the
+return values of the function.  To modify an object outside of a function
+using its methods inside the function, use the move-modify-return pattern.  E.g.,
+
+```
+MyObject ;= myObjectType(WhateverArgs: 5)
+MyObject = modify(MyObject.move())
+# where the `modify` function is whatever you want:
+modify(MyObjectType; myObjectType): myObjectType
+    MyObjectType.someMethod(12345)
+    return MyObjectType.move()      # compiler can probably figure out this move()
+```
+
+For this pattern to avoid unnecessary copies, the modifying function must
+use the mutable argument definition (e.g., `;`), and the external caller
+of the modifying function must `move()` the object into the function's arguments.
 
 ## function overloads
 
