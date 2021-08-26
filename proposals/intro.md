@@ -1004,6 +1004,53 @@ might not even exist (e.g., the array was descoped).
 TODO: make sure people can't get around this by passing in a method
 of an object as a function to some class instance's method, which
 then goes on to keep a copy of that function as a lambda.
+Do we need to ensure that people can't copy the function that gets
+passed in?  As long as the only usage of the passed-in (e.g., inner) function
+occurs when the outer function is called, then there should be no problem.
+
+```
+logger := class() {
+    LogCount ;= 0
+    ;;log(String): null
+        ++LogCount
+        print("${LogCount}: String")
+}
+
+announcer := class() {
+    log(String); null   # mutable, lambda function
+
+    # this indirection isn't strictly necessary;
+    # we could set `log` directly since it's a public variable,
+    # but this goes to show how the issue can be subtle.
+    use(New log(String): null): null
+        log = New log
+
+    begin(): null
+        log("Begin!")
+    end(): null
+        log("End!")
+}
+
+main(WithLogger: bool): null
+    Announcer ;= announcer()
+    if WithLogger 
+        Logger ;= logger()
+        Announcer use(Logger log)
+        # after this block ends, Logger goes out of scope;
+        # so in something like C++ we'd destroy Logger
+        # and Announcer would break when using log().
+        # if we allow closures, then we need to pass in Logger as a shared pointer
+        # to the generated lambda function `Logger log`, so that only once the
+        # user resets `Announcer log` (or destroys Announcer) would the Logger get cleaned up.
+        # ideally we would make it easy for a function to take responsibility for some
+        # variables (i.e., via closure), but variables could theoretically be shared
+        # between multiple lambda functions, so we'd be back to needing shared pointers.
+    else
+        Announcer use(log: print)
+    Announcer begin()
+    ... # do fancy logic
+    Announcer end()
+```
 
 # grammar/syntax
 
