@@ -951,6 +951,8 @@ iterator := class @type () {
 }
 ```
 
+TODO: how does this work with the MMR framework for remove, insert, etc.?
+
 # standard flow constructs
 
 TODO -- description, plus `consider+case` and `if/else/elif`
@@ -1051,6 +1053,18 @@ main(WithLogger: bool): null
     ... # do fancy logic
     Announcer end()
 ```
+
+What we could do is allow methods to be passed in as functions no problem, but mark
+those lambda-method functions as special, e.g., with some metadata on whether the
+function can be copied or not.  The methods that are taking the passed-in function
+will also provide some metadata on whether the passed-in function will be copied or not.
+(TODO: this needs to happen at the level of the function signature, since we can have
+child classes that can override parent class methods, otherwise these are run-time errors.)
+Then we would allow a lambda-method function to be passed in to some method `className;;useFunction`
+if the instance `OtherClass` backing the passed-in method `otherClass;;usedMethod`
+outlived the `ClassName` instance (i.e., the `OtherClass was defined before `ClassName`,
+and they are in the same scope).
+(TODO: don't allow descoping an instance before the end of the scope, only allow hiding.)
 
 # grammar/syntax
 
