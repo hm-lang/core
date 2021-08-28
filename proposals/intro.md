@@ -940,14 +940,28 @@ set := class @type () {
 iterator := class @type () {
     next(): type?
     previous?(): type?
+
     # returns next value of iterator without incrementing the iterator.
     # recommended to be present if `remove` is present.
     peak?(): type?
+
     # present only if underlying container supports removing the current element (at `peak()`)
     # returns the element, or null if no current element.
+    # TODO: figure out a nice syntax for this method to automatically
+    # be defined IF replace is defined, and to return a null in replace,
+    # but allow it to be overridden if remove is defined separately.
     remove?(): type?
+
     # present only if underlying container supports inserting a new element (before `peak()`)
     insert?(Type): null
+
+    # replaces the element at `next()` based on the return value;
+    # the next value is passed in as an argument to `replace`,
+    # and the iterator should increment.  cf. MMR pattern.
+    # if there was an element at this point in the container,
+    # and a null is returned, the element (and its former location)
+    # should be deleted out of the container.
+    replace(Type?): type?
 }
 ```
 
@@ -957,7 +971,11 @@ For example, here is an array iterator:
 
 ```
 arrayIterator := class@type (iterator@type) {
-    NextIndex: index = 0
+    # to use MMR, we need to pass in the array;
+    # move the array in to avoid copying.
+    # TODO: figure out a way to get the Array back out (without copy)
+    reset(This Array; type_, This NextIndex: index = 0): null
+
     next(): type?
         ???
 }
@@ -967,13 +985,29 @@ Or should we define iterators on the container itself?  E.g.,
 
 ```
 array := class@type () {
-    forEach(fn(Type): forLoop)
+    forEach(fn(Type): forLoop): null
         for Index: index < size()
             # TODO: need to avoid a copy here if possible,
             # but this might need pointer-like semantics.
             # e.g., need to define `Array_Index` as a constant ref-type return value,
             # e.g. ~type
-            if fn(This_Index) == forLoop.Break
+            # however, that would be unforgivable!!
+            # maybe there's a way we can reason about lifetimes here
+            # in the compiler; as long as the function doesn't need
+            # a copy (e.g., to mutate), we can pass in a reference:
+            if fn(This_Index) == forLoop Break
+                break
+
+    # no-copy iteration, but can mutate the array.
+    ;;forEach(Input fn(Type): {ForLoop, Type}): null
+        for Index: index < size()
+            ForLoop; forLoop
+            # do a swap on the value based on the passed in function:
+            This_(Index, New fn(Type;): type
+                (ForLoop, Type) = Input fn(Type.move())
+                return Type.move()
+            )
+            if ForLoop == forLoop Break
                 break
 }
 ```
