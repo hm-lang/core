@@ -974,6 +974,8 @@ arrayIterator := class@type (iterator@type) {
     # to use MMR, we need to pass in the array;
     # move the array in to avoid copying.
     # TODO: figure out a way to get the Array back out (without copy)
+    #   -- maybe let `reset` return a type, in this case, the old array,
+    #   -- which allows you to pass back information (and reset the instance).
     reset(This Array; type_, This NextIndex: index = 0): null
 
     next(): type?
