@@ -1052,6 +1052,32 @@ iterator := class ~type () {
 }
 ```
 
+For example, here is a way to create an iterator over some number of indices:
+
+```
+range := class (iterator~index) {
+    @private
+    NextIndex: index = 0
+
+    reset(StartAt: index = 0, This LessThan: index = 0): null
+        NextIndex = StartAt
+
+    next(): index?
+        if NextIndex < LessThan
+            Result := NextIndex
+            ++NextIndex
+            return Result
+        return Null
+
+    peak() := NextIndex if NextIndex < LessThan else Null
+}
+
+# TODO: ensure syntax is ok with `in` here.  maybe use annotations, e.g. @in or @iter
+for Index: index in range(LessThan: 10)
+    print Index
+# prints "0" to "9"
+```
+
 TODO: how does this work with the MMR framework for remove, insert, etc.?
 
 For example, here is an array iterator:
