@@ -953,6 +953,31 @@ iterator := class @type () {
 
 TODO: how does this work with the MMR framework for remove, insert, etc.?
 
+For example, here is an array iterator:
+
+```
+arrayIterator := class@type (iterator@type) {
+    NextIndex: index = 0
+    next(): type?
+        ???
+}
+```
+
+Or should we define iterators on the container itself?  E.g.,
+
+```
+array := class@type () {
+    forEach(fn(Type): forLoop)
+        for Index: index < size()
+            # TODO: need to avoid a copy here if possible,
+            # but this might need pointer-like semantics.
+            # e.g., need to define `Array_Index` as a constant ref-type return value,
+            # e.g. ~type
+            if fn(This_Index) == forLoop.Break
+                break
+}
+```
+
 # standard flow constructs
 
 TODO -- description, plus `consider+case` and `if/else/elif`
