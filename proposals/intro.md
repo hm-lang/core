@@ -532,12 +532,12 @@ fibonacci(Times: dbl): dbl
 ## function templates/generics
 
 You can create template functions which can work for a variety of types
-using the syntax `@(type1, type2, ...)` or `@type` (for just one generic type) 
+using the syntax `~(type1, type2, ...)` or `~type` (for just one generic type) 
 after a function name.
 
 ```
-# declaration equivalent to `logger @(type) (Type): type`:
-logger @type (Type): type
+# declaration equivalent to `logger ~(type) (Type): type`:
+logger ~type (Type): type
     print("got ${Type}")
     return Type
 
@@ -550,7 +550,7 @@ Vector3 == Result           # equals True
 OtherResult := logger(5)    # prints "got 5" and returns the integer 5.
 
 # explicit generic request:
-DblResult := logger @dbl (5)    # prints "got 5.0" and returns 5.0
+DblResult := logger ~dbl (5)    # prints "got 5.0" and returns 5.0
 
 # explicit type request:
 AnotherDblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
@@ -592,6 +592,93 @@ ConstVar := exampleClass(X: 2)
 ConstVar X += 3                 # COMPILER ERROR! `ConstVar` is deeply constant.
 ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 ```
+
+## private/public/protected
+
+We use annotations `@public`, `@private`, and `@protected` to indicate various
+levels of access to a class instance's variables.  Public is default, and means
+that the variable can be both accessed and modified by anyone.  Protected means
+that the variable can be accessed and modified by friends, but for non-friends
+the variable can only be accessed.  Friendship is defined by being in the same
+directory as the module in question; i.e., being in the same file or being in
+neighboring files in the same filesystem folder.  Private means the variable
+can be accessed by friends only, and modified only by functions in the same module; i.e.,
+the class (or other instances of the class) *or other functions in the same
+file as the class definition*.  Non-friends are not able to access or modify private variables.
+
+|  variable access  |  public   | protected |  private  |
+|:-----------------:|:---------:|:---------:|:---------:|
+|   module access   |   yes     |   yes     |   yes     |
+|   module mutate   |   yes     |   yes     |   yes     |
+|   friend access   |   yes     |   yes     |   yes     |
+|   friend mutate   |   yes     |   yes     |   no      |
+| non-friend access |   yes     |   yes     |   no      |
+| non-friend mutate |   yes     |   no      |   no      |
+
+The privacy for methods on a class works slightly different.  Here
+it depends on if the method modifies the class or not, i.e., whether
+the method was defined as `myClass;;mutatingMethod(): returnType`
+or `myClass::nonMutatingMethod(): returnType`.  Note that the
+latter are default.
+TODO: need to make all `reset` methods mutating, i.e., `;;reset()`.
+TODO: add a `@reset()` annotation which creates the reset method
+and returns the old value of whatever variables are set on the class.
+
+|   method access   |  public   | protected |  private  |
+|:-----------------:|:---------:|:---------:|:---------:|
+|   module access   |   yes     |   yes     |   yes     |
+|   module mutate   |   yes     |   yes     |   yes     |
+|   friend access   |   yes     |   yes     |   yes     |
+|   friend mutate   |   yes     |   yes     |   no      |
+| non-friend access |   yes     |   yes     |   no      |
+| non-friend mutate |   yes     |   no      |   no      |
+
+To put into words -- `@public` methods can be called by anyone, regardless
+of whether the method modifies the class instance or not.  `@protected`
+methods which modify the class instance cannot be called by non-friends,
+but constant methods can be called by anyone.  `@private` methods which
+modify the class instance can only be called by module functions, and
+constant methods can be called by friends.
+
+Note that all non-constant variables defined on a class are given
+methods to access/set them, but this is done with syntactical sugar.
+
+```
+# for example, this class:
+example := class() {
+    @visibility
+    X; dbl
+}
+W = example()
+W.X += 5
+
+# expands to this:
+example := class() {
+    @invisible
+    X; dbl
+    @visibility
+    x() := X
+    @visibility
+    ;;x(Dbl): dbl
+        swap(Dbl, X)
+        return Dbl
+    @visibility
+    ;;x(fn(Dbl;): dbl): null
+        X = fn(X.move())
+}
+W = example()
+W.x(fn(Dbl;): dbl
+    Dbl += 5
+    return Dbl.move()
+)
+```
+
+TODO: check that getter/setter visibility is correct.
+
+If you define overloads for any of these methods on child classes,
+they will effectively become getters/setters for the variable.  Anyone
+trying to access the variable (or set it) will use the overloaded methods.
+
 
 ## parent-child classes and method overloads
 
@@ -677,7 +764,7 @@ someExample := class() {
     Value: int
     reset(Int): null
         This Value = Int
-    to @(type) (): type
+    to ~(type) (): type
         return type(Value)
 }
 
@@ -687,7 +774,7 @@ SomeExample := someExample(5)
 ToString: string = SomeExample to()
 
 # or you can explicitly ask for the type
-ToDbl := SomeExample to @(dbl) ()
+ToDbl := SomeExample to ~(dbl) ()
 
 # or you can explicitly ask like this:
 To64 := i64(SomeExample to())
@@ -695,25 +782,25 @@ To64 := i64(SomeExample to())
 
 ## generic/template classes
 
-To create a generic class, you put the expression `@(types...)` after the
+To create a generic class, you put the expression `~(types...)` after the
 `class` keyword.  You can use these new types for any class inheritance
 from a parent which is a generic/template class.
 
 ```
 # create a class with two generic types, `key` and `value`:
-genericClass := class @(key, value) () {
+genericClass := class ~(key, value) () {
     reset(This Key: key, This Value: value): null
 }
 # if this class is just POD, you can use the equivalent type:
-# genericClass := @(key, value) (Key: key, Value: value)
-# TODO: allow specifying generics inline, e.g. `genericClass := (Key: @key, Value: @value)`,
-# or `genericClass := (@Key, @Value)` for short.
+# genericClass := ~(key, value) (Key: key, Value: value)
+# TODO: allow specifying generics inline, e.g. `genericClass := (Key: ~key, Value: ~value)`,
+# or `genericClass := (~Key, ~Value)` for short.
 
 # creating an instance using type inference:
 ClassInstance := genericClass(Key: 5, Value: "hello")
  
 # creating an instance with template/generic types specified:
-OtherInstance := genericClass @(key: dbl, value: string) (Key: 3, Value: 4)
+OtherInstance := genericClass ~(key: dbl, value: string) (Key: 3, Value: 4)
 # note the passed-in values will be converted into the correct type.
 ```
 
@@ -780,10 +867,10 @@ enclosing parentheses, e.g., `[/absolute/path]`, `[./relative/path]`, and `[~/li
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
-define an array explicitly using the notation `array@elementType`
+define an array explicitly using the notation `array~elementType`
 for the type `elementType`, or implicitly with the subscript operator, `_`
 (AKA "key" or "indexing" operator), using the notation `elementType_`.
-E.g. `MyArray: int_` or `MyArray: array@int` for an immutable integer array.
+E.g. `MyArray: int_` or `MyArray: array~int` for an immutable integer array.
 The mutable versions of course use `;` instead of `:`.
 
 Side note: as we will see, the subscript operator is usually a binary operator, i.e.,
@@ -818,7 +905,7 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 
 ```
 # some relevant pieces of the class definition
-array := class @type () {
+array := class ~type () {
     # always returns a non-null type, adding
     # a default-initialized type if necessary:
     # returns a copy of the value at index, too.
@@ -848,7 +935,7 @@ array := class @type () {
 ## hash maps
 
 A hash map can look up elements by key in O(1) time.  You can use the explicit
-way to define a map, e.g., `VariableName: map@(key: keyType, value: valueType)`,
+way to define a map, e.g., `VariableName: map~(key: keyType, value: valueType)`,
 or you can use the implicit method with the subscript operator (`_`),
 `VariableName: valueType_keyType`.  You can read the operator `_` as "keyed by",
 e.g., `valueType_keyType` as "`valueType` keyed by `keyType`".  For example,
@@ -857,7 +944,7 @@ The default name for a map variable is `Map`, regardless of key or value type.
 
 ```
 # some relevant pieces of the class definition
-map := class @(key, value) () {
+map := class ~(key, value) () {
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at key, too.
@@ -881,7 +968,7 @@ map := class @(key, value) () {
 ```
 
 Maps require a key type whose instances can hash to an integer or string-like value.
-E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array @dbl`).
+E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array ~dbl`).
 
 ```
 DblDatabase; dbl_int        # OK, int is an OK key type
@@ -914,13 +1001,13 @@ StackDatabase_[2.2, 3.5, 4.8] = "odd"
 
 A set contains some elements, and makes checking for the existence of an element within
 fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certain properties
-(e.g., integer/string-like).  The syntax to define a set is `VariableName: set@elementType`
+(e.g., integer/string-like).  The syntax to define a set is `VariableName: set~elementType`
 to be explicit or `VariableName: _elementType` using the subscript operator `_` on the
 opposite side of the array type (i.e., the array looks like `arrayElementType_`).
 The "unnamed" variable name for a set is `Set`.
 
 ```
-set := class @type () {
+set := class ~type () {
     # returns true if the passed-in element is present in the set.
     This_(Type): bool
 
@@ -937,7 +1024,7 @@ set := class @type () {
 ## iterator
 
 ```
-iterator := class @type () {
+iterator := class ~type () {
     next(): type?
     previous?(): type?
 
@@ -970,7 +1057,7 @@ TODO: how does this work with the MMR framework for remove, insert, etc.?
 For example, here is an array iterator:
 
 ```
-arrayIterator := class@type (iterator@type) {
+arrayIterator := class~type (iterator~type) {
     # to use MMR, we need to pass in the array;
     # move the array in to avoid copying.
     # TODO: figure out a way to get the Array back out (without copy)
@@ -986,7 +1073,7 @@ arrayIterator := class@type (iterator@type) {
 Or should we define iterators on the container itself?  E.g.,
 
 ```
-array := class@type () {
+array := class~type () {
     forEach(fn(Type): forLoop): null
         for Index: index < size()
             # TODO: need to avoid a copy here if possible,
