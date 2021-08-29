@@ -457,11 +457,11 @@ using its methods inside the function, use the move-modify-return pattern.  E.g.
 
 ```
 MyObject ;= myObjectType(WhateverArgs: 5)
-MyObject = modify(MyObject.move())
+MyObject = modify(MyObject move())
 # where the `modify` function is whatever you want:
 modify(MyObjectType; myObjectType): myObjectType
     MyObjectType.someMethod(12345)
-    return MyObjectType.move()      # compiler can probably figure out this move()
+    return MyObjectType move()      # compiler can probably figure out this move()
 ```
 
 For this pattern to avoid unnecessary copies, the modifying function must
@@ -639,8 +639,14 @@ but constant methods can be called by anyone.  `@private` methods which
 modify the class instance can only be called by module functions, and
 constant methods can be called by friends.
 
-Note that all non-constant variables defined on a class are given
-methods to access/set them, but this is done with syntactical sugar.
+## Getters and setters on class instance variables
+
+Note that all variables defined on a class are given methods to access/set
+them, but this is done with syntactical sugar.  That is,
+*all uses of a class instance variable are done through getter/setter methods*,
+even when accessed/modified within the class.  The getters/setters are methods
+named the `lowerCamelCase` version of the `UpperCamelCase` variable,
+with various arguments to determine the desired action.
 
 ```
 # for example, this class:
@@ -655,27 +661,40 @@ W.X += 5
 example := class() {
     @invisible
     X; dbl
+
+    # copy getter: makes a copy of X for usage outside of this instance.
     @visibility
     x() := X
+
+    # no-copy getter: calls an external function with X, which can
+    #                 avoid a copy if the function argument is immutable.
+    @visibility
+    x(fn(Dbl): null) := fn(X)
+
+    # swap setter: swaps the value of X with whatever is passed in
+    #              returns the old value of X.
     @visibility
     ;;x(Dbl): dbl
         swap(Dbl, X)
         return Dbl
+
+    # modify setter: allows the user to modify the value of X
+    #                without copying it, using the MMR pattern.
     @visibility
     ;;x(fn(Dbl;): dbl): null
-        X = fn(X.move())
+        X = fn(X move())
 }
 W = example()
-W.x(fn(Dbl;): dbl
+W x(fn(Dbl;): dbl
     Dbl += 5
-    return Dbl.move()
+    return Dbl move()
 )
 ```
 
 TODO: check that getter/setter visibility is correct.
 
 If you define overloads for any of these methods on child classes,
-they will effectively become getters/setters for the variable.  Anyone
+they will be used as the getters/setters for that variable.  Anyone
 trying to access the variable (or set it) will use the overloaded methods.
 
 
@@ -1085,14 +1104,20 @@ For example, here is an array iterator:
 arrayIterator := class~type (iterator~type) {
     # to use MMR, we need to pass in the array;
     # move the array in to avoid copying.
-    # TODO: figure out a way to get the Array back out (without copy)
-    #   -- maybe let `reset` return a type, in this case, the old array,
-    #   -- which allows you to pass back information (and reset the instance).
-    # e.g.:
-    # @reset(This Array; type_, This NextIndex: index = 0)
-    # TODO: figure out how to take an Array and return the Array back.
-    # e.g., `Array; int_, with Iterator := iterator @holding(Array)`
-    reset(This Array; type_, This NextIndex: index = 0): null
+    # this @reset annotation creates a function signature of
+    # reset(This Array; type_, This NextIndex: index = 0): {Array: type_, NextIndex: index}
+    # which automatically returns the old value of the Array (and NextIndex) if requested.
+    @reset(Array; type_, NextIndex: index = 0)
+    # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
+    # e.g., 
+    #   MyArray; int_ = [1,2,3,4]
+    #   with @holding(Iterator; iterator, MoveAndReturn: MyArray)
+    #   # or `with Iterator ;= @holding(MyArray) iterator`
+    #       for Int: int in Iterator
+    #           ...
+    #   print(MyArray)
+    #   # MyArray is now back to [1,2,3,4] unless there were changes during iteration,
+    #   # but in any case, without a copy,
 
     next(): type?
         ???
@@ -1103,17 +1128,15 @@ Or should we define iterators on the container itself?  E.g.,
 
 ```
 array := class~type () {
-    forEach(fn(Type): forLoop): null
+    # const iteration, with no-copy if possible:
+    forEach(Input fn(Type): forLoop): null
         for Index: index < size()
-            # TODO: need to avoid a copy here if possible,
-            # but this might need pointer-like semantics.
-            # e.g., need to define `Array_Index` as a constant ref-type return value,
-            # e.g. ~type
-            # however, that would be unforgivable!!
-            # maybe there's a way we can reason about lifetimes here
-            # in the compiler; as long as the function doesn't need
-            # a copy (e.g., to mutate), we can pass in a reference:
-            if fn(This_Index) == forLoop Break
+            # use the no-copy getter, here:
+            ForLoop; forLoop
+            This_(Index, fn(Type): null
+                ForLoop = Input fn(Type)
+            )
+            if ForLoop == forLoop Break
                 break
 
     # no-copy iteration, but can mutate the array.
@@ -1121,9 +1144,9 @@ array := class~type () {
         for Index: index < size()
             ForLoop; forLoop
             # do a swap on the value based on the passed in function:
-            This_(Index, New fn(Type;): type
-                (ForLoop, Type) = Input fn(Type.move())
-                return Type.move()
+            This_(Index, fn(Type;): type
+                (ForLoop, Type) = Input fn(Type move())
+                return Type move()
             )
             if ForLoop == forLoop Break
                 break
