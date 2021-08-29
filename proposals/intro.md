@@ -88,9 +88,8 @@ E.g., `5 % 4 == 1`, `123.45 % 1 == 0.45`.  Mathematically, we use the relation
 `A % B == A - B * floor(A/B)`.
 
 The remainder operator, `%%`, has the property that `A %% B == A - B * (A // B)`;
-i.e., it is the remainder after integer division.
-For integer operands, the remainder operator, `%%`, differs from the modulus, `%`,
-when the operands have opposing signs.
+i.e., it is the remainder after integer division.  The remainder operator, `%%`,
+differs from the modulus, `%`, when the operands have opposing signs.
 
 |  `A`  |  `B`  | `floor(A/B)`  |  `A % B`  | `A // B`  | `A %% B`  |
 |:-----:|:-----:|:-------------:|:---------:|:---------:|:---------:|
@@ -1089,6 +1088,10 @@ arrayIterator := class~type (iterator~type) {
     # TODO: figure out a way to get the Array back out (without copy)
     #   -- maybe let `reset` return a type, in this case, the old array,
     #   -- which allows you to pass back information (and reset the instance).
+    # e.g.:
+    # @reset(This Array; type_, This NextIndex: index = 0)
+    # TODO: figure out how to take an Array and return the Array back.
+    # e.g., `Array; int_, with Iterator := iterator @holding(Array)`
     reset(This Array; type_, This NextIndex: index = 0): null
 
     next(): type?
