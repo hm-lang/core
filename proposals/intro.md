@@ -142,6 +142,8 @@ W; int = 7
 W ;= int(7)
 ```
 
+TODO: maybe use annotations for non-const variables and methods, e.g. @var or @mut
+
 ## temporarily locking non-reassignable variables
 
 TODO: see if there's a better syntax for this.
@@ -448,6 +450,11 @@ signature is because in either case, the variables passed in from the outside
 are not affected by the internal parts of the function.  That is, the function
 cannot modify the external variables at all.
 
+TODO: maybe use @mut/@var instead of ;
+
+TODO: allow using @moved as an argument annotation in order to require someone
+to `move()` a variable into the function.
+
 ## move-modify-return (MMR) pattern
 
 Since a function cannot modify variables outside of the function, any changes
@@ -467,6 +474,21 @@ modify(MyObjectType; myObjectType): myObjectType
 For this pattern to avoid unnecessary copies, the modifying function must
 use the mutable argument definition (e.g., `;`), and the external caller
 of the modifying function must `move()` the object into the function's arguments.
+
+TODO: use the @moved annotation, or maybe something even more helpful, e.g.,
+```
+# the `@mmr` annotation adds the argument to both the function's arguments and return value.
+# other values can also be passed into the function (or returned) at the regular spot(s),
+# but will not have the move-modify-return pattern applied.
+@mmr(MyObjectType: myObjectType) modify():
+    MyObjectType.someMethod(12345)
+    return MyObjectType move()      # compiler can probably figure out this move()
+
+# which expands into:
+modify(@moved MyObjectType: myObjectType): myObjectType
+    MyObjectType.someMethod(12345)
+    return MyObjectType move()      # compiler can probably figure out this move()
+```
 
 ## function overloads
 
