@@ -409,6 +409,8 @@ greetings(Noun: string); null
     print "Overwriting?"
 ```
 
+TODO: discussion on how it needs to be clear what function overload is being redefined.
+
 ## constant versus mutable arguments
 
 Functions can be defined with mutable or immutable arguments, but that does
@@ -467,7 +469,7 @@ MyObject ;= myObjectType(WhateverArgs: 5)
 MyObject = modify(MyObject move())
 # where the `modify` function is whatever you want:
 modify(MyObjectType; myObjectType): myObjectType
-    MyObjectType.someMethod(12345)
+    MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 ```
 
@@ -481,12 +483,12 @@ TODO: use the @moved annotation, or maybe something even more helpful, e.g.,
 # other values can also be passed into the function (or returned) at the regular spot(s),
 # but will not have the move-modify-return pattern applied.
 @mmr(MyObjectType: myObjectType) modify():
-    MyObjectType.someMethod(12345)
+    MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 
 # which expands into:
 modify(@moved MyObjectType: myObjectType): myObjectType
-    MyObjectType.someMethod(12345)
+    MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 ```
 
@@ -677,7 +679,7 @@ example := class() {
     X; dbl
 }
 W = example()
-W.X += 5
+W X += 5
 
 # expands to this:
 example := class() {
