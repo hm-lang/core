@@ -43,7 +43,10 @@ Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 
 # operators and precedence
 
-TODO: add ; : ,
+TODO: add : ,
+
+TODO: add ; for something, maybe member access if space is too overloaded.
+e.g. SomeClass;someMethod();X
 
 TODO: see if member access needs to be LTR
 
@@ -109,7 +112,7 @@ differs from the modulus, `%`, when the operands have opposing signs.
 # declaring and using variables
 
 Variables are named using `UpperCamelCase` identifiers.  The `:` symbol is used
-to declare deeply constant, non-reassignable variables, and `;` is used to declare
+to declare deeply constant, non-reassignable variables, and `@mut :` is used to declare
 mutable, reassignable variables.
 
 ```
@@ -124,42 +127,49 @@ Y = 123     # COMPILER ERROR, Y is non-reassignable.
 Y += 3      # COMPILER ERROR, Y is deeply constant.
 ```
 
-Reassignable variables can use `VariableName = Expression` after their first
-initialization, but they must be declared with a `;` symbol.
+Mutable/reassignable/non-constant variables can use `VariableName = Expression`
+after their first initialization, but they must be declared with a `@mut :` symbol.
 
 ```
 # declaring a reassignable variable that holds a big integer
-X; int
+X @mut: int
 
 # X is default-initialized to 0 if not specified.
 X += 5      # now X == 5 is True.
 
 # you can also define the value inline as well:
-W ;= 7
+W @mut := 7
 # also equivalent, if you want to be explicit about the type.
-W; int = 7
+W @mut: int = 7
 # also equivalent:
-W ;= int(7)
+W @mut := int(7)
 ```
 
-TODO: maybe use annotations for non-const variables and methods, e.g. @var or @mut
+Note that we use `@mut` as if it were an annotation on the variable name (rather
+than the type) so that we don't have to worry about complex types like a mutable
+array of a constant integer.  Constant variables are deeply constant, and mutable
+variables are modifiable/reassignable, and we only have to think about this
+(as programmers using the language) at the level of the variable itself,
+not based on the type of the variable.
+
+We also use `@mut` after the variable name, rather than before, because we want
+to be able to line up variable names (both mutable and immutable) against the
+current block indent.
 
 ## temporarily locking non-reassignable variables
 
-TODO: see if there's a better syntax for this.
-
 You can also make a variable non-reassignable and deeply constant
-for the remainder of the current block by using `;:` after the variable name.
+for the remainder of the current block by using `@lock` before the variable name.
 
 ```
-X; int = 4  # defined as mutable and reassignable
+X @mut: int = 4  # defined as mutable and reassignable
 
 if SomeCondition
-    X;: = 7 # locks X after assigning it.
-            # For the remainder of this indented block, you can use X but not reassign it
-            # you also can't use mutable, i.e., non-const, methods on X.
+    @lock X = 7 # locks X after assigning it.
+                # For the remainder of this indented block, you can use X but not reassign it
+                # you also can't use mutable, i.e., non-const, methods on X.
 else
-    X;:     # lock X to whatever value it was for this block.
+    @lock X # lock X to whatever value it was for this block.
             # You can still use X but not reassign/mutate it.
 
 print(X)    # will either be 7 (if SomeCondition was true) or 4 (if !SomeCondition)
@@ -169,13 +179,13 @@ X += 5      # can modify X back in this block; there are no constraints here.
 ## nested/object types
 
 You can declare an object type inline with nested fields.  The nested fields defined
-with `:` are immutable, and `;` are mutable.
+with `:` are immutable, and `@mut :` are mutable.
 
 ```
-Vector; (X: dbl, Y: dbl, Z: dbl) = (X: 4, Y: 3, Z: 1.5)
+Vector @mut: (X: dbl, Y: dbl, Z: dbl) = (X: 4, Y: 3, Z: 1.5)
 Vector X += 4   # COMPILER ERROR, field `X` of object is immutable
 
-# note however, as defined, Vector is reassignable since it was defined with `;`:
+# note however, as defined, Vector is reassignable since it was defined with `@mut`:
 Vector = (X: 1, Y: 7.2)
 # note, missing fields will be default-initialized.
 Vector Z == 0   # should be True.
@@ -201,18 +211,18 @@ Vector3 := vector3(X: 5, Y: 10)
 
 ## nested reassignable fields, and how to deeply lock
 
-We can also allow type definitions with mutable fields, e.g. `(X; int, Y; dbl)`.
+We can also allow type definitions with mutable fields, e.g. `(X @mut: int, Y @mut: dbl)`.
 Depending on how the variable is defined, however, you may not be able to change
-the fields once they are set.  If you define the variable with `;`, then you
+the fields once they are set.  If you define the variable with `@mut :`, then you
 can reassign the variable or modify the mutable fields.  But if you define the
 variable with `:`, the object is deeply constant, regardless of the field definitions.
 
 ```
 # vector2 has two reassignable fields, X and Y:
-vector2 := (X; dbl, Y; dbl)
+vector2 := (X @mut: dbl, Y @mut: dbl)
 
-# when defined with `;`, the object is mutable and reassignable.
-MutableVec2; vector2 = (X: 3, Y: 4)
+# when defined with `@mut :`, the object is mutable and reassignable.
+MutableVec2 @mut: vector2 = (X: 3, Y: 4)
 MutableVec2 = vector2(X: 6, Y: 3)   # OK
 MutableVec2 X += 4                  # OK
 MutableVec2 Y -= 1                  # OK
@@ -225,7 +235,7 @@ ImmutableVec2 Y -= 1                 # COMPILE ERROR, ImmutableVec2 is deeply co
 ```
 
 When used as a map key, objects with nested fields become deeply constant,
-regardless of whether the internal fields were defined with `;` or `:`.
+regardless of whether the internal fields were defined with `@mut :` or `:`.
 I.e., the object is defined as if with a `:`.
 This is because we need key stability inside a map; we're not allowed
 to change the key or it could change places inside the map and collide
@@ -233,7 +243,9 @@ with an existing key.
 
 ## hiding variables for the remainder of the block
 
-TODO.  descopes/destructs if the variable was declared in that block.
+TODO: @hide annotation, doesn't descope the variable, just hides it from being used
+by new statements/functions.
+
 
 # functions
 
@@ -389,10 +401,10 @@ q(fn(): bool
 
 ## redefining a function
 
-Just like with variables, to declare a reassignable function, use `;` instead of `:`.
+To declare a reassignable function, use `@mut` after the arguments, and before `:`.
 
 ```
-greetings(Noun: string); null
+greetings(Noun: string) @mut: null
     print "Hello, ${Noun}!"
 
 # you can use the function:
@@ -400,12 +412,13 @@ greetings(Noun: "World")
 
 # or redefine it:
 # option 1:
-greetings = fn(Noun: string); null
+greetings = fn(Noun: string): null
     print "Hi, ${Noun}!"
 # option 2:
 greetings = "Greetings, ${$Noun}!"
 # NOT OK: COMPILE ERROR: this looks like a redeclaration of the function, rather than a reassignment:
-greetings(Noun: string); null
+# also not ok if @mut is removed.
+greetings(Noun: string) @mut: null
     print "Overwriting?"
 ```
 
@@ -415,17 +428,17 @@ TODO: discussion on how it needs to be clear what function overload is being red
 
 Functions can be defined with mutable or immutable arguments, but that does
 not change the function signature (see section on function overloads).
-The important difference is that arguments defined with `;` must be copied
+The important difference is that arguments defined with `@mut` must be copied
 in from the outside (unless the external variable is already a temporary),
 whereas arguments defined with `:` can be referenced without a copy.  This
-is because arguments defined with `;` can be modified inside the function,
+is because arguments defined with `@mut :` can be modified inside the function,
 but they should not modify any variables outside of the function, even if
 they are passed in.  Examples:
 
 ```
 # this function makes a copy of whatever string is passed in:
-copiedArgumentFunction(CopyMe; string): string
-    CopyMe += "!!??"    # OK since CopyMe is defined as mutable via `;`.
+copiedArgumentFunction(CopyMe @mut: string): string
+    CopyMe += "!!??"    # OK since CopyMe is defined as mutable via `@mut :`.
     print(CopyMe)
     return CopyMe
 
@@ -440,19 +453,17 @@ print(MyValue)                          # prints "immutable"
 reffedArgumentFunction(Ref: MyValue)    # prints "immutable??!!"
 print(MyValue)                          # prints "immutable"
 
-Mutable; string = "mutable"
+Mutable @mut: string = "mutable"
 copiedArgumentFunction(CopyMe: Mutable) # prints "mutable!!??"
 print(Mutable)                          # prints "mutable"
 reffedArgumentFunction(Ref: Mutable)    # prints "mutable??!!"
 print(Mutable)                          # prints "mutable"
 ```
 
-The reason that the `;` or `:` argument definition doesn't change the function
+The reason that the `@mut :` or `:` argument definition doesn't change the function
 signature is because in either case, the variables passed in from the outside
 are not affected by the internal parts of the function.  That is, the function
 cannot modify the external variables at all.
-
-TODO: maybe use @mut/@var instead of ;
 
 TODO: allow using @moved as an argument annotation in order to require someone
 to `move()` a variable into the function.
@@ -465,19 +476,18 @@ return values of the function.  To modify an object outside of a function
 using its methods inside the function, use the move-and-return pattern.  E.g.,
 
 ```
-MyObject ;= myObjectType(WhateverArgs: 5)
+MyObject := @mut myObjectType(WhateverArgs: 5)
 MyObject = modify(MyObject move())
 # where the `modify` function is whatever you want:
-modify(MyObjectType; myObjectType): myObjectType
+modify(MyObjectType @mut: myObjectType): myObjectType
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 ```
 
 For this pattern to avoid unnecessary copies, the modifying function must
-use the mutable argument definition (e.g., `;`), and the external caller
+use the mutable argument definition (e.g., `@mut :`), and the external caller
 of the modifying function must `move()` the object into the function's arguments.
 
-TODO: use the @moved annotation, or maybe something even more helpful, e.g.,
 ```
 # the `@mar` annotation adds the argument to both the function's arguments and return value.
 # other values can also be passed into the function (or returned) at the regular spot(s),
@@ -487,7 +497,8 @@ modify @mar(MyObjectType: myObjectType) ():
     return MyObjectType move()      # compiler can probably figure out this move()
 
 # which expands into:
-modify(MyObjectType; @moved myObjectType): myObjectType
+# TODO: make @moved imply @mut, or do something to avoid both annotations
+modify(MyObjectType @mut @moved: myObjectType): myObjectType
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 ```
@@ -513,7 +524,7 @@ greetings(To: "you", Say: "Hi")
 greetings(Times: 5, Say: "Hey", To: "Sam")
 ```
 
-Note that you can define the function arguments as mutable (with `;`) or
+Note that you can define the function arguments as mutable (with `@mut :`) or
 immutable (with `:`) but that does **not** change the type of function.
 Whether the variables can be mutated inside the function does not matter
 to the interface between function and caller.
@@ -524,7 +535,7 @@ to the interface between function and caller.
 greetings(Say: string): null
     print "${Say}, world!"
 
-greetings(Say; string): null
+greetings(Say @mut: string): null
     Say += " wow"
     print "${Say}, world..."
 
@@ -536,8 +547,8 @@ Note also, overloads must be distinguishable based on argument **names**, not ty
 
 ```
 fibonacci(Times: int): int
-    Previous ;= 1
-    Current ;= 0
+    Previous @mut := 1
+    Current @mut := 0
     for Count: int < Times
         NextPrevious := Current
         Current += Previous
@@ -589,22 +600,24 @@ the `:=` symbol.
 ```
 exampleClass := class() {
     # class instance variables can be defined here:
-    X; int
+    X @mut: int
 
     # class methods can be defined as well:
     doSomething(Int): int
         return X + Int
 
-    # TODO: revisit with immutable fields (; vs. :)
     # classes must be resettable to a blank state, or to whatever is specified
-    # as the starting value based on a `reset` function:
+    # as the starting value based on a `reset` function.  this is true even
+    # if fields are defined as immutable.
+    This@mut
     reset(X: int): null
         This X = X
 
-    # or short-hand: `reset(This X: int)` will automatically set `This X` to the passed in `X`.
+    # or short-hand: `This@mut reset(This X: int)`
+    # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
 }
 
-Example; exampleClass = (X: 5)  # also equivalent, `Example ;= exampleClass(X: 5)`
+Example @mut: exampleClass = (X: 5)  # also equivalent, `Example @mut := exampleClass(X: 5)`
 print(Example doSomething(7))   # should print 12
 Example = exampleClass(X: 7)    # note: variable can be reassigned.
 Example X -= 3                  # internal fields can be reassigned as well.
@@ -640,12 +653,9 @@ file as the class definition*.  Non-friends are not able to access or modify pri
 
 The privacy for methods on a class works slightly different.  Here
 it depends on if the method modifies the class or not, i.e., whether
-the method was defined as `myClass;;mutatingMethod(): returnType`
-or `myClass::nonMutatingMethod(): returnType`.  Note that the
+the method was defined as `This@mut mutatingMethod(): returnType`
+or `This nonMutatingMethod(): returnType`.  Note that the
 latter are default.
-TODO: need to make all `reset` methods mutating, i.e., `;;reset()`.
-TODO: add a `@reset()` annotation which creates the reset method
-and returns the old value of whatever variables are set on the class.
 
 |   method access   |  public   | protected |  private  |
 |:-----------------:|:---------:|:---------:|:---------:|
@@ -676,7 +686,7 @@ with various arguments to determine the desired action.
 # for example, this class:
 example := class() {
     @visibility
-    X; dbl
+    X @mut: dbl
 }
 W = example()
 W X += 5
@@ -684,7 +694,7 @@ W X += 5
 # expands to this:
 example := class() {
     @invisible
-    X; dbl
+    X @mut: dbl
 
     # copy getter: makes a copy of X for usage outside of this instance.
     @visibility
@@ -698,18 +708,20 @@ example := class() {
     # swap setter: swaps the value of X with whatever is passed in
     #              returns the old value of X.
     @visibility
-    ;;x(Dbl): dbl
+    This@mut
+    x(Dbl): dbl
         swap(Dbl, X)
         return Dbl
 
     # modify setter: allows the user to modify the value of X
     #                without copying it, using the MAR pattern.
     @visibility
-    ;;x(fn(Dbl;): dbl): null
+    This@mut
+    x(fn(Dbl @moved): dbl): null
         X = fn(X move())
 }
 W = example()
-W x(fn(Dbl;): dbl
+W x(fn(Dbl @mut): dbl
     Dbl += 5
     return Dbl move()
 )
@@ -728,6 +740,7 @@ You can define parent-child class relationships like this.
 
 ```
 animal := class() {
+    This@mut
     reset(This Name: string): null
 
     # define two methods on `animal`: `speak` and `go`.
@@ -757,6 +770,7 @@ Snake escape()  # prints "Fred slithers away!!"
 cat := class(animal) {
     # here we define a `reset` method, so the parent `reset` methods
     # become hidden to users of this child class:
+    This@mut
     reset(): null
         # can refer to parent methods using class name:
         animal reset(Name: "Cat-don't-care-what-you-name-it")
@@ -804,6 +818,7 @@ You can define methods on your class that work for a variety of types.
 ```
 someExample := class() {
     Value: int
+    This@mut
     reset(Int): null
         This Value = Int
     to ~(type) (): type
@@ -831,6 +846,7 @@ from a parent which is a generic/template class.
 ```
 # create a class with two generic types, `key` and `value`:
 genericClass := class ~(key, value) () {
+    This@mut
     reset(This Key: key, This Value: value): null
 }
 # if this class is just POD, you can use the equivalent type:
@@ -868,6 +884,7 @@ to invoke logic from these external files.
 ```
 # vector2.hm
 vector2 := class() {
+    This@mut
     reset(This X: dbl, This Y: dbl): null
 
     dot(Vector2: vector2) := X * Vector2 X + Y * Vector2 Y
@@ -913,7 +930,7 @@ define an array explicitly using the notation `array~elementType`
 for the type `elementType`, or implicitly with the subscript operator, `_`
 (AKA "key" or "indexing" operator), using the notation `elementType_`.
 E.g. `MyArray: int_` or `MyArray: array~int` for an immutable integer array.
-The mutable versions of course use `;` instead of `:`.
+The mutable versions of course use `@mut :` instead of `:`.
 
 Side note: as we will see, the subscript operator is usually a binary operator, i.e.,
 requiring two operands, `A _ B`, read "A subscript B".  We make an exception for the
@@ -930,14 +947,14 @@ MyArray append(5)   # COMPILE ERROR: MyArray is immutable
 MyArray_1 += 5      # COMPILE ERROR: MyArray is immutable
 
 # mutable integer array:
-Array: int_;    # declaring a mutable, "unnamed" integer array
-Array append(5) # now Array == [5]
-Array_3 += 30   # now Array == [5, 0, 0, 30]
-Array_4 = 300   # now Array == [5, 0, 0, 30, 300]
-Array_2 -= 5    # now Array == [5, 0, -5, 30, 300]
+Array @mut: int_    # declaring a mutable, "unnamed" integer array
+Array append(5)     # now Array == [5]
+Array_3 += 30       # now Array == [5, 0, 0, 30]
+Array_4 = 300       # now Array == [5, 0, 0, 30, 300]
+Array_2 -= 5        # now Array == [5, 0, -5, 30, 300]
 
 # mutable string array:
-StringArray; string_ = ["hi", "there"]
+StringArray @mut: string_ = ["hi", "there"]
 print(StringArray pop())    # prints "there".  now StringArray == ["hi"]
 ```
 
@@ -951,23 +968,25 @@ array := class ~type () {
     # always returns a non-null type, adding
     # a default-initialized type if necessary:
     # returns a copy of the value at index, too.
-    This;;_(Index): type
+    This@mut _ (Index): type
 
     # returns a Null if index is out of bounds in the array:
     This_(Index): type?
 
     # sets the value at the index, returning the old value:
-    This;;_(Index, Type;): type
+    This@mut _ (Index, Type @moved): type
 
     # allows access to modify the internal value, via MAR pattern.
     # passes the current value at the index into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the index.
-    This;;_(Index, fn(Type;): type): null
+    This@mut _ (Index, fn(Type @moved): type): null
 
     size(): index
 
-    append(Type;): null
+    This@mut
+    append(Type @mut): null
 
+    This@mut
     pop(Index: index = -1): type
 
     ...
@@ -990,22 +1009,23 @@ map := class ~(key, value) () {
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at key, too.
-    This;;_(Key): value
+    This@mut _ (Key): value
 
     # returns a Null if key is not in the map.
     This_(Key): value?
 
     # sets the value at the key, returning the old value:
-    This;;_(Key, Value;): value
+    This@mut _ (Key, Value @mut): value
 
     # allows access to modify the internal value, via MAR pattern.
     # passes the current value at the key into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the key.
-    This;;_(Key, fn(Value;): value): null
+    This@mut _ (Key, fn(Value @moved): value): null
 
     size(): index
 
-    This;;pop(Key): value
+    This@mut
+    pop(Key): value
 }
 ```
 
@@ -1013,21 +1033,22 @@ Maps require a key type whose instances can hash to an integer or string-like va
 E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array ~dbl`).
 
 ```
-DblDatabase; dbl_int        # OK, int is an OK key type
-DblDblDatabase; dbl_dbl     # COMPILE ERROR, dbl is an invalid key type.
+DblDatabase @mut: dbl_int       # OK, int is an OK key type
+DblDblDatabase @mut: dbl_dbl    # COMPILE ERROR, dbl is an invalid key type.
 ```
 
 However, we allow casting from these prohibited types to allowed key types.  For example:
 
 ```
-NameDatabase; string_int
+NameDatabase @mut: string_int
 NameDatabase_123 = "John"
 NameDatabase_124 = "Jane"
 print(NameDatabase_123.4)   # prints "John" with 60% probability, "Jane" with 40%.
 
 # note that the definition of the key is an immutable array; it's a compile error if the
 # mutable version of the array is used:
-StackDatabase; string_(int_)    # parentheses are grammatically unnecessary, subscripts go right to left
+StackDatabase @mut: string_(int_)   # parentheses are grammatically unnecessary,
+                                    # since subscripts go right to left
 StackDatabase_[1,2,3] = "stack123"
 StackDatabase_[1,2,4] = "stack124"
 print(StackDatabase_[1.0, 2.0, 3.1])    # prints "stack123" with 90% probability, "stack124" with 10%
@@ -1055,9 +1076,10 @@ set := class ~type () {
 
     size(): index
 
-    This;; += (Type;): null
+    This@mut += (Type @mut): null
 
-    This;;pop(): type
+    This@mut
+    pop(): type
 
     ...
 }
@@ -1108,9 +1130,11 @@ range := class (iterator~index) {
     @private
     NextIndex: index = 0
 
+    This@mut
     reset(StartAt: index = 0, This LessThan: index = 0): null
         NextIndex = StartAt
 
+    This@mut
     next(): index?
         if NextIndex < LessThan
             Result := NextIndex
@@ -1136,20 +1160,22 @@ arrayIterator := class~type (iterator~type) {
     # to use MAR, we need to pass in the array;
     # move the array in to avoid copying.
     # this @reset annotation creates a function signature of
-    # reset(This Array; type_, This NextIndex: index = 0): {Array: type_, NextIndex: index}
+    # This@mut
+    # reset(This Array @mut: type_, This NextIndex @mut: index = 0): {Array: type_, NextIndex: index}
     # which automatically returns the old value of the Array (and NextIndex) if requested.
-    @reset(Array; type_, NextIndex: index = 0)
+    @reset(Array: type_, NextIndex: index = 0)
     # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
     # e.g., 
-    #   MyArray; int_ = [1,2,3,4]
-    #   with @holding(Iterator; iterator, MoveAndReturn: MyArray)
-    #   # or `with Iterator ;= @holding(MyArray) iterator`
+    #   MyArray @mut: int_ = [1,2,3,4]
+    #   with @holding(Iterator @mut: iterator, MoveAndReturn: MyArray)
+    #   # or `with Iterator @mut := iterator @holding(MyArray)`
     #       for Int: int in Iterator
     #           ...
     #   print(MyArray)
     #   # MyArray is now back to [1,2,3,4] unless there were changes during iteration,
     #   # but in any case, without a copy,
 
+    This@mut
     next(): type?
         ???
 }
@@ -1163,7 +1189,7 @@ array := class~type () {
     forEach(Input fn(Type): forLoop): null
         for Index: index < size()
             # use the no-copy getter, here:
-            ForLoop; forLoop
+            ForLoop @mut: forLoop
             This_(Index, fn(Type): null
                 ForLoop = Input fn(Type)
             )
@@ -1171,11 +1197,12 @@ array := class~type () {
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;forEach(Input fn(Type): {ForLoop, Type}): null
+    This@mut
+    forEach(Input fn(Type): {ForLoop, Type}): null
         for Index: index < size()
-            ForLoop; forLoop
+            ForLoop @mut: forLoop
             # do a swap on the value based on the passed in function:
-            This_(Index, fn(Type;): type
+            This_(Index, fn(Type @moved): type
                 (ForLoop, Type) = Input fn(Type move())
                 return Type move()
             )
@@ -1197,7 +1224,7 @@ for Value: int < 10
 # prints "0" to "9" on separate newlines.
 
 # for-loop whose counter can be modified inside the block.
-for Special; int < 5
+for Special @mut: int < 5
     print("A: ${Special}")
     ++Special
     print("B: ${Special}")
@@ -1216,11 +1243,11 @@ and though the explicit usage of the MAR pattern can look clumsy,
 we can make MAR invisible using some syntactical sugar.
 
 ```
-ArrayArray; int__ = [[1,2,3], [5]]
+ArrayArray @mut: int__ = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
 ArrayArray_0 append(4)  # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
-ArrayArray_(0, fn(Array; int_): int_
+ArrayArray_(0, fn(Array @moved: int_): int_
     Array append(4)
     return Array
 )
@@ -1243,14 +1270,16 @@ occurs when the outer function is called, then there should be no problem.
 
 ```
 logger := class() {
-    LogCount ;= 0
-    ;;log(String): null
+    LogCount @mut := 0
+
+    This@mut
+    log(String): null
         ++LogCount
         print("${LogCount}: String")
 }
 
 announcer := class() {
-    log(String); null   # mutable, lambda function
+    log(String) @mut: null   # mutable, lambda function
 
     # this indirection isn't strictly necessary;
     # we could set `log` directly since it's a public variable,
@@ -1265,9 +1294,9 @@ announcer := class() {
 }
 
 main(WithLogger: bool): null
-    Announcer ;= announcer()
+    Announcer @mut := announcer()
     if WithLogger 
-        Logger ;= logger()
+        Logger @mut := logger()
         Announcer use(Logger log)
         # after this block ends, Logger goes out of scope;
         # so in something like C++ we'd destroy Logger
@@ -1291,11 +1320,10 @@ function can be copied or not.  The methods that are taking the passed-in functi
 will also provide some metadata on whether the passed-in function will be copied or not.
 (TODO: this needs to happen at the level of the function signature, since we can have
 child classes that can override parent class methods, otherwise these are run-time errors.)
-Then we would allow a lambda-method function to be passed in to some method `className;;useFunction`
-if the instance `OtherClass` backing the passed-in method `otherClass;;usedMethod`
-outlived the `ClassName` instance (i.e., the `OtherClass was defined before `ClassName`,
+Then we would allow a lambda-method function to be passed in to some method `SomeThis@mut useFunction`
+if the instance `OtherClass` backing the passed-in method `OtherThis@mut usedMethod`
+outlived the `SomeClass` instance (i.e., the `OtherClass was defined before `SomeClass`,
 and they are in the same scope).
-(TODO: don't allow descoping an instance before the end of the scope, only allow hiding.)
 
 # grammar/syntax
 
@@ -1316,7 +1344,8 @@ Note on terminology:
 FunctionDeclaration := sequence([
     LowerCamelCase
     list(FunctionArgument)
-    oneOf([operator(":"), operator(";")])
+    optional(annotation("mut"))
+    oneOf([operator(":")])
     TypeMatcher
 ])
 
@@ -1328,7 +1357,8 @@ FunctionDefinition := oneOf([
     sequence([
         LowerCamelCase
         list(FunctionArgument)
-        oneOf([operator(":="), operator(";=")])
+        optional(annotation("mut"))
+        oneOf([operator(":=")])
         RhsStatement
     ])
 ])
@@ -1343,10 +1373,8 @@ FunctionArgument := oneOf([
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
 ClassDefinition := sequence([
     LowerCamelCase
-    oneOf([
-        operator(":=")
-        compileError(IfMatch: operator(";="), "Use := to declare classes")
-    ])
+    doNotAllow(annotation("mut"), "Classes cannot be mutable.")
+    operator(":=")
     keyword("class")
     optional(TemplateArguments)
     list(LowerCamelCase)    # parent class names
@@ -1370,8 +1398,8 @@ for Variable: variableType < UpperBoundExclusive
 for Variable: variableType <= UpperBoundInclusive
     ... use Variable from 0 to floor(UpperBoundInclusive) ...
 # TODO: support starting value, or just variable names
-Variable; variableType = 5
-for Variable;: < UpperBoundExclusive
+Variable @mut: variableType = 5
+for @lock Variable < UpperBoundExclusive
     ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
 # starting at number in the for loop
 for Variable := StartingValue, Variable < UpperBoundExclusive
