@@ -154,7 +154,7 @@ not based on the type of the variable.  The underlying type is the same for both
 constant and mutable variables (i.e., a mutable type), but the variable is only
 allowed to mutate the memory if it is declared as a mutable variable with `;`.
 
-## temporarily locking non-reassignable variables
+## temporarily locking mutable variables
 
 You can also make a variable non-reassignable and deeply constant
 for the remainder of the current block by using `@lock` before the variable name.
@@ -163,7 +163,7 @@ for the remainder of the current block by using `@lock` before the variable name
 X; int = 4  # defined as mutable and reassignable
 
 if SomeCondition
-    @lock X = 7 # locks X after assigning it.
+    @lock X = 7 # locks X after assigning it to the value of 7.
                 # For the remainder of this indented block, you can use X but not reassign it
                 # you also can't use mutable, i.e., non-const, methods on X.
 else
@@ -173,6 +173,11 @@ else
 print(X)    # will either be 7 (if SomeCondition was true) or 4 (if !SomeCondition)
 X += 5      # can modify X back in this block; there are no constraints here.
 ```
+
+## hiding variables for the remainder of the block
+
+TODO: @hide annotation, doesn't descope the variable, just hides it from being used
+by new statements/functions.
 
 ## nested/object types
 
@@ -207,9 +212,7 @@ vector3 := (X: dbl, Y: dbl, Z: dbl)
 Vector3 := vector3(X: 5, Y: 10)
 ```
 
-## nested reassignable fields, and how to deeply lock
-
-We can also allow type definitions with mutable fields, e.g. `(X; int, Y; dbl)`.
+We also allow type definitions with mutable fields, e.g. `(X; int, Y; dbl)`.
 Depending on how the variable is defined, however, you may not be able to change
 the fields once they are set.  If you define the variable with `;`, then you
 can reassign the variable or modify the mutable fields.  But if you define the
@@ -232,25 +235,12 @@ ImmutableVec2 X += 4                 # COMPILE ERROR, ImmutableVec2 is deeply co
 ImmutableVec2 Y -= 1                 # COMPILE ERROR, ImmutableVec2 is deeply constant
 ```
 
-When used as a map key, objects with nested fields become deeply constant,
-regardless of whether the internal fields were defined with `;` or `:`.
-I.e., the object is defined as if with a `:`.
-This is because we need key stability inside a map; we're not allowed
-to change the key or it could change places inside the map and collide
-with an existing key.
-
-## hiding variables for the remainder of the block
-
-TODO: @hide annotation, doesn't descope the variable, just hides it from being used
-by new statements/functions.
-
-
 # functions
 
 Functions are named using `lowerCamelCase` identifiers.  All functions
 must return something, and `null` is a valid return type.  (There is no "void" type.)
 TODO: Probably it's ok to avoid writing in the `null` return type; if no
-return type is specified, `null` is assumed, unless we writing an inline function
+return type is specified, `null` is assumed, unless we are writing an inline function
 where we can infer the return argument value immediately.
 
 ```
@@ -302,7 +292,7 @@ v(X, Y)     # equivalent to `v(X: X, Y: Y)` but the redundancy is not idiomatic.
 v(Y, X)     # equivalent
 ```
 
-TODO: Check if the syntax works out
+TODO: Check if the syntax works out.
 We also allow calling functions without parentheses for a single argument, like this:
 
 ```
@@ -425,7 +415,7 @@ TODO: discussion on how it needs to be clear what function overload is being red
 ## constant versus mutable arguments
 
 Functions can be defined with mutable or immutable arguments, but that does
-not change the function signature (see section on function overloads).
+not change the function signature (cf. section on function overloads).
 The important difference is that arguments defined with `;` must be copied
 in from the outside (unless the external variable is already a temporary),
 whereas arguments defined with `:` can be referenced without a copy.  This
@@ -462,10 +452,6 @@ The reason that the `;` or `:` argument definition doesn't change the function
 signature is because in either case, the variables passed in from the outside
 are not affected by the internal parts of the function.  That is, the function
 cannot modify the external variables at all.
-
-TODO: allow using @moved as an argument annotation in order to require someone
-to `move()` a variable into the function.  don't just allow compiler warnings,
-those will expand unnecessarily.
 
 ## move-modify-return (MMR) pattern
 
@@ -509,6 +495,10 @@ modify(@moved MyObjectType; myObjectType): myObjectType
 SomeInstance ;= myObjectType(...)
 SomeInstance = modify(SomeInstance move())
 ```
+
+TODO: discuss allowing @moved as an argument annotation in order to require someone
+to `move()` a variable into the function.  don't just allow compiler warnings,
+those will expand unnecessarily.
 
 ## function overloads
 
@@ -576,6 +566,8 @@ You can create template functions which can work for a variety of types
 using the syntax `~(type1, type2, ...)` or `~type` (for just one generic type) 
 after a function name.
 
+TODO: maybe use `@gen(type1, ...)` instead of `~(type1)` to save `~` for something else.
+
 ```
 # declaration equivalent to `logger ~(type) (Type): type`:
 logger ~type (Type): type
@@ -611,14 +603,26 @@ We'll use the notation `SomeInstance;;someMutatingMethod()` to refer to these.
 Methods which keep `This` constant are default, and we can use the notation
 `SomeInstance::someMethod()` to refer to these non-mutating methods.
 
+Class constructors are defined with a `;;reset(Args...)` style function,
+which also allow you to reset the class instance as long as the variable is mutable.
+The first `;;reset` method defined in the class is also the default constructor,
+which will be called with default-constructed arguments (if any) if a default
+instance of the class is needed.  It is a compiler error if a `;;reset()` method
+(with no arguments) is defined after other `;;reset` methods (with arguments).
+
 ```
 exampleClass := class() {
     # class instance variables can be defined here:
     X; int
 
-    # class methods can be defined as well:
+    # class methods can be defined as well.
+    # this one does not change the underlying instance:
     doSomething(Int): int
         return X + Int
+
+    # this method mutates the class instance, so it is prefaced with `;;`:
+    ;;addSomething(Int): null
+        X += Int
 
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `reset` function.  this is true even
@@ -648,13 +652,13 @@ can define on the class (cf. C++).  This aids in simplicity, since we don't need
 explicit about methods needing to access `This` for methods, since that's the default,
 and not include a `This` for static functions.  If you want a static-like function,
 create a function in the same file as the class.  Due to how public/private/protected
-visibility works, you can still access fields inside of the class within the same file.
+visibility works, you can still access private fields inside of the class within the same file.
 One of the primary uses for static functions is to effectively have named constructors,
 e.g., `MyDate: dateClass = dateClass fromIsoString("2020-05-04")`, but these are
 not necessary in hm-lang since arguments are named, and we can have multiple constructors.
 So the hm-lang way to do this would be `MyDate := dateClass(IsoString("2020-05-04"))`.
 
-Deeper aside: `someMethod(This, OtherArgs...)` could be a pythonic way to indicate
+Lengthy aside: `someMethod(This, OtherArgs...)` could be a pythonic way to indicate
 a class method and `someFunction(Args...)` could be the corresponding static function.
 While it is true that a method operates on a class instance, i.e., a `This`, the notation
 leaves much to be desired, since we call class methods like this:
@@ -1094,6 +1098,12 @@ StackDatabase_[2.2, 3.5, 4.8] = "odd"
 # but the key is decided first, then the map is added to.
 ```
 
+Note: when used as a map key, objects with nested fields become deeply constant,
+regardless of whether the internal fields were defined with `;` or `:`.
+I.e., the object is defined as if with a `:`.  This is because we need key
+stability inside a map; we're not allowed to change the key or it could
+change places inside the map and collide with an existing key.
+
 ## sets
 
 A set contains some elements, and makes checking for the existence of an element within
@@ -1117,6 +1127,9 @@ set := class ~type () {
     ...
 }
 ```
+
+Like the keys in hash maps, items added to a set become deeply constant,
+even if the set variable is mutable.
 
 ## iterator
 
