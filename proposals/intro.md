@@ -457,12 +457,12 @@ TODO: maybe use @mut/@var instead of ;
 TODO: allow using @moved as an argument annotation in order to require someone
 to `move()` a variable into the function.
 
-## move-modify-return (MMR) pattern
+## move and return (MAR) pattern
 
 Since a function cannot modify variables outside of the function, any changes
 that are to be made outside of the function must be effected by using the
 return values of the function.  To modify an object outside of a function
-using its methods inside the function, use the move-modify-return pattern.  E.g.,
+using its methods inside the function, use the move-and-return pattern.  E.g.,
 
 ```
 MyObject ;= myObjectType(WhateverArgs: 5)
@@ -479,10 +479,10 @@ of the modifying function must `move()` the object into the function's arguments
 
 TODO: use the @moved annotation, or maybe something even more helpful, e.g.,
 ```
-# the `@mmr` annotation adds the argument to both the function's arguments and return value.
+# the `@mar` annotation adds the argument to both the function's arguments and return value.
 # other values can also be passed into the function (or returned) at the regular spot(s),
 # but will not have the move-modify-return pattern applied.
-modify @mmr(MyObjectType: myObjectType) ():
+modify @mar(MyObjectType: myObjectType) ():
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 
@@ -703,7 +703,7 @@ example := class() {
         return Dbl
 
     # modify setter: allows the user to modify the value of X
-    #                without copying it, using the MMR pattern.
+    #                without copying it, using the MAR pattern.
     @visibility
     ;;x(fn(Dbl;): dbl): null
         X = fn(X move())
@@ -959,7 +959,7 @@ array := class ~type () {
     # sets the value at the index, returning the old value:
     This;;_(Index, Type;): type
 
-    # allows access to modify the internal value, via MMR pattern.
+    # allows access to modify the internal value, via MAR pattern.
     # passes the current value at the index into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the index.
     This;;_(Index, fn(Type;): type): null
@@ -998,7 +998,7 @@ map := class ~(key, value) () {
     # sets the value at the key, returning the old value:
     This;;_(Key, Value;): value
 
-    # allows access to modify the internal value, via MMR pattern.
+    # allows access to modify the internal value, via MAR pattern.
     # passes the current value at the key into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the key.
     This;;_(Key, fn(Value;): value): null
@@ -1093,7 +1093,7 @@ iterator := class ~type () {
 
     # replaces the element at `next()` based on the return value;
     # the next value is passed in as an argument to `replace`,
-    # and the iterator should increment.  cf. MMR pattern.
+    # and the iterator should increment.  cf. MAR pattern.
     # if there was an element at this point in the container,
     # and a null is returned, the element (and its former location)
     # should be deleted out of the container.
@@ -1127,13 +1127,13 @@ for Index: index in range(LessThan: 10)
 # prints "0" to "9"
 ```
 
-TODO: how does this work with the MMR framework for remove, insert, etc.?
+TODO: how does this work with the MAR framework for remove, insert, etc.?
 
 For example, here is an array iterator:
 
 ```
 arrayIterator := class~type (iterator~type) {
-    # to use MMR, we need to pass in the array;
+    # to use MAR, we need to pass in the array;
     # move the array in to avoid copying.
     # this @reset annotation creates a function signature of
     # reset(This Array; type_, This NextIndex: index = 0): {Array: type_, NextIndex: index}
@@ -1208,12 +1208,12 @@ for Special; int < 5
 # pointers/references don't exist
 
 To modify a value that is held by another class instance, e.g., the
-element of an array, we use the MMR pattern.  The class instance will
+element of an array, we use the MAR pattern.  The class instance will
 pass in the current value (via a move) to a modifying function. 
 Whatever value the modifying function returns will be used to replace the
 value held by the class instance.  This obviates the need for pointers,
-and though the explicit usage of the MMR pattern can look clumsy,
-we can make MMR invisible using some syntactical sugar.
+and though the explicit usage of the MAR pattern can look clumsy,
+we can make MAR invisible using some syntactical sugar.
 
 ```
 ArrayArray; int__ = [[1,2,3], [5]]
