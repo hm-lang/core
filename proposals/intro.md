@@ -114,6 +114,8 @@ differs from the modulus, `%`, when the operands have opposing signs.
 Variables are named using `UpperCamelCase` identifiers.  The `:` symbol is used
 to declare deeply constant, non-reassignable variables, and `@var :` is used to declare
 mutable, reassignable variables.
+TODO: reconsider maybe going back to `;` from `@var :`.  `someMethod @mod(This)(...):` is
+just a bit verbose.  or maybe use `@moth` to expand to `mod(This)`.
 
 ```
 # declaring and setting a non-reassignable variable that holds a big integer
@@ -603,10 +605,9 @@ AnotherDblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
 A class is defined with the `class` keyword and a `lowerCamelCase` identifier.
 Class definitions must be constant/non-reassignable, so they are declared using
 the `:=` symbol.  Mutating methods (functions that modify the class instance)
-must be defined with a `This@var` before the method name to indicate that they
-can mutate the class instance, `This`.  Methods which keep the class instance
-constant can include a `This` before the method name (without the `@var`),
-or leave `This` out entirely.  Constant methods are thus the default.
+must be defined with a `@mod(This)` after the method name to indicate that they
+can modify/mutate the class instance, `This`.  Methods which keep the class instance
+constant are the default.
 
 ```
 exampleClass := class() {
@@ -620,11 +621,10 @@ exampleClass := class() {
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `reset` function.  this is true even
     # if fields are defined as immutable.
-    This@var
-    reset(X: int): null
+    reset @mod(This) (X: int): null
         This X = X
 
-    # or short-hand: `This@var reset(This X: int)`
+    # or short-hand: `reset @mod(This) (This X: int)` or even `@reset(X: int)`
     # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
 }
 
@@ -640,7 +640,30 @@ ConstVar X += 3                 # COMPILER ERROR! `ConstVar` is deeply constant.
 ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 ```
 
-## private/public/protected
+Note:  all functions defined on the class are methods, i.e., functions which operate
+on a class instance (with a `This`).  There are thus no "static" functions that you
+can define on the class (cf. C++).  This aids in simplicity, since we don't need to be
+explicit about methods needing to access `This` for methods, since that's the default,
+and not include a `This` for static functions.  If you want a static-like function,
+create a function in the same file as the class.  Due to how public/private/protected
+visibility works, you can still access fields inside of the class within the same file.
+One of the primary uses for static functions is to effectively have named constructors,
+e.g., `MyDate: dateClass = dateClass fromIsoString("2020-05-04")`, but these are
+not necessary in hm-lang since arguments are named, and we can have multiple constructors.
+So the hm-lang way to do this would be `MyDate := dateClass(IsoString("2020-05-04"))`.
+
+Deeper aside: `someMethod(This, OtherArgs...)` could be a pythonic way to indicate
+a class method and `someFunction(Args...)` could be the corresponding static function.
+While it is true that a method operates on a class instance, i.e., a `This`, the notation
+leaves much to be desired, since we call class methods like this:
+`MyClassInstance someMethod(OtherArgs...)` and not like this:
+`someMethod(MyClassInstance, OtherArgs...)`.
+Instead, we think of a class body as a scope, and functions defined in a scope have access
+to variables in the scope.  This saves us as programmers in the language some time
+(since we don't have to include a `This` in every method) and heartache (since
+we don't have dissonance between the definition syntax and call syntax).
+
+## public/private/protected
 
 We use annotations `@public`, `@private`, and `@protected` to indicate various
 levels of access to a class instance's variables.  Public is default, and means
@@ -664,7 +687,7 @@ file as the class definition*.  Non-friends are not able to access or modify pri
 
 The privacy for methods on a class works slightly different.  Here
 it depends on if the method modifies the class or not, i.e., whether
-the method was defined as `This@var mutatingMethod(): returnType`
+the method was defined as `mutatingMethod @mod(This) (): returnType`
 or `This nonMutatingMethod(): returnType`.  Note that the
 latter are default.
 
@@ -719,27 +742,22 @@ example := class() {
     # swap setter: swaps the value of X with whatever is passed in
     #              returns the old value of X.
     @visibility
-    This@var
-    x(Dbl): dbl
-        swap(Dbl, X)
-        return Dbl
+    x @mod(This) (Dbl): dbl
+        return X = Dbl
     # or, slightly shorter:
     @visibility
-    This@var
-    x @mod(Dbl): null
-        swap(Dbl, X)
+    x @mod(This, Dbl) (): null
+        Dbl = X = Dbl
 
     # modify setter: allows the user to modify the value of X
     #                without copying it, using the MMR pattern.
     @visibility
-    This@var
-    x(fn(Dbl @moved): dbl): null
+    x @mod(This) (fn(Dbl @moved): dbl): null
         X = fn(X move())
     # or, slightly shorter:
     @visibility
-    This@var
-    x(fn @mod(Dbl): null): null
-        fn @mod(X)
+    x @mod(This) (fn @mod(Dbl): null): null
+        return fn @mod(X)
 }
 W = example()
 W x(fn(Dbl @var): dbl
@@ -761,8 +779,7 @@ You can define parent-child class relationships like this.
 
 ```
 animal := class() {
-    This@var
-    reset(This Name: string): null
+    reset @mod(This) (This Name: string): null
 
     # define two methods on `animal`: `speak` and `go`.
     # these are "abstract" methods, i.e., not implemented by this base class.
@@ -791,8 +808,7 @@ Snake escape()  # prints "Fred slithers away!!"
 cat := class(animal) {
     # here we define a `reset` method, so the parent `reset` methods
     # become hidden to users of this child class:
-    This@var
-    reset(): null
+    reset @mod(This) (): null
         # can refer to parent methods using class name:
         animal reset(Name: "Cat-don't-care-what-you-name-it")
 
@@ -839,8 +855,7 @@ You can define methods on your class that work for a variety of types.
 ```
 someExample := class() {
     Value: int
-    This@var
-    reset(Int): null
+    reset @mod(This) (Int): null
         This Value = Int
     to ~(type) (): type
         return type(Value)
@@ -867,8 +882,7 @@ from a parent which is a generic/template class.
 ```
 # create a class with two generic types, `key` and `value`:
 genericClass := class ~(key, value) () {
-    This@var
-    reset(This Key: key, This Value: value): null
+    reset @mod(This) (This Key: key, This Value: value): null
 }
 # if this class is just POD, you can use the equivalent type:
 # genericClass := ~(key, value) (Key: key, Value: value)
@@ -905,8 +919,7 @@ to invoke logic from these external files.
 ```
 # vector2.hm
 vector2 := class() {
-    This@var
-    reset(This X: dbl, This Y: dbl): null
+    reset @mod(This) (This X: dbl, This Y: dbl): null
 
     dot(Vector2: vector2) := X * Vector2 X + Y * Vector2 Y
 }
@@ -989,26 +1002,25 @@ array := class ~type () {
     # always returns a non-null type, adding
     # a default-initialized type if necessary:
     # returns a copy of the value at index, too.
-    This@var _ (Index): type
+    # TODO: we probably need an operator keyword, e.g., `op _ @mod(This) (Index): type`
+    _ @mod(This) (Index): type
 
     # returns a Null if index is out of bounds in the array:
-    This_(Index): type?
+    _(Index): type?
 
     # sets the value at the index, returning the old value:
-    This@var _ (Index, Type @moved): type
+    _ @mod(This) (Index, Type @moved): type
 
     # allows access to modify the internal value, via MMR pattern.
     # passes the current value at the index into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the index.
-    This@var _ (Index, fn(Type @moved): type): null
+    _ @mod(This) (Index, fn(Type @moved): type): null
 
     size(): index
 
-    This@var
-    append(Type @var): null
+    append @mod(This) (Type @var): null
 
-    This@var
-    pop(Index: index = -1): type
+    pop @mod(This) (Index: index = -1): type
 
     ...
 }
@@ -1030,23 +1042,22 @@ map := class ~(key, value) () {
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at key, too.
-    This@var _ (Key): value
+    _ @mod(This) (Key): value
 
     # returns a Null if key is not in the map.
-    This_(Key): value?
+    _(Key): value?
 
     # sets the value at the key, returning the old value:
-    This@var _ (Key, Value @var): value
+    _ @mod(This) (Key, Value @var): value
 
     # allows access to modify the internal value, via MMR pattern.
     # passes the current value at the key into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the key.
-    This@var _ (Key, fn(Value @moved): value): null
+    _ @mod(This) (Key, fn(Value @moved): value): null
 
     size(): index
 
-    This@var
-    pop(Key): value
+    pop @mod(This) (Key): value
 }
 ```
 
@@ -1097,10 +1108,9 @@ set := class ~type () {
 
     size(): index
 
-    This@var += (Type @var): null
+    += @mod(This) (Type @var): null
 
-    This@var
-    pop(): type
+    pop @mod(This) (): type
 
     ...
 }
@@ -1151,12 +1161,10 @@ range := class (iterator~index) {
     @private
     NextIndex: index = 0
 
-    This@var
-    reset(StartAt: index = 0, This LessThan: index = 0): null
+    reset @mod(This) (StartAt: index = 0, This LessThan: index = 0): null
         NextIndex = StartAt
 
-    This@var
-    next(): index?
+    next @mod(This) (): index?
         if NextIndex < LessThan
             Result := NextIndex
             ++NextIndex
@@ -1181,8 +1189,9 @@ arrayIterator := class~type (iterator~type) {
     # to use MMR, we need to pass in the array;
     # move the array in to avoid copying.
     # this @reset annotation creates a function signature of
-    # This@var
-    # reset(This Array @var: type_, This NextIndex @var: index = 0): {Array: type_, NextIndex: index}
+    # reset @mod(This) (
+    #   This Array @var: type_, This NextIndex @var: index = 0
+    # ): {Array: type_, NextIndex: index}
     # which automatically returns the old value of the Array (and NextIndex) if requested.
     @reset(Array: type_, NextIndex: index = 0)
     # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
@@ -1196,8 +1205,7 @@ arrayIterator := class~type (iterator~type) {
     #   # MyArray is now back to [1,2,3,4] unless there were changes during iteration,
     #   # but in any case, without a copy,
 
-    This@var
-    next(): type?
+    next @mod(This) (): type?
         ???
 }
 ```
@@ -1218,14 +1226,12 @@ array := class~type () {
                 break
 
     # no-copy iteration, but can mutate the array.
-    This@var
-    forEach(Input fn(Type): {ForLoop, Type}): null
+    forEach @mod(This) (Input fn @mod(Type) (): ForLoop): null
         for Index: index < size()
             ForLoop @var: forLoop
             # do a swap on the value based on the passed in function:
-            This_(Index, fn(Type @moved): type
-                (ForLoop, Type) = Input fn(Type move())
-                return Type move()
+            This_(Index, fn @mod(Type) (): null
+                ForLoop = Input fn @mod(Type) ()
             )
             if ForLoop == forLoop Break
                 break
@@ -1293,8 +1299,7 @@ occurs when the outer function is called, then there should be no problem.
 logger := class() {
     LogCount @var := 0
 
-    This@var
-    log(String): null
+    log @mod(This) (String): null
         ++LogCount
         print("${LogCount}: String")
 }
@@ -1335,14 +1340,16 @@ main(WithLogger: bool): null
     Announcer end()
 ```
 
+TODO: clean up:
+
 What we could do is allow methods to be passed in as functions no problem, but mark
 those lambda-method functions as special, e.g., with some metadata on whether the
 function can be copied or not.  The methods that are taking the passed-in function
 will also provide some metadata on whether the passed-in function will be copied or not.
 (TODO: this needs to happen at the level of the function signature, since we can have
 child classes that can override parent class methods, otherwise these are run-time errors.)
-Then we would allow a lambda-method function to be passed in to some method `SomeThis@var useFunction`
-if the instance `OtherClass` backing the passed-in method `OtherThis@var usedMethod`
+Then we would allow a lambda-method function to be passed in to some method `useFunction @mod(SomeThis)`
+if the instance `OtherClass` backing the passed-in method `usedMethod @mod(OtherThis)`
 outlived the `SomeClass` instance (i.e., the `OtherClass was defined before `SomeClass`,
 and they are in the same scope).
 
