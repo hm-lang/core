@@ -468,12 +468,12 @@ cannot modify the external variables at all.
 TODO: allow using @moved as an argument annotation in order to require someone
 to `move()` a variable into the function.
 
-## move and return (MAR) pattern
+## move-modify-return (MMR) pattern
 
 Since a function cannot modify variables outside of the function, any changes
 that are to be made outside of the function must be effected by using the
 return values of the function.  To modify an object outside of a function
-using its methods inside the function, use the move-and-return pattern.  E.g.,
+using its methods inside the function, use the move-modify-return pattern.  E.g.,
 
 ```
 MyObject @mut := myObjectType(WhateverArgs: 5)
@@ -489,16 +489,16 @@ use the mutable argument definition (e.g., `@mut :`), and the external caller
 of the modifying function must `move()` the object into the function's arguments.
 
 ```
-# the `@mar` annotation adds the argument to both the function's arguments and return value.
+# the `@mod` annotation adds the argument to both the function's arguments and return value.
 # other values can also be passed into the function (or returned) at the regular spot(s),
 # but will not have the move-modify-return pattern applied.
-modify @mar(MyObjectType: myObjectType) ():
+modify @mod(MyObjectType: myObjectType) ():
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 
 SomeInstance @mut := myObjectType(...)
-# you can also use `@mar` to call the function and have it update the variable.
-modify @mar(SomeInstance)
+# you can also use `@mod` to call the function and have it update the variable.
+modify @mod(SomeInstance)
 
 # which expands into:
 # TODO: make @moved imply @mut, or do something to avoid both annotations
@@ -723,13 +723,23 @@ example := class() {
     x(Dbl): dbl
         swap(Dbl, X)
         return Dbl
+    # or, slightly shorter:
+    @visibility
+    This@mut
+    x @mod(Dbl): null
+        swap(Dbl, X)
 
     # modify setter: allows the user to modify the value of X
-    #                without copying it, using the MAR pattern.
+    #                without copying it, using the MMR pattern.
     @visibility
     This@mut
     x(fn(Dbl @moved): dbl): null
         X = fn(X move())
+    # or, slightly shorter:
+    @visibility
+    This@mut
+    x(fn @mod(Dbl): null): null
+        fn @mod(X)
 }
 W = example()
 W x(fn(Dbl @mut): dbl
@@ -987,7 +997,7 @@ array := class ~type () {
     # sets the value at the index, returning the old value:
     This@mut _ (Index, Type @moved): type
 
-    # allows access to modify the internal value, via MAR pattern.
+    # allows access to modify the internal value, via MMR pattern.
     # passes the current value at the index into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the index.
     This@mut _ (Index, fn(Type @moved): type): null
@@ -1028,7 +1038,7 @@ map := class ~(key, value) () {
     # sets the value at the key, returning the old value:
     This@mut _ (Key, Value @mut): value
 
-    # allows access to modify the internal value, via MAR pattern.
+    # allows access to modify the internal value, via MMR pattern.
     # passes the current value at the key into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the key.
     This@mut _ (Key, fn(Value @moved): value): null
@@ -1126,7 +1136,7 @@ iterator := class ~type () {
 
     # replaces the element at `next()` based on the return value;
     # the next value is passed in as an argument to `replace`,
-    # and the iterator should increment.  cf. MAR pattern.
+    # and the iterator should increment.  cf. MMR pattern.
     # if there was an element at this point in the container,
     # and a null is returned, the element (and its former location)
     # should be deleted out of the container.
@@ -1162,13 +1172,13 @@ for Index: index in range(LessThan: 10)
 # prints "0" to "9"
 ```
 
-TODO: how does this work with the MAR framework for remove, insert, etc.?
+TODO: how does this work with the MMR framework for remove, insert, etc.?
 
 For example, here is an array iterator:
 
 ```
 arrayIterator := class~type (iterator~type) {
-    # to use MAR, we need to pass in the array;
+    # to use MMR, we need to pass in the array;
     # move the array in to avoid copying.
     # this @reset annotation creates a function signature of
     # This@mut
@@ -1246,12 +1256,12 @@ for Special @mut: int < 5
 # pointers/references don't exist
 
 To modify a value that is held by another class instance, e.g., the
-element of an array, we use the MAR pattern.  The class instance will
+element of an array, we use the MMR pattern.  The class instance will
 pass in the current value (via a move) to a modifying function. 
 Whatever value the modifying function returns will be used to replace the
 value held by the class instance.  This obviates the need for pointers,
-and though the explicit usage of the MAR pattern can look clumsy,
-we can make MAR invisible using some syntactical sugar.
+and though the explicit usage of the MMR pattern can look clumsy,
+we can make MMR invisible using some syntactical sugar.
 
 ```
 ArrayArray @mut: int__ = [[1,2,3], [5]]
