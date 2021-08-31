@@ -482,12 +482,12 @@ TODO: use the @moved annotation, or maybe something even more helpful, e.g.,
 # the `@mmr` annotation adds the argument to both the function's arguments and return value.
 # other values can also be passed into the function (or returned) at the regular spot(s),
 # but will not have the move-modify-return pattern applied.
-@mmr(MyObjectType: myObjectType) modify():
+modify @mmr(MyObjectType: myObjectType) ():
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 
 # which expands into:
-modify(@moved MyObjectType: myObjectType): myObjectType
+modify(@moved MyObjectType; myObjectType): myObjectType
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 ```
