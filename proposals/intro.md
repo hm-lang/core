@@ -487,7 +487,7 @@ modify @mmr(MyObjectType: myObjectType) ():
     return MyObjectType move()      # compiler can probably figure out this move()
 
 # which expands into:
-modify(@moved MyObjectType; myObjectType): myObjectType
+modify(MyObjectType; @moved myObjectType): myObjectType
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 ```
@@ -1067,12 +1067,19 @@ set := class ~type () {
 
 ```
 iterator := class ~type () {
+    # get a copy of the next value (by incrementing the iterator).
+    # returns Null if no next value.
     next(): type?
-    previous?(): type?
+
+    # no-copy next value via no-copy getter function:
+    next(fn(Type: type?): null): null
 
     # returns next value of iterator without incrementing the iterator.
-    # recommended to be present if `remove` is present.
+    # optional, but recommended to be present if `remove` is present.
     peak?(): type?
+
+    # no-copy peak via no-copy getter function:
+    peak?(fn(Type: type?): null): null
 
     # present only if underlying container supports removing the current element (at `peak()`)
     # returns the element, or null if no current element.
