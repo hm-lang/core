@@ -476,7 +476,7 @@ return values of the function.  To modify an object outside of a function
 using its methods inside the function, use the move-and-return pattern.  E.g.,
 
 ```
-MyObject := @mut myObjectType(WhateverArgs: 5)
+MyObject @mut := myObjectType(WhateverArgs: 5)
 MyObject = modify(MyObject move())
 # where the `modify` function is whatever you want:
 modify(MyObjectType @mut: myObjectType): myObjectType
@@ -496,11 +496,18 @@ modify @mar(MyObjectType: myObjectType) ():
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 
+SomeInstance @mut := myObjectType(...)
+# you can also use `@mar` to call the function and have it update the variable.
+modify @mar(SomeInstance)
+
 # which expands into:
 # TODO: make @moved imply @mut, or do something to avoid both annotations
 modify(MyObjectType @mut @moved: myObjectType): myObjectType
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
+
+SomeInstance @mut := myObjectType(...)
+SomeInstance = modify(SomeInstance move())
 ```
 
 ## function overloads
@@ -595,7 +602,11 @@ AnotherDblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
 
 A class is defined with the `class` keyword and a `lowerCamelCase` identifier.
 Class definitions must be constant/non-reassignable, so they are declared using
-the `:=` symbol.
+the `:=` symbol.  Mutating methods (functions that modify the class instance)
+must be defined with a `This@mut` before the method name to indicate that they
+can mutate the class instance, `This`.  Methods which keep the class instance
+constant can include a `This` before the method name (without the `@mut`),
+or leave `This` out entirely.  Constant methods are thus the default.
 
 ```
 exampleClass := class() {
