@@ -43,10 +43,7 @@ Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 
 # operators and precedence
 
-TODO: add : ,
-
-TODO: add ; for something, maybe member access if space is too overloaded.
-e.g. SomeClass;someMethod();X
+TODO: add : , ;
 
 TODO: see if member access needs to be LTR
 
@@ -86,6 +83,8 @@ E.g., `dbl(3/4) == 0.75` or `6/4 == rtl(3)/rtl(2)`.
 
 The integer division operator, `//`, will return an integer, rounded towards zero, e.g.,`3//4 == 0`
 and `-3//4 == 0`.  Also, `5//4 = 1` and `-5//4 = -1`, and `12 // 3 == 4` as expected.
+If any operand is a double, the resulting value will be an integer double, e.g.,
+`5.1 // 2 == 2.0`.
 
 The modulus operator, `%`, will put the first operand into the range given by the second operand.
 E.g., `5 % 4 == 1`, `123.45 % 1 == 0.45`.  Mathematically, we use the relation
@@ -107,8 +106,8 @@ differs from the modulus, `%`, when the operands have opposing signs.
 | -13   |  -5   |      2        |    -3     |     2     |    -3     |
 |  56   |   7   |      8        |     0     |     8     |     0     |
 |  56   |  -7   |     -8        |     0     |    -8     |     0     |
-|  6.78 |   1   |      6        |    0.78   |     6     |    0.78   |
-| -6.78 |   1   |     -7        |    0.22   |    -6     |   -0.78   |
+|  6.78 |   1   |      6.0      |    0.78   |     6.0   |    0.78   |
+| -6.78 |   1   |     -7.0      |    0.22   |    -6.0   |   -0.78   |
 
 # declaring and using variables
 
