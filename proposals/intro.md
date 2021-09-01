@@ -55,7 +55,8 @@ TODO: see if member access needs to be LTR
 |   1       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
 |           |   `^`     | superscript/power         | binary: `A^B`     |               |
 |           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
-|           |   `\`     | module import             | unary: `\A`       |               |
+|           | `**x/y/z` | library module import     | special: `**a/b`  |               |
+|           | `*/x/y/z` | relative module import    | special: `*/a/b`  |               |
 |   2       |   `[ ]`   | function call             | on fn: `a B`      | RTL           |
 |           |   `[ ]`   | member access             | binary: `A B`     |               |
 |   3       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
@@ -256,11 +257,11 @@ v() := 600
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
-    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${\\math atan(X, Y)}")
+    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${**math atan(X, Y)}")
     # Note this could also be defined more concisely using $$,
     # which also prints the expression inside the parentheses with an equal sign and its value,
-    # although this will print `\\math atan(X, Y) = ...`, e.g.:
-    # print("$${X}, $${Y}, $${\\math atan(X, Y)}")
+    # although this will print `**math atan(X, Y) = ...`, e.g.:
+    # print("$${X}, $${Y}, $${**math atan(X, Y)}")
 
 # function that takes a function as an argument and returns a function
 # TODO: input function must be scoped to survive however long `wow` can be called;
@@ -553,9 +554,9 @@ fibonacci(Times: int): int
     return Current
 
 fibonacci(Times: dbl): dbl
-    GoldenRatio: dbl = (1.0 + \\math sqrt(5)) * 0.5
-    OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
-    return (GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)
+    GoldenRatio: dbl = (1.0 + **math sqrt(5)) * 0.5
+    OtherRatio: dbl = (1.0 - **math sqrt(5)) * 0.5
+    return (GoldenRatio^Times - OtherRatio^Times) / **math sqrt(5)
 
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 ```
@@ -909,15 +910,15 @@ OtherInstance := genericClass ~(key: dbl, value: string) (Key: 3, Value: 4)
 Every file in hm-lang is its own module, and we make it easy to reference
 code from other files to build applications.  All `.hm` files must be known
 at compile time, so referring to other files gets its own special notation.
-The backslash symbol, `\`, when used outside of a string, begins a file-system
-search in the current directory, and two backslashes becomes a search for
-a library module, e.g., `\\math`.  Subsequent subdirectories are separated
-using more backslashes, e.g., `\relative\path\to\file` to reference the file
-at `relative/path/to/file.hm`, and `..` is allowed between backslashes
-to go to the parent directory relative to the current directory, e.g.,
-`\..\subdirectory_in_parent_directory\some\other\file`.  Note that we don't
-include the `.hm` extension on the final file, and we allow underscores
-in file and directory names.
+The operator `*/` begins a file-system search in the current directory.
+and two asterisks becomes a search for a library module, e.g., `**math`.
+
+Subsequent subdirectories are separated using forward slashes, e.g.,
+`*/relative/path/to/file` to reference the file at `./relative/path/to/file.hm`,
+and `..` is allowed between backslashes to go to the parent directory relative
+to the current directory, e.g., `*/../subdirectory_in_parent_directory/other/file`.
+Note that we don't include the `.hm` extension on the final file, and we allow
+underscores in file and directory names.
 
 For example, suppose we have two files, `vector2.hm` and `main.hm` in the same
 directory.  Each of these is considered a module, and we can use backslashes
@@ -932,14 +933,14 @@ vector2 := class() {
 }
 
 # main.hm
-Vector2Module: hm = \vector2    # .hm extension must be left off.
+Vector2Module: hm = */vector2    # .hm extension must be left off.
 Vector2 := Vector2Module vector2(X: 3, Y: 4)
 print(Vector2)
 # TODO, support destructuring in the future:
-# {vector2} := \vector2
+# {vector2} := */vector2
 ```
 
-You can use this backslash notation inline as well, which is recommended
+You can use this `*/` notation inline as well, which is recommended
 for avoiding unnecessary imports.  It will be a language feature to
 parse all imports when compiling a file, regardless of whether they're used,
 rather than to dynamically load modules.  This ensures that if another imported file
@@ -947,20 +948,20 @@ has compile-time errors they will be known at compile time, not run time.
 
 ```
 # importing a function from a file in a relative path:
-print(\path\to\relative\file functionFromFile("hello, world!"))
+print(*/path/to/relative/file functionFromFile("hello, world!"))
 
 # importing a function from the math library:
-Angle := \\math atan2(X: 5, Y: -3)
+Angle := **math atan2(X: 5, Y: -3)
 ```
 
 To import a path that has special characters, just use the special characters
-inside the file.  For a path that has spaces (e.g., in file or directory names),
-use a parentheses that surround the path, e.g., `[\\library\path with spaces]` or
-`[\relative\path\with a space\to\a\great file]`.
-
-TODO: paths with backslashes, maybe use `\\` for a backslash in a name, but then
-we have to do something different for library path.  could switch to requiring
-enclosing parentheses, e.g., `[/absolute/path]`, `[./relative/path]`, and `[~/library/path]`.
+inline after the `*/`, e.g., `*/sehr/übel` to reference the file at `./sehr/übel.hm`.
+For a path that has spaces (e.g., in file or directory names), use parentheses to
+surround the path, e.g., `[**library/path/with spaces]` for a library path or 
+`[*/relative/path/with a space/to/a/great file]` for a relative path.  Or you can
+use a backslash to escape the space, e.g., `**library/path/with\ spaces` or
+`*/relative/path/with\ a\ space/to/a/great\ file`.  Other standard escape sequences
+(using backslashes) will probably be supported.
 
 # standard container classes (and helpers)
 
