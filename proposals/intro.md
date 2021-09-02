@@ -1011,8 +1011,14 @@ array := class ~type () {
     # returns a copy of the value at index, too.
     This;; _ (Index): type
 
+    # no-copy getter, which creates a default-initialized value if necessary.
+    This;; _ (Index, fn(Type): null): null
+
     # returns a Null if index is out of bounds in the array:
     This _ (Index): type?
+
+    # no-copy getter, which returns a Null if index is out of bounds in the array:
+    This _ (Index, fn(Type?): null): null
 
     # sets the value at the index, returning the old value:
     This;; _ (Index, @moved Type): type
@@ -1041,6 +1047,11 @@ or you can use the implicit method with the subscript operator (`_`),
 e.g., `valueType_keyType` as "`valueType` keyed by `keyType`".  For example,
 for a map from integers to strings, you can use: `MyMap: string_int`.
 The default name for a map variable is `Map`, regardless of key or value type.
+Note that while an array can be thought of as a map from the `index` type to
+whatever the array element type is, `elementType_index` indicates a map type,
+not an array type.  The array type, `elementType_` would be useful for densely
+packed data (i.e., instances of `elementType` for most indices), while the map
+type `elementType_index` would be useful for sparse data.
 
 ```
 # some relevant pieces of the class definition
@@ -1050,8 +1061,14 @@ map := class ~(key, value) () {
     # returns a copy of the value at key, too.
     This;; _ (Key): value
 
+    # no-copy getter, which will create a value instance if it's not present at Key.
+    This;; _ (Key, fn(Value): null): null
+
     # returns a Null if key is not in the map.
     This _ (Key): value?
+
+    # no-copy getter, which will pass back a Null if the key is not in the map.
+    This _ (Key, fn(Value?): null): null
 
     # sets the value at the key, returning the old value:
     This;; _ (Key, Value;): value
@@ -1083,10 +1100,10 @@ NameDatabase_123 = "John"
 NameDatabase_124 = "Jane"
 print(NameDatabase_123.4)   # prints "John" with 60% probability, "Jane" with 40%.
 
-# note that the definition of the key is an immutable array; it's a compile error if the
-# mutable version of the array is used:
-StackDatabase; string_(int_)   # parentheses are grammatically unnecessary,
-                                    # since subscripts go right to left
+# note that the definition of the key is an immutable array:
+StackDatabase; string_(int_)    # parentheses are grammatically unnecessary,
+                                # since subscripts go right to left.
+                                # e.g., `StackDatabase; string_int_` would be ok too.
 StackDatabase_[1,2,3] = "stack123"
 StackDatabase_[1,2,4] = "stack124"
 print(StackDatabase_[1.0, 2.0, 3.1])    # prints "stack123" with 90% probability, "stack124" with 10%
@@ -1102,7 +1119,7 @@ Note: when used as a map key, objects with nested fields become deeply constant,
 regardless of whether the internal fields were defined with `;` or `:`.
 I.e., the object is defined as if with a `:`.  This is because we need key
 stability inside a map; we're not allowed to change the key or it could
-change places inside the map and collide with an existing key.
+change places inside the map and/or collide with an existing key.
 
 ## sets
 
