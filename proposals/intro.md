@@ -35,15 +35,11 @@ X: dbl = 5.43
 Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 ```
 
-## optional types
-
-```
-# TODO: do we want `X: int?` or `X: int|null`
-```
-
 # operators and precedence
 
 TODO: add : , ;
+
+TODO: ternary assignment -- do not use question mark operator ?
 
 TODO: see if member access needs to be LTR
 
@@ -154,30 +150,40 @@ not based on the type of the variable.  The underlying type is the same for both
 constant and mutable variables (i.e., a mutable type), but the variable is only
 allowed to mutate the memory if it is declared as a mutable variable with `;`.
 
-## temporarily locking mutable variables
+## nullable variable types
 
-You can also make a variable non-reassignable and deeply constant
-for the remainder of the current block by using `@lock` before the variable name.
+To make it easy to indicate when a variable can be nullable, we reserve the question mark
+symbol, `?`, to place after the type.  E.g., `X: int?` declares a variable `X` that
+can be an integer or null.  An optional type can be made more explicit using the notation,
+`someType|null`, e.g., `int|null`.  The default value for an optional type is `Null`.
+
+Note that for an optional type with more than one real type, it is a compiler error
+to use `?`.  E.g., `someType|anotherType?` looks a bit like it could be a non-nullable
+`someType` instance, or a nullable `anotherType` instance.  Instead, use
+`someType|anotherType|null` to make it clear that null is its own type and does not
+make any other type act like a pointer.
+
+One of the cool features of hm-lang is that we don't require the programmer
+to check for null on a nullable type before using it.  The compiler will automatically
+check for null on variables that can be null.  This is also helpful for method chaining
+on classes (see more on those below).  If your code calls a method on an instance that
+is null, a null will be returned instead (and the method will not be called).
 
 ```
-X; int = 4  # defined as mutable and reassignable
+# define a class with a method called `someMethod`:
+someClass := class() { someMethod(): int }
 
-if SomeCondition
-    @lock X = 7 # locks X after assigning it to the value of 7.
-                # For the remainder of this indented block, you can use X but not reassign it
-                # you also can't use mutable, i.e., non-const, methods on X.
-else
-    @lock X # lock X to whatever value it was for this block.
-            # You can still use X but not reassign/mutate it.
+Nullable; someClass? = Null
 
-print(X)    # will either be 7 (if SomeCondition was true) or 4 (if !SomeCondition)
-X += 5      # can modify X back in this block; there are no constraints here.
+Value := Nullable someMethod()  # `Value` has type `int|null` now.
+
+# eventually we want to support things like this, where the compiler
+# can tell if the type is nullable or not:
+if Nullable != Null
+    NonNullValue := Nullable someMethod()   # `Value` here must be `int`.
 ```
 
-## hiding variables for the remainder of the block
-
-TODO: @hide annotation, doesn't descope the variable, just hides it from being used
-by new statements/functions.
+TODO: how to handle forced conversions from null to non-null types
 
 ## nested/object types
 
@@ -234,6 +240,31 @@ ImmutableVec2 = vector2(X: 6, Y: 3)  # COMPILE ERROR, ImmutableVec2 is non-reass
 ImmutableVec2 X += 4                 # COMPILE ERROR, ImmutableVec2 is deeply constant
 ImmutableVec2 Y -= 1                 # COMPILE ERROR, ImmutableVec2 is deeply constant
 ```
+
+## temporarily locking mutable variables
+
+You can also make a variable non-reassignable and deeply constant
+for the remainder of the current block by using `@lock` before the variable name.
+
+```
+X; int = 4  # defined as mutable and reassignable
+
+if SomeCondition
+    @lock X = 7 # locks X after assigning it to the value of 7.
+                # For the remainder of this indented block, you can use X but not reassign it
+                # you also can't use mutable, i.e., non-const, methods on X.
+else
+    @lock X # lock X to whatever value it was for this block.
+            # You can still use X but not reassign/mutate it.
+
+print(X)    # will either be 7 (if SomeCondition was true) or 4 (if !SomeCondition)
+X += 5      # can modify X back in this block; there are no constraints here.
+```
+
+## hiding variables for the remainder of the block
+
+TODO: @hide annotation, doesn't descope the variable, just hides it from being used
+by new statements/functions.
 
 # functions
 
@@ -411,6 +442,15 @@ greetings(Noun: string); null
 ```
 
 TODO: discussion on how it needs to be clear what function overload is being redefined.
+
+## optional unnamed arguments and nullable functions
+
+Since a nullable variable is defined with `someType?` (or `someType|null` to be explicit),
+we can use `SomeType?` as the unnamed version of this variable.  The question mark `?`
+will be parsed here as part of the function name.
+
+TODO: more discussion, how this works in grammar, also how to do optional functions
+
 
 ## constant versus mutable arguments
 
@@ -1386,6 +1426,9 @@ outlived the `SomeClass` instance (i.e., the `OtherClass was defined before `Som
 and they are in the same scope).
 
 # grammar/syntax
+
+TODO: discussion on parentheses -- we'd like all to be equal () == {} == [], but
+our notation might be difficult to distinguish arrays from arguments.
 
 Note on terminology:
 
