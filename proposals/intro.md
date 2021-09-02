@@ -1444,12 +1444,29 @@ Note on terminology:
 * `UpperCamelCase`: Identifier which starts with an uppercase alphabetical character.
 
 ```
+VariableDeclaration := sequence([
+    VariableName
+    oneOf([operator(":"), operator(";")])
+    TypeMatcher
+])
+
+VariableName := UpperCamelCase
+
+VariableDefintion := oneOf([
+    # VariableName: type = ...
+    sequence([VariableDeclaration, operator("="), RhsStatement])
+    # VariableName := ...
+    sequence([VariableName, oneOf([operator(";="), operator(":=")]), RhsStatement])
+])
+
 FunctionDeclaration := sequence([
-    LowerCamelCase
+    FunctionName
     list(FunctionArgument)
     oneOf([operator(":"), operator(";")])
     TypeMatcher
 ])
+
+FunctionName := LowerCamelCase
 
 FunctionDefinition := oneOf([
     # fnName(Args...): returnType
@@ -1457,7 +1474,7 @@ FunctionDefinition := oneOf([
     sequence([FunctionDeclaration, Block])
     # fnName(Args...) := Statement
     sequence([
-        LowerCamelCase
+        FunctionName 
         list(FunctionArgument)
         oneOf([operator(":="), operator(";=")])
         RhsStatement
@@ -1471,9 +1488,24 @@ FunctionArgument := oneOf([
     VariableDeclaration
 ])
 
+# TODO: figure out how recursive stuff works here, this requires some finesse
+RhsStatement := oneOf([
+    AtomicStatement,
+    sequence([AtomicStatement, AnyOperator, RhsStatement]),
+])
+
+AtomicStatement := oneOf([
+    VariableName
+    FunctionCall
+    parentheses(RhsStatement)
+    list(DefinedArgument)
+])
+
+FunctionCall := sequence([FunctionName, AtomicStatement])
+
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
 ClassDefinition := sequence([
-    LowerCamelCase
+    ClassName
     oneOf([
         operator(":=")
         doNotAllow(operator(";="), "Classes cannot be mutable.")
@@ -1483,6 +1515,8 @@ ClassDefinition := sequence([
     list(LowerCamelCase)    # parent class names
     parentheses(Block)
 ])
+
+ClassName := LowerCamelCase
 
 # a list encompasses things like (), (TokenMatcher), (TokenMatcher, TokenMatcher), etc.,
 # but also lists with newlines if properly tabbed.
