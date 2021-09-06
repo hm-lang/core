@@ -778,7 +778,7 @@ but constant methods can be called by anyone.  `@private` methods which
 modify the class instance can only be called by module functions, and
 constant methods can be called by friends.
 
-## Getters and setters on class instance variables
+## getters and setters on class instance variables
 
 Note that all variables defined on a class are given methods to access/set
 them, but this is done with syntactical sugar.  That is,
@@ -1518,14 +1518,14 @@ option := enumerate(
     NowYouWillBeSadForever
 )
 
-print "number of options should be 7:  ${option.count()}"
+print "number of options should be 7:  ${option count()}"
 
 option Option1 = ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
-if Option1.isNotAGoodOption()
+if Option1 isNotAGoodOption()
     print "oh no"
-elif Option1.isOopsYouMissedIt()
+elif Option1 isOopsYouMissedIt()
     print "whoops"
 ...
 
@@ -1545,6 +1545,8 @@ consider Option1
 Defaults to whatever value is 0 (the first, if no values are specified).
 
 If no value is zero, then the first specified value is default.
+
+## masks
 
 TODO: masks
 
