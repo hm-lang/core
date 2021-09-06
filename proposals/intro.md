@@ -709,6 +709,28 @@ to variables in the scope.  This saves us as programmers in the language some ti
 (since we don't have to include a `This` in every method) and heartache (since
 we don't have dissonance between the definition syntax and call syntax).
 
+## unicode/localization support
+
+We intend hm-lang to support all languages, and so the upper/lower-case requirements
+may seem a bit strange in other alphabets.  To set a custom "UpperCamelCase" default name
+for an instance of the class, use this notation:
+
+```
+örsted := class() {
+    # define a custom default name:
+    This := Örsted
+    ... other class methods ...
+}
+
+# TODO: rename "unnamed" to "default-named" everywhere
+# Now we can use `Örsted` to mean a default-named variable of the class örsted:
+doSomething(Örsted): bool
+    return ...
+```
+
+We will throw a compile error when a class begins with a non-ascii letter, unless
+the class defines the default-name of a variable of the class.
+
 ## public/private/protected
 
 We use annotations `@public`, `@private`, and `@protected` to indicate various
@@ -1437,7 +1459,7 @@ Note on terminology:
 * Definition: declaration along with an assignment of the function or variable.
 
 * `Identifier`: starts with an alphabetical character, can have numerical characters after that.
-    Note that underscores are not permitted, since they are an operator.  
+    Note that underscores are **not** permitted, since they are an operator.  
 
 * `LowerCamelCase`: Identifier which starts with a lowercase alphabetical character.
 
