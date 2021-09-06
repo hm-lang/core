@@ -1520,7 +1520,7 @@ option := enumerate(
 
 print "number of options should be 7:  ${option count()}"
 
-option Option1 = ContentWithLife
+Option1 := option ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
 if Option1 isNotAGoodOption()
