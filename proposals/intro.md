@@ -729,7 +729,9 @@ doSomething(Örsted): bool
 ```
 
 We will throw a compile error when a class begins with a non-ascii letter, unless
-the class defines the default-name of a variable of the class.
+the class defines the default-name of a variable of the class.  Also, you'll get
+a compile error unless the custom default name is the first statement in the class
+definition.
 
 ## public/private/protected
 
@@ -1115,35 +1117,23 @@ not an array type.  The array type, `elementType_` would be useful for densely
 packed data (i.e., instances of `elementType` for most indices), while the map
 type `elementType_index` would be useful for sparse data.
 
+To define a map (and its contents) inline, use this notation:
+
 ```
-# some relevant pieces of the class definition
-map := class ~(key, value) () {
-    # always returns a non-null type, adding
-    # a default-initialized value if necessary:
-    # returns a copy of the value at key, too.
-    This;; _ (Key): value
+# map from string to ints:
+EmployeeIds: int_string = [
+    # option 1: `X: Y` syntax
+    "Jane": 123
+    # option 2: `{Key: X, Value: Y}` syntax
+    {Key: "Jane", Value: 123}
+    # option 3: `[X, Y]` syntax, ok if key and value types are different
+    ["Jane", 123]
+]
+# note that commas are optional if elements are separated by newlines,
+# but required if elements are placed on the same line.
 
-    # no-copy getter, which will create a value instance if it's not present at Key.
-    This;; _ (Key, fn(Value): null): null
-
-    # returns a Null if key is not in the map.
-    This _ (Key): value?
-
-    # no-copy getter, which will pass back a Null if the key is not in the map.
-    This _ (Key, fn(Value?): null): null
-
-    # sets the value at the key, returning the old value:
-    This;; _ (Key, Value;): value
-
-    # allows access to modify the internal value, via MMR pattern.
-    # passes the current value at the key into the passed-in function (to be specific, moves it).
-    # the return value of the passed-in function will become the new value at the key.
-    This;; _ (Key, fn(@moved Value): value): null
-
-    size(): index
-
-    ;;pop(Key): value
-}
+# equivalent definition would occur with this first line:
+# `EmployeeIds := map~(key: string, value: int) [`
 ```
 
 Maps require a key type whose instances can hash to an integer or string-like value.
@@ -1182,6 +1172,38 @@ regardless of whether the internal fields were defined with `;` or `:`.
 I.e., the object is defined as if with a `:`.  This is because we need key
 stability inside a map; we're not allowed to change the key or it could
 change places inside the map and/or collide with an existing key.
+
+Some relevant pieces of the class definition:
+
+```
+map := class ~(key, value) () {
+    # always returns a non-null type, adding
+    # a default-initialized value if necessary:
+    # returns a copy of the value at key, too.
+    This;; _ (Key): value
+
+    # no-copy getter, which will create a value instance if it's not present at Key.
+    This;; _ (Key, fn(Value): null): null
+
+    # returns a Null if key is not in the map.
+    This _ (Key): value?
+
+    # no-copy getter, which will pass back a Null if the key is not in the map.
+    This _ (Key, fn(Value?): null): null
+
+    # sets the value at the key, returning the old value:
+    This;; _ (Key, Value;): value
+
+    # allows access to modify the internal value, via MMR pattern.
+    # passes the current value at the key into the passed-in function (to be specific, moves it).
+    # the return value of the passed-in function will become the new value at the key.
+    This;; _ (Key, fn(@moved Value): value): null
+
+    size(): index
+
+    ;;pop(Key): value
+}
+```
 
 ## sets
 
