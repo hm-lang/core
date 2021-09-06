@@ -1531,7 +1531,8 @@ consider Option1
         print "oh no"
     case BestOptionStillComing
         print "was the best actually..."
-    case Unselected # falls through in case of no intermediate line:
+    case Unselected
+        fallThrough
     default
         print "that was boring"
 ```
@@ -1544,7 +1545,43 @@ If no value is zero, then the first specified value is default.
 
 ## masks
 
-TODO: masks
+Masks are generalized from enumerations to allow multiple values held simultaneously.
+Each value can also be thought of as a flag or option, which are bitwise OR'd together
+(i.e., `|`) for the variable instance.  Under the hood, these are unsigned integer types.
+Trying to assign a negative value will throw a compiler error.
+
+TODO: allow specifying the integer type backing the mask (or enum), e.g., `enumerate~i64(...)`
+
+```
+# the mask is required to specify types that are powers of two:
+nonMutuallyExclusiveType := mask(
+    # `None: 0` is automatically added as a mask option.
+    X: 1
+    Y: 2
+    Z: 4
+    T: 8
+)
+
+# has all the same static methods as enum, though perhaps they are a bit surprising:
+nonMutuallyExclusiveType() count() == 16
+nonMutuallyExclusiveType() min() == 0
+nonMutuallyExclusiveType() max() == 15    # = X | Y | Z | T
+
+Options ;= nonMutuallyExclusiveType()
+Options isNone()    # True.  note there is no `hasNone()` method, since that doesn't
+                    #        make sense -- either the mask is None or it has something.
+Options |= X        # TODO: make sure it's ok to implicitly add the mask type here.
+Options |= nonMutuallyExclusiveType Z   # explicit mask type
+
+Options hasX()  # True
+Options hasY()  # False
+Options hasZ()  # True
+Options hasT()  # False
+Options isX()   # False, since Options is a combo of X and Z
+
+Options = T
+Options isT()   # True, since Options is now solely T
+```
 
 # pointers/references don't exist
 
