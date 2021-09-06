@@ -641,7 +641,8 @@ and call other class methods.  Mutating methods -- i.e., that modify the class
 instance, `This` -- must be defined with a `;;` before the method name.
 We'll use the notation `SomeInstance;;someMutatingMethod()` to refer to these.
 Methods which keep `This` constant are default, and we can use the notation
-`SomeInstance::someMethod()` to refer to these non-mutating methods.
+`SomeInstance::someMethod()` to refer to these non-mutating methods.  Note
+that you can use `this` to refer to the current class instance type.
 
 Class constructors are defined with a `;;reset(Args...)` style function,
 which also allow you to reset the class instance as long as the variable is mutable.
@@ -844,9 +845,12 @@ they will be used as the getters/setters for that variable.  Anyone
 trying to access the variable (or set it) will use the overloaded methods.
 
 
-## parent-child classes and method overloads
+## parent-child classes and method overrides
 
-You can define parent-child class relationships like this.
+You can define parent-child class relationships like this.  Note that
+for methods, `this` will indicate whatever type the current instance's type is,
+which will be the parent class if the instance is a parent type, or a subclass
+if the instance is a child class.
 
 ```
 animal := class() {
@@ -861,6 +865,12 @@ animal := class() {
     # derived classes can still change it, though.
     escape(): null
         print "${Name} ${goes()} away!!"
+
+    # a method that returns an instance of whatever the class instance
+    # type is known to be.  e.g., an animal returns an animal instance,
+    # while a subclass would return a subclass instance:
+    clone(): this
+        return this(Name)
 }
 
 snake := class(animal) {
@@ -871,6 +881,8 @@ snake := class(animal) {
         print "hisss!"
     goes(): string
         return "slithers"
+
+    # no need to override `clone`, since we can create a snake using a name.
 }
 
 Snake := snake(Name: "Fred")
@@ -890,6 +902,11 @@ cat := class(animal) {
 
     escape(): null
         print "CAT ESCAPES DARINGLY!"
+
+    # the parent `clone()` method won't work, so override:
+    clone(): this
+        # cats are essentially singletons, that cannot have their own name;
+        return this()
 }
 
 Cat := cat()
@@ -957,8 +974,6 @@ genericClass := class ~(key, value) () {
 }
 # if this class is just POD, you can use the equivalent type:
 # genericClass := ~(key, value) (Key: key, Value: value)
-# TODO: allow specifying generics inline, e.g. `genericClass := (Key: ~key, Value: ~value)`,
-# or `genericClass := (~Key, ~Value)` for short.
 
 # creating an instance using type inference:
 ClassInstance := genericClass(Key: 5, Value: "hello")
@@ -967,6 +982,43 @@ ClassInstance := genericClass(Key: 5, Value: "hello")
 OtherInstance := genericClass ~(key: dbl, value: string) (Key: 3, Value: 4)
 # note the passed-in values will be converted into the correct type.
 ```
+
+TODO:
+You can also have generic methods on generic classes, but we may
+have to think of a clever way to achieve this.  E.g., C++ does not allow this...
+
+## common class methods
+
+All classes have a few compiler-provided methods which cannot be overridden.
+
+* `;;move(): this` creates a temporary with the current instance's values, while
+    resetting the current instance to a default instance -- i.e., calling `reset()`.
+    Internally, this swaps pointers, but not actual data, so this method
+    should be faster than copy for types bigger than the processor's word size.
+* `::Type: classType` provides the class type.  This makes it easy to determine
+    what the current type of a combo-type variable is at run-time.  E.g.,
+    TODO: discuss how `consider`'s `case` statements cast their arguments
+    to the same type as the type of the `consider` statement.
+    ```
+    X; null|int|dbl_
+    X = [1.2, 3.4]
+    consider X Type
+        case null
+            print("X was Null")
+        case int
+            print("X was an integer")
+        case dbl_
+            print("X was an array of double")
+    ```
+    Note that the `classType` type can be created directly from the type
+    constructors, e.g. `null` and `int`, e.g., `classType(int) == 5 Type`.
+    Note also, the `classType` type also can be printed nicely, e.g.,
+    `print("asdf" Type)` prints "str", and `str(classType Type) == "classType"`.
+
+TODO: check if `copy()` should be in the list.
+
+TODO: rethink if we want to allow static functions, and require `::` as a prefix on methods
+and `;;` on instance variables (or `::` on deeply-constant variables).
 
 # modules
 
