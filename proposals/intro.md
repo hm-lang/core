@@ -1781,6 +1781,14 @@ grammar: tokenMatcher_grammarElement = [
 
 grammarMatcher := tokenMatcher | grammarElement
 
+# TODO: consider doing something Kotlin-y, where we could do
+# match(...) : bool = consider
+#   case ...
+#       returnValue # without return statement
+#   case ...
+#       otherReturnValue # without return
+# that might work well with the comma/newline approach,
+# as well as ternary if/then/elif without new symbols/syntax
 match @mod(TokenIterator) (GrammarMatcher): bool
     consider GrammarMatcher Type
         case tokenMatcher
