@@ -1017,9 +1017,6 @@ All classes have a few compiler-provided methods which cannot be overridden.
 
 TODO: check if `copy()` should be in the list.
 
-TODO: rethink if we want to allow static functions, and require `::` as a prefix on methods
-and `;;` on instance variables (or `::` on deeply-constant variables).
-
 # modules
 
 Every file in hm-lang is its own module, and we make it easy to reference
@@ -1440,7 +1437,8 @@ masks for a similar class type that allows multiple options at once.
 For example:
 
 ```
-# TODO: check syntax
+# Enums use a similar syntax as maps when being defined,
+# except that the left-hand side must be an UpperCamelCase identifier:
 bool := enumerate(
     False: 0
     True: 1
@@ -1450,11 +1448,6 @@ bool := enumerate(
 Enums provide a few extra additional properties for free as well, including the number of
 values that are enumerated via the method `count(): index`, the min and max values
 `min(): index`, `max(): index`, and some convenience methods on any instance of the enumeration.
-
-TODO: double check if this stuff makes sense if there are no static methods, and possible
-ways to get around this.  the problem is `enumName staticMethod()` looks like nested function calls,
-e.g., `enumName(staticMethod())`, which isn't right.  maybe we need to introduce `enumCount`,
-`enumMax`, and `enumMin` functions.
 
 ```
 Test := bool False
@@ -1466,14 +1459,17 @@ if Test isFalse()
     print "test is false!"
 
 # get the size (number of enumerated values) of the enum:
-print "bool has ${bool count()} possibilities:"
+print "bool has ${bool() count()} possibilities:"
 # get the lowest and highest values of the enum:
-print "starting at ${bool min()} and going to ${bool max()}"
+print "starting at ${bool() min()} and going to ${bool() max()}"
 ```
 
 Because of this, it is a bit confusing to create an enum that has `Count` as an
 enumerated value name, but it is not illegal, since we can still distinguish between the
-enumerated value (`enumName Count`) and total number of enumerated values (`enumName count()`).
+enumerated value (`enumName Count`) and total number of enumerated values (`enumName() count()`).
+
+TODO: ensure that `enumName Count` makes sense from a grammar perspective.  looks like
+`enumName(Count)`, which is ok i think??
 
 Also note that the `count()` method will return the total number of
 enumerations, not the number +1 after the last enum value.  This can be confusing
@@ -1486,8 +1482,8 @@ sign := enumerate(
     Positive: 1
 )
 
-print "sign has ${sign count()} values" # prints 3 for count()
-print "starting at ${sign min()} and going to ${sign max()}" # -1 and 1
+print "sign has ${sign() count()} values" # 3
+print "starting at ${sign() min()} and going to ${sign() max()}" # -1 and 1
 
 weird := enumerate(
     X: 1
@@ -1496,9 +1492,9 @@ weird := enumerate(
     Q: 9
 )
 
-print weird count() # prints 4
-print weird min() # prints 1
-print weird max() # prints 9
+print(weird() count())  # prints 4
+print(weird() min())    # prints 1
+print(weird() max())    # prints 9
 ```
 
 ### Testing enums with lots of values
@@ -1518,7 +1514,7 @@ option := enumerate(
     NowYouWillBeSadForever
 )
 
-print "number of options should be 7:  ${option count()}"
+print "number of options should be 7:  ${option() count()}"
 
 Option1 := option ContentWithLife
 
