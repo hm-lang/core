@@ -1696,96 +1696,117 @@ Note on terminology:
 * `UpperCamelCase`: Identifier which starts with an uppercase alphabetical character.
 
 ```
+# list of elements that can compose the grammar.
+# doesn't include stuff like LowerCamelCase or UpperCamelCase,
+# which are not grammatically relevant.
 grammarElement := enumerate(
-    #TODO
+    TypeMatcher
+    VariableName
+    VariableDeclaration
+    VariableDefinition
+    FunctionName
+    FunctionDeclaration
+    FunctionDefinition
+    FunctionArgument
+    FunctionCall
+    RhsStatement
+    AtomicStatement
+    ClassName
+    ClassDefinition
 )
 
-# TODO: move all grammar definitions below here
 grammar: tokenMatcher_grammarElement = [
-    #TODO
+    TypeMatcher: TokenMatcher() #TODO
+    VariableName: UpperCamelCase
+    VariableDeclaration: sequence([
+        VariableName
+        oneOf([operator(":"), operator(";")])
+        TypeMatcher
+    ])
+    VariableDefintion: oneOf([
+        # VariableName: type = ...
+        sequence([VariableDeclaration, operator("="), RhsStatement])
+        # VariableName := ...
+        sequence([VariableName, oneOf([operator(";="), operator(":=")]), RhsStatement])
+    ])
+    FunctionName: LowerCamelCase
+    FunctionDeclaration: sequence([
+        FunctionName
+        list(FunctionArgument)
+        oneOf([operator(":"), operator(";")])
+        TypeMatcher
+    ])
+    FunctionDefinition: oneOf([
+        # fnName(Args...): returnType
+        #   BlockStatements
+        sequence([FunctionDeclaration, Block])
+        # fnName(Args...) := Statement
+        sequence([
+            FunctionName 
+            list(FunctionArgument)
+            oneOf([operator(":="), operator(";=")])
+            RhsStatement
+        ])
+    ])
+    FunctionArgument := oneOf([
+        FunctionDefinition
+        FunctionDeclaration
+        VariableDefinition
+        VariableDeclaration
+    ])
+    FunctionCall: sequence([FunctionName, AtomicStatement])
+    RhsStatement: oneOf([
+        AtomicStatement,
+        sequence([AtomicStatement, AnyOperator, RhsStatement]),
+    ])
+    AtomicStatement: oneOf([
+        VariableName
+        FunctionCall
+        parentheses(RhsStatement)
+        list(DefinedArgument)
+    ])
+    ClassName: LowerCamelCase
+    ClassDefinition: sequence([
+        ClassName
+        oneOf([
+            operator(":=")
+            doNotAllow(operator(";="), "Classes cannot be mutable.")
+        ])
+        keyword("class")
+        optional(TemplateArguments)
+        list(LowerCamelCase)    # parent class names
+        parentheses(Block)
+    ])
 ]
 
-VariableDeclaration := sequence([
-    VariableName
-    oneOf([operator(":"), operator(";")])
-    TypeMatcher
-])
+grammarMatcher := tokenMatcher | grammarElement
 
-VariableName := UpperCamelCase
+match @mod(TokenIterator) (GrammarMatcher): bool
+    consider GrammarMatcher Type
+        case tokenMatcher
+            return GrammarMatcher match @mod(TokenIterator) ()
+        case grammarElement
+            # no-copy accessor
+            # TODO: add a generic no-copy accessor with a return value
+            return grammar_(GrammarMatcher, fn(TokenMatcher)
+                return TokenMatcher match @mod(TokenIterator) ()
+            )
 
-VariableDefintion := oneOf([
-    # VariableName: type = ...
-    sequence([VariableDeclaration, operator("="), RhsStatement])
-    # VariableName := ...
-    sequence([VariableName, oneOf([operator(";="), operator(":=")]), RhsStatement])
-])
-
-FunctionDeclaration := sequence([
-    FunctionName
-    list(FunctionArgument)
-    oneOf([operator(":"), operator(";")])
-    TypeMatcher
-])
-
-FunctionName := LowerCamelCase
-
-FunctionDefinition := oneOf([
-    # fnName(Args...): returnType
-    #   BlockStatements
-    sequence([FunctionDeclaration, Block])
-    # fnName(Args...) := Statement
-    sequence([
-        FunctionName 
-        list(FunctionArgument)
-        oneOf([operator(":="), operator(";=")])
-        RhsStatement
-    ])
-])
-
-FunctionArgument := oneOf([
-    FunctionDefinition
-    FunctionDeclaration
-    VariableDefinition
-    VariableDeclaration
-])
-
-RhsStatement := oneOf([
-    AtomicStatement,
-    sequence([AtomicStatement, AnyOperator, RhsStatement]),
-])
-
-AtomicStatement := oneOf([
-    VariableName
-    FunctionCall
-    parentheses(RhsStatement)
-    list(DefinedArgument)
-])
-
-FunctionCall := sequence([FunctionName, AtomicStatement])
+# TODO: actually compiling code will require going through the TokenMatchers
+# in a specific order to avoid running through all options to see what fits.
 
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
-ClassDefinition := sequence([
-    ClassName
-    oneOf([
-        operator(":=")
-        doNotAllow(operator(";="), "Classes cannot be mutable.")
-    ])
-    keyword("class")
-    optional(TemplateArguments)
-    list(LowerCamelCase)    # parent class names
-    parentheses(Block)
-])
-
-ClassName := LowerCamelCase
 
 # a list encompasses things like (), (TokenMatcher), (TokenMatcher, TokenMatcher), etc.,
 # but also lists with newlines if properly tabbed.
-list(TokenMatcher) := parentheses(fn(EndParen) := until(
+list(GrammarMatcher) := parentheses(fn(EndParen) := until(
     EndParen
     repeat(CheckExit) := sequence([
-        TokenMatcher, CheckExit, CommaOrBlockNewline, CheckExit
+        GrammarMatcher, CheckExit, CommaOrBlockNewline, CheckExit
     ])
 ))
+
+# TODO: sequence with an array of grammar matchers
 
 ===
 # e.g.
