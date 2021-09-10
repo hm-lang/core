@@ -543,6 +543,8 @@ those will expand unnecessarily.
 ## function overloads
 
 Functions can do different things based on which arguments are passed in.
+For one function to be an overload of another function, it must be defined in the same file,
+and it must have different arguments or return values.
 
 ```
 greetings(String): null
@@ -599,6 +601,22 @@ fibonacci(Times: dbl): dbl
 
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 ```
+
+There is the matter of how to determine which overload to call.  We consider
+only overloads that possess the specified input arguments.  If there is an explicit type
+for the output (return) value, e.g., `X: dbl = calling(InputArgs...)`, then we also filter
+by overloads which have that output type, e.g., `dbl` in this case.  We choose the overload
+that has the fewest number of additional arguments (or zero), breaking ties with the overload
+that was defined first in the file.
+
+Note that if the output type is a data class, e.g., `{X: dbl, Y: str}`, then we
+want to support destructuring, e.g., `{Y: str} = calling(InputArgs...)` and using
+`Y` on subsequent lines as desired.  In this case, the output fields essentially count
+as extra arguments, and we again choose the overload that has the fewest number of additional
+arguments (or output fields).
+
+We also allow calling functions with any dynamically generated arguments, so that means
+being able to resolve the overload at run-time.
 
 ## function templates/generics
 
