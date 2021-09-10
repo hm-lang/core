@@ -1822,6 +1822,11 @@ match @mod(TokenIterator) (GrammarMatcher): bool
 # in a specific order to avoid running through all options to see what fits.
 
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
+tokenMatcher := class() {
+    @reset(Name: str = "")
+    # TODO: tokenIterator needs to support putting back a token.
+    match @mod(TokenIterator) (): bool
+}
 
 # a list encompasses things like (), (TokenMatcher), (TokenMatcher, TokenMatcher), etc.,
 # but also lists with newlines if properly tabbed.
@@ -1833,6 +1838,14 @@ list(GrammarMatcher) := parentheses(fn(EndParen) := until(
 ))
 
 # TODO: sequence with an array of grammar matchers
+sequence := class(tokenMatcher) {
+    @reset(Array: grammarMatcher_)
+    match @mod(TokenIterator) ():
+        MatchedTokens; token_
+        # TODO: need `match @mod(TokenIterator)` to return matched tokens,
+        # so that we can put them back if necessary.
+        # TODO: actually finish this method
+}
 
 ===
 # e.g.
@@ -1859,3 +1872,7 @@ ForLoop := sequence([
 
 TODO: support internationalization.  do we really require Upper/lower+CamelCase for variables/functions?
 or is the syntax unambiguous enough to not need them?
+
+# tokenizer
+
+TODO
