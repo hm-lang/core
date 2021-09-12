@@ -37,14 +37,25 @@ Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 
 # operators and precedence
 
+Operator priority.
+
 TODO: add : , ;
 
 TODO: ternary assignment -- do not use question mark operator ?
 
 TODO: see if member access needs to be LTR
+TODO: `MyInstance someMethod someFunction() someThingElse()` should resolve as
+      `(MyInstance someMethod(someFunction())) someThingElse()`.
+TODO: `MyInstance someMethod someFunction() SomeField` should resolve as
+      `(MyInstance someMethod(someFunction())) SomeField`.
+TODO: `MyInstance someMethod someFunction()()` should resolve as
+      `MyInstance someMethod(  ( someFunction() )()  )`.
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
+|   0       |   `()`    | parentheses               | grouping: `(A)`   | RTL           |
+|           |   `[]`    | parentheses               | grouping: `[A]`   |               |
+|           |   `{}`    | parentheses               | grouping: `{A}`   |               |
 |   1       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
 |           |   `^`     | superscript/power         | binary: `A^B`     |               |
 |           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
@@ -1093,6 +1104,10 @@ use a backslash to escape the space, e.g., `**library/path/with\ spaces` or
 `*/relative/path/with\ a\ space/to/a/great\ file`.  Other standard escape sequences
 (using backslashes) will probably be supported.
 
+## file access
+
+TODO: how does file access work with the MMR pattern
+
 # standard container classes (and helpers)
 
 ## arrays
@@ -1686,6 +1701,48 @@ the element via the pointer.  The element might not exist anymore
 (e.g., the array was shrunk), and in the worst case, the array
 might not even exist (e.g., the array was descoped).
 
+TODO: make sure the syntactical sugar makes sense and has priority.
+`ArrayArray_0 append(4)` might look like `(ArrayArray_0) append(4)`,
+i.e., create a copy of ArrayArray_0 and then append to the copy.
+So we want to make sure `ArrayArray_0` can be interpreted as a LHS,
+e.g., with an annotation, e.g., `class() { @lhs(This;; _ (Index): type) }`
+
+In this way, ownership of another variable is very strict in hm-lang.
+Only one object can modify the memory at some location (i.e., of a variable).
+TODO: see if this is still true with functions modifying variables out of their scope...
+We want to make it easy for lambda functions to capture variables in
+the outer scope, which is important to do if those variables' lifetimes
+end before that of the lambda function.
+
+```
+createLambda(Int;): fn(): int
+    # without `@take`, the `Int` would not remain in scope
+    return fn @take(Int;) ():
+        Int += 1
+        return Int
+```
+
+Ideally, `@take` would not be a built-in compiler annotation, but accomplishable
+by other language features.  E.g., by creating a class that is callable.  For example,
+the `@take` annotation would expand to something like this:
+
+```
+@private
+hiddenClass := class() {
+    @reset(Int; int)
+
+    # TODO: maybe rename this method to `call()` instead of `()`:
+    This;;(): int
+        Int += 1
+        return Int
+}
+createLambda(Int;): fn(): int
+    return hiddenClass(Int move())
+```
+
+TODO: how to `take` a class instance to use its method
+
+TODO: cleanup:
 TODO: make sure people can't get around this by passing in a method
 of an object as a function to some class instance's method, which
 then goes on to keep a copy of that function as a lambda.
@@ -1708,7 +1765,7 @@ announcer := class() {
     # this indirection isn't strictly necessary;
     # we could set `log` directly since it's a public variable,
     # but this goes to show how the issue can be subtle.
-    use(New log(String): null): null
+    ;;use(New log(String): null): null
         log = New log
 
     begin(): null
