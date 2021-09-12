@@ -1169,6 +1169,62 @@ array := class ~type () {
 }
 ```
 
+### fixed-size arrays
+
+We declare an array with a fixed number of elements using the notation
+`elementType_FixedSize`, where `FixedSize` is a constant integer expression (e.g., 5)
+or a variable that can be converted to the `index` type.  Fixed-size array elements
+will be initialized to the default value of the element type, e.g., 0 for number types.
+Most of the methods of `array` are present on the fixed-size array type as well,
+except those that modify the size of the array.  As usual, the arrays are zero-indexed,
+so the first element in a fixed-size array `Array` is `Array_0`.
+
+As an optimization, fixed-size arrays can be passed in without a copy to functions taking
+an array as an immutable argument, but will be of course copied into a 
+resizable array if the argument is mutable.  Some examples:
+
+```
+# immutable array of size 4
+Int4: int_4 = [-1, 5, 200, 3450]
+# mutable array of fixed-size 3:
+Vector3; dbl_3 = [1.5, 2.4, 3.1]
+print("Vector3 is {${Vector3_0}, ${Vector3_1}, ${Vector3_2}}")
+
+# a function with a mutable argument:
+doSomething(CopiedArray; dbl_): dbl_2
+    # you wouldn't actually use a mutable array argument, unless you did
+    # some computations using the array as a workspace.
+    # PRETENDING TO DO SOMETHING USEFUL WITH CopiedArray:
+    return [CopiedArray pop(), CopiedArray pop()]
+
+# a function with an immutable argument:
+doSomething(ConstArray: dbl_): dbl_2
+    return [ConstArray_-2, ConstArray_-1]
+
+# copies Vector3, of course:
+print(doSomething(CopiedArray: Vector3))    # prints [3.1, 2.4]
+# can bring in Vector3 by reference (i.e., no copy) here:
+print(doSomething(ConstArray: Vector3))     # prints [3.1, 2.4]
+```
+
+There may be optimizations if the fixed-array size is known at compile-time,
+i.e., being defined on the stack rather than the heap.  But when the fixed
+size is unknown at compile time, the fixed-size array will be defined on the heap:
+
+```
+# note you can use an input argument to define the return type's
+# fixed-array size, which is something like a generic:
+range(Int): int_Int
+    if Int < 0
+        throw error("can't have a fixed negative-size array")
+    Result; int_Int
+    for I: int < Int
+        Result_I = I
+    return Result
+
+print(range(10))    # prints [0,1,2,3,4,5,6,7,8,9]
+```
+
 ## hash maps
 
 A hash map can look up elements by key in O(1) time.  You can use the explicit
