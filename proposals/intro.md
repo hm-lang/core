@@ -876,10 +876,27 @@ trying to access the variable (or set it) will use the overloaded methods.
 
 ## parent-child classes and method overrides
 
-You can define parent-child class relationships like this.  Note that
-for methods, `this` will indicate whatever type the current instance's type is,
-which will be the parent class if the instance is a parent type, or a subclass
-if the instance is a child class.
+You can define parent-child class relationships with the following syntax.
+For one parent, `class(ParentClassName)` or `class(ParentClassName: parentClassName)`
+to be explicit about the parent type.  Multiple inheritance is allowed as well,
+e.g., `class(ParentOne, ParentTwo, ...)` or
+`class(ParentOne: parentOne, ParentTwo: parentTwo, ...)`.
+TODO: think if we should use `;` to indicate that the parent class mutable methods
+can be used, and `:` if the parent class can only be accessed by immutable methods.
+We can access the current class instance (a combination of any/all parent types)
+using `This`, and `this` will be the current instance's type.  Thus, `this` is
+the parent class if the instance is a parent type, or a subclass if the instance
+is a child class.  E.g., a parent class method can return a `this` type instance,
+and using the method on a subclass instance will return an instance of the subclass.
+
+We use the `UpperCamelCase` versions of the parent types to access member variables
+or functions that belong to that the parent type, i.e., without subclass overloads.
+E.g., a child override of some parent method `someMethod()` might call the parent's
+version of that method, and augment it somehow, and the way to do that is to use
+the named parent instance, e.g. `someMethod() := ParentType someMethod()` within
+the child class' definition headed by `class(ParentType: parentType)`.
+
+Some examples:
 
 ```
 animal := class() {
@@ -902,7 +919,7 @@ animal := class() {
         return this(Name)
 }
 
-snake := class(animal) {
+snake := class(Animal) {
     # if no `reset` functions are defined,
     # child classes will inherit their parent `reset()` methods.
 
@@ -917,12 +934,12 @@ snake := class(animal) {
 Snake := snake(Name: "Fred")
 Snake escape()  # prints "Fred slithers away!!"
 
-cat := class(animal) {
+cat := class(Animal) {
     # here we define a `reset` method, so the parent `reset` methods
     # become hidden to users of this child class:
     ;;reset(): null
         # can refer to parent methods using class name:
-        animal reset(Name: "Cat-don't-care-what-you-name-it")
+        Animal reset(Name: "Cat-don't-care-what-you-name-it")
 
     speak(): null
         print "hisss!"
@@ -948,18 +965,16 @@ All abstract methods must be defined for the instance to be created, and if a
 (i.e., which is the default constructor) should be defined for the lambda class.
 
 ```
-# TODO: lambda functions defined using `functionName(args...) := returnValueStatement`
-# if that is ok with syntax/grammar.
 WeirdAnimal := animal(
     Name: "Waberoo"
     speak(): null
         print "Meorooo"
-    goes(): string
-        return "meanders"
+    goes() := "meanders"
     escape(): null
-        animal escape()
+        # TODO: we need to define `Animal` here, right?  maybe `animal(This) escape()` ???
+        Animal escape()
         print "${Name} ${goes()} back..."
-        animal escape()
+        Animal escape()
 )
 
 WeirdAnimal escape()    # prints "Waberoo ... meanders ... meanders back ... meanders away!!"
@@ -1951,7 +1966,7 @@ list(GrammarMatcher) := parentheses(fn(EndParen) := until(
 ))
 
 # TODO: sequence with an array of grammar matchers
-sequence := class(tokenMatcher) {
+sequence := class(TokenMatcher) {
     @reset(Array: grammarMatcher_)
     match @mod(TokenIterator) ():
         MatchedTokens; token_
