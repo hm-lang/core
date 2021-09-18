@@ -635,7 +635,9 @@ You can create template functions which can work for a variety of types
 using the syntax `~(type1, type2, ...)` or `~type` (for just one generic type) 
 after a function name.
 
-TODO: maybe use `@gen(type1, ...)` instead of `~(type1)` to save `~` for something else.
+TODO: allow defining templates inline for convenience.  e.g., `logger(T: ~t): t`,
+using `~` the first time you see the type.  Use `In~t` or `Out~t`, or some more
+verbose type name (e.g., `~moreVerbose`).
 
 ```
 # declaration equivalent to `logger ~(type) (Type): type`:
@@ -824,6 +826,7 @@ example := class() {
 }
 W = example()
 W X += 5
+print(W X)
 
 # expands to this:
 example := class() {
@@ -837,7 +840,7 @@ example := class() {
     # no-copy getter: calls an external function with X, which can
     #                 avoid a copy if the function argument is immutable.
     @visibility
-    x(fn(Dbl): null) := fn(X)
+    x(fn(Dbl): Out~type) := fn(X)
 
     # swap setter: swaps the value of X with whatever is passed in
     #              returns the old value of X.
@@ -857,14 +860,14 @@ example := class() {
         X = fn(X move())
     # or, slightly more explicit (in that Dbl is to be modded):
     @visibility
-    ;;x(fn @mod(Dbl): null): null
-        fn @mod(X)
+    ;;x ~returnType (fn @mod(Dbl): returnType) := fn @mod(X)
 }
 W = example()
 W x(fn(Dbl;): dbl
     Dbl += 5
     return Dbl move()
 )
+print(W x())
 ```
 
 TODO: check that getter/setter visibility is correct.
@@ -872,6 +875,16 @@ TODO: check that getter/setter visibility is correct.
 If you define overloads for any of these methods on child classes,
 they will be used as the getters/setters for that variable.  Anyone
 trying to access the variable (or set it) will use the overloaded methods.
+Note that you can define a getter using either the copy or no-copy formulation
+(e.g., respectively, `name(): dbl` and `name(fn(TheType): Out~type): Out type`).
+Defining the no-copy getter will *automatically* define a copy getter,
+TODO: and we should come up with a nice way to automatically define the
+no-copy getter from a copy getter definition using an annotation.
+Note we want an annotation since a no-copy getter defined by a copy getter
+will in fact make a copy, rendering the no-copy getter false in name.
+Defining both no-copy and copy getter methods is also OK.
+
+TODO: some example of child class overriding parent class getter/setters.
 
 
 ## parent-child classes and method overrides
@@ -1173,13 +1186,13 @@ array := class ~type () {
     This;; _ (Index): type
 
     # no-copy getter, which creates a default-initialized value if necessary.
-    This;; _ (Index, fn(Type): null): null
+    This;; _ (Index, fn(Type): Out~type): Out type
 
     # returns a Null if index is out of bounds in the array:
     This _ (Index): type?
 
     # no-copy getter, which returns a Null if index is out of bounds in the array:
-    This _ (Index, fn(Type?): null): null
+    This _ (Index, fn(Type?): Out~type): Out type
 
     # sets the value at the index, returning the old value:
     This;; _ (Index, @moved Type): type
@@ -1336,13 +1349,13 @@ map := class ~(key, value) () {
     This;; _ (Key): value
 
     # no-copy getter, which will create a value instance if it's not present at Key.
-    This;; _ (Key, fn(Value): null): null
+    This;; _ (Key, fn(Value): ~type): type
 
     # returns a Null if key is not in the map.
     This _ (Key): value?
 
     # no-copy getter, which will pass back a Null if the key is not in the map.
-    This _ (Key, fn(Value?): null): null
+    This _ (Key, fn(Value?): ~type): type
 
     # sets the value at the key, returning the old value:
     This;; _ (Key, Value;): value
@@ -1394,14 +1407,14 @@ iterator := class ~type () {
     next(): type?
 
     # no-copy next value via no-copy getter function:
-    next(fn(Type: type?): null): null
+    next(fn(Type: type?): Out~type): Out type
 
     # returns next value of iterator without incrementing the iterator.
     # optional, but recommended to be present if `remove` is present.
     peak?(): type?
 
     # no-copy peak via no-copy getter function:
-    peak?(fn(Type: type?): null): null
+    peak?(fn(Type: type?): Out~type): Out type
 
     # present only if underlying container supports removing the current element (at `peak()`)
     # returns the element, or null if no current element.
@@ -1466,8 +1479,7 @@ arrayIterator := class~type (iterator~type) {
     # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
     # e.g., 
     #   MyArray; int_ = [1,2,3,4]
-    #   with @holding(Iterator; iterator, MoveAndReturn: MyArray)
-    #   # or `with Iterator ;= iterator @holding(MyArray)`
+    #   with Iterator ;= iterator @holding(MyArray)
     #       for Int: int in Iterator
     #           ...
     #   print(MyArray)
@@ -1941,7 +1953,6 @@ match @mod(TokenIterator) (GrammarMatcher): bool
             return GrammarMatcher match @mod(TokenIterator) ()
         case grammarElement
             # no-copy accessor
-            # TODO: add a generic no-copy accessor with a return value
             return grammar_(GrammarMatcher, fn(TokenMatcher)
                 return TokenMatcher match @mod(TokenIterator) ()
             )
