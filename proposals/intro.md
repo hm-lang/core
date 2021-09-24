@@ -1183,24 +1183,26 @@ array := class ~type () {
     # always returns a non-null type, adding
     # a default-initialized type if necessary:
     # returns a copy of the value at index, too.
+    @lhs
     This;; _ (Index): type
 
     # no-copy getter, which creates a default-initialized value if necessary.
     This;; _ (Index, fn(Type): Out~type): Out type
 
+    # no-copy swapper, sets the value at the index, returning the old value:
+    This;; _ (Index, @moved Type): type?
+
+    # no-copy modifier, allows access to modify the internal value, via MMR pattern.
+    # passes the current value at the index into the passed-in function (to be specific, moves it).
+    # the return value of the passed-in function will become the new value at the index.
+    This;; _ (Index, fn(@moved Type): type): null
+
     # returns a Null if index is out of bounds in the array:
+    @lhs
     This _ (Index): type?
 
     # no-copy getter, which returns a Null if index is out of bounds in the array:
     This _ (Index, fn(Type?): Out~type): Out type
-
-    # sets the value at the index, returning the old value:
-    This;; _ (Index, @moved Type): type
-
-    # allows access to modify the internal value, via MMR pattern.
-    # passes the current value at the index into the passed-in function (to be specific, moves it).
-    # the return value of the passed-in function will become the new value at the index.
-    This;; _ (Index, fn(@moved Type): type): null
 
     size(): index
 
@@ -1321,7 +1323,7 @@ print(NameDatabase_123.4)   # prints "John" with 60% probability, "Jane" with 40
 # note that the definition of the key is an immutable array:
 StackDatabase; string_(int_)    # parentheses are grammatically unnecessary,
                                 # since subscripts go right to left.
-                                # e.g., `StackDatabase; string_int_` would be ok too.
+                                # i.e., `StackDatabase; string_int_` would be ok too.
 StackDatabase_[1,2,3] = "stack123"
 StackDatabase_[1,2,4] = "stack124"
 print(StackDatabase_[1.0, 2.0, 3.1])    # prints "stack123" with 90% probability, "stack124" with 10%
@@ -1519,9 +1521,12 @@ array := class~type () {
 }
 ```
 
-# standard flow constructs
+# standard flow constructs / flow control
 
 TODO -- description, plus `consider+case` and `if/else/elif`
+
+## for loops
+
 ```
 # for-loop with counter that is immutable inside the for-loop's block:
 for Value: int < 10
@@ -1538,6 +1543,12 @@ for Special; int < 5
     print("B: ${Special}")
     ++Special
 # prints "A: 0", "B: 1", "A: 3" "B: 4"
+
+# for-loop iterating over non-number elements:
+vector2 := {X: dbl, Y: dbl}
+Array: vector2_ = [{X: 5, Y: 3}, {X: 10, Y: 17}]
+for Vector2: in Array
+    print(Vector2)
 ```
 
 # enums and masks
@@ -1937,7 +1948,7 @@ grammar: tokenMatcher_grammarElement = [
     ])
 ]
 
-grammarMatcher := tokenMatcher | grammarElement
+grammarMatcher := tokenMatcher | grammarElement | token
 
 # TODO: consider doing something Kotlin-y, where we could do
 # match(...) : bool = consider
@@ -1952,10 +1963,12 @@ match @mod(TokenIterator) (GrammarMatcher): bool
         case tokenMatcher
             return GrammarMatcher match @mod(TokenIterator) ()
         case grammarElement
-            # no-copy accessor
-            return grammar_(GrammarMatcher, fn(TokenMatcher)
-                return TokenMatcher match @mod(TokenIterator) ()
-            )
+            return grammar_GrammarMatcher match @mod(TokenIterator) ()
+        case token
+            if TokenIterator peak() == GrammarMatcher
+                TokenIterator next()
+                return True
+            return False
 
 # TODO: actually compiling code will require going through the TokenMatchers
 # in a specific order to avoid running through all options to see what fits.
@@ -1967,23 +1980,43 @@ tokenMatcher := class() {
     match @mod(TokenIterator) (): bool
 }
 
+
 # a list encompasses things like (), (TokenMatcher), (TokenMatcher, TokenMatcher), etc.,
 # but also lists with newlines if properly tabbed.
-list(GrammarMatcher) := parentheses(fn(EndParen) := until(
+list(GrammarMatcher) := parentheses(watchFor(EndParen: token) := until(
     EndParen
     repeat(CheckExit) := sequence([
         GrammarMatcher, CheckExit, CommaOrBlockNewline, CheckExit
     ])
 ))
 
-# TODO: sequence with an array of grammar matchers
 sequence := class(TokenMatcher) {
-    @reset(Array: grammarMatcher_)
-    match @mod(TokenIterator) ():
-        MatchedTokens; token_
-        # TODO: need `match @mod(TokenIterator)` to return matched tokens,
-        # so that we can put them back if necessary.
-        # TODO: actually finish this method
+    # TODO: some annotation to pass a variable up to the parent class,
+    # e.g., `reset(@passTo(TokenMatcher) Name: str, OtherArgs...):`
+    reset(Name: str, This Array: grammarMatcher_):
+        TokenMatcher reset(Name)
+
+    match @mod(TokenIterator) (): bool
+        # TODO: probably have to take snapshots everywhere in most token matchers:
+        Snapshot := TokenIterator snapshot()
+        for GrammarMatcher: in Array
+            if not match @mod(TokenIterator) (GrammarMatcher)
+                TokenIterator restore(Snapshot)
+                return False
+        return True
+}
+
+parentheses := class(TokenMatcher) {
+    reset(Name: str, This watchFor(EndParen: token): tokenMatcher):
+        TokenMatcher reset(Name)
+    reset(Name: str, GrammarMatcher):
+        reset(Name, watchFor(EndParen: token) := sequence([GrammarMatcher, EndParen]))
+
+    match @mod(TokenIterator) (): bool
+        Token := TokenIterator peak()
+        if not Token isOpenParenthesis()
+            return False
+        return watchFor(Token EndParen) @mod(TokenIterator) ()
 }
 
 ===
