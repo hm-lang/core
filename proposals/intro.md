@@ -35,6 +35,11 @@ X: dbl = 5.43
 Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 ```
 
+## types of types
+
+TODO: discuss type and classType.
+TODO: switch ~type to Out~type everywhere.
+
 # operators and precedence
 
 Operator priority.
@@ -336,6 +341,8 @@ v(Y, X)     # equivalent
 
 TODO: Check if the syntax works out.
 We also allow calling functions without parentheses for a single argument, like this:
+
+TODO: see if we want to add : or ; to unnamed function arguments, e.g., `print(String:): null`.
 
 ```
 print(String): null     # definition, using an "unnamed" string, e.g., `String: string`.
@@ -822,52 +829,48 @@ with various arguments to determine the desired action.
 # for example, this class:
 example := class() {
     @visibility
-    X; dbl
+    X; str = "hello"
 }
 W = example()
-W X += 5
-print(W X)
+W X += ", world"
+print(W X)  # prints "hello, world"
 
 # expands to this:
 example := class() {
     @invisible
-    X; dbl
+    X; str
 
-    # copy getter: makes a copy of X for usage outside of this instance.
+    # getter: calls an external function with X, which can
+    #         avoid a copy if the function argument is immutable.
     @visibility
-    x() := X
+    x(fn(Str): Out~type) := fn(X)
 
-    # no-copy getter: calls an external function with X, which can
-    #                 avoid a copy if the function argument is immutable.
+    # swapper: swaps the value of X with whatever is passed in
+    #          returns the old value of X.
     @visibility
-    x(fn(Dbl): Out~type) := fn(X)
-
-    # swap setter: swaps the value of X with whatever is passed in
-    #              returns the old value of X.
-    @visibility
-    ;;x(Dbl): dbl
+    ;;x(Str;): str
         # TODO: explain `A = B` returns the old value of `A`
-        return X = Dbl
-    # or, slightly more explicit (in that Dbl is to be modded):
+        return X = Str move()
+    # or, slightly more explicit (in that Str is to be modded):
     @visibility
-    ;;x @mod(Dbl) ():
-        Dbl = X = Dbl
+    ;;x @mod(Str) ():
+        Str = X = Str move()
 
-    # modify setter: allows the user to modify the value of X
-    #                without copying it, using the MMR pattern.
+    # modifier: allows the user to modify the value of X
+    #           without copying it, using the MMR pattern.
     @visibility
-    ;;x(fn(@moved Dbl): dbl): null
+    ;;x(fn(@moved Str): str): null
         X = fn(X move())
-    # or, slightly more explicit (in that Dbl is to be modded):
+    # or, slightly more explicit (in that Str is to be modded):
     @visibility
-    ;;x ~returnType (fn @mod(Dbl): returnType) := fn @mod(X)
+    ;;x(fn @mod(Str): Out~type) := fn @mod(X)
 }
 W = example()
-W x(fn(Dbl;): dbl
-    Dbl += 5
-    return Dbl move()
+W x(fn(Str;): str
+    Str += ", world"
+    return Str move()
 )
-print(W x())
+W x(fn(Str) := print(Str))
 ```
 
 TODO: check that getter/setter visibility is correct.
@@ -875,14 +878,6 @@ TODO: check that getter/setter visibility is correct.
 If you define overloads for any of these methods on child classes,
 they will be used as the getters/setters for that variable.  Anyone
 trying to access the variable (or set it) will use the overloaded methods.
-Note that you can define a getter using either the copy or no-copy formulation
-(e.g., respectively, `name(): dbl` and `name(fn(TheType): Out~type): Out type`).
-Defining the no-copy getter will *automatically* define a copy getter,
-TODO: and we should come up with a nice way to automatically define the
-no-copy getter from a copy getter definition using an annotation.
-Note we want an annotation since a no-copy getter defined by a copy getter
-will in fact make a copy, rendering the no-copy getter false in name.
-Defining both no-copy and copy getter methods is also OK.
 
 TODO: some example of child class overriding parent class getter/setters.
 
@@ -1070,7 +1065,7 @@ All classes have a few compiler-provided methods which cannot be overridden.
     Note that the `classType` type can be created directly from the type
     constructors, e.g. `null` and `int`, e.g., `classType(int) == 5 Type`.
     Note also, the `classType` type also can be printed nicely, e.g.,
-    `print("asdf" Type)` prints "str", and `str(classType Type) == "classType"`.
+    `print("asdf" Type)` prints "str", and `str(1 Type Type) == "classType"`.
 
 TODO: check if `copy()` should be in the list.
 
@@ -1180,20 +1175,20 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 ```
 # some relevant pieces of the class definition
 array := class ~type () {
-    # no-copy getter, which creates a default-initialized value if necessary.
+    # getter, which creates a default-initialized value if necessary.
     # (also will add default-initialized values up to this index, if above current size.)
     This;; _ (Index, fn(Type): Out~type): Out type
 
-    # no-copy swapper, sets the value at the index, returning the old value:
+    # swapper, sets the value at the index, returning the old value:
     This;; _ (Index, @moved Type): type?
 
-    # no-copy modifier, allows access to modify the internal value, via MMR pattern.
+    # modifier, allows access to modify the internal value, via MMR pattern.
     # passes the current value at the index into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the index.
     This;; _ (Index, fn(@moved Type): type): null
 
     # returns a Null if index is out of bounds in the array:
-    # no-copy getter, which returns a Null if index is out of bounds in the array:
+    # getter, which returns a Null if index is out of bounds in the array:
     This _ (Index, fn(Type?): Out~type): Out type
 
     size(): index
@@ -1342,13 +1337,13 @@ map := class ~(key, value) () {
     # returns a copy of the value at key, too.
     This;; _ (Key): value
 
-    # no-copy getter, which will create a value instance if it's not present at Key.
+    # getter, which will create a value instance if it's not present at Key.
     This;; _ (Key, fn(Value): ~type): type
 
     # returns a Null if key is not in the map.
     This _ (Key): value?
 
-    # no-copy getter, which will pass back a Null if the key is not in the map.
+    # getter, which will pass back a Null if the key is not in the map.
     This _ (Key, fn(Value?): ~type): type
 
     # sets the value at the key, returning the old value:
@@ -1396,18 +1391,10 @@ even if the set variable is mutable.
 
 ```
 iterator := class ~type () {
-    # get a copy of the next value (by incrementing the iterator).
-    # returns Null if no next value.
-    next(): type?
-
-    # no-copy next value via no-copy getter function:
+    # next value via getter function:
     next(fn(Type: type?): Out~type): Out type
 
-    # returns next value of iterator without incrementing the iterator.
-    # optional, but recommended to be present if `remove` is present.
-    peak?(): type?
-
-    # no-copy peak via no-copy getter function:
+    # peak via no-copy getter function:
     peak?(fn(Type: type?): Out~type): Out type
 
     # present only if underlying container supports removing the current element (at `peak()`)
@@ -1493,21 +1480,21 @@ array := class~type () {
     forEach(Input fn(Type): forLoop): null
         for Index: index < size()
             # use the no-copy getter, here:
-            ForLoop; forLoop
-            This_(Index, fn(Type): null
-                ForLoop = Input fn(Type)
-            )
+            # explicit:
+            ForLoop := This_(Index, fn(Type) := Input fn(Type))
+            # implicit:
+            ForLoop := Input fn(This_Index)
             if ForLoop == forLoop Break
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;forEach(Input fn @mod(Type) (): ForLoop): null
+    ;;forEach(Input fn @mod(Type) (): forLoop): null
         for Index: index < size()
-            ForLoop; forLoop
             # do a swap on the value based on the passed in function:
-            This_(Index, fn @mod(Type) (): null
-                ForLoop = Input fn @mod(Type) ()
-            )
+            # explicit:
+            ForLoop := This_(Index, fn @mod(Type) () := Input fn @mod(Type) ())
+            # implicit:
+            ForLoop := Input fn @mod(This_Index) ()
             if ForLoop == forLoop Break
                 break
 }
@@ -1588,7 +1575,8 @@ enumerated value name, but it is not illegal, since we can still distinguish bet
 enumerated value (`enumName Count`) and total number of enumerated values (`enumName() count()`).
 
 TODO: ensure that `enumName Count` makes sense from a grammar perspective.  looks like
-`enumName(Count)`, which is ok i think??
+`enumName(Count)`, which really only makes sense if Count is defined globally based on the enum...
+maybe do `enumName() Count` instead??
 
 Also note that the `count()` method will return the total number of
 enumerations, not the number +1 after the last enum value.  This can be confusing
@@ -1731,12 +1719,6 @@ the element via the pointer.  The element might not exist anymore
 (e.g., the array was shrunk), and in the worst case, the array
 might not even exist (e.g., the array was descoped).
 
-TODO: make sure the syntactical sugar makes sense and has priority.
-`ArrayArray_0 append(4)` might look like `(ArrayArray_0) append(4)`,
-i.e., create a copy of ArrayArray_0 and then append to the copy.
-So we want to make sure `ArrayArray_0` can be interpreted as a LHS,
-e.g., with an annotation, e.g., `class() { @lhs(This;; _ (Index): type) }`
-
 In this way, ownership of another variable is very strict in hm-lang.
 Only one object can modify the memory at some location (i.e., of a variable).
 TODO: see if this is still true with functions modifying variables out of their scope...
@@ -1757,6 +1739,9 @@ by other language features.  E.g., by creating a class that is callable.  For ex
 the `@take` annotation would expand to something like this:
 
 ```
+# TODO: switch `class` to `fnClass` here, so it's clear that instances
+# should have variables with lowerCamelCase identifiers, and that no other
+# operations are permitted on them.
 @private
 hiddenClass := class() {
     @reset(Int; int)
