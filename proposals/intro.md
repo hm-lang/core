@@ -1180,13 +1180,8 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 ```
 # some relevant pieces of the class definition
 array := class ~type () {
-    # always returns a non-null type, adding
-    # a default-initialized type if necessary:
-    # returns a copy of the value at index, too.
-    @lhs
-    This;; _ (Index): type
-
     # no-copy getter, which creates a default-initialized value if necessary.
+    # (also will add default-initialized values up to this index, if above current size.)
     This;; _ (Index, fn(Type): Out~type): Out type
 
     # no-copy swapper, sets the value at the index, returning the old value:
@@ -1198,9 +1193,6 @@ array := class ~type () {
     This;; _ (Index, fn(@moved Type): type): null
 
     # returns a Null if index is out of bounds in the array:
-    @lhs
-    This _ (Index): type?
-
     # no-copy getter, which returns a Null if index is out of bounds in the array:
     This _ (Index, fn(Type?): Out~type): Out type
 
@@ -1983,12 +1975,16 @@ tokenMatcher := class() {
 
 # a list encompasses things like (), (TokenMatcher), (TokenMatcher, TokenMatcher), etc.,
 # but also lists with newlines if properly tabbed.
-list(GrammarMatcher) := parentheses(watchFor(EndParen: token) := until(
-    EndParen
-    repeat(CheckExit) := sequence([
-        GrammarMatcher, CheckExit, CommaOrBlockNewline, CheckExit
-    ])
-))
+list(GrammarMatcher) := parentheses(watchFor(CloseParen: token) := repeat(
+    Until: CloseParen
+    # TODO: fix this, need to be able to indicate an interruption here via Until.
+    # the type of this next variable should probably be a new BreakableTokenMatcher,
+    # which will match tokens but also indicate whether the break token was found.
+    sequence([GrammarMatcher, CommaOrBlockNewline])
+)
+
+# TODO: maybe tokenize parentheses into their own ParenthesesToken.  this has some
+# upfront costs but then we don't have to have this sort of inverted logic with BreakableTokenMatcher.
 
 sequence := class(TokenMatcher) {
     # TODO: some annotation to pass a variable up to the parent class,
@@ -2007,16 +2003,21 @@ sequence := class(TokenMatcher) {
 }
 
 parentheses := class(TokenMatcher) {
-    reset(Name: str, This watchFor(EndParen: token): tokenMatcher):
+    reset(Name: str, This watchFor(CloseParen: token): tokenMatcher):
         TokenMatcher reset(Name)
     reset(Name: str, GrammarMatcher):
-        reset(Name, watchFor(EndParen: token) := sequence([GrammarMatcher, EndParen]))
+        reset(Name, watchFor(CloseParen: token) := sequence([GrammarMatcher, CloseParen]))
 
     match @mod(TokenIterator) (): bool
         Token := TokenIterator peak()
         if not Token isOpenParenthesis()
             return False
-        return watchFor(Token EndParen) @mod(TokenIterator) ()
+        return watchFor(Token closeParen()) @mod(TokenIterator) ()
+}
+
+repeat := class(TokenMatcher) {
+    reset(Name: str, This Repeatable: GrammarMatcher):
+        TokenMatcher reset(Name)
 }
 
 ===
