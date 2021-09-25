@@ -1874,73 +1874,98 @@ grammarElement := enumerate(
     AtomicStatement
     ClassName
     ClassDefinition
+    EndOfInput
 )
 
-grammar: tokenMatcher_grammarElement = [
-    TypeMatcher: TokenMatcher() #TODO
-    VariableName: UpperCamelCase
-    VariableDeclaration: sequence([
-        VariableName
-        oneOf([operator(":"), operator(";")])
-        TypeMatcher
-    ])
-    VariableDefintion: oneOf([
-        # VariableName: type = ...
-        sequence([VariableDeclaration, operator("="), RhsStatement])
-        # VariableName := ...
-        sequence([VariableName, oneOf([operator(";="), operator(":=")]), RhsStatement])
-    ])
-    FunctionName: LowerCamelCase
-    FunctionDeclaration: sequence([
-        FunctionName
-        list(FunctionArgument)
-        oneOf([operator(":"), operator(";")])
-        TypeMatcher
-    ])
-    FunctionDefinition: oneOf([
-        # fnName(Args...): returnType
-        #   BlockStatements
-        sequence([FunctionDeclaration, Block])
-        # fnName(Args...) := Statement
-        sequence([
-            FunctionName 
-            list(FunctionArgument)
-            oneOf([operator(":="), operator(";=")])
-            RhsStatement
-        ])
-    ])
-    FunctionArgument := oneOf([
-        FunctionDefinition
-        FunctionDeclaration
-        VariableDefinition
-        VariableDeclaration
-    ])
-    FunctionCall: sequence([FunctionName, AtomicStatement])
-    RhsStatement: oneOf([
-        AtomicStatement,
-        sequence([AtomicStatement, AnyOperator, RhsStatement]),
-    ])
-    AtomicStatement: oneOf([
-        VariableName
-        FunctionCall
-        parentheses(RhsStatement)
-        list(DefinedArgument)
-    ])
-    ClassName: LowerCamelCase
-    ClassDefinition: sequence([
-        ClassName
-        oneOf([
-            operator(":=")
-            doNotAllow(operator(";="), "Classes cannot be mutable.")
-        ])
-        keyword("class")
-        optional(TemplateArguments)
-        list(LowerCamelCase)    # parent class names
-        parentheses(Block)
-    ])
-]
+tokenMatcher := class() {
+    @reset(Name: str = "")
+    # TODO: tokenIterator needs to support putting back a token.
+    match @mod(TokenIterator) (): bool
+}
 
 grammarMatcher := tokenMatcher | grammarElement | token
+
+Grammar := singleton() {
+    @private
+    Elements: tokenMatcher_grammarElement = [
+        TypeMatcher: TokenMatcher() #TODO
+        VariableName: UpperCamelCase
+        VariableDeclaration: sequence([
+            VariableName
+            oneOf([operator(":"), operator(";")])
+            TypeMatcher
+        ])
+        VariableDefintion: oneOf([
+            # VariableName: type = ...
+            sequence([VariableDeclaration, operator("="), RhsStatement])
+            # VariableName := ...
+            sequence([VariableName, oneOf([operator(";="), operator(":=")]), RhsStatement])
+        ])
+        FunctionName: LowerCamelCase
+        FunctionDeclaration: sequence([
+            FunctionName
+            list(FunctionArgument)
+            oneOf([operator(":"), operator(";")])
+            TypeMatcher
+        ])
+        FunctionDefinition: oneOf([
+            # fnName(Args...): returnType
+            #   BlockStatements
+            sequence([FunctionDeclaration, Block])
+            # fnName(Args...) := Statement
+            sequence([
+                FunctionName 
+                list(FunctionArgument)
+                oneOf([operator(":="), operator(";=")])
+                RhsStatement
+            ])
+        ])
+        FunctionArgument := oneOf([
+            FunctionDefinition
+            FunctionDeclaration
+            VariableDefinition
+            VariableDeclaration
+        ])
+        FunctionCall: sequence([FunctionName, AtomicStatement])
+        RhsStatement: oneOf([
+            AtomicStatement,
+            sequence([AtomicStatement, AnyOperator, RhsStatement]),
+        ])
+        AtomicStatement: oneOf([
+            VariableName
+            FunctionCall
+            parentheses(RhsStatement)
+            list(DefinedArgument)
+        ])
+        ClassName: LowerCamelCase
+        ClassDefinition: sequence([
+            ClassName
+            oneOf([
+                operator(":=")
+                doNotAllow(operator(";="), "Classes cannot be mutable.")
+            ])
+            keyword("class")
+            optional(TemplateArguments)
+            list(LowerCamelCase)    # parent class names
+            parentheses(Block)
+        ])
+        EndOfInput: tokenMatcher(
+            match @mod(TokenIterator) () := TokenIterator peak() == Null
+        )
+    ]
+
+    match @mod(TokenIterator) (GrammarMatcher): bool
+        consider GrammarMatcher Type
+            case tokenMatcher
+                return GrammarMatcher match @mod(TokenIterator) ()
+            case grammarElement
+                return Elements_GrammarMatcher match @mod(TokenIterator) ()
+            case token
+                if TokenIterator peak() == GrammarMatcher
+                    TokenIterator next()
+                    return True
+                return False
+}
 
 # TODO: consider doing something Kotlin-y, where we could do
 # match(...) : bool = consider
@@ -1950,41 +1975,19 @@ grammarMatcher := tokenMatcher | grammarElement | token
 #       otherReturnValue # without return
 # that might work well with the comma/newline approach,
 # as well as ternary if/then/elif without new symbols/syntax
-match @mod(TokenIterator) (GrammarMatcher): bool
-    consider GrammarMatcher Type
-        case tokenMatcher
-            return GrammarMatcher match @mod(TokenIterator) ()
-        case grammarElement
-            return grammar_GrammarMatcher match @mod(TokenIterator) ()
-        case token
-            if TokenIterator peak() == GrammarMatcher
-                TokenIterator next()
-                return True
-            return False
 
 # TODO: actually compiling code will require going through the TokenMatchers
 # in a specific order to avoid running through all options to see what fits.
 
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
-tokenMatcher := class() {
-    @reset(Name: str = "")
-    # TODO: tokenIterator needs to support putting back a token.
-    match @mod(TokenIterator) (): bool
-}
 
 
-# a list encompasses things like (), (TokenMatcher), (TokenMatcher, TokenMatcher), etc.,
+# a list encompasses things like (), (GrammarMatcher), (GrammarMatcher, GrammarMatcher), etc.,
 # but also lists with newlines if properly tabbed.
-list(GrammarMatcher) := parentheses(watchFor(CloseParen: token) := repeat(
-    Until: CloseParen
-    # TODO: fix this, need to be able to indicate an interruption here via Until.
-    # the type of this next variable should probably be a new BreakableTokenMatcher,
-    # which will match tokens but also indicate whether the break token was found.
-    sequence([GrammarMatcher, CommaOrBlockNewline])
-)
-
-# TODO: maybe tokenize parentheses into their own ParenthesesToken.  this has some
-# upfront costs but then we don't have to have this sort of inverted logic with BreakableTokenMatcher.
+list(GrammarMatcher) := parentheses(repeat(Until: EndOfInput, [
+    GrammarMatcher
+    CommaOrBlockNewline
+])
 
 sequence := class(TokenMatcher) {
     # TODO: some annotation to pass a variable up to the parent class,
@@ -1996,29 +1999,51 @@ sequence := class(TokenMatcher) {
         # TODO: probably have to take snapshots everywhere in most token matchers:
         Snapshot := TokenIterator snapshot()
         for GrammarMatcher: in Array
-            if not match @mod(TokenIterator) (GrammarMatcher)
+            if not Grammar match @mod(TokenIterator) (GrammarMatcher)
                 TokenIterator restore(Snapshot)
                 return False
         return True
 }
 
+# TODO: make `block` a type of token as well.
 parentheses := class(TokenMatcher) {
-    reset(Name: str, This watchFor(CloseParen: token): tokenMatcher):
+    reset(Name: str, This GrammarMatcher):
         TokenMatcher reset(Name)
-    reset(Name: str, GrammarMatcher):
-        reset(Name, watchFor(CloseParen: token) := sequence([GrammarMatcher, CloseParen]))
 
     match @mod(TokenIterator) (): bool
         Token := TokenIterator peak()
-        if not Token isOpenParenthesis()
-            return False
-        return watchFor(Token closeParen()) @mod(TokenIterator) ()
+        consider Token Type
+            case parenthesesToken
+                if Token internallyMatches(GrammarMatcher) 
+                    TokenIterator next()
+                    return True
+                return False
+            default
+                return False
 }
 
 repeat := class(TokenMatcher) {
-    reset(Name: str, This Repeatable: GrammarMatcher):
+    # until `Until` is found, checks matches through `Array` repeatedly.
+    # note that `Until` can be found at any point in the array;
+    # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
+    # if you need to ensure a non-breakable sequence is found before `Until`,
+    # use the `sequence` token matcher inside `Array`.
+    reset(Name: str, This Until: GrammarMatcher, This Array: GrammarMatcher_):
         TokenMatcher reset(Name)
+
+    match @mod(TokenIterator) (): bool
+        Snapshot := TokenIterator snapshot()
+        while True
+            for GrammarMatcher: in Array
+                # always check the escape sequence, Until:
+                if Grammar match @mod(TokenIterator) (Until)
+                    return True
+                if not Grammar match @mod(TokenIterator) (GrammarMatcher)
+                    TokenIterator restore(Snapshot)
+                    return False
 }
+# TODO: make sure the cyclic dependency is ok: i.e., Grammar match being called inside of
+# these token matchers...
 
 ===
 # e.g.
