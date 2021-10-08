@@ -187,6 +187,8 @@ is null, a null will be returned instead (and the method will not be called).
 
 ```
 # define a class with a method called `someMethod`:
+# TODO: do we even need `class()` here??  we can just create
+# the class instance scope object {methods..., Variables...}
 someClass := class() { someMethod(): int }
 
 Nullable; someClass? = Null
@@ -1530,6 +1532,11 @@ for Vector2: in Array
     print(Vector2)
 ```
 
+# printing and echoing output
+
+TODO: allow tabbed print output.  e.g., `\n` inside of a `string()` method
+will tab to the correct indent.
+
 # enums and masks
 
 ## enumerations
@@ -1754,6 +1761,10 @@ hiddenClass := class() {
 createLambda(Int;): fn(): int
     return hiddenClass(Int move())
 ```
+
+TODO: how does this work when the function is mutating itself (i.e., its scope)?
+do we need to return a `fn(); int` type to indicate this?  or do we disallow
+`fnClass`??
 
 TODO: how to `take` a class instance to use its method
 
