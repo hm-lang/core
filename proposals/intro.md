@@ -187,9 +187,7 @@ is null, a null will be returned instead (and the method will not be called).
 
 ```
 # define a class with a method called `someMethod`:
-# TODO: do we even need `class()` here??  we can just create
-# the class instance scope object {methods..., Variables...}
-someClass := class() { someMethod(): int }
+someClass := { someMethod(): int }
 
 Nullable; someClass? = Null
 
@@ -672,7 +670,7 @@ AnotherDblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
 
 # classes
 
-A class is defined with the `class` keyword and a `lowerCamelCase` identifier.
+A class is defined with a `lowerCamelCase` identifier.
 Class definitions must be constant/non-reassignable, so they are declared using
 the `:=` symbol.  Variables defined within the class body are known as instance
 variables, and functions defined within the class body are known as class
@@ -692,7 +690,7 @@ instance of the class is needed.  It is a compiler error if a `;;reset()` method
 (with no arguments) is defined after other `;;reset` methods (with arguments).
 
 ```
-exampleClass := class() {
+exampleClass := {
     # class instance variables can be defined here:
     X; int
 
@@ -749,6 +747,9 @@ Instead, we think of a class body as a scope, and functions defined in a scope h
 to variables in the scope.  This saves us as programmers in the language some time
 (since we don't have to include a `This` in every method) and heartache (since
 we don't have dissonance between the definition syntax and call syntax).
+We could support another syntax instead, requiring a `This` before every non-static
+method, e.g., `This::someMethod(Args...)` and `This;;otherMethod(Args...)`,
+but that requires a lot of extra typing for the programmer.
 
 ## unicode/localization support
 
@@ -757,7 +758,7 @@ may seem a bit strange in other alphabets.  To set a custom "UpperCamelCase" def
 for an instance of the class, use this notation:
 
 ```
-örsted := class() {
+örsted := {
     # define a custom default name:
     This := Örsted
     ... other class methods ...
@@ -829,7 +830,7 @@ with various arguments to determine the desired action.
 
 ```
 # for example, this class:
-example := class() {
+example := {
     @visibility
     X; str = "hello"
 }
@@ -838,7 +839,7 @@ W X += ", world"
 print(W X)  # prints "hello, world"
 
 # expands to this:
-example := class() {
+example := {
     @invisible
     X; str
 
@@ -887,11 +888,11 @@ TODO: some example of child class overriding parent class getter/setters.
 ## parent-child classes and method overrides
 
 You can define parent-child class relationships with the following syntax.
-For one parent, `class(ParentClassName)` or `class(ParentClassName: parentClassName)`
-to be explicit about the parent type.  Multiple inheritance is allowed as well,
-e.g., `class(ParentOne, ParentTwo, ...)` or
-`class(ParentOne: parentOne, ParentTwo: parentTwo, ...)`.
-TODO: think if we should use `;` to indicate that the parent class mutable methods
+For one parent, `extend(ParentClassName)` or, to be explicit about the parent type,
+`extend(ParentClassName: parentClassName)`.  Multiple inheritance is
+allowed as well, e.g., `extend(ParentOne, ParentTwo, ...)` or
+`extend(ParentOne: parentOne, ParentTwo: parentTwo, ...)`.
+TODO: we should probably use `;` to indicate that the parent class mutable methods
 can be used, and `:` if the parent class can only be accessed by immutable methods.
 We can access the current class instance (a combination of any/all parent types)
 using `This`, and `this` will be the current instance's type.  Thus, `this` is
@@ -909,7 +910,7 @@ the child class' definition headed by `class(ParentType: parentType)`.
 Some examples:
 
 ```
-animal := class() {
+animal := {
     ;;reset(This Name: string): null
 
     # define two methods on `animal`: `speak` and `go`.
@@ -929,7 +930,7 @@ animal := class() {
         return this(Name)
 }
 
-snake := class(Animal) {
+snake := extend(Animal) {
     # if no `reset` functions are defined,
     # child classes will inherit their parent `reset()` methods.
 
@@ -944,7 +945,7 @@ snake := class(Animal) {
 Snake := snake(Name: "Fred")
 Snake escape()  # prints "Fred slithers away!!"
 
-cat := class(Animal) {
+cat := extend(Animal) {
     # here we define a `reset` method, so the parent `reset` methods
     # become hidden to users of this child class:
     ;;reset(): null
@@ -995,7 +996,7 @@ WeirdAnimal escape()    # prints "Waberoo ... meanders ... meanders back ... mea
 You can define methods on your class that work for a variety of types.
 
 ```
-someExample := class() {
+someExample := {
     Value: int
     ;;reset(Int): null
         This Value = Int
@@ -1018,12 +1019,12 @@ To64 := i64(SomeExample to())
 ## generic/template classes
 
 To create a generic class, you put the expression `~(types...)` after the
-`class` keyword.  You can use these new types for any class inheritance
+class identifier.  You can use these new types for any class inheritance
 from a parent which is a generic/template class.
 
 ```
 # create a class with two generic types, `key` and `value`:
-genericClass := class ~(key, value) () {
+genericClass~(key, value) := {
     ;;reset(This Key: key, This Value: value): null
 }
 # if this class is just POD, you can use the equivalent type:
@@ -1092,7 +1093,7 @@ to invoke logic from these external files.
 
 ```
 # vector2.hm
-vector2 := class() {
+vector2 := {
     ;;reset(This X: dbl, This Y: dbl): null
 
     dot(Vector2: vector2) := X * Vector2 X + Y * Vector2 Y
@@ -1176,7 +1177,7 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 
 ```
 # some relevant pieces of the class definition
-array := class ~type () {
+array~type := {
     # getter, which creates a default-initialized value if necessary.
     # (also will add default-initialized values up to this index, if above current size.)
     This;; _ (Index, fn(Type): Out~type): Out type
@@ -1333,7 +1334,7 @@ change places inside the map and/or collide with an existing key.
 Some relevant pieces of the class definition:
 
 ```
-map := class ~(key, value) () {
+map~(key, value) := {
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at key, too.
@@ -1372,7 +1373,7 @@ opposite side of the array type (i.e., the array looks like `arrayElementType_`)
 The "unnamed" variable name for a set is `Set`.
 
 ```
-set := class ~type () {
+set~type := {
     # returns true if the passed-in element is present in the set.
     This_(Type): bool
 
@@ -1392,7 +1393,7 @@ even if the set variable is mutable.
 ## iterator
 
 ```
-iterator := class ~type () {
+iterator~type := {
     # next value via getter function:
     next(fn(Type: type?): Out~type): Out type
 
@@ -1422,7 +1423,7 @@ iterator := class ~type () {
 For example, here is a way to create an iterator over some number of indices:
 
 ```
-range := class (iterator~index) {
+range~index := extend(Iterator; iterator~index) {
     @private
     NextIndex: index = 0
 
@@ -1450,7 +1451,7 @@ TODO: how does this work with the MMR framework for remove, insert, etc.?
 For example, here is an array iterator:
 
 ```
-arrayIterator := class~type (iterator~type) {
+arrayIterator~type := extend(Iterator; iterator~type) {
     # to use MMR, we need to pass in the array;
     # move the array in to avoid copying.
     # this @reset annotation creates a function signature of
@@ -1477,7 +1478,7 @@ arrayIterator := class~type (iterator~type) {
 Or should we define iterators on the container itself?  E.g.,
 
 ```
-array := class~type () {
+array~type := {
     # const iteration, with no-copy if possible:
     forEach(Input fn(Type): forLoop): null
         for Index: index < size()
@@ -1746,11 +1747,9 @@ by other language features.  E.g., by creating a class that is callable.  For ex
 the `@take` annotation would expand to something like this:
 
 ```
-# TODO: switch `class` to `fnClass` here, so it's clear that instances
-# should have variables with lowerCamelCase identifiers, and that no other
-# operations are permitted on them.
+# TODO: this might be against hm-lang principles, see TODO below.
 @private
-hiddenClass := class() {
+hiddenClass := {
     @reset(Int; int)
 
     # TODO: maybe rename this method to `call()` instead of `()`:
@@ -1777,7 +1776,7 @@ passed in?  As long as the only usage of the passed-in (e.g., inner) function
 occurs when the outer function is called, then there should be no problem.
 
 ```
-logger := class() {
+logger := {
     LogCount ;= 0
 
     ;;log(String): null
@@ -1785,7 +1784,7 @@ logger := class() {
         print("${LogCount}: String")
 }
 
-announcer := class() {
+announcer := {
     log(String); null   # mutable, lambda function
 
     # this indirection isn't strictly necessary;
@@ -1873,7 +1872,7 @@ grammarElement := enumerate(
     EndOfInput
 )
 
-tokenMatcher := class() {
+tokenMatcher := {
     @reset(Name: str = "")
     # TODO: tokenIterator needs to support putting back a token.
     match @mod(TokenIterator) (): bool
@@ -1933,16 +1932,23 @@ Grammar := singleton() {
             parentheses(RhsStatement)
             list(DefinedArgument)
         ])
+        ParentClassName: oneOf([
+            VariableDefinition
+            VariableDeclaration
+        ])
+        ExtendingParentClasses: sequence([
+            keyword("extend")
+            list(ParentClassName)
+        ])
         ClassName: LowerCamelCase
         ClassDefinition: sequence([
             ClassName
+            optional(TemplateArguments)
             oneOf([
                 operator(":=")
                 doNotAllow(operator(";="), "Classes cannot be mutable.")
             ])
-            keyword("class")
-            optional(TemplateArguments)
-            list(LowerCamelCase)    # parent class names
+            optional(ExtendingParentClasses)
             parentheses(Block)
         ])
         EndOfInput: tokenMatcher(
@@ -1985,7 +1991,7 @@ list(GrammarMatcher) := parentheses(repeat(Until: EndOfInput, [
     CommaOrBlockNewline
 ])
 
-sequence := class(TokenMatcher) {
+sequence := extend(TokenMatcher) {
     # TODO: some annotation to pass a variable up to the parent class,
     # e.g., `reset(@passTo(TokenMatcher) Name: str, OtherArgs...):`
     reset(Name: str, This Array: grammarMatcher_):
@@ -2002,7 +2008,7 @@ sequence := class(TokenMatcher) {
 }
 
 # TODO: make `block` a type of token as well.
-parentheses := class(TokenMatcher) {
+parentheses := extend(TokenMatcher) {
     reset(Name: str, This GrammarMatcher):
         TokenMatcher reset(Name)
 
@@ -2018,7 +2024,7 @@ parentheses := class(TokenMatcher) {
                 return False
 }
 
-repeat := class(TokenMatcher) {
+repeat := extend(TokenMatcher) {
     # until `Until` is found, checks matches through `Array` repeatedly.
     # note that `Until` can be found at any point in the array;
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
