@@ -342,8 +342,6 @@ v(Y, X)     # equivalent
 TODO: Check if the syntax works out.
 We also allow calling functions without parentheses for a single argument, like this:
 
-TODO: see if we want to add : or ; to unnamed function arguments, e.g., `print(String:): null`.
-
 ```
 print(String): null     # definition, using an "unnamed" string, e.g., `String: string`.
 
@@ -892,9 +890,11 @@ For one parent, `extend(ParentClassName)` or, to be explicit about the parent ty
 `extend(ParentClassName: parentClassName)`.  Multiple inheritance is
 allowed as well, e.g., `extend(ParentOne, ParentTwo, ...)` or
 `extend(ParentOne: parentOne, ParentTwo: parentTwo, ...)`.
-TODO: we should probably use `;` to indicate that the parent class mutable methods
-can be used, and `:` if the parent class can only be accessed by immutable methods.
-We can access the current class instance (a combination of any/all parent types)
+We use `:` to define inheritance where only immutable/constant methods can be called
+(e.g., methods like `parentClass::methodWhichDoesNotChangeParentVariables()`),
+but in most cases you'll want to use `;` to indicate parent class mutable methods
+can be called as well (e.g., methods like `parentClass;;mutableMethod()`).
+Note that as usual, `:` is the default.  We can access the current class instance 
 using `This`, and `this` will be the current instance's type.  Thus, `this` is
 the parent class if the instance is a parent type, or a subclass if the instance
 is a child class.  E.g., a parent class method can return a `this` type instance,
