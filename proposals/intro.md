@@ -886,26 +886,18 @@ TODO: some example of child class overriding parent class getter/setters.
 ## parent-child classes and method overrides
 
 You can define parent-child class relationships with the following syntax.
-For one parent, `extend(ParentClassName)` or, to be explicit about the parent type,
-`extend(ParentClassName: parentClassName)`.  Multiple inheritance is
-allowed as well, e.g., `extend(ParentOne, ParentTwo, ...)` or
-`extend(ParentOne: parentOne, ParentTwo: parentTwo, ...)`.
-We use `:` to define inheritance where only immutable/constant methods can be called
-(e.g., methods like `parentClass::methodWhichDoesNotChangeParentVariables()`),
-but in most cases you'll want to use `;` to indicate parent class mutable methods
-can be called as well (e.g., methods like `parentClass;;mutableMethod()`).
-Note that as usual, `:` is the default.  We can access the current class instance 
-using `This`, and `this` will be the current instance's type.  Thus, `this` is
+For one parent, `extend(parentClassName)`. Multiple inheritance is
+allowed as well, e.g., `extend(parentOne, ParentTwo, ...)`.
+We can access the current class instance using `This`,
+and `this` will be the current instance's type.  Thus, `this` is
 the parent class if the instance is a parent type, or a subclass if the instance
 is a child class.  E.g., a parent class method can return a `this` type instance,
 and using the method on a subclass instance will return an instance of the subclass.
 
-We use the `UpperCamelCase` versions of the parent types to access member variables
-or functions that belong to that the parent type, i.e., without subclass overloads.
-E.g., a child override of some parent method `someMethod()` might call the parent's
-version of that method, and augment it somehow, and the way to do that is to use
-the named parent instance, e.g. `someMethod() := ParentType someMethod()` within
-the child class' definition headed by `class(ParentType: parentType)`.
+We can access member variables or functions that belong to that the parent type,
+i.e., without subclass overloads, using the syntax `parentClassName::Variable` or
+`parentClassName::someMethod()`.  Use `;;` to access variables or methods that will
+mutate the underlying class instance, e.g., `parentClassName;;Variable = 3`.
 
 Some examples:
 
@@ -930,7 +922,7 @@ animal := {
         return this(Name)
 }
 
-snake := extend(Animal) {
+snake := extend(animal) {
     # if no `reset` functions are defined,
     # child classes will inherit their parent `reset()` methods.
 
@@ -945,12 +937,12 @@ snake := extend(Animal) {
 Snake := snake(Name: "Fred")
 Snake escape()  # prints "Fred slithers away!!"
 
-cat := extend(Animal) {
+cat := extend(animal) {
     # here we define a `reset` method, so the parent `reset` methods
     # become hidden to users of this child class:
     ;;reset(): null
         # can refer to parent methods using class name:
-        Animal reset(Name: "Cat-don't-care-what-you-name-it")
+        animal;;reset(Name: "Cat-don't-care-what-you-name-it")
 
     speak(): null
         print "hisss!"
@@ -982,10 +974,11 @@ WeirdAnimal := animal(
         print "Meorooo"
     goes() := "meanders"
     escape(): null
-        # TODO: we need to define `Animal` here, right?  maybe `animal(This) escape()` ???
-        Animal escape()
+        # to call the parent method `escape()` in here, we can use this:
+        animal::escape()
         print "${Name} ${goes()} back..."
-        Animal escape()
+        # or we can use this:
+        animal::escape()
 )
 
 WeirdAnimal escape()    # prints "Waberoo ... meanders ... meanders back ... meanders away!!"
@@ -1423,7 +1416,7 @@ iterator~type := {
 For example, here is a way to create an iterator over some number of indices:
 
 ```
-range~index := extend(Iterator; iterator~index) {
+range~index := extend(iterator~index) {
     @private
     NextIndex: index = 0
 
@@ -1451,7 +1444,7 @@ TODO: how does this work with the MMR framework for remove, insert, etc.?
 For example, here is an array iterator:
 
 ```
-arrayIterator~type := extend(Iterator; iterator~type) {
+arrayIterator~type := extend(iterator~type) {
     # to use MMR, we need to pass in the array;
     # move the array in to avoid copying.
     # this @reset annotation creates a function signature of
@@ -1932,15 +1925,11 @@ Grammar := singleton() {
             parentheses(RhsStatement)
             list(DefinedArgument)
         ])
-        ParentClassName: oneOf([
-            VariableDefinition
-            VariableDeclaration
-        ])
+        ClassName: LowerCamelCase
         ExtendingParentClasses: sequence([
             keyword("extend")
-            list(ParentClassName)
+            list(ClassName)
         ])
-        ClassName: LowerCamelCase
         ClassDefinition: sequence([
             ClassName
             optional(TemplateArguments)
@@ -1991,11 +1980,11 @@ list(GrammarMatcher) := parentheses(repeat(Until: EndOfInput, [
     CommaOrBlockNewline
 ])
 
-sequence := extend(TokenMatcher) {
+sequence := extend(tokenMatcher) {
     # TODO: some annotation to pass a variable up to the parent class,
     # e.g., `reset(@passTo(TokenMatcher) Name: str, OtherArgs...):`
-    reset(Name: str, This Array: grammarMatcher_):
-        TokenMatcher reset(Name)
+    ;;reset(Name: str, This Array: grammarMatcher_):
+        tokenMatcher;;reset(Name)
 
     match @mod(TokenIterator) (): bool
         # TODO: probably have to take snapshots everywhere in most token matchers:
@@ -2008,9 +1997,9 @@ sequence := extend(TokenMatcher) {
 }
 
 # TODO: make `block` a type of token as well.
-parentheses := extend(TokenMatcher) {
-    reset(Name: str, This GrammarMatcher):
-        TokenMatcher reset(Name)
+parentheses := extend(tokenMatcher) {
+    ;;reset(Name: str, This GrammarMatcher):
+        tokenMatcher;;reset(Name)
 
     match @mod(TokenIterator) (): bool
         Token := TokenIterator peak()
@@ -2024,14 +2013,14 @@ parentheses := extend(TokenMatcher) {
                 return False
 }
 
-repeat := extend(TokenMatcher) {
+repeat := extend(tokenMatcher) {
     # until `Until` is found, checks matches through `Array` repeatedly.
     # note that `Until` can be found at any point in the array;
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Array`.
-    reset(Name: str, This Until: GrammarMatcher, This Array: GrammarMatcher_):
-        TokenMatcher reset(Name)
+    ;;reset(Name: str, This Until: GrammarMatcher, This Array: GrammarMatcher_):
+        tokenMatcher;;reset(Name)
 
     match @mod(TokenIterator) (): bool
         Snapshot := TokenIterator snapshot()
