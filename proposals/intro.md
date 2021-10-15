@@ -723,6 +723,8 @@ ConstVar X += 3                 # COMPILER ERROR! `ConstVar` is deeply constant.
 ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 ```
 
+TODO: rework this now that we're using `;;` and `::` for static methods on enums/masks.
+
 Note:  all functions defined on the class are methods, i.e., functions which operate
 on a class instance (with a `This`).  There are thus no "static" functions that you
 can define on the class (cf. C++).  This aids in simplicity, since we don't need to be
@@ -1557,7 +1559,7 @@ values that are enumerated via the method `count(): index`, the min and max valu
 `min(): index`, `max(): index`, and some convenience methods on any instance of the enumeration.
 
 ```
-Test := bool False
+Test: bool = False  # or `Test := bool::False`
 
 # use `isUpperCamelCaseName()` to check for equality:
 if Test isTrue()
@@ -1566,22 +1568,18 @@ if Test isFalse()
     print "test is false!"
 
 # get the size (number of enumerated values) of the enum:
-print "bool has ${bool() count()} possibilities:"
+print "bool has ${bool::count()} possibilities:"
 # get the lowest and highest values of the enum:
-print "starting at ${bool() min()} and going to ${bool() max()}"
+print "starting at ${bool::min()} and going to ${bool::max()}"
 ```
 
 Because of this, it is a bit confusing to create an enum that has `Count` as an
 enumerated value name, but it is not illegal, since we can still distinguish between the
-enumerated value (`enumName Count`) and total number of enumerated values (`enumName() count()`).
-
-TODO: ensure that `enumName Count` makes sense from a grammar perspective.  looks like
-`enumName(Count)`, which really only makes sense if Count is defined globally based on the enum...
-maybe do `enumName() Count` instead??
+enumerated value (`enumName::Count`) and total number of enumerated values (`enumName::count()`).
 
 Also note that the `count()` method will return the total number of
 enumerations, not the number +1 after the last enum value.  This can be confusing
-in case non-standard enumerations (i.e., with values less than 0) are chosen:
+in case you use non-standard enumerations (i.e., with values less than 0):
 
 ```
 sign := enumerate(
@@ -1590,8 +1588,8 @@ sign := enumerate(
     Positive: 1
 )
 
-print "sign has ${sign() count()} values" # 3
-print "starting at ${sign() min()} and going to ${sign() max()}" # -1 and 1
+print "sign has ${sign::count()} values" # 3
+print "starting at ${sign::min()} and going to ${sign::max()}"  # -1 and 1
 
 weird := enumerate(
     X: 1
@@ -1600,9 +1598,9 @@ weird := enumerate(
     Q: 9
 )
 
-print(weird() count())  # prints 4
-print(weird() min())    # prints 1
-print(weird() max())    # prints 9
+print(weird::count())   # prints 4
+print(weird::min())     # prints 1
+print(weird::max())     # prints 9
 ```
 
 ### Testing enums with lots of values
@@ -1622,7 +1620,7 @@ option := enumerate(
     NowYouWillBeSadForever
 )
 
-print "number of options should be 7:  ${option() count()}"
+print "number of options should be 7:  ${option::count()}"
 
 Option1 := option ContentWithLife
 
@@ -1671,9 +1669,9 @@ nonMutuallyExclusiveType := mask(
 )
 
 # has all the same static methods as enum, though perhaps they are a bit surprising:
-nonMutuallyExclusiveType() count() == 16
-nonMutuallyExclusiveType() min() == 0
-nonMutuallyExclusiveType() max() == 15    # = X | Y | Z | T
+nonMutuallyExclusiveType::count() == 16
+nonMutuallyExclusiveType::min() == 0
+nonMutuallyExclusiveType::max() == 15   # = X | Y | Z | T
 
 Options ;= nonMutuallyExclusiveType()
 Options isNone()    # True.  note there is no `hasNone()` method, since that doesn't
