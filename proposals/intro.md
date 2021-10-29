@@ -471,30 +471,59 @@ type of `returnType|null`.
 
 TODO: examples. 
 
-## no nullable arguments
+## nullable arguments
 
-TODO: ensure there are no optional arguments; instead do overloads and require
-all arguments to be non-null.
-When you call a function with an argument that is null, we actually choose the
-overload that doesn't include that argument, rather than specify a default.
-TODO: check if this breaks class instantiation assumptions.
-TODO: check if this breaks default-arguments.
-TODO: we do use nullable arguments in no-modifying getters (e.g., in a map,
-`This _ (Key, fn(Value?): ~type): type`).  do we want to allow nullable arguments
-but not let users create overloads that would conflict if the argument was missing?
+When you call a function with an argument that is null, conceptually we choose the
+overload that doesn't include that argument.  In other words, a null argument is
+the same as a missing argument when it comes to function overloads.  Thus, we are
+not free to create overloads that attempt to distinguish between all of these cases:
+(1) missing argument, (2) present argument, (3) nullable argument, and (4) default argument.
+Only functions for Cases (1) and (2) can be simultaneously defined; any other combination
+results in a compile-time error.  Cases (3) and (4) can each be thought of as defining two function
+overloads, one for the case of the missing argument and one for the case of the present argument.
 
-For example:
+Defining conflicting overloads, of course, is impossible.  Here are some example overloads;
+again, only Cases (1) and (2) are compatible and can be defined together.
 
 ```
-someFunctionCall(): dbl
-    return 123.4
-someFunctionCall(Y: int): string
-    return "hi ${Y}"
+# missing argument (case 1):
+someFunction(): dbl
+    return 987.6
 
+# present argument (case 2):
+someFunction(Y: int): flt
+    return 2.3 * flt(Y)
+
+# nullable argument (case 3):
+someFunction(Y: int?): string
+    return "why not ${Y}"
+
+# default argument (case 4):
+someFunction(Y := 3): i64
+    return i64(Y)
+```
+
+TODO: check if this breaks class instantiation assumptions.
+
+What are some of the practical outcomes of these overloads?  Suppose
+we define present and missing argument overloads in the following way:
+
+```
+overloaded(): dbl
+    return 123.4
+overloaded(Y: int): string
+    return "hi ${Y}"
+```
+
+The behavior that we get when we call `overloaded` will depend on whether we
+pass in a `Y` or not.  But if we pass in a null `Y`, then we also will end up
+calling the overload that defined the missing argument case.  I.e.:
+
+```
 Y; int? = ... # Y is maybe null, maybe non-null
 
-# otherwise, calling someFunctionCall might invoke something else:
-Z := someFunctionCall(Y)    # calls someFunctionCall() if Y is Null, otherwise someFunctionCall(Y)
+# the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
+Z := overloaded(Y)  
 # Z has type `dbl|string` due to the different return types of the overloads.
 ```
 
@@ -503,19 +532,24 @@ with various fields, since an argument has a name (the field name) as well as a 
 An object with a field that is `Null` should not be distinguishable from an object that
 does not have the field, since `Null` is the absence of a value.  Thus, if we count up
 the number of fields in an object using `size()`, we'll get results like this:
-`object({}) size() == 0`, `{Y: Null} size() == 0`, and `{Y: 5} size() == 1`.
+`object() size() == 0`, `{Y: Null} size() == 0`, and `{Y: 5} size() == 1`.
 
-We want to make it easy to chain function calls with variables that might be null,
+We also want to make it easy to chain function calls with variables that might be null,
 where we actually don't want to call an overload of the function if the argument is null.
 
 ```
 # in other languages, you might check for null before calling a function on a value.
 # this is also valid hm-lang but it's not idiomatic:
-X := someFunctionCall(Y) if Y != Null else Null     # X has type `string|null`
+X := overloaded(Y) if Y != Null else Null
 
-# TODO: decide the syntax here, maybe `someFunctionCall?(Y)` for short.
-# instead, you should use the more idiomatic hm-lang version:
-X := someFunctionCall @ifPresent (Y)                # X has type `string|null`
+# TODO: see if this syntax is ok with all other uses of ?
+# instead, you should use the more idiomatic hm-lang version.
+# putting a ? after the function name will check all arguments for presence;
+# if any argument is Null, the function will not be called and
+# a Null will be returned instead.
+X := overloaded?(Y)
+
+# either way, X has type `string|null`.
 ```
 
 ## constant versus mutable arguments
