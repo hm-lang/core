@@ -459,21 +459,20 @@ greetings(Noun: string); null
 
 TODO: discussion on how it needs to be clear what function overload is being redefined.
 
-## optional unnamed arguments and nullable functions
-
-Since a nullable variable is defined with `someType?` (or `someType|null` to be explicit),
-we can use `SomeType?` as the unnamed version of this variable.  The question mark `?`
-will be parsed here as part of the variable name.
+## nullable functions
 
 TODO: more discussion, how this works in grammar, also how to do optional functions
 
-TODO: do we even want to allow optional arguments?  maybe do overloads instead and require
-all arguments to be non-null.
+## no nullable arguments
 
-TODO: figure out if want option A or B.  Here is A:
-When you call a function whose arguments are non-null with a variable that is null,
-we actually choose the overload that doesn't include that argument, rather than specify
-a default.
+TODO: ensure there are no optional arguments; instead do overloads and require
+all arguments to be non-null.
+When you call a function with an argument that is null, we actually choose the
+overload that doesn't include that argument, rather than specify a default.
+TODO: check if this breaks class instantiation assumptions.
+TODO: check if this breaks default-arguments.
+
+For example:
 
 ```
 someFunctionCall(): dbl
@@ -483,40 +482,30 @@ someFunctionCall(Y: int): string
 
 Y; int? = ... # Y is maybe null, maybe non-null
 
-# in other languages, you might check for null before calling a function on a value.
-# this is also valid hm-lang but it's not idiomatic:
-X := someFunctionCall(Y) if Y != Null else Null     # X has type `string|null`
-
-# TODO: decide the syntax here
-# instead, you should use the more idiomatic hm-lang version:
-X := someFunctionCall @ifPresent (Y)                # X has type `string|null`
-
 # otherwise, calling someFunctionCall might invoke something else:
 Z := someFunctionCall(Y)    # calls someFunctionCall() if Y is Null, otherwise someFunctionCall(Y)
 # Z has type `dbl|string` due to the different return types of the overloads.
 ```
 
-TODO: Option B:
-When you call a function whose arguments are non-null with a variable that is null,
-we want to circumvent calling the function and instead return null.  This is to
-allow chaining like this:
+The reason behind this behavior is that in hm-lang, an argument list is conceptually an object
+with various fields, since an argument has a name (the field name) as well as a value (the field value).
+An object with a field that is `Null` should not be distinguishable from an object that
+does not have the field, since `Null` is the absence of a value.  Thus, if we count up
+the number of fields in an object using `size()`, we'll get results like this:
+`object({}) size() == 0`, `{Y: Null} size() == 0`, and `{Y: 5} size() == 1`.
+
+We want to make it easy to chain function calls with variables that might be null,
+where we actually don't want to call an overload of the function if the argument is null.
 
 ```
-someFunctionCall(): dbl
-    return 123.4
-someFunctionCall(Y: int): string
-    return "hi ${Y}"
-
-Y; int? = ... # maybe null, maybe non-null
-
 # in other languages, you might check for null before calling a function on a value.
 # this is also valid hm-lang but it's not idiomatic:
 X := someFunctionCall(Y) if Y != Null else Null     # X has type `string|null`
 
+# TODO: decide the syntax here, maybe `someFunctionCall?(Y)` for short.
 # instead, you should use the more idiomatic hm-lang version:
-X := someFunctionCall(Y)                            # X has type `string|null`
+X := someFunctionCall @ifPresent (Y)                # X has type `string|null`
 ```
-
 
 ## constant versus mutable arguments
 
