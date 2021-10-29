@@ -461,7 +461,15 @@ TODO: discussion on how it needs to be clear what function overload is being red
 
 ## nullable functions
 
-TODO: more discussion, how this works in grammar, also how to do optional functions
+The syntax for declaring a nullable/optional function is to put a `?` after the function name
+but before the argument list.  E.g., `optionalFunction?(...Args): returnType` for a non-reassignable
+function and swapping `:` for `;` to create a reassignable function.
+
+When calling a nullable function, unless the function is explicitly checked for non-null,
+the return type will be nullable.  E.g., `X := optionalFunction(...Args)` will have a
+type of `returnType|null`.
+
+TODO: examples. 
 
 ## no nullable arguments
 
@@ -471,6 +479,9 @@ When you call a function with an argument that is null, we actually choose the
 overload that doesn't include that argument, rather than specify a default.
 TODO: check if this breaks class instantiation assumptions.
 TODO: check if this breaks default-arguments.
+TODO: we do use nullable arguments in no-modifying getters (e.g., in a map,
+`This _ (Key, fn(Value?): ~type): type`).  do we want to allow nullable arguments
+but not let users create overloads that would conflict if the argument was missing?
 
 For example:
 
