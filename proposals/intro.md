@@ -463,9 +463,59 @@ TODO: discussion on how it needs to be clear what function overload is being red
 
 Since a nullable variable is defined with `someType?` (or `someType|null` to be explicit),
 we can use `SomeType?` as the unnamed version of this variable.  The question mark `?`
-will be parsed here as part of the function name.
+will be parsed here as part of the variable name.
 
 TODO: more discussion, how this works in grammar, also how to do optional functions
+
+TODO: do we even want to allow optional arguments?  maybe do overloads instead and require
+all arguments to be non-null.
+
+TODO: figure out if want option A or B.  Here is A:
+When you call a function whose arguments are non-null with a variable that is null,
+we actually choose the overload that doesn't include that argument, rather than specify
+a default.
+
+```
+someFunctionCall(): dbl
+    return 123.4
+someFunctionCall(Y: int): string
+    return "hi ${Y}"
+
+Y; int? = ... # Y is maybe null, maybe non-null
+
+# in other languages, you might check for null before calling a function on a value.
+# this is also valid hm-lang but it's not idiomatic:
+X := someFunctionCall(Y) if Y != Null else Null     # X has type `string|null`
+
+# TODO: decide the syntax here
+# instead, you should use the more idiomatic hm-lang version:
+X := someFunctionCall @ifPresent (Y)                # X has type `string|null`
+
+# otherwise, calling someFunctionCall might invoke something else:
+Z := someFunctionCall(Y)    # calls someFunctionCall() if Y is Null, otherwise someFunctionCall(Y)
+# Z has type `dbl|string` due to the different return types of the overloads.
+```
+
+TODO: Option B:
+When you call a function whose arguments are non-null with a variable that is null,
+we want to circumvent calling the function and instead return null.  This is to
+allow chaining like this:
+
+```
+someFunctionCall(): dbl
+    return 123.4
+someFunctionCall(Y: int): string
+    return "hi ${Y}"
+
+Y; int? = ... # maybe null, maybe non-null
+
+# in other languages, you might check for null before calling a function on a value.
+# this is also valid hm-lang but it's not idiomatic:
+X := someFunctionCall(Y) if Y != Null else Null     # X has type `string|null`
+
+# instead, you should use the more idiomatic hm-lang version:
+X := someFunctionCall(Y)                            # X has type `string|null`
+```
 
 
 ## constant versus mutable arguments
