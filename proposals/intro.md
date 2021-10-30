@@ -178,6 +178,7 @@ to use `?`.  E.g., `someType|anotherType?` looks a bit like it could be a non-nu
 `someType` instance, or a nullable `anotherType` instance.  Instead, use
 `someType|anotherType|null` to make it clear that null is its own type and does not
 make any other type act like a pointer.
+TODO: maybe use the typescript-like notation `X?: int` or `X?: int|dbl`.
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The compiler will automatically
@@ -469,7 +470,55 @@ When calling a nullable function, unless the function is explicitly checked for 
 the return type will be nullable.  E.g., `X := optionalFunction(...Args)` will have a
 type of `returnType|null`.
 
-TODO: examples. 
+Some examples:
+
+```
+# creating an optional method in a class:
+parent := {
+    @reset(X: dbl, Y: dbl)
+
+    optionalMethod?(Z: dbl); int
+}
+
+Example ;= parent(X: 5, Y: 1)
+
+# define your own function for optionalMethod:
+Example optionalMethod(Z: dbl); int
+    return floor(Z * This X)   # note that you can use `This` to access the Example instance.
+
+Example optionalMethod(2.15)    # returns 10
+
+# or set it to Null:
+Example optionalMethod = Null
+
+Example optionalMethod(3.21)    # returns Null
+
+# child classes can define a "method" that overrides the parent's optional function:
+child := extend(parent) {
+    optionalMethod(Z: dbl); int
+        return ceil(X * Y * exp(-Z))
+}
+
+Child ;= child(X: 6, Y: 2)
+
+Child optionalMethod(0)     # returns 12
+
+# but note that unless the method is protected, users can still redefine it.
+Child optionalMethod(Z: dbl): int
+    return floor(Z)
+
+Child optionalMethod(5.4)   # returns 5
+
+# also note that while the child method appears to always be defined,
+# we cannot stop a Null from being assigned here.  this is because
+# if the instance is passed into a function which takes a parent class,
+# that function scope can reassign the method to Null (since the parent
+# class has no restrictions).
+Child optionalMethod = Null
+
+# therefore the executable will always check for Null before calling the method:
+Child optionalMethod(1.45)  # returns Null
+```
 
 ## nullable arguments
 
@@ -881,20 +930,14 @@ file as the class definition*.  Non-friends are not able to access or modify pri
 | non-friend access |   yes     |   yes     |   no      |
 | non-friend mutate |   yes     |   no      |   no      |
 
-The privacy for methods on a class works slightly different.  Here
-it depends on if the method modifies the class or not, i.e., whether
+The privacy for methods on a class works slightly different, but essentially
+follows the same table.  Using the method depends on visibility as well
+as if the method modifies the class or not, i.e., whether
 the method was defined as `This;;mutatingMethod(): returnType`
 or `This::nonMutatingMethod(): returnType`.  Note that the
-latter are default.
-
-|   method access   |  public   | protected |  private  |
-|:-----------------:|:---------:|:---------:|:---------:|
-|   module access   |   yes     |   yes     |   yes     |
-|   module mutate   |   yes     |   yes     |   yes     |
-|   friend access   |   yes     |   yes     |   yes     |
-|   friend mutate   |   yes     |   yes     |   no      |
-| non-friend access |   yes     |   yes     |   no      |
-| non-friend mutate |   yes     |   no      |   no      |
+latter are default.  Mutating methods follow the "mutate"
+visibility in the table above, and non-mutating methods follow
+the "access" visibility in the table above.
 
 To put into words -- `@public` methods can be called by anyone, regardless
 of whether the method modifies the class instance or not.  `@protected`
@@ -902,6 +945,13 @@ methods which modify the class instance cannot be called by non-friends,
 but constant methods can be called by anyone.  `@private` methods which
 modify the class instance can only be called by module functions, and
 constant methods can be called by friends.
+
+Note that reassignable methods, e.g., those defined with
+`someConstantMethod(...Args); returnType` or `;;someMutatingMethod(...Args); returnType`
+can only be reassigned based on their visibility as if they were variables.
+I.e., public reassignable methods can be reassigned by anyone,
+protected reassignable methods can be reassigned by friends or module,
+and private reassignable methods can only be reassigned within the module.
 
 ## getters and setters on class instance variables
 
@@ -1069,6 +1119,10 @@ WeirdAnimal := animal(
 
 WeirdAnimal escape()    # prints "Waberoo ... meanders ... meanders back ... meanders away!!"
 ```
+
+TODO: explain that lambda functions that are defined as methods on the class
+can use the `This` of the class, but they must be declared as `;;someLambdaMethod(...Args): returnType`
+if they want to call any modifying methods of the class or change any instance variables.
 
 ## template methods
 
