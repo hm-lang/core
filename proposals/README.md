@@ -179,6 +179,9 @@ to use `?`.  E.g., `someType|anotherType?` looks a bit like it could be a non-nu
 `someType|anotherType|null` to make it clear that null is its own type and does not
 make any other type act like a pointer.
 TODO: maybe use the typescript-like notation `X?: int` or `X?: int|dbl`.
+This would be more in line with the optional function notation `optFn?(...Args): returnType`
+Do we require using the question mark as part of the identifier afterwards, e.g., `X? = 5`?
+I think that would be a bit unwieldy.
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The compiler will automatically
@@ -192,12 +195,15 @@ someClass := { someMethod(): int }
 
 Nullable; someClass? = Null
 
+# TODO: if we switch to `Value?: int` type declarations,
+# do we want to require the syntax, `Value ?:= Nullable someMethod()`?
+# i.e., to ensure users know the value could be null?
 Value := Nullable someMethod()  # `Value` has type `int|null` now.
 
 # eventually we want to support things like this, where the compiler
 # can tell if the type is nullable or not:
 if Nullable != Null
-    NonNullValue := Nullable someMethod()   # `Value` here must be `int`.
+    NonNullValue := Nullable someMethod()   # `NonNullValue` here must be `int`.
 ```
 
 TODO: how to handle forced conversions from null to non-null types
@@ -340,7 +346,8 @@ v(X, Y)     # equivalent to `v(X: X, Y: Y)` but the redundancy is not idiomatic.
 v(Y, X)     # equivalent
 ```
 
-TODO: Check if the syntax works out.
+### eliding parentheses for single-argument function calls
+
 We also allow calling functions without parentheses for a single argument, like this:
 
 ```
@@ -363,6 +370,8 @@ v X: 5      # executes v(X: 5, Int: 0)
 # COMPILE ERROR: need parentheses here, since commas bind less strongly than function-spaces:
 v 100, X: 10
 ```
+
+### functions as arguments
 
 A function can have a function as an argument, and there are a few different ways to call
 it in that case.
@@ -393,7 +402,7 @@ detect(greet(Int): string
 )   # returns 13
 ```
 
-## unnamed arguments in functions
+### unnamed arguments in functions
 
 For functions with a single argument where the variable name doesn't matter,
 you can use "unnamed" variables.  For primitive types, the "unnamed" identifier
@@ -434,6 +443,35 @@ q(fn(): bool
     return random()
 )   # will print one of the above due to randomness.
 ```
+
+### dynamically determining arguments for a function
+
+TODO: discuss the `args` type, which allows you to build up function arguments.
+e.g., `Args; args = {Hello: "World"}`.
+TODO: maybe make it a template type on the function you are going to call,
+which would allow for checking whether the argument added was valid or not.
+E.g.,
+
+```
+myFn(Times: int, String): null
+    for Int: int < Times
+        print(String)
+myFn(Dbl: dbl): dbl
+    return 5 * Dbl
+
+Args; argsTo~myFn = {}
+if SomeCondition
+    # TODO: think of the syntax for inlining.  maybe `Args Dbl := 123.3`??
+    Args Dbl = 123.3
+else
+    Args = {Times: 50, String: "Hello"}
+
+Result := myFn(Args)    # Result can be `null|dbl`
+```
+
+TODO: i think it would be best not to throw a run-time error if the arguments
+don't match, e.g., if they are overspecified, especially for these dynamically
+built arguments.
 
 ## redefining a function
 
