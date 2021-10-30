@@ -1212,10 +1212,6 @@ code from other files to build applications.  All `.hm` files must be known
 at compile time, so referring to other files gets its own special notation.
 The operator `*/` begins a file-system search in the current directory.
 and two asterisks becomes a search for a library module, e.g., `**math`.
-TODO: should this become `**Math atan(X, Y)` for proper operator precedence?
-i.e., `math atan(X, Y)` looks like `math(atan(X, Y))`, which doesn't compute.
-Or do we use `**math::atan(X, Y)`?  maybe we just assume that whatever comes
-after the `**....` acts like an upper camel case identifier, and same for `*/`.
 
 Subsequent subdirectories are separated using forward slashes, e.g.,
 `*/relative/path/to/file` to reference the file at `./relative/path/to/file.hm`,
@@ -1266,6 +1262,13 @@ surround the path, e.g., `[**library/path/with spaces]` for a library path or
 use a backslash to escape the space, e.g., `**library/path/with\ spaces` or
 `*/relative/path/with\ a\ space/to/a/great\ file`.  Other standard escape sequences
 (using backslashes) will probably be supported.
+
+Note that while `**math atan(X, Y)` might look like grammatically like `**math(atan(X, Y))`,
+which would be wrong for operator precedence, we instead take the entire import as
+if it was an UpperCamelCase identifier.  E.g., `**math` acts like one identifier, `Math`,
+so `**math atan(X, Y)` resolves like `Math atan(X, Y)`, i.e., member access or drilling down
+from `Math := **math`.  Similarly for any relative import; `*/relative/import/file someFunction(Q)`
+correctly becomes like `File someFunction(Q)` for `File := */relative/import/file`.
 
 ## file access
 
