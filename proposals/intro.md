@@ -1212,6 +1212,10 @@ code from other files to build applications.  All `.hm` files must be known
 at compile time, so referring to other files gets its own special notation.
 The operator `*/` begins a file-system search in the current directory.
 and two asterisks becomes a search for a library module, e.g., `**math`.
+TODO: should this become `**Math atan(X, Y)` for proper operator precedence?
+i.e., `math atan(X, Y)` looks like `math(atan(X, Y))`, which doesn't compute.
+Or do we use `**math::atan(X, Y)`?  maybe we just assume that whatever comes
+after the `**....` acts like an upper camel case identifier, and same for `*/`.
 
 Subsequent subdirectories are separated using forward slashes, e.g.,
 `*/relative/path/to/file` to reference the file at `./relative/path/to/file.hm`,
