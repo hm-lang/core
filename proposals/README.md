@@ -44,17 +44,9 @@ TODO: switch ~type to Out~type everywhere.
 
 Operator priority.
 
-TODO: add : , ;
+TODO: add : , ; ?! ??
 
 TODO: ternary assignment -- do not use question mark operator ?
-
-TODO: see if member access needs to be LTR
-TODO: `MyInstance someMethod someFunction() someThingElse()` should resolve as
-      `(MyInstance someMethod(someFunction())) someThingElse()`.
-TODO: `MyInstance someMethod someFunction() SomeField` should resolve as
-      `(MyInstance someMethod(someFunction())) SomeField`.
-TODO: `MyInstance someMethod someFunction()()` should resolve as
-      `MyInstance someMethod(  ( someFunction() )()  )`.
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
@@ -67,7 +59,7 @@ TODO: `MyInstance someMethod someFunction()()` should resolve as
 |           | `**x/y/z` | library module import     | special: `**a/b`  |               |
 |           | `*/x/y/z` | relative module import    | special: `*/a/b`  |               |
 |   2       |   `[ ]`   | function call             | on fn: `a B`      | RTL           |
-|           |   `[ ]`   | member access             | binary: `A B`     |               |
+|           |   `[ ]`   | member access             | binary: `A B`     | [1]           |
 |   3       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
 |           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
 |           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
@@ -87,6 +79,19 @@ TODO: `MyInstance someMethod someFunction()()` should resolve as
 |           |  `\|\|`   | logical OR                | binary: `A\|\|B`  |               |
 |   8       |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
+
+Notes:
+
+    1.  Function calls associate RTL and execute RTL as well, so
+        `someFunction anotherFunction deeplyNested(3)` resolves as
+        `someFunction(anotherFunction(deeplyNested(3)))`.  
+        Member access associates RTL but drills down from LTR.  E.g.,
+        `SomeInstance SomeField NestedField` is equivalent to
+        `(SomeInstance SomeField) NestedField`.  The reason is so that
+        combining function calls and member access isn't as confusing:
+        `someFunction SomeInstance SomeField someMethod() FinalField` becomes
+        `someFunction(((SomeInstance SomeField) someMethod()) FinalField)`.
+        TODO: double check that this makes sense.
 
 ## division and remainder operators: / // % %%
 
@@ -180,8 +185,6 @@ to use `?`.  E.g., `someType|anotherType?` looks a bit like it could be a non-nu
 make any other type act like a pointer.
 TODO: maybe use the typescript-like notation `X?: int` or `X?: int|dbl`.
 This would be more in line with the optional function notation `optFn?(...Args): returnType`
-Do we require using the question mark as part of the identifier afterwards, e.g., `X? = 5`?
-I think that would be a bit unwieldy.
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The compiler will automatically
@@ -629,15 +632,17 @@ where we actually don't want to call an overload of the function if the argument
 # this is also valid hm-lang but it's not idiomatic:
 X := overloaded(Y) if Y != Null else Null
 
-# TODO: see if this syntax is ok with all other uses of ?
 # instead, you should use the more idiomatic hm-lang version.
-# putting a ? after the function name will check all arguments for presence;
-# if any argument is Null, the function will not be called and
-# a Null will be returned instead.
-X := overloaded?(Y)
+# putting a ?! after the argument name will check that argument;
+# if it is Null, the function will not be called and Null will be returned instead.
+X := overloaded(Y?!)
 
 # either way, X has type `string|null`.
 ```
+
+You can use `?!` with multiple arguments; if any argument with `?!` after it is null,
+then the function will not be called.
+
 
 ## constant versus mutable arguments
 
