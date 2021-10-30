@@ -183,8 +183,6 @@ to use `?`.  E.g., `someType|anotherType?` looks a bit like it could be a non-nu
 `someType` instance, or a nullable `anotherType` instance.  Instead, use
 `someType|anotherType|null` to make it clear that null is its own type and does not
 make any other type act like a pointer.
-TODO: maybe use the typescript-like notation `X?: int` or `X?: int|dbl`.
-This would be more in line with the optional function notation `optFn?(...Args): returnType`
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The compiler will automatically
@@ -476,6 +474,176 @@ TODO: i think it would be best not to throw a run-time error if the arguments
 don't match, e.g., if they are overspecified, especially for these dynamically
 built arguments.
 
+### constant versus mutable arguments
+
+Functions can be defined with mutable or immutable arguments, but that does
+not change the function signature (cf. section on function overloads).
+The important difference is that arguments defined with `;` must be copied
+in from the outside (unless the external variable is already a temporary),
+whereas arguments defined with `:` can be referenced without a copy.  This
+is because arguments defined with `;` can be modified inside the function,
+but they should not modify any variables outside of the function, even if
+they are passed in.  Examples:
+
+```
+# this function makes a copy of whatever string is passed in:
+copiedArgumentFunction(CopyMe; string): string
+    CopyMe += "!!??"    # OK since CopyMe is defined as mutable via `;`.
+    print(CopyMe)
+    return CopyMe
+
+# this function just references whatever string is passed in (no copy):
+reffedArgumentFunction(Ref: string): string
+    print(Ref)
+    return Ref + "??!!"
+
+MyValue: string = "immutable"
+copiedArgumentFunction(CopyMe: MyValue) # prints "immutable!!??"
+print(MyValue)                          # prints "immutable"
+reffedArgumentFunction(Ref: MyValue)    # prints "immutable??!!"
+print(MyValue)                          # prints "immutable"
+
+Mutable; string = "mutable"
+copiedArgumentFunction(CopyMe: Mutable) # prints "mutable!!??"
+print(Mutable)                          # prints "mutable"
+reffedArgumentFunction(Ref: Mutable)    # prints "mutable??!!"
+print(Mutable)                          # prints "mutable"
+```
+
+The reason that the `;` or `:` argument definition doesn't change the function
+signature is because in either case, the variables passed in from the outside
+are not affected by the internal parts of the function.  That is, the function
+cannot modify the external variables at all.
+
+### nullable arguments
+
+When you call a function with an argument that is null, conceptually we choose the
+overload that doesn't include that argument.  In other words, a null argument is
+the same as a missing argument when it comes to function overloads.  Thus, we are
+not free to create overloads that attempt to distinguish between all of these cases:
+(1) missing argument, (2) present argument, (3) nullable argument, and (4) default argument.
+Only functions for Cases (1) and (2) can be simultaneously defined; any other combination
+results in a compile-time error.  Cases (3) and (4) can each be thought of as defining two function
+overloads, one for the case of the missing argument and one for the case of the present argument.
+
+Defining conflicting overloads, of course, is impossible.  Here are some example overloads;
+again, only Cases (1) and (2) are compatible and can be defined together.
+
+```
+# missing argument (case 1):
+someFunction(): dbl
+    return 987.6
+
+# present argument (case 2):
+someFunction(Y: int): flt
+    return 2.3 * flt(Y)
+
+# nullable argument (case 3):
+someFunction(Y: int?): string
+    return "why not ${Y}"
+
+# default argument (case 4):
+someFunction(Y := 3): i64
+    return i64(Y)
+```
+
+TODO: check if this breaks class instantiation assumptions.
+
+What are some of the practical outcomes of these overloads?  Suppose
+we define present and missing argument overloads in the following way:
+
+```
+overloaded(): dbl
+    return 123.4
+overloaded(Y: int): string
+    return "hi ${Y}"
+```
+
+The behavior that we get when we call `overloaded` will depend on whether we
+pass in a `Y` or not.  But if we pass in a null `Y`, then we also will end up
+calling the overload that defined the missing argument case.  I.e.:
+
+```
+Y; int? = ... # Y is maybe null, maybe non-null
+
+# the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
+Z := overloaded(Y)  
+# Z has type `dbl|string` due to the different return types of the overloads.
+```
+
+The reason behind this behavior is that in hm-lang, an argument list is conceptually an object
+with various fields, since an argument has a name (the field name) as well as a value (the field value).
+An object with a field that is `Null` should not be distinguishable from an object that
+does not have the field, since `Null` is the absence of a value.  Thus, if we count up
+the number of fields in an object using `size()`, we'll get results like this:
+`object() size() == 0`, `{Y: Null} size() == 0`, and `{Y: 5} size() == 1`.
+
+We also want to make it easy to chain function calls with variables that might be null,
+where we actually don't want to call an overload of the function if the argument is null.
+
+```
+# in other languages, you might check for null before calling a function on a value.
+# this is also valid hm-lang but it's not idiomatic:
+X := overloaded(Y) if Y != Null else Null
+
+# instead, you should use the more idiomatic hm-lang version.
+# putting a ?! after the argument name will check that argument;
+# if it is Null, the function will not be called and Null will be returned instead.
+X := overloaded(Y?!)
+
+# either way, X has type `string|null`.
+```
+
+You can use `?!` with multiple arguments; if any argument with `?!` after it is null,
+then the function will not be called.
+
+## move-modify-return (MMR) pattern
+
+Since a function cannot modify variables outside of the function, any changes
+that are to be made outside of the function must be effected by using the
+return values of the function.  To modify an object outside of a function
+using its methods inside the function, use the move-modify-return pattern.  E.g.,
+
+```
+MyObject ;= myObjectType(WhateverArgs: 5)
+MyObject = modify(MyObject move())
+# where the `modify` function is whatever you want:
+modify(MyObjectType; myObjectType): myObjectType
+    MyObjectType someMethod(12345)
+    return MyObjectType move()      # compiler can probably figure out this move()
+```
+
+For this pattern to avoid unnecessary copies, the modifying function must
+use the mutable argument definition (e.g., `;`), and the external caller
+of the modifying function must `move()` the object into the function's arguments.
+
+To indicate what you're doing a more explicitly, you can use the `@mod` annotation.
+The `@mod` annotation adds the argument to both the function's arguments and return value.
+Other values can also be passed into the function (or returned) at the regular spot(s),
+but will not have the move-modify-return pattern applied.  For example:
+
+```
+modify @mod(MyObjectType; myObjectType) ():
+    MyObjectType someMethod(12345)
+    return MyObjectType move()      # compiler can probably figure out this move()
+
+SomeInstance ;= myObjectType(...)
+# you can also use `@mod` to call the function and have it update the variable.
+modify @mod(SomeInstance) ()
+
+# which expands into:
+modify(@moved MyObjectType; myObjectType): myObjectType
+    MyObjectType someMethod(12345)
+    return MyObjectType move()      # compiler can probably figure out this move()
+
+SomeInstance ;= myObjectType(...)
+SomeInstance = modify(SomeInstance move())
+```
+
+TODO: discuss allowing @moved as an argument annotation in order to require someone
+to `move()` a variable into the function.  don't just allow compiler warnings,
+those will expand unnecessarily.
+
 ## redefining a function
 
 To declare a reassignable function, use `;` after the arguments.
@@ -560,177 +728,6 @@ Child optionalMethod = Null
 # therefore the executable will always check for Null before calling the method:
 Child optionalMethod(1.45)  # returns Null
 ```
-
-## nullable arguments
-
-When you call a function with an argument that is null, conceptually we choose the
-overload that doesn't include that argument.  In other words, a null argument is
-the same as a missing argument when it comes to function overloads.  Thus, we are
-not free to create overloads that attempt to distinguish between all of these cases:
-(1) missing argument, (2) present argument, (3) nullable argument, and (4) default argument.
-Only functions for Cases (1) and (2) can be simultaneously defined; any other combination
-results in a compile-time error.  Cases (3) and (4) can each be thought of as defining two function
-overloads, one for the case of the missing argument and one for the case of the present argument.
-
-Defining conflicting overloads, of course, is impossible.  Here are some example overloads;
-again, only Cases (1) and (2) are compatible and can be defined together.
-
-```
-# missing argument (case 1):
-someFunction(): dbl
-    return 987.6
-
-# present argument (case 2):
-someFunction(Y: int): flt
-    return 2.3 * flt(Y)
-
-# nullable argument (case 3):
-someFunction(Y: int?): string
-    return "why not ${Y}"
-
-# default argument (case 4):
-someFunction(Y := 3): i64
-    return i64(Y)
-```
-
-TODO: check if this breaks class instantiation assumptions.
-
-What are some of the practical outcomes of these overloads?  Suppose
-we define present and missing argument overloads in the following way:
-
-```
-overloaded(): dbl
-    return 123.4
-overloaded(Y: int): string
-    return "hi ${Y}"
-```
-
-The behavior that we get when we call `overloaded` will depend on whether we
-pass in a `Y` or not.  But if we pass in a null `Y`, then we also will end up
-calling the overload that defined the missing argument case.  I.e.:
-
-```
-Y; int? = ... # Y is maybe null, maybe non-null
-
-# the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
-Z := overloaded(Y)  
-# Z has type `dbl|string` due to the different return types of the overloads.
-```
-
-The reason behind this behavior is that in hm-lang, an argument list is conceptually an object
-with various fields, since an argument has a name (the field name) as well as a value (the field value).
-An object with a field that is `Null` should not be distinguishable from an object that
-does not have the field, since `Null` is the absence of a value.  Thus, if we count up
-the number of fields in an object using `size()`, we'll get results like this:
-`object() size() == 0`, `{Y: Null} size() == 0`, and `{Y: 5} size() == 1`.
-
-We also want to make it easy to chain function calls with variables that might be null,
-where we actually don't want to call an overload of the function if the argument is null.
-
-```
-# in other languages, you might check for null before calling a function on a value.
-# this is also valid hm-lang but it's not idiomatic:
-X := overloaded(Y) if Y != Null else Null
-
-# instead, you should use the more idiomatic hm-lang version.
-# putting a ?! after the argument name will check that argument;
-# if it is Null, the function will not be called and Null will be returned instead.
-X := overloaded(Y?!)
-
-# either way, X has type `string|null`.
-```
-
-You can use `?!` with multiple arguments; if any argument with `?!` after it is null,
-then the function will not be called.
-
-
-## constant versus mutable arguments
-
-Functions can be defined with mutable or immutable arguments, but that does
-not change the function signature (cf. section on function overloads).
-The important difference is that arguments defined with `;` must be copied
-in from the outside (unless the external variable is already a temporary),
-whereas arguments defined with `:` can be referenced without a copy.  This
-is because arguments defined with `;` can be modified inside the function,
-but they should not modify any variables outside of the function, even if
-they are passed in.  Examples:
-
-```
-# this function makes a copy of whatever string is passed in:
-copiedArgumentFunction(CopyMe; string): string
-    CopyMe += "!!??"    # OK since CopyMe is defined as mutable via `;`.
-    print(CopyMe)
-    return CopyMe
-
-# this function just references whatever string is passed in (no copy):
-reffedArgumentFunction(Ref: string): string
-    print(Ref)
-    return Ref + "??!!"
-
-MyValue: string = "immutable"
-copiedArgumentFunction(CopyMe: MyValue) # prints "immutable!!??"
-print(MyValue)                          # prints "immutable"
-reffedArgumentFunction(Ref: MyValue)    # prints "immutable??!!"
-print(MyValue)                          # prints "immutable"
-
-Mutable; string = "mutable"
-copiedArgumentFunction(CopyMe: Mutable) # prints "mutable!!??"
-print(Mutable)                          # prints "mutable"
-reffedArgumentFunction(Ref: Mutable)    # prints "mutable??!!"
-print(Mutable)                          # prints "mutable"
-```
-
-The reason that the `;` or `:` argument definition doesn't change the function
-signature is because in either case, the variables passed in from the outside
-are not affected by the internal parts of the function.  That is, the function
-cannot modify the external variables at all.
-
-## move-modify-return (MMR) pattern
-
-Since a function cannot modify variables outside of the function, any changes
-that are to be made outside of the function must be effected by using the
-return values of the function.  To modify an object outside of a function
-using its methods inside the function, use the move-modify-return pattern.  E.g.,
-
-```
-MyObject ;= myObjectType(WhateverArgs: 5)
-MyObject = modify(MyObject move())
-# where the `modify` function is whatever you want:
-modify(MyObjectType; myObjectType): myObjectType
-    MyObjectType someMethod(12345)
-    return MyObjectType move()      # compiler can probably figure out this move()
-```
-
-For this pattern to avoid unnecessary copies, the modifying function must
-use the mutable argument definition (e.g., `;`), and the external caller
-of the modifying function must `move()` the object into the function's arguments.
-
-To indicate what you're doing a more explicitly, you can use the `@mod` annotation.
-The `@mod` annotation adds the argument to both the function's arguments and return value.
-Other values can also be passed into the function (or returned) at the regular spot(s),
-but will not have the move-modify-return pattern applied.  For example:
-
-```
-modify @mod(MyObjectType; myObjectType) ():
-    MyObjectType someMethod(12345)
-    return MyObjectType move()      # compiler can probably figure out this move()
-
-SomeInstance ;= myObjectType(...)
-# you can also use `@mod` to call the function and have it update the variable.
-modify @mod(SomeInstance) ()
-
-# which expands into:
-modify(@moved MyObjectType; myObjectType): myObjectType
-    MyObjectType someMethod(12345)
-    return MyObjectType move()      # compiler can probably figure out this move()
-
-SomeInstance ;= myObjectType(...)
-SomeInstance = modify(SomeInstance move())
-```
-
-TODO: discuss allowing @moved as an argument annotation in order to require someone
-to `move()` a variable into the function.  don't just allow compiler warnings,
-those will expand unnecessarily.
 
 ## function overloads
 
