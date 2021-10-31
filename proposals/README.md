@@ -84,7 +84,7 @@ Notes:
 
 1.  Function calls associate RTL and execute RTL as well, so
     `someFunction anotherFunction deeplyNested(3)` resolves as
-    `someFunction(anotherFunction(deeplyNested(3)))`.  
+    `someFunction(anotherFunction(deeplyNested(3)))`.
     Member access associates RTL but drills down from LTR.  E.g.,
     `SomeInstance SomeField NestedField` is equivalent to
     `(SomeInstance SomeField) NestedField`.  The reason is so that
