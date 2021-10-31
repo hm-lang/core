@@ -82,16 +82,16 @@ TODO: ternary assignment -- do not use question mark operator ?
 
 Notes:
 
-    1.  Function calls associate RTL and execute RTL as well, so
-        `someFunction anotherFunction deeplyNested(3)` resolves as
-        `someFunction(anotherFunction(deeplyNested(3)))`.  
-        Member access associates RTL but drills down from LTR.  E.g.,
-        `SomeInstance SomeField NestedField` is equivalent to
-        `(SomeInstance SomeField) NestedField`.  The reason is so that
-        combining function calls and member access isn't as confusing:
-        `someFunction SomeInstance SomeField someMethod() FinalField` becomes
-        `someFunction(((SomeInstance SomeField) someMethod()) FinalField)`.
-        TODO: double check that this makes sense.
+1.  Function calls associate RTL and execute RTL as well, so
+    `someFunction anotherFunction deeplyNested(3)` resolves as
+    `someFunction(anotherFunction(deeplyNested(3)))`.  
+    Member access associates RTL but drills down from LTR.  E.g.,
+    `SomeInstance SomeField NestedField` is equivalent to
+    `(SomeInstance SomeField) NestedField`.  The reason is so that
+    combining function calls and member access isn't as confusing:
+    `someFunction SomeInstance SomeField someMethod() FinalField` becomes
+    `someFunction(((SomeInstance SomeField) someMethod()) FinalField)`.
+    TODO: double check that this makes sense.
 
 ## division and remainder operators: / // % %%
 
