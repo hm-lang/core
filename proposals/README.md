@@ -196,9 +196,6 @@ someClass := { someMethod(): int }
 
 Nullable; someClass? = Null
 
-# TODO: if we switch to `Value?: int` type declarations,
-# do we want to require the syntax, `Value ?:= Nullable someMethod()`?
-# i.e., to ensure users know the value could be null?
 Value := Nullable someMethod()  # `Value` has type `int|null` now.
 
 # eventually we want to support things like this, where the compiler
@@ -208,6 +205,17 @@ if Nullable != Null
 ```
 
 TODO: how to handle forced conversions from null to non-null types
+
+Optional functions are defined in a different way (cf. section on nullable functions),
+with the `?` just after the function name, e.g., `someFunction?(...Args): returnType`.
+We don't want to use this same notation when defining variables (e.g., `X?: int` is 
+**not** allowed) because we want nullable function return types to have the same notation
+as variable type declarations.
+
+TODO: how do we declare a function of multiple types?  e.g.,
+`someFunction: ((Dbl) -> string) | ((Dbl, Name: string) -> int)`??
+This might have some usage for function overloads.  Maybe we disallow these and require
+declare the overloads individually.
 
 ## nested/object types
 
