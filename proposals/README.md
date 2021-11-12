@@ -35,6 +35,9 @@ X: dbl = 5.43
 Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 ```
 
+TODO: we probably actually want people to explicitly specify the type of rounding they want.
+e.g., `Y: int = X floor()` is OK, or `X ceil()`, or `X round()`, or `X round Stochastically`
+
 ## types of types
 
 TODO: discuss type and classType.
@@ -379,6 +382,9 @@ v X: 5      # executes v(X: 5, Int: 0)
 # COMPILE ERROR: need parentheses here, since commas bind less strongly than function-spaces:
 v 100, X: 10
 ```
+
+TODO: since `return` is considered a function, do we allow `return X + 5` or require `return(X + 5)`?
+if the former, then what would be the value of `return f X + 3`?
 
 ### functions as arguments
 
