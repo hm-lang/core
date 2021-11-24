@@ -177,27 +177,25 @@ allowed to mutate the memory if it is declared as a mutable variable with `;`.
 ## nullable variable types
 
 To make it easy to indicate when a variable can be nullable, we reserve the question mark
-symbol, `?`, to place after the type.  E.g., `X: int?` declares a variable `X` that
+symbol, `?`, placed after the variable name.  E.g., `X?: int` declares a variable `X` that
 can be an integer or null.  An optional type can be made more explicit using the notation,
 `someType|null`, e.g., `int|null`.  The default value for an optional type is `Null`.
-
-Note that for an optional type with more than one real type, it is a compiler error
-to use `?`.  E.g., `someType|anotherType?` looks a bit like it could be a non-nullable
-`someType` instance, or a nullable `anotherType` instance.  Instead, use
-`someType|anotherType|null` to make it clear that null is its own type and does not
-make any other type act like a pointer.
+For an optional type with more than one non-null type, we can use `Y: someType|anotherType|null`
+to make it clear that null is its own type, or we can use `Y?: someType|anotherType`.
 
 One of the cool features of hm-lang is that we don't require the programmer
-to check for null on a nullable type before using it.  The compiler will automatically
-check for null on variables that can be null.  This is also helpful for method chaining
-on classes (see more on those below).  If your code calls a method on an instance that
-is null, a null will be returned instead (and the method will not be called).
+to check for null on a nullable type before using it.  The executable will automatically
+check for null on variables that can be null.  If a function can be null, the executable
+will return null if the function is null, or otherwise execute the function.
+This is also helpful for method chaining on classes (see more on those below).
+If your code calls a method on an instance that is null, a null will be
+returned instead (and the method will not be called).
 
 ```
 # define a class with a method called `someMethod`:
 someClass := { someMethod(): int }
 
-Nullable; someClass? = Null
+Nullable?; someClass = Null
 
 Value := Nullable someMethod()  # `Value` has type `int|null` now.
 
@@ -209,13 +207,11 @@ if Nullable != Null
 
 TODO: how to handle forced conversions from null to non-null types
 
-Optional functions are defined in a different way (cf. section on nullable functions),
+Optional functions are defined in a similar way (cf. section on nullable functions),
 with the `?` just after the function name, e.g., `someFunction?(...Args): returnType`.
-We don't want to use this same notation when defining variables (e.g., `X?: int` is 
-**not** allowed) because we want nullable function return types to have the same notation
-as variable type declarations.
 
 TODO: how do we declare a function of multiple types?  e.g.,
+`someFunction: (fn(Dbl): string) | (fn(Dbl, Name: string): int)`, or
 `someFunction: ((Dbl) -> string) | ((Dbl, Name: string) -> int)`??
 This might have some usage for function overloads.  Maybe we disallow these and require
 declare the overloads individually.
@@ -553,7 +549,7 @@ someFunction(Y: int): flt
     return 2.3 * flt(Y)
 
 # nullable argument (case 3):
-someFunction(Y: int?): string
+someFunction(Y?: int): string
     return "why not ${Y}"
 
 # default argument (case 4):
@@ -578,7 +574,7 @@ pass in a `Y` or not.  But if we pass in a null `Y`, then we also will end up
 calling the overload that defined the missing argument case.  I.e.:
 
 ```
-Y; int? = ... # Y is maybe null, maybe non-null
+Y?; int = ... # Y is maybe null, maybe non-null
 
 # the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
 Z := overloaded(Y)  
@@ -610,6 +606,17 @@ X := overloaded(Y?!)
 
 You can use `?!` with multiple arguments; if any argument with `?!` after it is null,
 then the function will not be called.
+
+This can also be used with the `return` function to only return if the value is not null.
+
+```
+doSomething(X?: int): int
+    Y := X?! * 3    # Y is Null or X*3 if X is not Null.
+    return Y?!      # only returns if Y is not Null
+    #/ do some other stuff /#
+    ...
+    return 3
+```
 
 ## move-modify-return (MMR) pattern
 
@@ -688,10 +695,34 @@ TODO: discussion on how it needs to be clear what function overload is being red
 The syntax for declaring a nullable/optional function is to put a `?` after the function name
 but before the argument list.  E.g., `optionalFunction?(...Args): returnType` for a non-reassignable
 function and swapping `:` for `;` to create a reassignable function.
-
 When calling a nullable function, unless the function is explicitly checked for non-null,
 the return type will be nullable.  E.g., `X := optionalFunction(...Args)` will have a
-type of `returnType|null`.
+type of `returnType|null`.  Nullable functions are checked by the executable, so the
+programmer doesn't necessarily have to do it.
+
+A nullable function has `?` before the argument list; a `?` after the argument list
+means that the return type is nullable.  The possible combinations are therefore the following:
+
+* `normalFunction(...Args): returnType` is a non-null function
+  returning a non-null `returnType` instance.
+
+* `nullableFunction?(...Args): returnType` is a nullable function,
+  which, if non-null, will return a non-null `returnType` instance.
+  Conversely, if `nullableFunction` is null, trying to call it will return null.
+  You can also declare this as `nullableFunction?: (fn(...Args): returnType)`.
+  TODO: see if we're happy with removing the parentheses here.
+
+* `nullableReturnFunction(...Args)?: returnType` is a non-null function
+  which can return a nullable instance of `returnType`.  You can declare
+  this as `nullableReturnFunction(...Args): returnType|null` as well.
+
+* `superNullFunction?(...Args)?: returnType` is a nullable function
+  which can return a null `returnType` instance, even if the function is non-null.
+  I.e., if `superNullFunction` is null, trying to call it will return null,
+  but even if it's not null `superNullFunction` can still return null.
+  You can also declare this as `superNullFunction?: fn(...Args)?: returnType`
+  or `superNullFunction?: fn(...Args): returnType|null)`.
+
 
 Some examples:
 
@@ -1376,8 +1407,8 @@ array~type := {
     # (also will add default-initialized values up to this index, if above current size.)
     This;; _ (Index, fn(Type): Out~type): Out type
 
-    # swapper, sets the value at the index, returning the old value:
-    This;; _ (Index, @moved Type): type?
+    # swapper, sets the value at the index, returning the old value if present:
+    This;; _ (Index, @moved Type)?: type
 
     # modifier, allows access to modify the internal value, via MMR pattern.
     # passes the current value at the index into the passed-in function (to be specific, moves it).
@@ -1538,7 +1569,7 @@ map~(key, value) := {
     This;; _ (Key, fn(Value): ~type): type
 
     # returns a Null if key is not in the map.
-    This _ (Key): value?
+    This _ (Key)?: value
 
     # getter, which will pass back a Null if the key is not in the map.
     This _ (Key, fn(Value?): ~type): type
@@ -1589,17 +1620,17 @@ even if the set variable is mutable.
 ```
 iterator~type := {
     # next value via getter function:
-    next(fn(Type: type?): Out~type): Out type
+    next(fn(Type?): Out~type): Out type
 
     # peak via no-copy getter function:
-    peak?(fn(Type: type?): Out~type): Out type
+    peak?(fn(Type?): Out~type): Out type
 
     # present only if underlying container supports removing the current element (at `peak()`)
     # returns the element, or null if no current element.
     # TODO: figure out a nice syntax for this method to automatically
     # be defined IF replace is defined, and to return a null in replace,
     # but allow it to be overridden if remove is defined separately.
-    remove?(): type?
+    remove?()?: type
 
     # present only if underlying container supports inserting a new element (before `peak()`)
     insert?(Type): null
@@ -1610,7 +1641,7 @@ iterator~type := {
     # if there was an element at this point in the container,
     # and a null is returned, the element (and its former location)
     # should be deleted out of the container.
-    replace(Type?): type?
+    replace(Type?)?: type
 }
 ```
 
@@ -1624,7 +1655,7 @@ range~index := extend(iterator~index) {
     ;;reset(StartAt: index = 0, This LessThan: index = 0): null
         NextIndex = StartAt
 
-    ;;next(): index?
+    ;;next()?: index
         if NextIndex < LessThan
             Result := NextIndex
             ++NextIndex
@@ -1664,7 +1695,7 @@ arrayIterator~type := extend(iterator~type) {
     #   # MyArray is now back to [1,2,3,4] unless there were changes during iteration,
     #   # but in any case, without a copy,
 
-    ;;next(): type?
+    ;;next()?: type
         ???
 }
 ```
@@ -2023,6 +2054,14 @@ if the instance `OtherClass` backing the passed-in method `OtherThis;;usedMethod
 outlived the `SomeClass` instance (i.e., the `OtherClass was defined before `SomeClass`,
 and they are in the same scope).
 
+TODO: consider requiring using `::functionDeclaration()` to allow capturing the current scope
+via const/non-mutating access only, and `;;functionDeclaration()` to allow capturing
+mutating access to the current scope.  Functions with side-effects would therefore
+need to be defined with `;;` or `::` prefixes, and only pure functions can go without.
+We'd want to figure out how this works with file-access, however, since you could theoretically
+have a function with side-effects that mutates the filesystem, but looks like a pure function
+(i.e., without `::` or `;;`).  Maybe make filesystem access via non-pure functions.
+
 # grammar/syntax
 
 TODO: discussion on parentheses -- we'd like all to be equal () == {} == [], but
@@ -2077,6 +2116,7 @@ Grammar := singleton() {
         VariableName: UpperCamelCase
         VariableDeclaration: sequence([
             VariableName
+            optional(operator("?"))
             oneOf([operator(":"), operator(";")])
             TypeMatcher
         ])
@@ -2084,12 +2124,15 @@ Grammar := singleton() {
             # VariableName: type = ...
             sequence([VariableDeclaration, operator("="), RhsStatement])
             # VariableName := ...
+            # TODO: consider requiring ? if the variable type on the RHS is nullable, e.g., `?:=`
             sequence([VariableName, oneOf([operator(";="), operator(":=")]), RhsStatement])
         ])
         FunctionName: LowerCamelCase
         FunctionDeclaration: sequence([
             FunctionName
+            optional(operator("?"))
             list(FunctionArgument)
+            optional(operator("?"))
             oneOf([operator(":"), operator(";")])
             TypeMatcher
         ])
