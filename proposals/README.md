@@ -594,7 +594,10 @@ where we actually don't want to call an overload of the function if the argument
 ```
 # in other languages, you might check for null before calling a function on a value.
 # this is also valid hm-lang but it's not idiomatic:
-X := overloaded(Y) if Y != Null else Null
+X := if Y != Null
+    overloaded(Y)
+else
+    Null
 
 # instead, you should use the more idiomatic hm-lang version.
 # putting a ?! after the argument name will check that argument;
@@ -611,6 +614,7 @@ This can also be used with the `return` function to only return if the value is 
 
 ```
 doSomething(X?: int): int
+    # TODO: X * 3 should maybe not require ?! to do exactly what's expected below:
     Y := X?! * 3    # Y is Null or X*3 if X is not Null.
     return Y?!      # only returns if Y is not Null
     #/ do some other stuff /#
@@ -688,7 +692,8 @@ greetings(Noun: string); null
     print "Overwriting?"
 ```
 
-TODO: discussion on how it needs to be clear what function overload is being redefined.
+TODO: discussion on how it needs to be clear what function overload is being redefined,
+otherwise you're just creating a new overload (and not redefining the function).
 
 ## nullable functions
 
@@ -897,6 +902,10 @@ We'll use the notation `SomeInstance;;someMutatingMethod()` to refer to these.
 Methods which keep `This` constant are default, and we can use the notation
 `SomeInstance::someMethod()` to refer to these non-mutating methods.  Note
 that you can use `this` to refer to the current class instance type.
+
+TODO: require all functions to be defined with `::` or `;;` if they access variables
+in the wider scope (`::` if they don't modify them, `;;` if they do).  Thus we do
+need to preface methods with `::` or `;;`, although don't require this when calling??
 
 Class constructors are defined with a `;;reset(Args...)` style function,
 which also allow you to reset the class instance as long as the variable is mutable.
@@ -1648,21 +1657,24 @@ iterator~type := {
 For example, here is a way to create an iterator over some number of indices:
 
 ```
-range~index := extend(iterator~index) {
+range~type := extend(iterator~type) {
     @private
-    NextIndex: index = 0
+    NextIndex: type = 0
 
-    ;;reset(StartAt: index = 0, This LessThan: index = 0): null
+    ;;reset(StartAt: type = 0, This LessThan: type = 0): null
         NextIndex = StartAt
 
-    ;;next()?: index
+    ;;next()?: type
         if NextIndex < LessThan
             Result := NextIndex
             ++NextIndex
             return Result
         return Null
 
-    peak() := NextIndex if NextIndex < LessThan else Null
+    peak() := if NextIndex < LessThan
+        NextIndex 
+    else
+        Null
 }
 
 # TODO: ensure syntax is ok with `in` here.  maybe use annotations, e.g. @in or @iter
@@ -1731,6 +1743,40 @@ array~type := {
 # standard flow constructs / flow control
 
 TODO -- description, plus `consider+case` and `if/else/elif`
+
+## conditional expressions
+
+Conditional statements including `if`, `elif`, `else`, as well as `consider` and `case`,
+can act as expressions and return values to the wider scope.  This obviates the need
+for ternary operators (like
+`X = doSomething() if Condition else DefaultValue` in python, or
+`int X = Condition ? doSomething() : DefaultValue;` in C/C++).
+In hm-lang, we borrow from Kotlin the idea that
+[`if` is an expression](https://kotlinlang.org/docs/control-flow.html#if-expression)
+and write something like:
+
+```
+# TODO: check if we should double indent the next line, and single indent else.
+X := if Condition
+    doSomething()
+else
+    DefaultValue
+```
+
+Note that ternary logic short-circuits operations, so that calling the function
+`doSomething()` only occurs if `Condition` is true.
+
+TODO: more discussion about how `return` works vs. putting a RHS statement on a line.
+TODO: add a way to get two variables out of this, e.g.,
+```
+{X, Y} := if Condition
+    {X: 3, Y: doSomething()}
+else
+    {X: 1, Y: DefaultValue}
+```
+
+See the section on standard flow constructs / flow control for more info.
+
 
 ## for loops
 
@@ -2103,7 +2149,11 @@ grammarElement := enumerate(
 
 tokenMatcher := {
     @reset(Name: str = "")
-    # TODO: tokenIterator needs to support putting back a token.
+    # don't have to restore the TokenIterator to the correct state,
+    # consume as many tokens as you like here.  make sure to go
+    # through "Grammar match(...)" in order to fix TokenIterator
+    # in case of a bad match.
+    # TODO: probably need to make this @protected or @private so that only Grammar can call.
     match @mod(TokenIterator) (): bool
 }
 
@@ -2186,26 +2236,22 @@ Grammar := singleton() {
     ]
 
     match @mod(TokenIterator) (GrammarMatcher): bool
-        consider GrammarMatcher Type
+        # TODO: tokenIterator needs to support putting back a token.
+        # we indicate this using a "snapshot".  TokenIterator probably
+        # needs to keep track of the entire array (and not destroy it)
+        # as we iterate through the tokens.
+        Snapshot := TokenIterator snapshot()
+        Matched := consider GrammarMatcher Type
             case tokenMatcher
-                return GrammarMatcher match @mod(TokenIterator) ()
+                GrammarMatcher match @mod(TokenIterator) ()
             case grammarElement
-                return Elements_GrammarMatcher match @mod(TokenIterator) ()
+                Elements_GrammarMatcher match @mod(TokenIterator) ()
             case token
-                if TokenIterator peak() == GrammarMatcher
-                    TokenIterator next()
-                    return True
-                return False
+                TokenIterator next() == GrammarMatcher
+        if not Matched
+            TokenIterator restore Snapshot
+        return Matched
 }
-
-# TODO: consider doing something Kotlin-y, where we could do
-# match(...) : bool = consider
-#   case ...
-#       returnValue # without return statement
-#   case ...
-#       otherReturnValue # without return
-# that might work well with the comma/newline approach,
-# as well as ternary if/then/elif without new symbols/syntax
 
 # TODO: actually compiling code will require going through the TokenMatchers
 # in a specific order to avoid running through all options to see what fits.
@@ -2227,11 +2273,8 @@ sequence := extend(tokenMatcher) {
         tokenMatcher;;reset(Name)
 
     match @mod(TokenIterator) (): bool
-        # TODO: probably have to take snapshots everywhere in most token matchers:
-        Snapshot := TokenIterator snapshot()
         for GrammarMatcher: in Array
             if not Grammar match @mod(TokenIterator) (GrammarMatcher)
-                TokenIterator restore(Snapshot)
                 return False
         return True
 }
@@ -2242,16 +2285,24 @@ parentheses := extend(tokenMatcher) {
         tokenMatcher;;reset(Name)
 
     match @mod(TokenIterator) (): bool
-        Token := TokenIterator peak()
+        # TODO: figure out how to elide copy here, since TokenIterator maintains the memory here.
+        # e.g., TokenIterator next could be a const "getter", i.e.,
+        # `tokenIterator;;next(fn(Token): ~type): type`
+        Token := TokenIterator next()
         consider Token Type
             case parenthesesToken
-                if Token internallyMatches(GrammarMatcher) 
-                    TokenIterator next()
-                    return True
-                return False
+                return internallyMatches(GrammarMatcher, ParenthesesToken: Token)
             default
                 return False
 }
+
+internallyMatches(GrammarMatcher, ParenthesesToken): bool
+    # TODO: figure out how to avoid a copy on the internal ParenthesesToken tokens.
+    # we probably need to separate the token list from the token iterator and pass
+    # both around.  the iterator is "cheap" to copy.
+    TokenIterator := tokenIterator(ParenthesesToken InternalTokens)
+    # TODO: make this the `match` function signature everywhere:
+    return Grammar match @mod(TokenIterator) (ParenthesesToken InternalTokens)
 
 repeat := extend(tokenMatcher) {
     # until `Until` is found, checks matches through `Array` repeatedly.
@@ -2263,14 +2314,12 @@ repeat := extend(tokenMatcher) {
         tokenMatcher;;reset(Name)
 
     match @mod(TokenIterator) (): bool
-        Snapshot := TokenIterator snapshot()
         while True
             for GrammarMatcher: in Array
                 # always check the escape sequence, Until:
                 if Grammar match @mod(TokenIterator) (Until)
                     return True
                 if not Grammar match @mod(TokenIterator) (GrammarMatcher)
-                    TokenIterator restore(Snapshot)
                     return False
 }
 # TODO: make sure the cyclic dependency is ok: i.e., Grammar match being called inside of
