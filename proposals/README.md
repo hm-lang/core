@@ -41,15 +41,12 @@ e.g., `Y: int = X floor()` is OK, or `X ceil()`, or `X round()`, or `X round Sto
 ## types of types
 
 TODO: discuss type and classType.
-TODO: switch ~type to Out~type everywhere.
 
 # operators and precedence
 
 Operator priority.
 
 TODO: add : , ; ?! ??
-
-TODO: ternary assignment -- do not use question mark operator ?
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
@@ -860,7 +857,7 @@ being able to resolve the overload at run-time.
 ## function templates/generics
 
 You can create template functions which can work for a variety of types
-using the syntax `~(type1, type2, ...)` or `~type` (for just one generic type) 
+using the syntax `~(type1, type2, ...)` or `~someType` (for just one generic type) 
 after a function name.
 
 TODO: allow defining templates inline for convenience.  e.g., `logger(T: ~t): t`,
@@ -868,10 +865,10 @@ using `~` the first time you see the type.  Use `In~t` or `Out~t`, or some more
 verbose type name (e.g., `~moreVerbose`).
 
 ```
-# declaration equivalent to `logger ~(type) (Type): type`:
-logger ~type (Type): type
-    print("got ${Type}")
-    return Type
+# declaration equivalent to `logger ~(t) (T): t`:
+logger ~t (T): t
+    print("got ${T}")
+    return T
 
 vector3 := (X: dbl, Y: dbl, Z: dbl)
 Vector3 := vector3(Y: 5)
@@ -1073,7 +1070,7 @@ example := {
     # getter: calls an external function with X, which can
     #         avoid a copy if the function argument is immutable.
     @visibility
-    x(fn(Str): Out~type) := fn(X)
+    x(fn(Str): ~t) := fn(X)
 
     # swapper: swaps the value of X with whatever is passed in
     #          returns the old value of X.
@@ -1093,7 +1090,7 @@ example := {
         X = fn(X move())
     # or, slightly more explicit (in that Str is to be modded):
     @visibility
-    ;;x(fn @mod(Str): Out~type) := fn @mod(X)
+    ;;x(fn @mod(Str): ~t) := fn @mod(X)
 }
 W = example()
 W x(fn(Str;): str
@@ -1227,8 +1224,8 @@ someExample := {
     Value: int
     ;;reset(Int): null
         This Value = Int
-    ::to ~(type) (): type
-        return type(Value)
+    ::to ~t (): t
+        return t(Value)
 }
 
 SomeExample := someExample(5)
@@ -1413,28 +1410,28 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 
 ```
 # some relevant pieces of the class definition
-array~type := {
+array~t := {
     # getter, which creates a default-initialized value if necessary.
     # (also will add default-initialized values up to this index, if above current size.)
-    ;;_(Index, fn(Type): Out~type): Out type
+    ;;_(Index, fn(T): ~u): u
 
     # swapper, sets the value at the index, returning the old value if present:
-    ;;_(Index, @moved Type)?: type
+    ;;_(Index, @moved T)?: t
 
     # modifier, allows access to modify the internal value, via MMR pattern.
     # passes the current value at the index into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the index.
-    This;; _ (Index, fn(@moved Type): type): null
+    This;; _ (Index, fn(@moved T): t): null
 
     # returns a Null if index is out of bounds in the array:
     # getter, which returns a Null if index is out of bounds in the array:
-    ::_(Index, fn(Type?): Out~type): Out type
+    ::_(Index, fn(T?): ~u): u
 
     ::size(): index
 
-    ;;append(Type;): null
+    ;;append(T;): null
 
-    ;;pop(Index: index = -1): type
+    ;;pop(Index: index = -1): t
 
     ...
 }
@@ -1577,13 +1574,13 @@ map~(key, value) := {
     ;;_(Key): value
 
     # getter, which will create a value instance if it's not present at Key.
-    ;;_(Key, fn(Value): ~type): type
+    ;;_(Key, fn(Value): ~t): t
 
     # returns a Null if key is not in the map.
     ::_(Key)?: value
 
     # getter, which will pass back a Null if the key is not in the map.
-    ::_(Key, fn(Value?): ~type): type
+    ::_(Key, fn(Value?): ~t): t
 
     # sets the value at the key, returning the old value:
     ;;_(Key, Value;): value
@@ -1609,15 +1606,23 @@ opposite side of the array type (i.e., the array looks like `arrayElementType_`)
 The "unnamed" variable name for a set is `Set`.
 
 ```
-set~type := {
+set~t := {
     # returns true if the passed-in element is present in the set.
-    ::_(Type): bool
+    ::_(T): bool
 
     ::size(): index
 
-    ;;+=(Type;): null
+    # add an element to the set:
+    ;;+=(T;): null
 
-    ;;pop(): type
+    # TODO: generalize with iterator or container:
+    # union this set with another set:
+    ;;+=(Set: set~t): null
+
+    # remove an element from the set, if present
+    ;;-=(T): null
+
+    ;;pop(): t
 
     ...
 }
@@ -1629,22 +1634,22 @@ even if the set variable is mutable.
 ## iterator
 
 ```
-iterator~type := {
+iterator~t := {
     # next value via getter function:
-    ;;next(fn(Type?): Out~type): Out type
+    ;;next(fn(T?): ~u): u
 
     # peak via no-copy getter function:
-    ::peak?(fn(Type?): Out~type): Out type
+    ::peak?(fn(T?): ~u): u
 
     # present only if underlying container supports removing the current element (at `peak()`)
     # returns the element, or null if no current element.
     # TODO: figure out a nice syntax for this method to automatically
     # be defined IF replace is defined, and to return a null in replace,
     # but allow it to be overridden if remove is defined separately.
-    ;;remove?()?: type
+    ;;remove?()?: t
 
     # present only if underlying container supports inserting a new element (before `peak()`)
-    ;;insert?(Type): null
+    ;;insert?(T): null
 
     # replaces the element at `next()` based on the return value;
     # the next value is passed in as an argument to `replace`,
@@ -1652,21 +1657,21 @@ iterator~type := {
     # if there was an element at this point in the container,
     # and a null is returned, the element (and its former location)
     # should be deleted out of the container.
-    ;;replace(Type?)?: type
+    ;;replace(T?)?: t
 }
 ```
 
 For example, here is a way to create an iterator over some number of indices:
 
 ```
-range~type := extend(iterator~type) {
+range~t := extend(iterator~t) {
     @private
-    NextIndex: type = 0
+    NextIndex: t = 0
 
-    ;;reset(StartAt: type = 0, This LessThan: type = 0): null
+    ;;reset(StartAt: t = 0, This LessThan: t = 0): null
         NextIndex = StartAt
 
-    ;;next()?: type
+    ;;next()?: t
         if NextIndex < LessThan
             Result := NextIndex
             ++NextIndex
@@ -1690,15 +1695,15 @@ TODO: how does this work with the MMR framework for remove, insert, etc.?
 For example, here is an array iterator:
 
 ```
-arrayIterator~type := extend(iterator~type) {
+arrayIterator~t := extend(iterator~t) {
     # to use MMR, we need to pass in the array;
     # move the array in to avoid copying.
     # this @reset annotation creates a function signature of
     # ;;reset(
-    #   This Array; type_, This NextIndex; index = 0
-    # ): {Array: type_, NextIndex: index}
+    #   This Array; t_, This NextIndex; index = 0
+    # ): {Array: t_, NextIndex: index}
     # which automatically returns the old value of the Array (and NextIndex) if requested.
-    @reset(Array: type_, NextIndex: index = 0)
+    @reset(Array: t_, NextIndex: index = 0)
     # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
     # e.g., 
     #   MyArray; int_ = [1,2,3,4]
@@ -1709,7 +1714,7 @@ arrayIterator~type := extend(iterator~type) {
     #   # MyArray is now back to [1,2,3,4] unless there were changes during iteration,
     #   # but in any case, without a copy,
 
-    ;;next()?: type
+    ;;next()?: t
         ???
 }
 ```
@@ -1717,24 +1722,24 @@ arrayIterator~type := extend(iterator~type) {
 Or should we define iterators on the container itself?  E.g.,
 
 ```
-array~type := {
+array~t := {
     # const iteration, with no-copy if possible:
-    ::forEach(Input fn(Type): forLoop): null
+    ::forEach(Input fn(T): forLoop): null
         for Index: index < size()
             # use the no-copy getter, here:
             # explicit:
-            ForLoop := This_(Index, fn(Type) := Input fn(Type))
+            ForLoop := This_(Index, fn(T) := Input fn(T))
             # implicit:
             ForLoop := Input fn(This_Index)
             if ForLoop == forLoop Break
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;forEach(Input fn @mod(Type) (): forLoop): null
+    ;;forEach(Input fn @mod(T) (): forLoop): null
         for Index: index < size()
             # do a swap on the value based on the passed in function:
             # explicit:
-            ForLoop := This_(Index, fn @mod(Type) () := Input fn @mod(Type) ())
+            ForLoop := This_(Index, fn @mod(T) () := Input fn @mod(T) ())
             # implicit:
             ForLoop := Input fn @mod(This_Index) ()
             if ForLoop == forLoop Break
