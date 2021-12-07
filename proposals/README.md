@@ -886,6 +886,70 @@ AnotherDblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
 # can also use `logger dbl(4)` above or `logger dbl 4` with function spaces.
 ```
 
+## pure functions and functions with side effects
+
+Functions that are completely deterministic based on their inputs are called pure functions,
+whereas functions with side effects, i.e., relying on memory in other locations to determine
+the result, or modifying some memory elsewhere when executed, are not pure.  (External memory
+in this situation means memory corresponding to variables not passed in to the function,
+or memory in other locations, e.g., on the hard disk.)  Pure functions are defined with the
+syntax `functionName(...Args): returnType`, whereas impure functions *must be defined* with a
+preceding `;;` if they modify memory outside themselves or `::` if they access memory for
+reading but not writing.  Of course, `;;` functions can also read external memory as well.
+
+For examples of pure functions: `fn(X: dbl) := X^2` is pure, as well as most mathematical
+functions (`sin`, `cos`, `atan`, etc.).
+
+Examples of impure functions include reading data from a file, which is non-deterministic,
+since another program or thread could have modified the file in between reads.  Such a function
+would be preceded with `::` since it does not modify the file data, e.g., 
+`::read(File): string`, whereas a function that writes data to a file could be
+`;;write(File, String): null` to indicate the function can modify memory outside itself.
+Random functions are of course impure as well.  A method of a class being used as a function
+with the same signature is an impure function, since it can use data within the class instance
+to determine the result of the function call.  E.g.,
+
+```
+# we want to pass in a function here:
+check(fn(Int): bool, Int): int
+    Result := if fn(Int)
+        Int / 2
+    else
+        2 * Int + 1
+    print(Result)
+    return Result
+
+# but suppose we have a class which has a method that looks like this function:
+exampleClass := {
+    CheckTimes: int
+
+    ;;someMethod(Int): bool
+        ++CheckTimes
+        return (CheckTimes % 2) >< (Int % 2)
+}
+
+ExampleClass; exampleClass
+
+# if we allow calling this instance's method in the `check` function, we get
+# results that depend on how many times the method has already been called:
+check(ExampleClass someMethod, 3)    # returns 7
+check(ExampleClass someMethod, 3)    # returns 1
+```
+
+Calling an impure function anywhere in a function makes that function impure.
+Calling a pure function with an nested, impure function as an argument
+makes that unnested function call impure.
+
+TODO: calling `print` is technically an impurity, although it would be nice
+to be able to make an exception here since stdout can be thought of as outside
+of the control of the program to read from.
+
+TODO: discussion on how it's impossible to copy impure functions
+unless they are explicitly typed as copyable.  e.g., reading or writing to a file
+should be easily copyable, reading/writing a class instance's variables might
+be problematic (thread contention), similarly for random.
+
+
 # classes
 
 A class is defined with a `lowerCamelCase` identifier.
@@ -899,10 +963,6 @@ instance, `This` -- must be defined with a `;;` before the method name.
 We'll use the notation `SomeInstance;;someMutatingMethod()` to refer to these,
 and `SomeInstance::someMethod()` to refer to non-mutating methods.
 Note that you can use `this` to refer to the current class instance type.
-
-TODO: discuss how `::`/`;;` functions can be lambda methods as well.
-Functions with side-effects therefore need to be defined with `;;` or `::` prefixes
-(e.g., as class methods), and only pure functions can go without.
 
 Class constructors are defined with a `;;reset(Args...)` style function,
 which also allow you to reset the class instance as long as the variable is mutable.
@@ -1022,10 +1082,9 @@ file as the class definition*.  Non-friends are not able to access or modify pri
 
 The privacy for methods on a class works slightly different, but essentially
 follows the same table.  Using the method depends on visibility as well
-as if the method modifies the class or not, i.e., whether
-the method was defined as `This;;mutatingMethod(): returnType`
-or `This::nonMutatingMethod(): returnType`.  Note that the
-latter are default.  Mutating methods follow the "mutate"
+as if the method modifies the class or not, i.e., whether the method was
+defined as `This;;mutatingMethod(): returnType`
+or `This::nonMutatingMethod(): returnType`.  Mutating methods follow the "mutate"
 visibility in the table above, and non-mutating methods follow
 the "access" visibility in the table above.
 
@@ -2003,110 +2062,6 @@ might not even exist (e.g., the array was descoped).
 
 In this way, ownership of another variable is very strict in hm-lang.
 Only one object can modify the memory at some location (i.e., of a variable).
-TODO: see if this is still true with functions modifying variables out of their scope...
-We want to make it easy for lambda functions to capture variables in
-the outer scope, which is important to do if those variables' lifetimes
-end before that of the lambda function.
-
-```
-createLambda(Int;): fn(): int
-    # without `@take`, the `Int` would not remain in scope
-    return fn @take(Int;) ():
-        Int += 1
-        return Int
-```
-
-Ideally, `@take` would not be a built-in compiler annotation, but accomplishable
-by other language features.  E.g., by creating a class that is callable.  For example,
-the `@take` annotation would expand to something like this:
-
-```
-# TODO: this might be against hm-lang principles, see TODO below.
-# i.e., we shouldn't allow non-pure functions to masquerade as pure functions.
-@private
-hiddenClass := {
-    @reset(Int; int)
-
-    # TODO: maybe rename this method to `call()` instead of `()`:
-    ;;(): int
-        Int += 1
-        return Int
-}
-createLambda(Int;): fn(): int
-    return hiddenClass(Int move())
-```
-
-TODO: how does this work when the function is mutating itself (i.e., its scope)?
-do we need to return a `fn(); int` type to indicate this?  or do we disallow
-`fnClass`??
-
-TODO: how to `take` a class instance to use its method
-
-TODO: cleanup:
-TODO: make sure people can't get around this by passing in a method
-of an object as a function to some class instance's method, which
-then goes on to keep a copy of that function as a lambda.
-Do we need to ensure that people can't copy the function that gets
-passed in?  As long as the only usage of the passed-in (e.g., inner) function
-occurs when the outer function is called, then there should be no problem.
-
-```
-logger := {
-    LogCount ;= 0
-
-    ;;log(String): null
-        ++LogCount
-        print("${LogCount}: String")
-}
-
-announcer := {
-    log(String); null   # mutable, lambda function
-
-    # this indirection isn't strictly necessary;
-    # we could set `log` directly since it's a public variable,
-    # but this goes to show how the issue can be subtle.
-    ;;use(New log(String): null): null
-        log = New log
-
-    ::begin(): null
-        log("Begin!")
-    ::end(): null
-        log("End!")
-}
-
-main(WithLogger: bool): null
-    Announcer ;= announcer()
-    if WithLogger 
-        Logger ;= logger()
-        Announcer use(Logger log)
-        # after this block ends, Logger goes out of scope;
-        # so in something like C++ we'd destroy Logger
-        # and Announcer would break when using log().
-        # if we allow closures, then we need to pass in Logger as a shared pointer
-        # to the generated lambda function `Logger log`, so that only once the
-        # user resets `Announcer log` (or destroys Announcer) would the Logger get cleaned up.
-        # ideally we would make it easy for a function to take responsibility for some
-        # variables (i.e., via closure), but variables could theoretically be shared
-        # between multiple lambda functions, so we'd be back to needing shared pointers.
-    else
-        Announcer use(log: print)
-    Announcer begin()
-    ... # do fancy logic
-    Announcer end()
-```
-
-TODO: clean up:
-
-What we could do is allow methods to be passed in as functions no problem, but mark
-those lambda-method functions as special, e.g., with some metadata on whether the
-function can be copied or not.  The methods that are taking the passed-in function
-will also provide some metadata on whether the passed-in function will be copied or not.
-(TODO: this needs to happen at the level of the function signature, since we can have
-child classes that can override parent class methods, otherwise these are run-time errors.)
-Then we would allow a lambda-method function to be passed in to some method `SomeThis;;useFunction()`
-if the instance `OtherClass` backing the passed-in method `OtherThis;;usedMethod()`
-outlived the `SomeClass` instance (i.e., the `OtherClass was defined before `SomeClass`,
-and they are in the same scope).
 
 
 # grammar/syntax
