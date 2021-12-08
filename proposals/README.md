@@ -81,6 +81,7 @@ since `functionName(Expression)^2` equals `functionName((Expression)^2)`
 |           |   `!=`    | inequality                | binary: `A!=B`    |               |
 |   7       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
 |           |  `\|\|`   | logical OR                | binary: `A\|\|B`  |               |
+|           |   `??`    | nullish OR                | binary: `A??B`    |               |
 |   8       |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 
@@ -611,6 +612,10 @@ X := overloaded(Y?!)
 You can use `?!` with multiple arguments; if any argument with `?!` after it is null,
 then the function will not be called.
 
+TODO: should we make calling a function with a nullish variable explicit?  e.g.,
+`X := overloaded(Y?)`?  we could try to require using `?` for all variable names where
+the variable could be null.
+
 This can also be used with the `return` function to only return if the value is not null.
 
 ```
@@ -959,26 +964,52 @@ be problematic (thread contention), similarly for random.
 A class is defined with a `lowerCamelCase` identifier.
 Class definitions must be constant/non-reassignable, so they are declared using
 the `:=` symbol.  Variables defined within the class body are known as instance
-variables, and functions defined within the class body are known as class
-instance methods, or methods for short.  Class methods can access instance variables
-and call other class methods, and must be defined with a `::` prefixed on
-the function name.  Mutating methods -- i.e., that modify the class
-instance, `This` -- must be defined with a `;;` before the method name.
-We'll use the notation `someClass;;someMutatingMethod()` to refer to these,
-and `someClass::someMethod()` to refer to non-mutating methods.
-Note that you can use `this` to refer to the current class instance type.
+variables, and functions defined within the class body can have three types:
+(1) class instance methods (or methods for short), (2) class functions (i.e., static
+methods in C++), and (3) instance functions.
 
-Class constructors are defined with a `;;reset(Args...)` style function,
+Class methods (1) can access instance variables and call other class methods,
+and must be defined with a `::` or `;;` prefixed on the function name.
+Mutating methods -- i.e., that modify the class instance, `This`, i.e., by modifying
+its values/variables -- must be defined with a `;;` before the method name.
+Non-mutating methods must be defined with `::` and can access variables but not modify them.
+We'll use the notation `someClass;;someMutatingMethod()` to refer to mutating methods
+and `someClass::someMethod()` to refer to non-mutating methods.  Calling a class
+method does not require the `;;` or `::` prefix, but it is allowed, e.g.,
+
+```
+SomeClass ;= someClass("hello!")
+SomeClass someMethod()      # ok
+SomeClass::someMethod()     # also ok
+SomeClass someMutatingMethod()  # ok
+SomeClass;;someMutatingMethod() # also ok
+```
+
+And of course, class methods can also be overridden by child classes (see section on overrides).
+
+Class functions (2) can't depend on any instance variables,
+and are declared using the double underscore operator `__`.  They are called with
+the syntax `someClass__someStaticFunction(...Args)`.  They can be impure functions,
+however, accessing global-scoped variables for reading if declared with `::`
+or for read/write if declared with with `;;`.  For impure class functions, the `;;` or `::`
+should come after the `__` symbol, and the read vs. write clarification is required for
+the declaration but not the call.
+
+Instance functions (3) must be pure functions; they can't depend on any instance variables,
+but they can be different from instance to instance.  They are defined without `;;`, `::`,
+or `__`, and they cannot be overridden by child classes but they can be overwritten.  I.e.,
+if a child class defines the instance function of a parent class, it overwrites the parent's
+instance function; calling one calls the other.
+
+Class constructors are methods (1) which are defined using `;;reset(Args...)`,
 which also allow you to reset the class instance as long as the variable is mutable.
 The first `;;reset` method defined in the class is also the default constructor,
 which will be called with default-constructed arguments (if any) if a default
 instance of the class is needed.  It is a compiler error if a `;;reset()` method
 (with no arguments) is defined after other `;;reset` methods (with arguments).
 
-Static functions, or *class functions*, can't depend on any instance variables,
-and use the double underscore operator `__` to be defined.  They are called with
-the syntax `someClass__someStaticFunction(...Args)`.
-
+When defining methods or functions of all kinds, note that you can use `this`
+to refer to the current class instance type.
 
 ```
 exampleClass := {
@@ -990,16 +1021,8 @@ exampleClass := {
     # if fields are defined as immutable.
     ;;reset(X; int): null
         This X = X move()
-
-    __someStaticFunction(Y; int): int
-        Y /= 2
-        return Y move()
-
-    # class instance functions can be defined here; this is a *pure function*
-    # that cannot depend on instance variables, however.  it can be set 
-    # individually for each class instance, unlike a static class function.
-    somePureFunction(): null
-        print("hello!")
+    # or short-hand: `;;reset(This X: int)` or even `@reset(X: int)`
+    # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
 
     # class methods can be defined as well.
     # this one does not change the underlying instance:
@@ -1010,8 +1033,27 @@ exampleClass := {
     ;;addSomething(Int): null
         X += Int
 
-    # or short-hand: `;;reset(This X: int)` or even `@reset(X: int)`
-    # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
+    # this function does not require an instance, and cannot use instance variables:
+    __someStaticFunction(Y; int): int
+        Y /= 2
+        return Y move()
+
+    # this function does not require an instance, and cannot use instance variables,
+    # but it can read/write global variables (or other files) due to `;;`:
+    __;;someStaticImpureFunctionWithSideEffects(Y; int): null
+        write(Y, File: "Y")
+
+    # this function does not require an instance, and cannot use instance variables,
+    # but it can read (but not write) global variables (or other files) due to `::`:
+    __::someStaticImpureFunction(): int
+        YString := read(File: "Y")
+        return int(YString?!) ?? 0
+
+    # class instance functions can be defined here; this is a *pure function*
+    # that cannot depend on instance variables, however.  it can be set 
+    # individually for each class instance, unlike a static class function (`__`).
+    somePureFunction(): null
+        print("hello!")
 }
 
 Example; exampleClass = (X: 5)  # also equivalent, `Example ;= exampleClass(X: 5)`
@@ -1172,7 +1214,7 @@ TODO: some example of child class overriding parent class getter/setters.
 
 You can define parent-child class relationships with the following syntax.
 For one parent, `extend(parentClassName)`. Multiple inheritance is
-allowed as well, e.g., `extend(parentOne, ParentTwo, ...)`.
+allowed as well, e.g., `extend(parentOne, parentTwo, ...)`.
 We can access the current class instance using `This`,
 and `this` will be the current instance's type.  Thus, `this` is
 the parent class if the instance is a parent type, or a subclass if the instance
