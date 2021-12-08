@@ -48,6 +48,10 @@ Operator priority.
 
 TODO: add : , ; ?! ??
 
+TODO: discussion about how `^` binds less strongly than a function call, so you
+need to do `functionName^2(Expression)` to get `(functionName(Expression))^2`
+since `functionName(Expression)^2` equals `functionName((Expression)^2)`
+
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
 |   0       |   `()`    | parentheses               | grouping: `(A)`   | RTL           |
@@ -960,8 +964,8 @@ instance methods, or methods for short.  Class methods can access instance varia
 and call other class methods, and must be defined with a `::` prefixed on
 the function name.  Mutating methods -- i.e., that modify the class
 instance, `This` -- must be defined with a `;;` before the method name.
-We'll use the notation `SomeInstance;;someMutatingMethod()` to refer to these,
-and `SomeInstance::someMethod()` to refer to non-mutating methods.
+We'll use the notation `someClass;;someMutatingMethod()` to refer to these,
+and `someClass::someMethod()` to refer to non-mutating methods.
 Note that you can use `this` to refer to the current class instance type.
 
 Class constructors are defined with a `;;reset(Args...)` style function,
@@ -971,10 +975,31 @@ which will be called with default-constructed arguments (if any) if a default
 instance of the class is needed.  It is a compiler error if a `;;reset()` method
 (with no arguments) is defined after other `;;reset` methods (with arguments).
 
+Static functions, or *class functions*, can't depend on any instance variables,
+and use the double underscore operator `__` to be defined.  They are called with
+the syntax `someClass__someStaticFunction(...Args)`.
+
+
 ```
 exampleClass := {
     # class instance variables can be defined here:
     X; int
+
+    # classes must be resettable to a blank state, or to whatever is specified
+    # as the starting value based on a `reset` function.  this is true even
+    # if fields are defined as immutable.
+    ;;reset(X; int): null
+        This X = X move()
+
+    __someStaticFunction(Y; int): int
+        Y /= 2
+        return Y move()
+
+    # class instance functions can be defined here; this is a *pure function*
+    # that cannot depend on instance variables, however.  it can be set 
+    # individually for each class instance, unlike a static class function.
+    somePureFunction(): null
+        print("hello!")
 
     # class methods can be defined as well.
     # this one does not change the underlying instance:
@@ -984,12 +1009,6 @@ exampleClass := {
     # this method mutates the class instance, so it is prefaced with `;;`:
     ;;addSomething(Int): null
         X += Int
-
-    # classes must be resettable to a blank state, or to whatever is specified
-    # as the starting value based on a `reset` function.  this is true even
-    # if fields are defined as immutable.
-    ;;reset(X; int): null
-        This X = X move()
 
     # or short-hand: `;;reset(This X: int)` or even `@reset(X: int)`
     # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
@@ -1007,32 +1026,13 @@ ConstVar X += 3                 # COMPILER ERROR! `ConstVar` is deeply constant.
 ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 ```
 
-TODO: rework this now that we're using `;;` and `::` for static methods on enums/masks.
-TODO: definitely need to figure this out...
+Note that we recommend using named fields for constructors rather than static
+class functions to create new instances of the class.  This is because named fields
+are self descriptive and don't require named static functions for readability.
+E.g., instead of `MyDate := dateClass__fromIsoString("2020-05-04")`, just use
+`MyDate := dateClass(IsoString: "2020-05-04")` and define the
+`;;reset(IsoString: string)` method accordingly.
 
-Note:  all functions defined on the class are methods, i.e., functions which operate
-on a class instance (with a `This`).  There are thus no "static" functions that you
-can define on the class (cf. C++).  This aids in simplicity, since we don't need to be
-explicit about methods needing to access `This` for methods, since that's the default,
-and not include a `This` for static functions.  If you want a static-like function,
-create a function in the same file as the class.  Due to how public/private/protected
-visibility works, you can still access private fields inside of the class within the same file.
-One of the primary uses for static functions is to effectively have named constructors,
-e.g., `MyDate: dateClass = dateClass fromIsoString("2020-05-04")`, but these are
-not necessary in hm-lang since arguments are named, and we can have multiple constructors.
-So the hm-lang way to do this would be `MyDate := dateClass(IsoString("2020-05-04"))`.
-
-Lengthy aside: `someMethod(This, OtherArgs...)` could be a pythonic way to indicate
-a class method and `someFunction(Args...)` could be the corresponding static function.
-While it is true that a method operates on a class instance, i.e., a `This`, the notation
-leaves much to be desired, since we call class methods like this:
-`MyClassInstance someMethod(OtherArgs...)` and not like this:
-`someMethod(MyClassInstance, OtherArgs...)`.
-Instead, we think of a class body as a scope, and functions defined in a scope have access
-to variables in the scope (as long as they are prefixed with `::` or `;;`).
-This saves us as programmers in the language some time
-(since we don't have to include a `This` in every method) and heartache (since
-we don't have dissonance between the definition syntax and call syntax).
 
 ## unicode/localization support
 
@@ -1901,7 +1901,7 @@ values that are enumerated via the method `count(): index`, the min and max valu
 `min(): index`, `max(): index`, and some convenience methods on any instance of the enumeration.
 
 ```
-Test: bool = False  # or `Test := bool::False`
+Test: bool = False  # or `Test := bool__False`
 
 # use `isUpperCamelCaseName()` to check for equality:
 if Test isTrue()
@@ -1910,14 +1910,14 @@ if Test isFalse()
     print "test is false!"
 
 # get the size (number of enumerated values) of the enum:
-print "bool has ${bool::count()} possibilities:"
+print "bool has ${bool__count()} possibilities:"
 # get the lowest and highest values of the enum:
-print "starting at ${bool::min()} and going to ${bool::max()}"
+print "starting at ${bool__min()} and going to ${bool__max()}"
 ```
 
 Because of this, it is a bit confusing to create an enum that has `Count` as an
 enumerated value name, but it is not illegal, since we can still distinguish between the
-enumerated value (`enumName::Count`) and total number of enumerated values (`enumName::count()`).
+enumerated value (`enumName__Count`) and total number of enumerated values (`enumName__count()`).
 
 Also note that the `count()` method will return the total number of
 enumerations, not the number +1 after the last enum value.  This can be confusing
@@ -1930,8 +1930,8 @@ sign := enumerate(
     Positive: 1
 )
 
-print "sign has ${sign::count()} values" # 3
-print "starting at ${sign::min()} and going to ${sign::max()}"  # -1 and 1
+print "sign has ${sign__count()} values" # 3
+print "starting at ${sign__min()} and going to ${sign__max()}"  # -1 and 1
 
 weird := enumerate(
     X: 1
@@ -1940,9 +1940,9 @@ weird := enumerate(
     Q: 9
 )
 
-print(weird::count())   # prints 4
-print(weird::min())     # prints 1
-print(weird::max())     # prints 9
+print(weird__count())   # prints 4
+print(weird__min())     # prints 1
+print(weird__max())     # prints 9
 ```
 
 ### Testing enums with lots of values
@@ -1962,7 +1962,7 @@ option := enumerate(
     NowYouWillBeSadForever
 )
 
-print "number of options should be 7:  ${option::count()}"
+print "number of options should be 7:  ${option__count()}"
 
 Option1 := option ContentWithLife
 
@@ -2011,9 +2011,9 @@ nonMutuallyExclusiveType := mask(
 )
 
 # has all the same static methods as enum, though perhaps they are a bit surprising:
-nonMutuallyExclusiveType::count() == 16
-nonMutuallyExclusiveType::min() == 0
-nonMutuallyExclusiveType::max() == 15   # = X | Y | Z | T
+nonMutuallyExclusiveType__count() == 16
+nonMutuallyExclusiveType__min() == 0
+nonMutuallyExclusiveType__max() == 15   # = X | Y | Z | T
 
 Options ;= nonMutuallyExclusiveType()
 Options isNone()    # True.  note there is no `hasNone()` method, since that doesn't
