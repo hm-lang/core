@@ -84,6 +84,7 @@ since `functionName(Expression)^2` equals `functionName((Expression)^2)`
 |           |   `??`    | nullish OR                | binary: `A??B`    |               |
 |   8       |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
+|           |   `<->`   | swap                      | binary: `A <-> B` |               |
 
 Notes:
 
@@ -130,6 +131,13 @@ differs from the modulus, `%`, when the operands have opposing signs.
 |  56   |  -7   |     -8        |     0     |    -8     |     0     |
 |  6.78 |   1   |      6.0      |    0.78   |     6.0   |    0.78   |
 | -6.78 |   1   |     -7.0      |    0.22   |    -6.0   |   -0.78   |
+
+
+## assignment operators
+
+TODO: `??=`.
+TODO: discussion on `<->` being swap.  swap as a function would have required `swap(@@X, @@Y)`
+to be consistent.
 
 # declaring and using variables
 
@@ -651,19 +659,21 @@ For this pattern to avoid unnecessary copies, the modifying function must
 use the mutable argument definition (e.g., `;`), and the external caller
 of the modifying function must `move()` the object into the function's arguments.
 
-To indicate what you're doing a more explicitly, you can use the `@mod` annotation.
-The `@mod` annotation adds the argument to both the function's arguments and return value.
+To indicate what you're doing a more explicitly, you can use the `@@` annotation
+to an argument's variable name.  The `@@` annotation effectively adds the argument
+to both the function's arguments and return value.  If the value type is omitted,
+`@@` implies a mutable variable, e.g., `fn(@@Int): null` implies `fn(Int; int): int`.
 Other values can also be passed into the function (or returned) at the regular spot(s),
 but will not have the move-modify-return pattern applied.  For example:
 
 ```
-modify @mod(MyObjectType; myObjectType) ():
+modify(@@MyObjectType; myObjectType):
     MyObjectType someMethod(12345)
     return MyObjectType move()      # compiler can probably figure out this move()
 
 SomeInstance ;= myObjectType(...)
-# you can also use `@mod` to call the function and have it update the variable.
-modify @mod(SomeInstance) ()
+# you can also use `@@` to call the function and have it update the variable.
+modify(@@SomeInstance)
 
 # which expands into:
 modify(@moved MyObjectType; myObjectType): myObjectType
@@ -678,8 +688,9 @@ TODO: discuss allowing @moved as an argument annotation in order to require some
 to `move()` a variable into the function.  don't just allow compiler warnings,
 those will expand unnecessarily.
 
-TODO: @mod(...) seems a bit unwieldy, do we want to allow reference types only for functions?
-e.g., `@@SomeClass: int`
+TODO: discuss how arguments annotated with `@@` can't conflict with other return values
+of functions.
+
 
 ## redefining a function
 
@@ -1192,12 +1203,12 @@ example := {
     #          returns the old value of X.
     @visibility
     ;;x(Str;): str
-        swap(X, Str)
+        X <-> Str
         return Str
     # or, slightly more explicit (in that Str is to be modded):
     @visibility
-    ;;x @mod(Str) ():
-        swap(X, Str)
+    ;;x(@@Str):
+        X <-> Str
 
     # modifier: allows the user to modify the value of X
     #           without copying it, using the MMR pattern.
@@ -1206,7 +1217,7 @@ example := {
         X = fn(X move())
     # or, slightly more explicit (in that Str is to be modded):
     @visibility
-    ;;x(fn @mod(Str) (): ~t) := fn @mod(X) ()
+    ;;x(fn(@@Str): ~t) := fn(@@X) ()
 }
 W = example()
 W x(fn(Str;): str
@@ -1750,6 +1761,8 @@ even if the set variable is mutable.
 ## iterator
 
 ```
+# TODO: no-copy iterator might require passing in the actual container in each
+# instance.  e.g., `;;next(fn(T?): ~u, Container: container~t): u`
 iterator~t := {
     # next value via getter function:
     ;;next(fn(T?): ~u): u
@@ -1851,13 +1864,13 @@ array~t := {
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;forEach(Input fn @mod(T) (): forLoop): null
+    ;;forEach(Input fn(@@T): forLoop): null
         for Index: index < size()
             # do a swap on the value based on the passed in function:
             # explicit:
-            ForLoop := This_(Index, fn @mod(T) () := Input fn @mod(T) ())
+            ForLoop := This_(Index, fn(@@T) := Input fn(@@T))
             # implicit:
-            ForLoop := Input fn @mod(This_Index) ()
+            ForLoop := Input fn(@@This_Index) ()
             if ForLoop == forLoop Break
                 break
 }
@@ -2167,7 +2180,7 @@ tokenMatcher := {
     # through "Grammar match(...)" in order to fix TokenIterator
     # in case of a bad match.
     # TODO: probably need to make this @protected or @private so that only Grammar can call.
-    ::match @mod(TokenIterator) (): bool
+    ::match(@@TokenIterator): bool
 }
 
 grammarMatcher := tokenMatcher | grammarElement | token
@@ -2244,11 +2257,11 @@ Grammar := singleton() {
             parentheses(Block)
         ])
         EndOfInput: tokenMatcher(
-            match @mod(TokenIterator) () := TokenIterator peak() == Null
+            match(@@TokenIterator) := TokenIterator peak() == Null
         )
     ]
 
-    match @mod(TokenIterator) (GrammarMatcher): bool
+    match(@@TokenIterator, GrammarMatcher): bool
         # TODO: tokenIterator needs to support putting back a token.
         # we indicate this using a "snapshot".  TokenIterator probably
         # needs to keep track of the entire array (and not destroy it)
@@ -2256,9 +2269,9 @@ Grammar := singleton() {
         Snapshot := TokenIterator snapshot()
         Matched := consider GrammarMatcher Type
             case tokenMatcher
-                GrammarMatcher match @mod(TokenIterator) ()
+                GrammarMatcher match(@@TokenIterator)
             case grammarElement
-                Elements_GrammarMatcher match @mod(TokenIterator) ()
+                Elements_GrammarMatcher match(@@TokenIterator)
             case token
                 TokenIterator next() == GrammarMatcher
         if not Matched
@@ -2285,9 +2298,9 @@ sequence := extend(tokenMatcher) {
     ;;reset(Name: str, This Array: grammarMatcher_):
         tokenMatcher;;reset(Name)
 
-    ::match @mod(TokenIterator) (): bool
+    ::match(@@TokenIterator): bool
         for GrammarMatcher: in Array
-            if not Grammar match @mod(TokenIterator) (GrammarMatcher)
+            if not Grammar match(@@TokenIterator, GrammarMatcher)
                 return False
         return True
 }
@@ -2297,7 +2310,7 @@ parentheses := extend(tokenMatcher) {
     ;;reset(Name: str, This GrammarMatcher):
         tokenMatcher;;reset(Name)
 
-    ::match @mod(TokenIterator) (): bool
+    ::match(@@TokenIterator): bool
         # TODO: figure out how to elide copy here, since TokenIterator maintains the memory here.
         # e.g., TokenIterator next could be a const "getter", i.e.,
         # `tokenIterator;;next(fn(Token): ~type): type`
@@ -2313,9 +2326,9 @@ internallyMatches(GrammarMatcher, ParenthesesToken): bool
     # TODO: figure out how to avoid a copy on the internal ParenthesesToken tokens.
     # we probably need to separate the token list from the token iterator and pass
     # both around.  the iterator is "cheap" to copy.
-    TokenIterator := tokenIterator(ParenthesesToken InternalTokens)
+    TokenIterator ;= tokenIterator(ParenthesesToken InternalTokens)
     # TODO: make this the `match` function signature everywhere:
-    return Grammar match @mod(TokenIterator) (ParenthesesToken InternalTokens)
+    return Grammar match(@@TokenIterator, ParenthesesToken InternalTokens)
 
 repeat := extend(tokenMatcher) {
     # until `Until` is found, checks matches through `Array` repeatedly.
@@ -2326,13 +2339,13 @@ repeat := extend(tokenMatcher) {
     ;;reset(Name: str, This Until: GrammarMatcher, This Array: GrammarMatcher_):
         tokenMatcher;;reset(Name)
 
-    ::match @mod(TokenIterator) (): bool
+    ::match(@@TokenIterator): bool
         while True
             for GrammarMatcher: in Array
                 # always check the escape sequence, Until:
-                if Grammar match @mod(TokenIterator) (Until)
+                if Grammar match(@@TokenIterator, Until)
                     return True
-                if not Grammar match @mod(TokenIterator) (GrammarMatcher)
+                if not Grammar match(@@TokenIterator, GrammarMatcher)
                     return False
 }
 # TODO: make sure the cyclic dependency is ok: i.e., Grammar match being called inside of
