@@ -1217,7 +1217,7 @@ example := {
         X = fn(X move())
     # or, slightly more explicit (in that Str is to be modded):
     @visibility
-    ;;x(fn(@@Str): ~t) := fn(@@X) ()
+    ;;x(fn(@@Str): ~t) := fn(@@X)
 }
 W = example()
 W x(fn(Str;): str
@@ -1338,9 +1338,9 @@ WeirdAnimal escape()    # prints "Waberoo ... meanders ... meanders back ... mea
 ```
 
 TODO: explain that lambda functions that are defined as methods on the class
-can use the `This` of the class, but they must be declared as `;;someLambdaMethod(...Args): returnType`
+can use the `This` of the class, but they must be declared as `;;someLambdaMethod(...Args); returnType`
 if they want to call any modifying methods of the class or change any instance variables
-and `::someLambdaMethod(...Args): returnType` to use other const methods or const variables.
+and `::someLambdaMethod(...Args); returnType` to use other const methods or const variables.
 
 ## template methods
 
@@ -1351,7 +1351,7 @@ someExample := {
     Value: int
     ;;reset(Int): null
         This Value = Int
-    ::to ~t (): t
+    ::to(): ~t
         return t(Value)
 }
 
@@ -1870,7 +1870,7 @@ array~t := {
             # explicit:
             ForLoop := This_(Index, fn(@@T) := Input fn(@@T))
             # implicit:
-            ForLoop := Input fn(@@This_Index) ()
+            ForLoop := Input fn(@@This_Index)
             if ForLoop == forLoop Break
                 break
 }
@@ -2175,12 +2175,12 @@ grammarElement := enumerate(
 
 tokenMatcher := {
     @reset(Name: str = "")
-    # don't have to restore the TokenIterator to the correct state,
+    # don't have to restore the TokenIndex to the correct state,
     # consume as many tokens as you like here.  make sure to go
-    # through "Grammar match(...)" in order to fix TokenIterator
-    # in case of a bad match.
-    # TODO: probably need to make this @protected or @private so that only Grammar can call.
-    ::match(@@TokenIterator): bool
+    # through "Grammar match(...)" in order to fix Token Index
+    # in case of a bad match.  @private so that only Grammar can call.
+    @private
+    ::match(@@Token Index, Token Array: token_): bool
 }
 
 grammarMatcher := tokenMatcher | grammarElement | token
@@ -2257,25 +2257,26 @@ Grammar := singleton() {
             parentheses(Block)
         ])
         EndOfInput: tokenMatcher(
-            match(@@TokenIterator) := TokenIterator peak() == Null
+            match(@@Token Index, Token Array: token_) := Token Index >= Token Array size()
         )
     ]
 
-    match(@@TokenIterator, GrammarMatcher): bool
-        # TODO: tokenIterator needs to support putting back a token.
-        # we indicate this using a "snapshot".  TokenIterator probably
-        # needs to keep track of the entire array (and not destroy it)
-        # as we iterate through the tokens.
-        Snapshot := TokenIterator snapshot()
+    match(@@Token Index, Token Array: token_, GrammarMatcher): bool
+        # ensure being able to restore the current token index if we don't match:
+        Snapshot := Token Index
         Matched := consider GrammarMatcher Type
             case tokenMatcher
-                GrammarMatcher match(@@TokenIterator)
+                GrammarMatcher match(@@Token Index, Token Array)
             case grammarElement
-                Elements_GrammarMatcher match(@@TokenIterator)
+                Elements_GrammarMatcher match(@@Token Index, Token Array)
             case token
-                TokenIterator next() == GrammarMatcher
+                # TODO: ensure binding works correctly here.
+                # Token Array _ Token Index looks kinda ambiguous,
+                # especially if member access is below subscript access.
+                Token Index < Token Array size() &&
+                        Token Array _ Token Index++ == Grammar Matcher
         if not Matched
-            TokenIterator restore Snapshot
+            Token Index = Snapshot
         return Matched
 }
 
@@ -2298,9 +2299,9 @@ sequence := extend(tokenMatcher) {
     ;;reset(Name: str, This Array: grammarMatcher_):
         tokenMatcher;;reset(Name)
 
-    ::match(@@TokenIterator): bool
+    ::match(@@Token Index, Token Array: token_): bool
         for GrammarMatcher: in Array
-            if not Grammar match(@@TokenIterator, GrammarMatcher)
+            if not Grammar match(@@Token Index, Token Array, GrammarMatcher)
                 return False
         return True
 }
@@ -2310,25 +2311,25 @@ parentheses := extend(tokenMatcher) {
     ;;reset(Name: str, This GrammarMatcher):
         tokenMatcher;;reset(Name)
 
-    ::match(@@TokenIterator): bool
-        # TODO: figure out how to elide copy here, since TokenIterator maintains the memory here.
-        # e.g., TokenIterator next could be a const "getter", i.e.,
-        # `tokenIterator;;next(fn(Token): ~type): type`
-        Token := TokenIterator next()
-        consider Token Type
-            case parenthesesToken
-                return internallyMatches(GrammarMatcher, ParenthesesToken: Token)
-            default
-                return False
-}
+    ::match(@@Token Index, Token Array: token_): bool
+        # TODO: make sure copies are elided for constant temporaries like this:
+        CurrentToken := Token Array_Token Index
+        if CurrentToken Type != parentheseToken
+            return False
 
-internallyMatches(GrammarMatcher, ParenthesesToken): bool
-    # TODO: figure out how to avoid a copy on the internal ParenthesesToken tokens.
-    # we probably need to separate the token list from the token iterator and pass
-    # both around.  the iterator is "cheap" to copy.
-    TokenIterator ;= tokenIterator(ParenthesesToken InternalTokens)
-    # TODO: make this the `match` function signature everywhere:
-    return Grammar match(@@TokenIterator, ParenthesesToken InternalTokens)
+        New Token Index = 0
+        PartialMatch := Grammar match(New Token Index, CurrentToken InternalTokens, GrammarMatcher)
+        if not PartialMatch
+            return False
+
+        # need to ensure that the full content was matched inside the parentheses:
+        if New Token Index < CurrentToken InternalTokens size()
+            return False
+        
+        # TODO: maybe Token ++Index?
+        ++Token Index
+        return True
+}
 
 repeat := extend(tokenMatcher) {
     # until `Until` is found, checks matches through `Array` repeatedly.
@@ -2339,13 +2340,13 @@ repeat := extend(tokenMatcher) {
     ;;reset(Name: str, This Until: GrammarMatcher, This Array: GrammarMatcher_):
         tokenMatcher;;reset(Name)
 
-    ::match(@@TokenIterator): bool
+    ::match(@@Token Index, Token Array: token_): bool
         while True
             for GrammarMatcher: in Array
                 # always check the escape sequence, Until:
-                if Grammar match(@@TokenIterator, Until)
+                if Grammar match(@@Token Index, Token Array, Until)
                     return True
-                if not Grammar match(@@TokenIterator, GrammarMatcher)
+                if not Grammar match(@@Token Index, GrammarMatcher)
                     return False
 }
 # TODO: make sure the cyclic dependency is ok: i.e., Grammar match being called inside of
