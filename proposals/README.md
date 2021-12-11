@@ -104,7 +104,7 @@ The standard division operator, `/`, will promote integer operands to a rational
 E.g., `dbl(3/4) == 0.75` or `6/4 == rtl(3)/rtl(2)`.
 
 The integer division operator, `//`, will return an integer, rounded towards zero, e.g.,`3//4 == 0`
-and `-3//4 == 0`.  Also, `5//4 = 1` and `-5//4 = -1`, and `12 // 3 == 4` as expected.
+and `-3//4 == 0`.  Also, `5//4 == 1` and `-5//4 == -1`, and `12 // 3 == 4` as expected.
 If any operand is a double, the resulting value will be an integer double, e.g.,
 `5.1 // 2 == 2.0`.
 
@@ -557,6 +557,9 @@ someFunction(Y?: int): string
 # default argument (case 4):
 someFunction(Y := 3): i64
     return i64(Y)
+
+# and due to overloads not caring about variable mutability,
+# `someFunction(Y ;= 3): i64` would qualify as case 4 as well.
 ```
 
 TODO: check if this breaks class instantiation assumptions.
@@ -674,6 +677,9 @@ SomeInstance = modify(SomeInstance move())
 TODO: discuss allowing @moved as an argument annotation in order to require someone
 to `move()` a variable into the function.  don't just allow compiler warnings,
 those will expand unnecessarily.
+
+TODO: @mod(...) seems a bit unwieldy, do we want to allow reference types only for functions?
+e.g., `@@SomeClass: int`
 
 ## redefining a function
 
@@ -1040,7 +1046,7 @@ exampleClass := {
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read/write global variables (or other files) due to `;;`:
-    __;;someStaticImpureFunctionWithSideEffects(Y; int): null
+    __;;someStaticImpureFunctionWithSideEffects(Y: int): null
         write(Y, File: "Y")
 
     # this function does not require an instance, and cannot use instance variables,
@@ -1122,8 +1128,8 @@ file as the class definition*.  Non-friends are not able to access or modify pri
 | non-friend access |   yes     |   yes     |   no      |
 | non-friend mutate |   yes     |   no      |   no      |
 
-The privacy for methods on a class works slightly different, but essentially
-follows the same table.  Using the method depends on visibility as well
+The privacy for methods on a class follows the same table.
+Using the method depends on visibility as well
 as if the method modifies the class or not, i.e., whether the method was
 defined as `This;;mutatingMethod(): returnType`
 or `This::nonMutatingMethod(): returnType`.  Mutating methods follow the "mutate"
@@ -1138,11 +1144,20 @@ modify the class instance can only be called by module functions, and
 constant methods can be called by friends.
 
 Note that reassignable methods, e.g., those defined with
-`someConstantMethod(...Args); returnType` or `;;someMutatingMethod(...Args); returnType`
+`::someConstantMethod(...Args); returnType` or `;;someMutatingMethod(...Args); returnType`
 can only be reassigned based on their visibility as if they were variables.
 I.e., public reassignable methods can be reassigned by anyone,
 protected reassignable methods can be reassigned by friends or module,
 and private reassignable methods can only be reassigned within the module.
+
+One final note, child classes are considered friends of the parent class,
+even if they are defined outside of the parent's directory, and even if they
+are defined in the same module as the parent (discouraged).  What this means
+is they can modify public and protected variables defined on the parent instance,
+and read (but not modify) private variables.  Overriding a parent class method
+counts as modifying the method, which is therefore possible for public and protected
+methods, but not private methods.
+
 
 ## getters and setters on class instance variables
 
@@ -1171,18 +1186,18 @@ example := {
     # getter: calls an external function with X, which can
     #         avoid a copy if the function argument is immutable.
     @visibility
-    x(fn(Str): ~t) := fn(X)
+    ::x(fn(Str): ~t) := fn(X)
 
     # swapper: swaps the value of X with whatever is passed in
     #          returns the old value of X.
     @visibility
     ;;x(Str;): str
-        # TODO: explain `A = B` returns the old value of `A`
-        return X = Str move()
+        swap(X, Str)
+        return Str
     # or, slightly more explicit (in that Str is to be modded):
     @visibility
     ;;x @mod(Str) ():
-        Str = X = Str move()
+        swap(X, Str)
 
     # modifier: allows the user to modify the value of X
     #           without copying it, using the MMR pattern.
@@ -1191,7 +1206,7 @@ example := {
         X = fn(X move())
     # or, slightly more explicit (in that Str is to be modded):
     @visibility
-    ;;x(fn @mod(Str): ~t) := fn @mod(X)
+    ;;x(fn @mod(Str) (): ~t) := fn @mod(X) ()
 }
 W = example()
 W x(fn(Str;): str
@@ -1522,7 +1537,7 @@ array~t := {
     # modifier, allows access to modify the internal value, via MMR pattern.
     # passes the current value at the index into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the index.
-    This;; _ (Index, fn(@moved T): t): null
+    ;;_(Index, fn(@moved T): t): null
 
     # returns a Null if index is out of bounds in the array:
     # getter, which returns a Null if index is out of bounds in the array:
