@@ -968,7 +968,8 @@ makes that unnested function call impure.
 
 TODO: calling `print` is technically an impurity, although it would be nice
 to be able to make an exception here since stdout can be thought of as outside
-of the control of the program to read from.
+of the control of the program to read from.  Users who pipe stdout into a file
+are creating an impure function from a pure function (e.g., print can be pure).
 
 TODO: discussion on how it's impossible to copy impure functions
 unless they are explicitly typed as copyable.  e.g., reading or writing to a file
@@ -1342,6 +1343,44 @@ can use the `This` of the class, but they must be declared as `;;someLambdaMetho
 if they want to call any modifying methods of the class or change any instance variables
 and `::someLambdaMethod(...Args); returnType` to use other const methods or const variables.
 
+## a @final note on inheritance
+
+We will likely use C/C++ to implement hm-lang at first, i.e., so that it transpiles to C/C++.
+In C++, a variable that is typed as a parent instance cannot be a child instance in disguise;
+if a child instance is assigned to the variable, the extra derived bits get sliced off.  This
+helps avoid dynamic allocation, because the memory for the parent class instance can be allocated
+on the stack.  On the other hand, if the variable is a pointer to a parent instance, the variable
+can actually point to a child instance in disguise.  This is great in practice for object-oriented
+programming, since you can use the child instance in place of the parent instance; as long as
+the child class fulfills the same contract as the parent class, it shouldn't matter the exact
+implementation.  But this generally requires dynamic memory allocation, which has a cost.
+
+In hm-lang, we want to make it easy for variables of a parent class to be secretly instances
+of child classes, so by default we are paying the cost and dynamically allocating non-primitive
+types.  That way, we can easily do things like this:
+
+```
+SomeAnimal; animal
+SomeAnimal = snake(Name: "Josie")
+SomeAnimal goes()   # prints "slithers"
+SomeAnimal = cat()
+SomeAnimal goes()   # prints "saunters"
+```
+
+This is less surprising than the C++ behavior.  But in cases where users want to gain back
+the no-dynamically-allocated class instances, we have a `@final` annotation that can be used
+on the type.  E.g., `SomeVariable: @final someType` will ensure that `SomeVariable` is
+stack allocated (non-dynamically).  If defined with `;`, the instance can still be modified,
+but it will be sliced if some child instance is copied to it (or swapped with it).
+TODO: maybe don't allow reassignment or swaps (e.g., `SomeVariable = SomeOtherVariable` or
+`SomeVariable <-> SomeOtherVariable`), so we avoid object slicing in the first place.
+
+We also will likely ignore `@final` annotations for tests, so that we can mock out
+classes if desired.
+
+One final note: abstract classes cannot be `@final` types for a variable, since they
+are not functional without child classes overriding their abstract methods.
+
 ## template methods
 
 You can define methods on your class that work for a variety of types.
@@ -1620,10 +1659,11 @@ range(Int): int_Int
 print(range(10))    # prints [0,1,2,3,4,5,6,7,8,9]
 ```
 
-## hash maps
+## maps
 
-A hash map can look up elements by key in O(1) time.  You can use the explicit
-way to define a map, e.g., `VariableName: map~(key: keyType, value: valueType)`,
+A map can look up, insert, and delete elements by key quickly (ideally amortized
+at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a map, e.g.,
+`VariableName: map~(key: keyType, value: valueType)`,
 or you can use the implicit method with the subscript operator (`_`),
 `VariableName: valueType_keyType`.  You can read the operator `_` as "keyed by",
 e.g., `valueType_keyType` as "`valueType` keyed by `keyType`".  For example,
@@ -1726,10 +1766,10 @@ map~(key, value) := {
 The default map type is `insertionOrderedMap`, which means that the order of elements
 is preserved based on insertion; i.e., new keys come after old keys when iterating.
 Other notable maps include `keyOrderedMap`, which will iterate over elements in order
-of their keys, and `unorderedMap`, which has an unpredictable iteration order.
-TODO: The `keyOrderedMap` has worse complexity for insert/lookup/delete, so perhaps
-it should be called a `tree` instead.  or maybe we require hashMap to have O(1) lookup,
-and `map` can be something else.
+of their sorted keys, and `unorderedMap`, which has an unpredictable iteration order.
+Note that `keyOrderedMap` has `O(lg(N))` complexity for look up, insert, and delete,
+while `insertionOrderedMap` has some extra overhead but is `O(1)` for these operations,
+like `unorderedMap`.
 
 TODO: reconsider using `map from key to value` instead of `map~(key, value)`,
 i.e. `map~(from, to)`, since that parses quicker as a prepositional phrase.
@@ -1898,24 +1938,24 @@ Or should we define iterators on the container itself?  E.g.,
 ```
 array~t := {
     # const iteration, with no-copy if possible:
-    ::forEach(Input fn(T): forLoop): null
+    ::forEach(fn(T): forLoop): null
         for Index: index < size()
             # use the no-copy getter, here:
             # explicit:
-            ForLoop := This_(Index, fn(T) := Input fn(T))
+            ForLoop := This_(Index, fn)
             # implicit:
-            ForLoop := Input fn(This_Index)
+            ForLoop := fn(This_Index)
             if ForLoop == forLoop Break
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;forEach(Input fn(@@T): forLoop): null
+    ;;forEach(fn(@@T): forLoop): null
         for Index: index < size()
             # do a swap on the value based on the passed in function:
             # explicit:
-            ForLoop := This_(Index, fn(@@T) := Input fn(@@T))
+            ForLoop := This_(Index, fn)
             # implicit:
-            ForLoop := Input fn(@@This_Index)
+            ForLoop := fn(@@This_Index)
             if ForLoop == forLoop Break
                 break
 }
