@@ -1723,6 +1723,50 @@ map~(key, value) := {
 }
 ```
 
+The default map type is `insertionOrderedMap`, which means that the order of elements
+is preserved based on insertion; i.e., new keys come after old keys when iterating.
+Other notable maps include `keyOrderedMap`, which will iterate over elements in order
+of their keys, and `unorderedMap`, which has an unpredictable iteration order.
+TODO: The `keyOrderedMap` has worse complexity for insert/lookup/delete, so perhaps
+it should be called a `tree` instead.  or maybe we require hashMap to have O(1) lookup,
+and `map` can be something else.
+
+TODO: reconsider using `map from key to value` instead of `map~(key, value)`,
+i.e. `map~(from, to)`, since that parses quicker as a prepositional phrase.
+
+```
+insertionOrderedMap~(from, to) := extend(map) {
+    KeyIndices; @private @final unorderedBiMap~(from, to: index)
+    Values; @private @final unorderedMap~(from: index, to)
+    Indices; @private @final dll~index
+
+    ::_(From, fn(To?): ~t): t
+        Index ?:= KeyIndices_(From)
+        if Index != Null
+            return Values_(Index, fn)
+        else
+            return fn(Null)
+    
+    ::forEach(fn(From, To): forLoop): null
+        for (Index) in Indices
+            Key := KeyIndices_(To: Index)
+            Value := Values_Index
+            return fn(From: Key, To: Value)
+        # OR using lambda expressions with $:
+        # `Indices forEach fn(From: KeyIndices_(To: $Index), To: Values_$Index)`
+        # OR using nested functions to avoid copies:
+        # `Indices forEach ::iterate(Index): forLoop
+        #      return KeyIndices_(To: Index, New fn(Key):
+        #          return Values_(Index, AnotherNew fn(Value):
+        #              return fn(From: Key, To: Value)
+        #          )
+        #      )
+        # `
+        # which isn't idiomatic, but maybe what we want to do internally
+        # if we don't have const references, to avoid copies of Key and Value instances.
+}
+```
+
 ## sets
 
 A set contains some elements, and makes checking for the existence of an element within
@@ -1757,6 +1801,8 @@ set~t := {
 
 Like the keys in hash maps, items added to a set become deeply constant,
 even if the set variable is mutable.
+
+TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
 
 ## iterator
 
@@ -1813,8 +1859,7 @@ range~t := extend(iterator~t) {
         Null
 }
 
-# TODO: ensure syntax is ok with `in` here.  maybe use annotations, e.g. @in or @iter
-for Index: index in range(LessThan: 10)
+for (Index: index) in range(LessThan: 10)
     print Index
 # prints "0" to "9"
 ```
@@ -1837,7 +1882,7 @@ arrayIterator~t := extend(iterator~t) {
     # e.g., 
     #   MyArray; int_ = [1,2,3,4]
     #   with Iterator ;= iterator @holding(MyArray)
-    #       for Int: int in Iterator
+    #       for (Int: int) in Iterator
     #           ...
     #   print(MyArray)
     #   # MyArray is now back to [1,2,3,4] unless there were changes during iteration,
@@ -1936,7 +1981,12 @@ for Special; int < 5
 # for-loop iterating over non-number elements:
 vector2 := {X: dbl, Y: dbl}
 Array: vector2_ = [{X: 5, Y: 3}, {X: 10, Y: 17}]
-for Vector2: in Array
+for (Vector2: vector2) in Array
+    print(Vector2)
+
+# when using `in`, we need to use parentheses around the iterand,
+# but we don't to be explicit with the type if the variable name is default:
+for (Vector2) in Array
     print(Vector2)
 ```
 
@@ -2273,6 +2323,8 @@ Grammar := singleton() {
                 # TODO: ensure binding works correctly here.
                 # Token Array _ Token Index looks kinda ambiguous,
                 # especially if member access is below subscript access.
+                # otherwise, switch to TokenIndex and TokenArray.
+                # although i like `Type Array` as the default name for `type_`.
                 Token Index < Token Array size() &&
                         Token Array _ Token Index++ == Grammar Matcher
         if not Matched
@@ -2300,7 +2352,7 @@ sequence := extend(tokenMatcher) {
         tokenMatcher;;reset(Name)
 
     ::match(@@Token Index, Token Array: token_): bool
-        for GrammarMatcher: in Array
+        for (GrammarMatcher) in Array
             if not Grammar match(@@Token Index, Token Array, GrammarMatcher)
                 return False
         return True
@@ -2342,7 +2394,7 @@ repeat := extend(tokenMatcher) {
 
     ::match(@@Token Index, Token Array: token_): bool
         while True
-            for GrammarMatcher: in Array
+            for (GrammarMatcher) in Array
                 # always check the escape sequence, Until:
                 if Grammar match(@@Token Index, Token Array, Until)
                     return True
@@ -2367,12 +2419,21 @@ for @lock Variable < UpperBoundExclusive
 for Variable := StartingValue, Variable < UpperBoundExclusive
     ... use Variable from StartingValue ...
 ===
-ForLoop := sequence([
-    keyword("for")
-    VariableDeclaration
-    oneOf([operator("<"), operator("<=")])
-    Expression
-    Block
+ForLoop := oneOf([
+    sequence([
+        keyword("for")
+        VariableDeclaration
+        oneOf([operator("<"), operator("<=")])
+        Expression
+        Block
+    ])
+    sequence([
+        keyword("for")
+        list(FunctionArgument)
+        keyword("in")
+        Expression
+        Block
+    ])
 ])
 
 TODO: support internationalization.  do we really require Upper/lower+CamelCase for variables/functions?
