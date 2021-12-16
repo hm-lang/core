@@ -1775,17 +1775,35 @@ TODO: reconsider using `map from key to value` instead of `map~(key, value)`,
 i.e. `map~(from, to)`, since that parses quicker as a prepositional phrase.
 
 ```
+@private
+indexedMapValue~t := {NextIndex; index, PreviousIndex; index, Value; t}
+
 insertionOrderedMap~(from, to) := extend(map) {
     KeyIndices; @private @final unorderedBiMap~(from, to: index)
-    Values; @private @final unorderedMap~(from: index, to)
-    Indices; @private @final dll~index
+    IndexedValues; @private @final unorderedMap~(
+        from: index
+        to: indexedMapValue~to
+    ) = [{from: 0, to: {NextIndex: 0, to(), PreviousIndex: 0}}]
+    NextAvailableIndex; @private index = 1
+
+    # creates a default value if not present at the key to pass in to the modifier:
+    ;;_(From, fn(@@To): ~t): t
+        Index ?:= KeyIndices_(From)
+        return if Index != Null
+            modifyAlreadyPresent(Index, fn)
+        else
+            needToInsertThenModify(From, fn)
 
     ::_(From, fn(To?): ~t): t
         Index ?:= KeyIndices_(From)
-        if Index != Null
-            return Values_(Index, fn)
+        return if Index != Null
+            # TODO: explain that it's the last line of a block that will become the return value:
+            assert(Index != 0)
+            IndexedValues_(Index, ::dive(IndexedValue: indexedMapValue~to): t
+                return fn(IndexedValue Value)
+            )
         else
-            return fn(Null)
+            fn(Null)
     
     ::forEach(fn(From, To): forLoop): null
         for (Index) in Indices
@@ -1804,6 +1822,30 @@ insertionOrderedMap~(from, to) := extend(map) {
         # `
         # which isn't idiomatic, but maybe what we want to do internally
         # if we don't have const references, to avoid copies of Key and Value instances.
+
+    # modifier for a keyed value not yet in the map, need to insert a default first:
+    @private
+    ;;needToInsertThenModify(From, fn(@@To): ~t): t
+        NewIndex := AvailableIndex++ || reshuffle()
+        KeyIndices_From = NewIndex
+        PreviouslyLastIndex := IndexedValues_0 PreviousIndex
+        IndexedValues_0 PreviousIndex = NewIndex
+        IndexedValues_PreviouslyLastIndex NextIndex = NewIndex
+        IndexedValues_NewIndex = {
+            PreviousIndex: PreviouslyLastIndex
+            NextIndex: 0
+            Value: to()
+        }
+        return modifyAlreadyPresent(NewIndex, fn)
+
+    # modifier for an already indexed value in the map:
+    @private
+    modifyAlreadyPresent(Index, fn(@@To): ~t): t
+        assert(Index != 0 && IndexedValues has Index)
+        return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~to): t
+            # TODO: see if the syntax for @@ works here or at `@@IndexedValue Value`:
+            return fn(IndexedValue@@Value)
+        )
 }
 ```
 
