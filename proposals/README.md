@@ -1118,7 +1118,7 @@ the class defines the default-name of a variable of the class.  Also, you'll get
 a compile error unless the custom default name is the first statement in the class
 definition.
 
-## public/private/protected
+## public/private/protected visibility
 
 We use annotations `@public`, `@private`, and `@protected` to indicate various
 levels of access to a class instance's variables.  Public is default, and means
@@ -1533,6 +1533,38 @@ correctly becomes like `File someFunction(Q)` for `File := */relative/import/fil
 TODO: how does file access work with the MMR pattern
 E.g., we need to make sure that functions which access the file system are declared with `;;` or `::`.
 
+# errors and asserts
+
+hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
+e.g., `map.hm` has a `mapError` type which can be caught using `catch error` or `catch mapError`.
+Use `throw errorType("message ${HelpfulVariableToDebug}")` to throw a specific error, or 
+`throw "message ${HelpfulVariableToDebug}"` to automatically use the correct error subclass for
+whatever context you're in.  Note that you're not able to throw a module-specific error
+from another module (e.g., you can't throw `mapError` from the `array.hm` module), but you can
+throw explicitly defined errors from other modules, as long as they are visible to you
+(see section on public/protected/private visibility).
+
+The built-in `assert` function will promote the passed-in value to a wrapper class with all the
+same methods, but which will throw if the returned value of any used method is not truthy.
+As a bonus, when throwing, all values will be logged to stderr as well for debugging purposes.
+```
+assert(SomeVariable) == ExpectedValue   # throws if `SomeVariable != ExpectedValue`,
+                                        # printing to stderr the values of both `SomeVariable`
+                                        # and `ExpectedValue` if so.
+
+assert(SomeClass) method(100)       # throws if `SomeClass method(100)` is not truthy,
+                                    # printing value of `SomeClass`, `method`, and `100`.
+```
+
+Note that `assert` logic is always run, even in non-debug code.  To only check statements
+in the debug binary, use `assertDebug`, which has the same signature as `assert`.  Using
+`assertDebug` is not recommended, except to enforce the caller contract of private/protected
+methods.  Otherwise, `assert` should be used, especially for public methods.  Note also
+that `assert` (and `assertDebug`) will throw the correct error subclass for the module that
+they're in.
+
+TODO: try/catch/finally 
+
 # standard container classes (and helpers)
 
 ## arrays
@@ -1649,8 +1681,10 @@ size is unknown at compile time, the fixed-size array will be defined on the hea
 # note you can use an input argument to define the return type's
 # fixed-array size, which is something like a generic:
 range(Int): int_Int
+    # TODO: use `assert(Int) < 0 !! "can't have a fixed negative-size array"`
+    # where `!!` will check for a thrown error and rethrow with the new error message.
     if Int < 0
-        throw error("can't have a fixed negative-size array")
+        throw "can't have a fixed negative-size array"
     Result; int_Int
     for I: int < Int
         Result_I = I
@@ -1798,7 +1832,7 @@ insertionOrderedMap~(from, to) := extend(map) {
         Index ?:= KeyIndices_(From)
         return if Index != Null
             # TODO: explain that it's the last line of a block that will become the return value:
-            assert(Index != 0)
+            assert(Index) != 0
             IndexedValues_(Index, ::dive(IndexedValue: indexedMapValue~to): t
                 return fn(IndexedValue Value)
             )
@@ -1841,7 +1875,8 @@ insertionOrderedMap~(from, to) := extend(map) {
     # modifier for an already indexed value in the map:
     @private
     modifyAlreadyPresent(Index, fn(@@To): ~t): t
-        assert(Index != 0 && IndexedValues has Index)
+        assert(Index) != 0
+        assert(IndexedValues) has(Index)
         return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~to): t
             # TODO: see if the syntax for @@ works here or at `@@IndexedValue Value`:
             return fn(IndexedValue@@Value)
