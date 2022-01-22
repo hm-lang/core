@@ -1896,78 +1896,79 @@ Note that `keyOrderedMap` has `O(lg(N))` complexity for look up, insert, and del
 while `insertionOrderedMap` has some extra overhead but is `O(1)` for these operations,
 like `unorderedMap`.
 
-TODO: reconsider using `map from key to value` instead of `map~(key, value)`,
-i.e. `map~(from, to)`, since that parses quicker as a prepositional phrase.
-
 ```
 @private
 indexedMapValue~t := {NextIndex; index, PreviousIndex; index, Value; t}
 
-insertionOrderedMap~(from, to) := extend(map) {
-    KeyIndices; @private @final unorderedBiMap~(from, to: index)
-    IndexedValues; @private @final unorderedMap~(
-        from: index
-        to: indexedMapValue~to
-    ) = [{from: 0, to: {NextIndex: 0, to(), PreviousIndex: 0}}]
+insertionOrderedMap~(key, value) := extend(map) {
+    KeyIndices; @private @only unorderedBiMap~(key, value: index)
+    IndexedValues; @private @only unorderedMap~(
+        key: index
+        value: indexedMapValue~value
+    ) = [{key: 0, value: {NextIndex: 0, value(), PreviousIndex: 0}}]
     NextAvailableIndex; @private index = 1
 
     # creates a default value if not present at the key to pass in to the modifier:
-    ;;_(From, fn(@@To): ~t): t
-        Index ?:= KeyIndices_(From)
+    ;;_(Key, fn(@@Value): ~t): t
+        Index ?:= KeyIndices_(Key)
         return if Index != Null
             modifyAlreadyPresent(Index, fn)
         else
-            needToInsertThenModify(From, fn)
+            needToInsertThenModify(Key, fn)
 
-    ::_(From, fn(To?): ~t): t
-        Index ?:= KeyIndices_(From)
+    ::_(Key, fn(Value?): ~t): t
+        Index ?:= KeyIndices_(Key)
         return if Index != Null
             assert(Index) != 0
-            IndexedValues_(Index, ::dive(IndexedValue: indexedMapValue~to): t
+            IndexedValues_(Index, ::dive(IndexedValue: indexedMapValue~value): t
                 return fn(IndexedValue Value)
             )
         else
             fn(Null)
     
-    ::forEach(fn(From, To): forLoop): null
-        for (Index) in Indices
-            Key := KeyIndices_(To: Index)
-            Value := Values_Index
-            return fn(From: Key, To: Value)
-        # OR using lambda expressions with $:
-        # `Indices forEach fn(From: KeyIndices_(To: $Index), To: Values_$Index)`
-        # OR using nested functions to avoid copies:
-        # `Indices forEach ::iterate(Index): forLoop
-        #      return KeyIndices_(To: Index, New fn(Key):
-        #          return Values_(Index, AnotherNew fn(Value):
-        #              return fn(From: Key, To: Value)
-        #          )
+    ::forEach(Loop->fn(Key, Value): forLoop): null
+        Index ;= IndexedValues_0 NextIndex
+        while Index != 0
+            # TODO: check if this is correct usage of !!
+            Key := KeyIndices_Index !!
+            Value := IndexedValues_Index Value !!
+            ForLoop := Loop->fn(Key, Value)
+            if ForLoop == forLoop Break
+                break
+            Index = IndexedValues_Index NextIndex
+        # mostly equivalent to using nested functions to avoid copies:
+        # `ForLoop := KeyIndices_(Value: Index, fn(Key?):
+        #      assert(Key) != Null
+        #      return IndexedValues_(Index, New->fn(IndexedMapValue?):
+        #          assert(IndexedMapValue) != Null
+        #          return Loop->fn(Key, IndexedMapValue Value)
         #      )
+        #  )
         # `
         # which isn't idiomatic, but maybe what we want to do internally
         # if we don't have const references, to avoid copies of Key and Value instances.
 
     # modifier for a keyed value not yet in the map, need to insert a default first:
     @private
-    ;;needToInsertThenModify(From, fn(@@To): ~t): t
+    ;;needToInsertThenModify(Key, fn(@@Value): ~t): t
         NewIndex := AvailableIndex++ || reshuffle()
-        KeyIndices_From = NewIndex
+        KeyIndices_Key = NewIndex
         PreviouslyLastIndex := IndexedValues_0 PreviousIndex
         IndexedValues_0 PreviousIndex = NewIndex
         IndexedValues_PreviouslyLastIndex NextIndex = NewIndex
         IndexedValues_NewIndex = {
             PreviousIndex: PreviouslyLastIndex
             NextIndex: 0
-            Value: to()
+            Value: value()
         }
         return modifyAlreadyPresent(NewIndex, fn)
 
     # modifier for an already indexed value in the map:
     @private
-    modifyAlreadyPresent(Index, fn(@@To): ~t): t
+    modifyAlreadyPresent(Index, fn(@@Value): ~t): t
         assert(Index) != 0
         assert(IndexedValues) has(Index)
-        return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~to): t
+        return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~value): t
             # TODO: see if the syntax for @@ works here or at `@@IndexedValue Value`:
             return fn(IndexedValue@@Value)
         )
