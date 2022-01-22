@@ -471,6 +471,9 @@ TODO: discuss the `args` type, which allows you to build up function arguments.
 e.g., `Args; args = {Hello: "World"}`.
 TODO: maybe make it a template type on the function you are going to call,
 which would allow for checking whether the argument added was valid or not.
+Make `args` a super-generic type, and `argsTo~aFunction` be the specific type.
+casting `args` to `argsTo~aFunction` requires some parsing, just like
+using `aFunction` with a generic `args` argument.
 E.g.,
 
 ```
@@ -493,6 +496,21 @@ Result := myFn(Args)    # Result can be `null|dbl`
 TODO: i think it would be best not to throw a run-time error if the arguments
 don't match, e.g., if they are overspecified, especially for these dynamically
 built arguments.
+
+For the MMR pattern (using `@@` to pass in a variable that can be modified and returned),
+arguments look like this:
+
+```
+someFunction(@@Int): dbl
+    Int += 6
+    return Int * 0.5
+
+Args; argsTo~someFunction
+
+Args Int = 10
+print(someFunction(Args))   # prints `8`
+print(Args Int)             # prints `16`
+```
 
 ### constant versus mutable arguments
 
