@@ -57,32 +57,35 @@ since `functionName(Expression)^2` equals `functionName((Expression)^2)`
 |   0       |   `()`    | parentheses               | grouping: `(A)`   | RTL           |
 |           |   `[]`    | parentheses               | grouping: `[A]`   |               |
 |           |   `{}`    | parentheses               | grouping: `{A}`   |               |
-|   1       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
+|   1       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
+|           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
+|           |   `->`    | creating scope            | binary: `A->B`    |               |
+|   2       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
 |           |   `^`     | superscript/power         | binary: `A^B`     |               |
 |           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
 |           | `**x/y/z` | library module import     | special: `**a/b`  |               |
 |           | `*/x/y/z` | relative module import    | special: `*/a/b`  |               |
-|   2       |   `[ ]`   | function call             | on fn: `a B`      | RTL           |
+|   3       |   `[ ]`   | function call             | on fn: `a B`      | RTL           |
 |           |   `[ ]`   | member access             | binary: `A B`     | [1]           |
-|   3       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
+|   4       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
 |           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
 |           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
 |           |   `<>`    | bitwise flip              | unary:  `<>A`     |               |
 |           |   `>>`    | bitwise right shift       | binary: `A>>B`    |               |
 |           |   `<<`    | bitwise left shift        | binary: `A<<B`    |               |
-|   4       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
+|   5       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
 |           |   `/`     | divide                    | binary: `A/B`     |               |
 |           |   `%`     | modulus                   | binary: `A%B`     |               |
 |           |   `//`    | integer divide            | binary: `A//B`    |               |
 |           |   `%%`    | remainder after //        | binary: `A%%B`    |               |
-|   5       |   `+`     | add                       | binary: `A+B`     | LTR           |
+|   6       |   `+`     | add                       | binary: `A+B`     | LTR           |
 |           |   `-`     | subtract                  | binary: `A-B`     |               |
-|   6       |   `==`    | equality                  | binary: `A==B`    | LTR           |
+|   7       |   `==`    | equality                  | binary: `A==B`    | LTR           |
 |           |   `!=`    | inequality                | binary: `A!=B`    |               |
-|   7       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
+|   8       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
 |           |  `\|\|`   | logical OR                | binary: `A\|\|B`  |               |
 |           |   `??`    | nullish OR                | binary: `A??B`    |               |
-|   8       |   `=`     | assignment                | binary: `A = B`   | LTR           |
+|   9       |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
 
@@ -132,6 +135,55 @@ differs from the modulus, `%`, when the operands have opposing signs.
 |  6.78 |   1   |      6.0      |    0.78   |     6.0   |    0.78   |
 | -6.78 |   1   |     -7.0      |    0.22   |    -6.0   |   -0.78   |
 
+## scoping operators `->`, `::`, `;;`
+
+Usually we can handle scoping implicitly using whitespace, e.g., `SomeInstance InstanceVariable`,
+but due to operator precedence, e.g., `_` supercedes method/function calls, it's nice to have
+higher precedent operators as options to indicate scoping with more than two identifiers.
+
+For example, `SomeArray_SomeIndex SomeVariable` is equivalent to `(SomeArray_SomeIndex) SomeVariable`,
+but you might want to scope like this: `SomeArray_SomeInstance::SomeIndex`, which has the opposite
+behavior, `SomeArray_(SomeInstance SomeIndex)`.
+
+These scoping operators are also useful for creating default-named variables in nested scopes,
+using the `New`, `Old`, `Input`, or `Output` keywords.  This allows you to use functions with
+expected default names, while avoiding argument/variable shadowing, which is not allowed in hm-lang.
+
+```
+someFunction(Input->Index): null
+    # `Input->Index` is a default-named variable of type `index`, but we refer to it
+    # within this scope using `Input->Index`.
+    even(Index): bool
+        return Index % 2 == 0
+    # you can even define your own scopes, like `Another` here:
+    for Another->Index: index < Input->Index
+        if even(Another->Index)
+            print(Another->Index)
+        
+X: index = 100
+someFunction(X)     # note that we don't need to call as `someFunction(Input->Index: X)`
+```
+
+When creating arguments for a function, using `->` implies that you are creating a named scope
+but that you typically want to use a default-named variable.  That is, the thing on the LHS
+of `->` is a new scope (or one that hasn't been used for the same variable name on the RHS)
+that doesn't actually exist as an object holding these variables.  Use `::` and `;;` for
+scoping variables that actually belong to another object.
+
+```
+someClass := {X: dbl, Y: dbl, I: int_}
+SomeClass ;= someClass(X: 1, Y: 2.3, I: [100, 200])
+print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints [100, 200]
+print(SomeClass::I_1)   # prints 200
+# TODO: double check grammar, is this really ambiguous ??:
+# if so, then we need to run through and check correctness everywhere.
+print(SomeClass I_1)    # compiler error, `SomeClass` is not a function, `I` is not subscriptable
+```
+
+We use `;;` instead of `::` when we are passing a scoped variable as mutable instead of immutable.
+For functions, `;;` implies that the function is impure and will mutate the scope; `::` implies
+the function is impure and can read other values in the scope but won't mutate them.
+TODO: more explanation here.
 
 ## assignment operators
 
@@ -221,8 +273,7 @@ Optional functions are defined in a similar way (cf. section on nullable functio
 with the `?` just after the function name, e.g., `someFunction?(...Args): returnType`.
 
 TODO: how do we declare a function of multiple types?  e.g.,
-`someFunction: (fn(Dbl): string) | (fn(Dbl, Name: string): int)`, or
-`someFunction: ((Dbl) -> string) | ((Dbl, Name: string) -> int)`??
+`someFunction: (fn(Dbl): string) | (fn(Dbl, Name: string): int)`.
 This might have some usage for function overloads.  Maybe we disallow these and require
 declare the overloads individually.
 
@@ -1256,11 +1307,6 @@ trying to access the variable (or set it) will use the overloaded methods.
 
 TODO: some example of child class overriding parent class getter/setters.
 
-TODO: Description of New/Old.  maybe we should also use `->` as a method/function
-grabber with higher priority than _, or maybe ;; or :: to reuse those.
-E.g., `New::Values _ 200` to get index 200 of `New Values` rather than
-`New (Values_200)` which doesn't compute.
-
 ## parent-child classes and method overrides
 
 You can define parent-child class relationships with the following syntax.
@@ -1937,9 +1983,9 @@ insertionOrderedMap~(key, value) := extend(map) {
                 break
             Index = IndexedValues_Index NextIndex
         # mostly equivalent to using nested functions to avoid copies:
-        # `ForLoop := KeyIndices_(Value: Index, fn(Key?):
+        # `ForLoop := KeyIndices_(Value: Index, ::fn(Key?):
         #      assert(Key) != Null
-        #      return IndexedValues_(Index, New->fn(IndexedMapValue?):
+        #      return IndexedValues_(Index, New::fn(IndexedMapValue?):
         #          assert(IndexedMapValue) != Null
         #          return Loop->fn(Key, IndexedMapValue Value)
         #      )
