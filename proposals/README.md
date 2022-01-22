@@ -690,6 +690,8 @@ modify(@@MyObjectType; myObjectType):
 
 SomeInstance ;= myObjectType(...)
 # you can also use `@@` to call the function and have it update the variable.
+# TODO: maybe use a different syntax here, like `modify(SomeInstance mmr())`
+# or `modify(SomeInstance @@())`, or `@ddr()`.
 modify(@@SomeInstance)
 
 # which expands into:
@@ -1916,7 +1918,6 @@ insertionOrderedMap~(from, to) := extend(map) {
     ::_(From, fn(To?): ~t): t
         Index ?:= KeyIndices_(From)
         return if Index != Null
-            # TODO: explain that it's the last line of a block that will become the return value:
             assert(Index) != 0
             IndexedValues_(Index, ::dive(IndexedValue: indexedMapValue~to): t
                 return fn(IndexedValue Value)
@@ -2139,15 +2140,18 @@ In hm-lang, we borrow from Kotlin the idea that
 and write something like:
 
 ```
-# TODO: check if we should double indent the next line, and single indent else.
 X := if Condition
     doSomething()
 else
+    calculateSideEffects(...) # ignored for setting X
     DefaultValue
+
+# now X is either the result of `doSomething()` or `DefaultValue`.
 ```
 
 Note that ternary logic short-circuits operations, so that calling the function
-`doSomething()` only occurs if `Condition` is true.
+`doSomething()` only occurs if `Condition` is true.  Also, only the last line
+of a block can become the RHS value for a statement like this.
 
 TODO: more discussion about how `return` works vs. putting a RHS statement on a line.
 TODO: add a way to get two variables out of this, e.g.,
@@ -2354,6 +2358,12 @@ Options isT()   # True, since Options is now solely T
 ```
 
 # pointers/references don't exist
+
+TODO: reconsider -- `SomeInstance @@()` to get the pointer for `SomeInstance`.
+you could only pass them in as arguments, but not hold onto them in scopes.
+You would have them as type-specifiers: `someFunction(SomeInstance: @@someInstance)`.
+The nice thing about no pointers is that you don't have to match arguments based
+on pointers or non-pointers.
 
 To modify a value that is held by another class instance, e.g., the
 element of an array, we use the MMR pattern.  The class instance will
