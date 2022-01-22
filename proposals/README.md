@@ -669,7 +669,6 @@ but will not have the move-modify-return pattern applied.  For example:
 ```
 modify(@@MyObjectType; myObjectType):
     MyObjectType someMethod(12345)
-    return MyObjectType move()      # compiler can probably figure out this move()
 
 SomeInstance ;= myObjectType(...)
 # you can also use `@@` to call the function and have it update the variable.
@@ -715,7 +714,7 @@ greetings(Noun: string); null
     print "Overwriting?"
 ```
 
-TODO: discussion on how it needs to be clear what function overload is being redefined,
+It needs to be clear what function overload is being redefined (i.e., having the same function signature),
 otherwise you're just creating a new overload (and not redefining the function).
 
 ## nullable functions
@@ -737,8 +736,7 @@ means that the return type is nullable.  The possible combinations are therefore
 * `nullableFunction?(...Args): returnType` is a nullable function,
   which, if non-null, will return a non-null `returnType` instance.
   Conversely, if `nullableFunction` is null, trying to call it will return null.
-  You can also declare this as `nullableFunction?: (fn(...Args): returnType)`.
-  TODO: see if we're happy with removing the parentheses here.
+  You can also declare this as `nullableFunction?: fn(...Args): returnType`.
 
 * `nullableReturnFunction(...Args)?: returnType` is a non-null function
   which can return a nullable instance of `returnType`.  You can declare
@@ -826,7 +824,7 @@ greetings(Times: 5, Say: "Hey", To: "Sam")
 ```
 
 Note that you can define the function arguments as mutable (with `;`) or
-immutable (with `:`) but that does **not** change the type of function.
+immutable (with `:`) but that does **not** change the type/signature of the function.
 Whether the variables can be mutated inside the function does not matter
 to the interface between function and caller.
 
@@ -884,14 +882,12 @@ being able to resolve the overload at run-time.
 
 You can create template functions which can work for a variety of types
 using the syntax `~(type1, type2, ...)` or `~someType` (for just one generic type) 
-after a function name.
-
-TODO: allow defining templates inline for convenience.  e.g., `logger(T: ~t): t`,
-using `~` the first time you see the type.  Use `In~t` or `Out~t`, or some more
-verbose type name (e.g., `~moreVerbose`).
+after a function name but before the argument list.  We also allow defining templates
+inline for convenience.  e.g., `logger(T: ~t): t`, using `~` the first time you see
+the type (reading left to right).
 
 ```
-# declaration equivalent to `logger ~(t) (T): t`:
+# declaration equivalent to `logger ~(t) (T): t` or `logger(T: ~t): t`:
 logger ~t (T): t
     print("got ${T}")
     return T
@@ -931,9 +927,8 @@ since another program or thread could have modified the file in between reads.  
 would be preceded with `::` since it does not modify the file data, e.g., 
 `::read(File): string`, whereas a function that writes data to a file could be
 `;;write(File, String): null` to indicate the function can modify memory outside itself.
-Random functions are of course impure as well.  A method of a class being used as a function
-with the same signature is an impure function, since it can use data within the class instance
-to determine the result of the function call.  E.g.,
+Random functions are of course impure as well.  Class methods are considered impure,
+since they use data within the class instance to determine the result of the function call.
 
 ```
 # we want to pass in a function here:
@@ -963,13 +958,19 @@ check(ExampleClass someMethod, 3)    # returns 1
 ```
 
 Calling an impure function anywhere in a function makes that function impure.
-Calling a pure function with an nested, impure function as an argument
-makes that unnested function call impure.
+Passing an impure function as an argument to a pure function similarly makes
+the function call impure.
 
-TODO: calling `print` is technically an impurity, although it would be nice
-to be able to make an exception here since stdout can be thought of as outside
-of the control of the program to read from.  Users who pipe stdout into a file
-are creating an impure function from a pure function (e.g., print can be pure).
+Importantly, the function `print` is considered a pure function, despite having some side
+effects outside the program.  Standard output and error logging -- i.e., `stdout` and `stderr` --
+are not normally connected to the input of the program, which is why we consider `print`
+as pure.  Some uses of `stdout` and `stderr` can make the execution of the program impure (with
+real side effects), e.g., if they are redirected to files which are then read by the program.
+We don't consider this use case to provide a sufficient justification to make `print` an impure
+function, since this can be considered as making the pure program execution as impure
+via its being nested within an impure function (i.e., the user redirecting output to a file).
+Plus, while redirecting `stderr` and `stdout` to files is a regular occurrence, reading from
+those same files in the program generating those streams is not.
 
 TODO: discussion on how it's impossible to copy impure functions
 unless they are explicitly typed as copyable.  e.g., reading or writing to a file
