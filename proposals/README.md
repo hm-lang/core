@@ -346,7 +346,7 @@ wow(Input fn(): string): fn(): int
 
 You can call functions with arguments in any order.  Arguments must be specified
 with the named identifiers in the function definition.  The only exception is
-if the argument is "unnamed" (i.e., it has the same name as the type), then you
+if the argument is default-named (i.e., it has the same name as the type), then you
 don't need to specify its name.  We'll discuss that more in the next section.
 
 ```
@@ -369,7 +369,7 @@ v(Y, X)     # equivalent
 We also allow calling functions without parentheses for a single argument, like this:
 
 ```
-print(String): null     # definition, using an "unnamed" string, e.g., `String: string`.
+print(String): null     # definition, using an default-named string, e.g., `String: string`.
 
 # example calls:
 print("Hello, world!")  # with parentheses, and without explicitly naming the variable
@@ -423,10 +423,10 @@ detect(greet(Int): string
 )   # returns 13
 ```
 
-### unnamed arguments in functions
+### default-name arguments in functions
 
 For functions with a single argument where the variable name doesn't matter,
-you can use "unnamed" variables.  For primitive types, the "unnamed" identifier
+you can use default-named variables.  For primitive types, the default-name identifier
 is just the `UpperCamelCase` version of the `lowerCamelCase` type.
 
 ```
@@ -441,7 +441,7 @@ f(5)        # ok
 ```
 
 If passing functions as an argument where the function name doesn't matter,
-the "unnamed" function is `fn`.
+the default-named function is `fn`.
 
 ```
 q(fn(): bool): null
@@ -1108,7 +1108,6 @@ for an instance of the class, use this notation:
     ... other class methods ...
 }
 
-# TODO: rename "unnamed" to "default-named" everywhere
 # Now we can use `Örsted` to mean a default-named variable of the class örsted:
 doSomething(Örsted): bool
     return ...
@@ -1582,7 +1581,7 @@ requiring two operands, `A _ B`, read "A subscript B".  We make an exception for
 array type not to require a second operand -- in fact, adding one would create a
 different type, the map type.
 
-The unnamed version of an array does not depend on the element type;
+The default-named version of an array does not depend on the element type;
 it is always `Array`.  Example usage and declarations:
 
 ```
@@ -1592,7 +1591,7 @@ MyArray append(5)   # COMPILE ERROR: MyArray is immutable
 MyArray_1 += 5      # COMPILE ERROR: MyArray is immutable
 
 # mutable integer array:
-Array; int_    # declaring a mutable, "unnamed" integer array
+Array; int_    # declaring a mutable, default-named integer array
 Array append(5)     # now Array == [5]
 Array_3 += 30       # now Array == [5, 0, 0, 30]
 Array_4 = 300       # now Array == [5, 0, 0, 30, 300]
@@ -1892,7 +1891,7 @@ fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certa
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set~elementType`
 to be explicit or `VariableName: _elementType` using the subscript operator `_` on the
 opposite side of the array type (i.e., the array looks like `arrayElementType_`).
-The "unnamed" variable name for a set is `Set`.
+The default-named variable name for a set is `Set`.
 
 ```
 set~t := {
