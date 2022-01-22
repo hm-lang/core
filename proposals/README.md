@@ -1466,6 +1466,56 @@ OtherInstance := genericClass ~(key: dbl, value: string) (Key: 3, Value: 4)
 TODO:
 You can also have generic methods on generic classes, but we may
 have to think of a clever way to achieve this.  E.g., C++ does not allow this...
+We might have to pass a list of unary and binary (two-operand) operation
+functions into the method which know how to handle the other data.
+```
+generic~t := {
+    Value; t
+
+    ::method(U: ~u): u
+        OtherT: t = Value * (U + 5)
+        return U + OtherT
+}
+
+Generic := generic~string
+Generic Value = "hello"
+print(Generic method(2))    # prints ("3" * 7)
+
+==>
+// Put result into first argument, based on operands in second and third slots:
+typedef std::function<void(void *, void *, void *)> binaryFunction;
+typedef std::function<void(void *)> createOrDeleteFunction;
+
+template <class t>
+class generic {
+    t Value_;
+public:
+    void method(
+        void *Input_U,
+        void *Output_U,
+        binaryFunction add_u_and_bigInt,
+        binaryFunction multiply_t_and_uStar,
+        binaryFunction add_u_and_t,
+        createOrDeleteFunction allocate_uStar,
+        createOrDeleteFunction cleanup_uStar
+    ){
+        t OtherT;
+        {   
+            bigInt _BigInt_ = 5;
+            void *_U_plus_5_;
+            allocate_uStar(_U_plus_5_);
+            add_u_and_bigInt(_U_plus_5_, Input_U, (void *)&_BigInt_);
+
+            multiply_t_and_uStar((void *)&OtherT, (void *)&Value_, _U_plus_5_);
+            cleanup_uStar(_U_plus_5_);
+        }
+
+        add_u_and_t(Output_U, Input_U, (void *)&OtherT);
+    }
+};
+
+// TODO: definitions for binary functions and calling method in C++
+```
 
 ## common class methods
 
