@@ -1361,7 +1361,7 @@ can use the `This` of the class, but they must be declared as `;;someLambdaMetho
 if they want to call any modifying methods of the class or change any instance variables
 and `::someLambdaMethod(...Args); returnType` to use other const methods or const variables.
 
-## a @final note on inheritance
+## inheritance and dynamic allocation
 
 We will likely use C/C++ to implement hm-lang at first, i.e., so that it transpiles to C/C++.
 In C++, a variable that is typed as a parent instance cannot be a child instance in disguise;
@@ -1386,17 +1386,34 @@ SomeAnimal goes()   # prints "saunters"
 ```
 
 This is less surprising than the C++ behavior.  But in cases where users want to gain back
-the no-dynamically-allocated class instances, we have a `@final` annotation that can be used
-on the type.  E.g., `SomeVariable: @final someType` will ensure that `SomeVariable` is
+the no-dynamically-allocated class instances, we have a `@only` annotation that can be used
+on the type.  E.g., `SomeVariable: @only someType` will ensure that `SomeVariable` is
 stack allocated (non-dynamically).  If defined with `;`, the instance can still be modified,
-but it will be sliced if some child instance is copied to it (or swapped with it).
-TODO: maybe don't allow reassignment or swaps (e.g., `SomeVariable = SomeOtherVariable` or
-`SomeVariable <-> SomeOtherVariable`), so we avoid object slicing in the first place.
+but it will be sliced if some child instance is copied to it.  To prevent confusion, we
+enforce that upcasting (going from child to parent) must be done *explicitly*.  For example:
 
-We also will likely ignore `@final` annotations for tests, so that we can mock out
+```
+mythologicalCat := extend(cat) {
+    # extra field which will get sliced off when converting from
+    # mythologicalCat to cat:
+    Lives ;= 9
+}
+
+Cat; @only cat
+MythologicalCat ;= mythologicalCat()
+
+Cat = MythologicalCat       # COMPILER ERROR, implicit cast to `@only cat` not allowed.
+Cat = cat(MythologicalCat)  # OK.  explicit upcast is allowed.
+
+OtherCat; @only cat
+Cat <-> MythologicalCat     # COMPILER ERROR.  swaps not allowed unless both types are the same.
+OtherCat <-> Cat            # OK.  both variables are `@only cat`.
+```
+
+We also will likely ignore `@only` annotations for tests, so that we can mock out
 classes if desired.
 
-One final note: abstract classes cannot be `@final` types for a variable, since they
+One final note: abstract classes cannot be `@only` types for a variable, since they
 are not functional without child classes overriding their abstract methods.
 
 ## template methods
