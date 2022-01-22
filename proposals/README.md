@@ -1256,6 +1256,10 @@ trying to access the variable (or set it) will use the overloaded methods.
 
 TODO: some example of child class overriding parent class getter/setters.
 
+TODO: Description of New/Old.  maybe we should also use `->` as a method/function
+grabber with higher priority than _, or maybe ;; or :: to reuse those.
+E.g., `New::Values _ 200` to get index 200 of `New Values` rather than
+`New (Values_200)` which doesn't compute.
 
 ## parent-child classes and method overrides
 
@@ -2171,12 +2175,13 @@ See the section on standard flow constructs / flow control for more info.
 # for-loop with counter that is immutable inside the for-loop's block:
 for Value: int < 10
     # Value goes from 0 to 9 by 1;
-    # Value is not allowed to be mutated (defined with :).
+    # Value is not allowed to be mutated (defined with `:`).
     # trying to mutate it throws a compiler error.
     print Value
 # prints "0" to "9" on separate newlines.
 
 # for-loop whose counter can be modified inside the block.
+# not recommended, since it's a bit harder to reason about.
 for Special; int < 5
     print("A: ${Special}")
     ++Special
@@ -2335,6 +2340,8 @@ nonMutuallyExclusiveType := mask(
     Z: 4
     T: 8
 )
+# it is a compile error if a mask has a power of two that is not the next one higher,
+# since that makes the number of values and how to lay them out harder to reason about
 
 # has all the same static methods as enum, though perhaps they are a bit surprising:
 nonMutuallyExclusiveType__count() == 16
@@ -2437,12 +2444,12 @@ grammarElement := enumerate(
 
 tokenMatcher := {
     @reset(Name: str = "")
-    # don't have to restore the TokenIndex to the correct state,
+    # don't have to restore the token array Index to the correct state,
     # consume as many tokens as you like here.  make sure to go
-    # through "Grammar match(...)" in order to fix Token Index
+    # through "Grammar match(...)" in order to restore the Index
     # in case of a bad match.  @private so that only Grammar can call.
     @private
-    ::match(@@Token Index, Token Array: token_): bool
+    ::match(@@Index, Array: token_): bool
 }
 
 grammarMatcher := tokenMatcher | grammarElement | token
@@ -2519,28 +2526,22 @@ Grammar := singleton() {
             parentheses(Block)
         ])
         EndOfInput: tokenMatcher(
-            match(@@Token Index, Token Array: token_) := Token Index >= Token Array size()
+            match(@@Index, Array: token_) := Index >= Array size()
         )
     ]
 
-    match(@@Token Index, Token Array: token_, GrammarMatcher): bool
+    match(@@Index, Array: token_, GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
-        Snapshot := Token Index
+        Snapshot := Index
         Matched := consider GrammarMatcher Type
             case tokenMatcher
-                GrammarMatcher match(@@Token Index, Token Array)
+                GrammarMatcher match(@@Index, Array)
             case grammarElement
-                Elements_GrammarMatcher match(@@Token Index, Token Array)
+                Elements_GrammarMatcher match(@@Index, Array)
             case token
-                # TODO: ensure binding works correctly here.
-                # Token Array _ Token Index looks kinda ambiguous,
-                # especially if member access is below subscript access.
-                # otherwise, switch to TokenIndex and TokenArray.
-                # although i like `Type Array` as the default name for `type_`.
-                Token Index < Token Array size() &&
-                        Token Array _ Token Index++ == Grammar Matcher
+                Index < Array size() && Array _ Index++ == Grammar Matcher
         if not Matched
-            Token Index = Snapshot
+            Index = Snapshot
         return Matched
 }
 
@@ -2552,20 +2553,22 @@ Grammar := singleton() {
 
 # a list encompasses things like (), (GrammarMatcher), (GrammarMatcher, GrammarMatcher), etc.,
 # but also lists with newlines if properly tabbed.
-list(GrammarMatcher) := parentheses(repeat(Until: EndOfInput, [
+list(GrammarMatcher) := parentheses(repeat([
     GrammarMatcher
     CommaOrBlockNewline
 ])
 
 sequence := extend(tokenMatcher) {
+    Uninterruptible: grammarMatcher_
     # TODO: some annotation to pass a variable up to the parent class,
     # e.g., `reset(@passTo(TokenMatcher) Name: str, OtherArgs...):`
-    ;;reset(Name: str, This Array: grammarMatcher_):
+    ;;reset(Name: str, Array: grammarMatcher_):
+        This Uninterrutible = Array move()
         tokenMatcher;;reset(Name)
 
-    ::match(@@Token Index, Token Array: token_): bool
-        for (GrammarMatcher) in Array
-            if not Grammar match(@@Token Index, Token Array, GrammarMatcher)
+    ::match(@@Index, Array: token_): bool
+        for (GrammarMatcher) in Uninterruptible
+            if not Grammar match(@@Index, Array, GrammarMatcher)
                 return False
         return True
 }
@@ -2575,42 +2578,46 @@ parentheses := extend(tokenMatcher) {
     ;;reset(Name: str, This GrammarMatcher):
         tokenMatcher;;reset(Name)
 
-    ::match(@@Token Index, Token Array: token_): bool
+    ::match(@@Index, Array: token_): bool
         # TODO: make sure copies are elided for constant temporaries like this:
-        CurrentToken := Token Array_Token Index
+        CurrentToken := Array_Index
         if CurrentToken Type != parentheseToken
             return False
 
-        New Token Index = 0
-        PartialMatch := Grammar match(New Token Index, CurrentToken InternalTokens, GrammarMatcher)
+        InternalIndex; index = 0
+        PartialMatch := Grammar match(@@InternalIndex, CurrentToken InternalTokens, GrammarMatcher)
         if not PartialMatch
             return False
 
         # need to ensure that the full content was matched inside the parentheses:
-        if New Token Index < CurrentToken InternalTokens size()
+        if InternalIndex < CurrentToken InternalTokens size()
             return False
         
-        # TODO: maybe Token ++Index?
-        ++Token Index
+        ++Index
         return True
 }
 
 repeat := extend(tokenMatcher) {
-    # until `Until` is found, checks matches through `Array` repeatedly.
+    Interruptible: GrammarMatcher_
+    # until `Until` is found, checks matches through `Interruptible` repeatedly.
     # note that `Until` can be found at any point in the array;
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
     # if you need to ensure a non-breakable sequence is found before `Until`,
-    # use the `sequence` token matcher inside `Array`.
-    ;;reset(Name: str, This Until: GrammarMatcher, This Array: GrammarMatcher_):
+    # use the `sequence` token matcher inside `Interruptible`.
+    ;;reset(Name: str, This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
+        This Interruptible = Array move()
         tokenMatcher;;reset(Name)
 
-    ::match(@@Token Index, Token Array: token_): bool
+    ::match(@@Index, Array: token_): bool
+        if Index >= Array size()
+            return False
+
         while True
-            for (GrammarMatcher) in Array
+            for (GrammarMatcher) in Interruptible
                 # always check the escape sequence, Until:
-                if Grammar match(@@Token Index, Token Array, Until)
+                if Grammar match(@@Index, Array, Until)
                     return True
-                if not Grammar match(@@Token Index, GrammarMatcher)
+                if not Grammar match(@@Index, GrammarMatcher)
                     return False
 }
 # TODO: make sure the cyclic dependency is ok: i.e., Grammar match being called inside of
