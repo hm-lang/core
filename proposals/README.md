@@ -1644,10 +1644,11 @@ has compile-time errors they will be known at compile time, not run time.
 # importing a function from a file in a relative path:
 print(*/path/to/relative/file functionFromFile("hello, world!"))
 
-# TODO: consider using *// for library paths.
 # importing a function from the math library:
 Angle := **math atan2(X: 5, Y: -3)
 ```
+
+TODO: `\\` or `^/` for library import, let `**` mirror exponentiation.
 
 To import a path that has special characters, just use the special characters
 inline after the `*/`, e.g., `*/sehr/übel` to reference the file at `./sehr/übel.hm`.
