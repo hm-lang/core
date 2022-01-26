@@ -62,9 +62,10 @@ since `functionName(Expression)^2` equals `functionName((Expression)^2)`
 |           |   `->`    | creating scope            | binary: `A->B`    |               |
 |   2       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
 |           |   `^`     | superscript/power         | binary: `A^B`     |               |
+|           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
-|           | `**x/y/z` | library module import     | special: `**a/b`  |               |
-|           | `*/x/y/z` | relative module import    | special: `*/a/b`  |               |
+|           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
+|           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
 |   3       |   `[ ]`   | function call             | on fn: `a B`      | RTL           |
 |           |   `[ ]`   | member access             | binary: `A B`     | [1]           |
 |   4       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
@@ -379,11 +380,11 @@ v() := 600
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
-    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${**math atan(X, Y)}")
+    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${\\math atan(X, Y)}")
     # Note this could also be defined more concisely using $$,
     # which also prints the expression inside the parentheses with an equal sign and its value,
-    # although this will print `**math atan(X, Y) = ...`, e.g.:
-    # print("$${X}, $${Y}, $${**math atan(X, Y)}")
+    # although this will print `\\math atan(X, Y) = ...`, e.g.:
+    # print("$${X}, $${Y}, $${\\math atan(X, Y)}")
 
 # function that takes a function as an argument and returns a function
 # TODO: input function must be scoped to survive however long `wow` can be called;
@@ -926,9 +927,9 @@ fibonacci(Times: int): int
     return Current
 
 fibonacci(Times: dbl): dbl
-    GoldenRatio: dbl = (1.0 + **math sqrt(5)) * 0.5
-    OtherRatio: dbl = (1.0 - **math sqrt(5)) * 0.5
-    return (GoldenRatio^Times - OtherRatio^Times) / **math sqrt(5)
+    GoldenRatio: dbl = (1.0 + \\math sqrt(5)) * 0.5
+    OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
+    return (GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)
 
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 ```
@@ -1604,13 +1605,13 @@ TODO: check if `copy()` should be in the list.
 Every file in hm-lang is its own module, and we make it easy to reference
 code from other files to build applications.  All `.hm` files must be known
 at compile time, so referring to other files gets its own special notation.
-The operator `*/` begins a file-system search in the current directory.
-and two asterisks becomes a search for a library module, e.g., `**math`.
+The operator `\/` begins a file-system search in the current directory.
+and two backslashes becomes a search for a library module, e.g., `\\math`.
 
 Subsequent subdirectories are separated using forward slashes, e.g.,
-`*/relative/path/to/file` to reference the file at `./relative/path/to/file.hm`,
+`\/relative/path/to/file` to reference the file at `./relative/path/to/file.hm`,
 and `..` is allowed between backslashes to go to the parent directory relative
-to the current directory, e.g., `*/../subdirectory_in_parent_directory/other/file`.
+to the current directory, e.g., `\/../subdirectory_in_parent_directory/other/file`.
 Note that we don't include the `.hm` extension on the final file, and we allow
 underscores in file and directory names.
 
@@ -1627,14 +1628,14 @@ vector2 := {
 }
 
 # main.hm
-Vector2Module: hm = */vector2    # .hm extension must be left off.
+Vector2Module: hm = \/vector2    # .hm extension must be left off.
 Vector2 := Vector2Module vector2(X: 3, Y: 4)
 print(Vector2)
 # TODO, support destructuring in the future:
-# {vector2} := */vector2
+# {vector2} := \/vector2
 ```
 
-You can use this `*/` notation inline as well, which is recommended
+You can use this `\/` notation inline as well, which is recommended
 for avoiding unnecessary imports.  It will be a language feature to
 parse all imports when compiling a file, regardless of whether they're used,
 rather than to dynamically load modules.  This ensures that if another imported file
@@ -1642,29 +1643,27 @@ has compile-time errors they will be known at compile time, not run time.
 
 ```
 # importing a function from a file in a relative path:
-print(*/path/to/relative/file functionFromFile("hello, world!"))
+print(\/path/to/relative/file functionFromFile("hello, world!"))
 
 # importing a function from the math library:
-Angle := **math atan2(X: 5, Y: -3)
+Angle := \\math atan2(X: 5, Y: -3)
 ```
 
-TODO: `\\` or `^/` for library import, let `**` mirror exponentiation.
-
 To import a path that has special characters, just use the special characters
-inline after the `*/`, e.g., `*/sehr/übel` to reference the file at `./sehr/übel.hm`.
+inline after the `\/`, e.g., `\/sehr/übel` to reference the file at `./sehr/übel.hm`.
 For a path that has spaces (e.g., in file or directory names), use parentheses to
-surround the path, e.g., `[**library/path/with spaces]` for a library path or 
-`[*/relative/path/with a space/to/a/great file]` for a relative path.  Or you can
-use a backslash to escape the space, e.g., `**library/path/with\ spaces` or
-`*/relative/path/with\ a\ space/to/a/great\ file`.  Other standard escape sequences
+surround the path, e.g., `\\[library/path/with spaces]` for a library path or 
+`\/[relative/path/with a space/to/a/great file]` for a relative path.  Or you can
+use a backslash to escape the space, e.g., `\\library/path/with\ spaces` or
+`\/relative/path/with\ a\ space/to/a/great\ file`.  Other standard escape sequences
 (using backslashes) will probably be supported.
 
-Note that while `**math atan(X, Y)` might look like grammatically like `**math(atan(X, Y))`,
+Note that while `\\math atan(X, Y)` might look like grammatically like `\\math(atan(X, Y))`,
 which would be wrong for operator precedence, we instead take the entire import as
-if it was an UpperCamelCase identifier.  E.g., `**math` acts like one identifier, `Math`,
-so `**math atan(X, Y)` resolves like `Math atan(X, Y)`, i.e., member access or drilling down
-from `Math := **math`.  Similarly for any relative import; `*/relative/import/file someFunction(Q)`
-correctly becomes like `File someFunction(Q)` for `File := */relative/import/file`.
+if it was an UpperCamelCase identifier.  E.g., `\\math` acts like one identifier, `Math`,
+so `\\math atan(X, Y)` resolves like `Math atan(X, Y)`, i.e., member access or drilling down
+from `Math := \\math`.  Similarly for any relative import; `\/relative/import/file someFunction(Q)`
+correctly becomes like `File someFunction(Q)` for `File := \/relative/import/file`.
 
 ## file access / file system
 
