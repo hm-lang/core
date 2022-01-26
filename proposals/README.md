@@ -48,10 +48,6 @@ Operator priority.
 
 TODO: add : , ; ?! ??
 
-TODO: discussion about how `^` binds less strongly than a function call, so you
-need to do `functionName^2(Expression)` to get `(functionName(Expression))^2`
-since `functionName(Expression)^2` equals `functionName((Expression)^2)`
-
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
 |   0       |   `()`    | parentheses               | grouping: `(A)`   | RTL           |
@@ -59,15 +55,15 @@ since `functionName(Expression)^2` equals `functionName((Expression)^2)`
 |           |   `{}`    | parentheses               | grouping: `{A}`   |               |
 |   1       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
-|           |   `->`    | creating scope            | binary: `A->B`    |               |
+|           |   `->`    | creating namespace/scope  | binary: `A->B`    |               |
 |   2       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
 |           |   `^`     | superscript/power         | binary: `A^B`     |               |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
 |           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
-|   3       |   `[ ]`   | function call             | on fn: `a B`      | RTL           |
-|           |   `[ ]`   | member access             | binary: `A B`     | [1]           |
+|   3       |   ` `     | function call             | on fn: `a B`      | RTL           |
+|           |   ` `     | member access             | binary: `A B`     | LTR           |
 |   4       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
 |           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
 |           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
@@ -90,18 +86,10 @@ since `functionName(Expression)^2` equals `functionName((Expression)^2)`
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
 
-Notes:
 
-1.  Function calls associate RTL and execute RTL as well, so
-    `someFunction anotherFunction deeplyNested(3)` resolves as
-    `someFunction(anotherFunction(deeplyNested(3)))`.
-    Member access associates RTL but drills down from LTR.  E.g.,
-    `SomeInstance SomeField NestedField` is equivalent to
-    `(SomeInstance SomeField) NestedField`.  The reason is so that
-    combining function calls and member access isn't as confusing:
-    `someFunction SomeInstance SomeField someMethod() FinalField` becomes
-    `someFunction(((SomeInstance SomeField) someMethod()) FinalField)`.
-    TODO: double check that this makes sense.
+TODO: maybe move `|`, `&`, `><` and `<>` down to approximately + and -.  `<<` and `>>` is like
+multiplying by 2 to the power of something (RHS), so it should have higher priority than `*` and `/`,
+since it's in between true power and true multiply.
 
 ## scoping operators `->`, `::`, `;;`
 
@@ -152,6 +140,51 @@ We use `;;` instead of `::` when we are passing a scoped variable as mutable ins
 For functions, `;;` implies that the function is impure and will mutate the scope; `::` implies
 the function is impure and can read other values in the scope but won't mutate them.
 TODO: more explanation here.
+
+## subscripts, superscripts, and related
+
+Note that powers -- `^` and `**` which are equivalent -- as well as subscripts `_`
+bind more strongly than a function call.  So something like `print X^2` will print
+the value of `X^2` (i.e., `print X^2` is equivalent to `print(X^2)`).  This is the
+case even if parentheses are used, e.g., `anyFunction(AnyExpression)^Power` is equivalent
+to `anyFunction((AnyExpression)^Power)`.  If you want to take a power after the function call,
+use `anyFunction^Power(AnyExpression)` or `anyFunction^Power X` if `X` is atomic,
+which are equivalent to `(anyFunction(AnyExpression))^Power` and `(anyFunction(X))^Power`,
+respectively.  These conventions follow mathematical notation.
+
+Subscripts `_` have similar binding strength, but are for indexing containers like arrays,
+sets, maps, and tensors.  If `X` is an array, then `print X_2` will print the third element
+in the array (since `X_0` is the first, using 0-indexing).
+
+TODO: library/relative imports probably belong in their own operator precedence.
+
+## function calls and member access
+
+Function calls are assumed whenever a function identifier (i.e., `lowerCamelCase`)
+occurs before an atomic expression.  E.g., `print X` where `X` is a variable name or other
+primitive constant (like `5`), or, using parentheses, `print(Any + Expression / Here)`.
+Function calls bind strongly, so that `sin X + 3` is equivalent to `(sin(X)) + 3`
+and `tan Y * 3` is equivalent to `(tan(Y)) * 3`, but see above for preempting operators.
+It is highly recommended (possibly to be enforced by the compiler) to write expressions
+the other way around, e.g., `3 * tan Y` and `3 + sin X`, so that the order of operations
+is more clear to developers.  Repeated function calls are associated right-to-left,
+so `sin cos tan X` is equivalent to `sin(cos(tan(X)))`.
+
+Member access occurs whenever a variable identifier (i.e., `UpperCamelCase`) occurs
+before another variable or function identifier, e.g., `X Y` or `X floor()`, or when
+a variable/function identifier comes after some function call, e.g., `foo(X) Y` or
+`bar(X) qux(Y)`.  Member access indicates subfields which are other variables or other
+functions in the scope that is defined by the first operand.  Member access
+associates LTR.  E.g., `SomeInstance SomeField NestedField` is equivalent to
+`(SomeInstance SomeField) NestedField`.
+
+TODO: If there is any ambiguity between function calling and member access, the compiler
+will yell at you, since you are probably making it hard for developers to read as well.
+The reason is so that combining function calls and member access isn't as confusing:
+`someFunction SomeInstance SomeField someMethod() FinalField` is too complicated.
+
+TODO: do we want to use `X::floor()` to do a copy and `X;;floor()` to do it to self?
+It might be better to use `;;` and `::` for all member access.
 
 ## division and remainder operators: / // % %%
 
@@ -1664,6 +1697,8 @@ if it was an UpperCamelCase identifier.  E.g., `\\math` acts like one identifier
 so `\\math atan(X, Y)` resolves like `Math atan(X, Y)`, i.e., member access or drilling down
 from `Math := \\math`.  Similarly for any relative import; `\/relative/import/file someFunction(Q)`
 correctly becomes like `File someFunction(Q)` for `File := \/relative/import/file`.
+
+TODO: maybe require member access via `::` and `;;` for modules, e.g., `\\math::atan(X, Y)`.
 
 ## file access / file system
 
