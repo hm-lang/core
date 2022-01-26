@@ -103,39 +103,6 @@ Notes:
     `someFunction(((SomeInstance SomeField) someMethod()) FinalField)`.
     TODO: double check that this makes sense.
 
-## division and remainder operators: / // % %%
-
-The standard division operator, `/`, will promote integer operands to a rational return value.
-E.g., `dbl(3/4) == 0.75` or `6/4 == rtl(3)/rtl(2)`.
-
-The integer division operator, `//`, will return an integer, rounded towards zero, e.g.,`3//4 == 0`
-and `-3//4 == 0`.  Also, `5//4 == 1` and `-5//4 == -1`, and `12 // 3 == 4` as expected.
-If any operand is a double, the resulting value will be an integer double, e.g.,
-`5.1 // 2 == 2.0`.
-
-The modulus operator, `%`, will put the first operand into the range given by the second operand.
-E.g., `5 % 4 == 1`, `123.45 % 1 == 0.45`.  Mathematically, we use the relation
-`A % B == A - B * floor(A/B)`.
-
-The remainder operator, `%%`, has the property that `A %% B == A - B * (A // B)`;
-i.e., it is the remainder after integer division.  The remainder operator, `%%`,
-differs from the modulus, `%`, when the operands have opposing signs.
-
-|  `A`  |  `B`  | `floor(A/B)`  |  `A % B`  | `A // B`  | `A %% B`  |
-|:-----:|:-----:|:-------------:|:---------:|:---------:|:---------:|
-|   1   |   5   |      0        |     1     |     0     |     1     |
-|  -1   |   5   |     -1        |     4     |     0     |    -1     |
-|   1   |  -5   |     -1        |    -4     |     0     |     1     |
-|  -1   |  -5   |      0        |    -1     |     0     |    -1     |
-|  13   |   5   |      2        |     3     |     2     |     3     |
-| -13   |   5   |     -3        |     2     |    -2     |    -3     |
-|  13   |  -5   |     -3        |    -2     |    -2     |     3     |
-| -13   |  -5   |      2        |    -3     |     2     |    -3     |
-|  56   |   7   |      8        |     0     |     8     |     0     |
-|  56   |  -7   |     -8        |     0     |    -8     |     0     |
-|  6.78 |   1   |      6.0      |    0.78   |     6.0   |    0.78   |
-| -6.78 |   1   |     -7.0      |    0.22   |    -6.0   |   -0.78   |
-
 ## scoping operators `->`, `::`, `;;`
 
 Usually we can handle scoping implicitly using whitespace, e.g., `SomeInstance InstanceVariable`,
@@ -185,6 +152,39 @@ We use `;;` instead of `::` when we are passing a scoped variable as mutable ins
 For functions, `;;` implies that the function is impure and will mutate the scope; `::` implies
 the function is impure and can read other values in the scope but won't mutate them.
 TODO: more explanation here.
+
+## division and remainder operators: / // % %%
+
+The standard division operator, `/`, will promote integer operands to a rational return value.
+E.g., `dbl(3/4) == 0.75` or `6/4 == rtl(3)/rtl(2)`.
+
+The integer division operator, `//`, will return an integer, rounded towards zero, e.g.,`3//4 == 0`
+and `-3//4 == 0`.  Also, `5//4 == 1` and `-5//4 == -1`, and `12 // 3 == 4` as expected.
+If any operand is a double, the resulting value will be an integer double, e.g.,
+`5.1 // 2 == 2.0`.
+
+The modulus operator, `%`, will put the first operand into the range given by the second operand.
+E.g., `5 % 4 == 1`, `123.45 % 1 == 0.45`.  Mathematically, we use the relation
+`A % B == A - B * floor(A/B)`.
+
+The remainder operator, `%%`, has the property that `A %% B == A - B * (A // B)`;
+i.e., it is the remainder after integer division.  The remainder operator, `%%`,
+differs from the modulus, `%`, when the operands have opposing signs.
+
+|  `A`  |  `B`  | `floor(A/B)`  |  `A % B`  | `A // B`  | `A %% B`  |
+|:-----:|:-----:|:-------------:|:---------:|:---------:|:---------:|
+|   1   |   5   |      0        |     1     |     0     |     1     |
+|  -1   |   5   |     -1        |     4     |     0     |    -1     |
+|   1   |  -5   |     -1        |    -4     |     0     |     1     |
+|  -1   |  -5   |      0        |    -1     |     0     |    -1     |
+|  13   |   5   |      2        |     3     |     2     |     3     |
+| -13   |   5   |     -3        |     2     |    -2     |    -3     |
+|  13   |  -5   |     -3        |    -2     |    -2     |     3     |
+| -13   |  -5   |      2        |    -3     |     2     |    -3     |
+|  56   |   7   |      8        |     0     |     8     |     0     |
+|  56   |  -7   |     -8        |     0     |    -8     |     0     |
+|  6.78 |   1   |      6.0      |    0.78   |     6.0   |    0.78   |
+| -6.78 |   1   |     -7.0      |    0.22   |    -6.0   |   -0.78   |
 
 ## assignment operators
 
