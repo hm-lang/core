@@ -56,6 +56,7 @@ TODO: add : , ; ?! ??
 |   1       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `->`    | creating namespace/scope  | binary: `A->B`    |               |
+|           |   ` `     | member access             | binary: `A B`     |               |
 |   2       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
 |           |   `^`     | superscript/power         | binary: `A^B`     |               |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
@@ -63,7 +64,6 @@ TODO: add : , ; ?! ??
 |           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
 |   3       |   ` `     | function call             | on fn: `a B`      | RTL           |
-|           |   ` `     | member access             | binary: `A B`     | LTR           |
 |   4       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
 |           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
 |           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
@@ -91,19 +91,13 @@ TODO: maybe move `|`, `&`, `><` and `<>` down to approximately + and -.  `<<` an
 multiplying by 2 to the power of something (RHS), so it should have higher priority than `*` and `/`,
 since it's in between true power and true multiply.
 
-## scoping operators `->`, `::`, `;;`
+## namespace operator `->`
 
-Usually we can handle scoping implicitly using whitespace, e.g., `SomeInstance InstanceVariable`,
-but due to operator precedence, e.g., `_` supercedes method/function calls, it's nice to have
-higher precedent operators as options to indicate scoping with more than two identifiers.
-
-For example, `SomeArray_SomeIndex SomeVariable` is equivalent to `(SomeArray_SomeIndex) SomeVariable`,
-but you might want to scope like this: `SomeArray_SomeInstance::SomeIndex`, which has the opposite
-behavior, `SomeArray_(SomeInstance SomeIndex)`.
-
-These scoping operators are also useful for creating default-named variables in nested scopes,
-using the `New`, `Old`, `Input`, or `Output` keywords.  This allows you to use functions with
-expected default names, while avoiding argument/variable shadowing, which is not allowed in hm-lang.
+The namespace operator `->` is useful for creating default-named variables in a new/existing namespace,
+e.g., `New->Int`, `Old->String`, `Input->Array`, or `Output->Rune`, where the LHS is the namespace
+and the RHS is the variable name (typically the `UpperCamelCase` version of the `lowerCamelCase` type).
+This allows you to pass in default-named arguments into functions, while avoiding argument/variable
+name shadowing, which is not allowed in hm-lang.  For example:
 
 ```
 someFunction(Input->Index): null
@@ -111,35 +105,66 @@ someFunction(Input->Index): null
     # within this scope using `Input->Index`.
     even(Index): bool
         return Index % 2 == 0
-    # you can even define your own scopes, like `Another` here:
+    # you can define other namespaces inline as well, like `Another` here:
     for Another->Index: index < Input->Index
         if even(Another->Index)
             print(Another->Index)
         
 X: index = 100
-someFunction(X)     # note that we don't need to call as `someFunction(Input->Index: X)`
+someFunction(X)     # note that we don't need to call as `someFunction(Index: X)`
 ```
 
-When creating arguments for a function, using `->` implies that you are creating a named scope
-but that you typically want to use a default-named variable.  That is, the thing on the LHS
-of `->` is a new scope (or one that hasn't been used for the same variable name on the RHS)
-that doesn't actually exist as an object holding these variables.  Use `::` and `;;` for
-scoping variables that actually belong to another object.
+You can use the same namespace for multiple variables, e.g., `Input->Rune` and `Input->String`,
+as long as the variable names don't overlap.  You can also use the namespace operator inside
+of functions to declare new variables, but its utility is mostly to avoid argument renaming.
+Like the member access operators below, the namespace operator binds left to right.
+
+## member access operators `::`, `;;`, and ` `
+
+We use `::`, `;;`, and ` ` (member access) for accessing variables or functions that belong to
+another object.  The `::` operator ensures that the RHS operand is read only, not write,
+so that both LHS and RHS variables remain constant.  Oppositely, the `;;` scope operator passes
+the RHS operand as writable, and therefore cannot be used if the LHS variable is immutable.
+The ` ` member access operator is equivalent to `::` when the LHS is an immutable variable
+and `;;` when the LHS is a mutable variable.  Some examples:
 
 ```
-someClass := {X: dbl, Y: dbl, I: int_}
-SomeClass ;= someClass(X: 1, Y: 2.3, I: [100, 200])
+someClass := {X: dbl, Y: dbl, I; str_}
+SomeClass ;= someClass(X: 1, Y: 2.3, I: ["hello", "world"])
 print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints [100, 200]
 print(SomeClass::I_1)   # prints 200
-# TODO: double check grammar, is this really ambiguous ??:
-# if so, then we need to run through and check correctness everywhere.
-print(SomeClass I_1)    # compiler error, `SomeClass` is not a function, `I` is not subscriptable
+print(SomeClass I_1)    # also prints 200, ` ` binds more strongly than `_` here.
+SomeClass;;I_4 = "love" # the fifth element is love.
+SomeClass::I_7 = "oops" # COMPILE ERROR, `::` means the array should be immutable.
 ```
 
-We use `;;` instead of `::` when we are passing a scoped variable as mutable instead of immutable.
-For functions, `;;` implies that the function is impure and will mutate the scope; `::` implies
-the function is impure and can read other values in the scope but won't mutate them.
-TODO: more explanation here.
+For class methods, `;;` (`::`) selects the overload that mutates (keeps constant) the class
+instance, respectively.  For example, the `array` class has overloads for sorting, (1) which
+does not change the instance but returns a sorted copy of the array (`::sort(): this`), and
+(2) one which sorts in place (`;;sort(): null`).  The ` ` (member access) operator will use
+`::` if the LHS is an immutable variable or `;;` if the LHS is mutable.  Some examples in code:
+
+```
+# there are better ways to get a median, but just to showcase member access:
+getMedianSlow(Array: array~int): int
+    if Array size() == 0
+        throw "no elements in array, can't get median."
+    # make a copy of the array:
+    Sorted->Array := Array sort()   # same as `Array::sort()` since `Array` is immutable.
+    return Sorted->Array _ (Array size() // 2)
+
+# sorts the array and returns the median.
+getMedianSlow(@@Array; array~int): int
+    if Array size() == 0
+        throw "no elements in array, can't get median."
+    Array sort()    # same as `Array;;sort()` since `Array` is mutable.
+    return Array _ (Array size() // 2)
+```
+
+TODO: it might be better to use `;;` and `::` for all member access.
+
+TODO: note that `something() NestedField` doesn't track what people might expect,
+since this becomes `something( ()::NestedField )` which is a compiler error.
 
 ## subscripts, superscripts, and related
 
@@ -158,7 +183,7 @@ in the array (since `X_0` is the first, using 0-indexing).
 
 TODO: library/relative imports probably belong in their own operator precedence.
 
-## function calls and member access
+## function calls
 
 Function calls are assumed whenever a function identifier (i.e., `lowerCamelCase`)
 occurs before an atomic expression.  E.g., `print X` where `X` is a variable name or other
@@ -167,24 +192,19 @@ Function calls bind strongly, so that `sin X + 3` is equivalent to `(sin(X)) + 3
 and `tan Y * 3` is equivalent to `(tan(Y)) * 3`, but see above for preempting operators.
 It is highly recommended (possibly to be enforced by the compiler) to write expressions
 the other way around, e.g., `3 * tan Y` and `3 + sin X`, so that the order of operations
-is more clear to developers.  Repeated function calls are associated right-to-left,
+is more clear to developers.  Multiple function calls are associated right-to-left,
 so `sin cos tan X` is equivalent to `sin(cos(tan(X)))`.
-
-Member access occurs whenever a variable identifier (i.e., `UpperCamelCase`) occurs
-before another variable or function identifier, e.g., `X Y` or `X floor()`, or when
-a variable/function identifier comes after some function call, e.g., `foo(X) Y` or
-`bar(X) qux(Y)`.  Member access indicates subfields which are other variables or other
-functions in the scope that is defined by the first operand.  Member access
-associates LTR.  E.g., `SomeInstance SomeField NestedField` is equivalent to
-`(SomeInstance SomeField) NestedField`.
 
 TODO: If there is any ambiguity between function calling and member access, the compiler
 will yell at you, since you are probably making it hard for developers to read as well.
 The reason is so that combining function calls and member access isn't as confusing:
 `someFunction SomeInstance SomeField someMethod() FinalField` is too complicated.
+Looks like this would compile as
+`someFunction(  SomeInstance::SomeField::someMethod( ()::FinalField )  )`
+which is probably not what you want (`()::FinalField` would be Null.)
 
-TODO: do we want to use `X::floor()` to do a copy and `X;;floor()` to do it to self?
-It might be better to use `;;` and `::` for all member access.
+TODO: note that `something() somethingElse()` doesn't track what people might expect,
+since this becomes `something( ()::somethingElse() )` which is a compiler error.
 
 ## division and remainder operators: / // % %%
 
@@ -702,7 +722,7 @@ with various fields, since an argument has a name (the field name) as well as a 
 An object with a field that is `Null` should not be distinguishable from an object that
 does not have the field, since `Null` is the absence of a value.  Thus, if we count up
 the number of fields in an object using `size()`, we'll get results like this:
-`object() size() == 0`, `{Y: Null} size() == 0`, and `{Y: 5} size() == 1`.
+`{} size() == 0`, `{Y: Null} size() == 0`, and `{Y: 5} size() == 1`.
 
 We also want to make it easy to chain function calls with variables that might be null,
 where we actually don't want to call an overload of the function if the argument is null.
@@ -1110,6 +1130,8 @@ SomeClass;;someMutatingMethod() # also ok
 ```
 
 And of course, class methods can also be overridden by child classes (see section on overrides).
+
+TODO: can we use :: on the class name here somehow?  we should simplify the `__` and `::/;;` interop.
 
 Class functions (2) can't depend on any instance variables,
 and are declared using the double underscore operator `__`.  They are called with
@@ -1803,6 +1825,11 @@ array~t := {
 
     ;;pop(Index: index = -1): t
 
+    # returns a copy of this array, but sorted:
+    ::sort(): this
+
+    # sorts this array in place:
+    ;;sort(): null
     ...
 }
 ```
