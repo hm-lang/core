@@ -131,9 +131,9 @@ and `;;` when the LHS is a mutable variable.  Some examples:
 ```
 someClass := {X: dbl, Y: dbl, I; str_}
 SomeClass ;= someClass(X: 1, Y: 2.3, I: ["hello", "world"])
-print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints [100, 200]
-print(SomeClass::I_1)   # prints 200
-print(SomeClass I_1)    # also prints 200, ` ` binds more strongly than `_` here.
+print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints ["hello", "world"]
+print(SomeClass::I_1)   # prints "world"
+print(SomeClass I_1)    # also prints "world", ` ` (member access) binds more strongly than `_`.
 SomeClass;;I_4 = "love" # the fifth element is love.
 SomeClass::I_7 = "oops" # COMPILE ERROR, `::` means the array should be immutable.
 ```
@@ -161,11 +161,16 @@ getMedianSlow(@@Array; array~int): int
     return Array _ (Array size() // 2)
 ```
 
+Note that if the LHS is immutable, you will not be able to use a `;;` method.
+To sum up, if the LHS is mutable, you can use `;;` or `::`, and ` ` (member access) will
+effectively be `;;`.  If the LHS is immutable, you can only use `::` and ` `, which are equivalent.
+
 TODO: it might be better to use `;;` and `::` for all member access.
 
 TODO: note that `something() NestedField` doesn't track what people might expect,
-since this becomes `something( ()::NestedField )` which is a compiler error.
-Recommend `{NestedField} := something()` instead in this case.
+since this becomes `something( ()::NestedField )` which is equivalent to `something(Null)`.
+Throw a compiler error when it's `something() NestedField` but `something ()::NestedField` is ok.
+Recommend `{NestedField} := something()` instead to get the nested field.
 
 ## subscripts, superscripts, and related
 
@@ -206,6 +211,8 @@ which is probably not what you want (`()::FinalField` would be Null.)
 
 TODO: note that `something() somethingElse()` doesn't track what people might expect,
 since this becomes `something( ()::somethingElse() )` which is a compiler error.
+
+TODO: `return` should follow these patterns as well; we shouldn't make an exception here.
 
 ## division and remainder operators: / // % %%
 
@@ -1130,6 +1137,10 @@ SomeClass someMutatingMethod()  # ok
 SomeClass;;someMutatingMethod() # also ok
 ```
 
+Note that you can overload a class method with both constant `::` and mutable `;;` versions;
+in that case it's recommended to be explicit and use `::` or `;;` instead of ` ` (member access).
+See the section on member access operators for how resolution of ` ` works in this case.
+
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
 TODO: can we use :: on the class name here somehow?  we should simplify the `__` and `::/;;` interop.
@@ -1165,7 +1176,7 @@ exampleClass := {
 
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `reset` function.  this is true even
-    # if fields are defined as immutable.
+    # if the class instance variables are defined as immutable.
     ;;reset(X; int): null
         This X = X move()
     # or short-hand: `;;reset(This X: int)` or even `@reset(X: int)`
