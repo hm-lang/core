@@ -165,6 +165,7 @@ TODO: it might be better to use `;;` and `::` for all member access.
 
 TODO: note that `something() NestedField` doesn't track what people might expect,
 since this becomes `something( ()::NestedField )` which is a compiler error.
+Recommend `{NestedField} := something()` instead in this case.
 
 ## subscripts, superscripts, and related
 
@@ -2516,6 +2517,8 @@ Only one object can modify the memory at some location (i.e., of a variable).
 
 TODO: discussion on parentheses -- we'd like all to be equal () == {} == [], but
 our notation might be difficult to distinguish arrays from arguments.
+
+TODO: () or {} or [] are equivalent to Null, or a null object or empty args list.
 
 Note on terminology:
 
