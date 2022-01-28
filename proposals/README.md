@@ -1667,6 +1667,48 @@ All classes have a few compiler-provided methods which cannot be overridden.
 
 TODO: check if `copy()` should be in the list.
 
+## adding methods to existing classes
+
+You can declare and define methods in classes with the standard syntax,
+e.g., `someClass := {::someMethod(Int): string}`.  But you can also define
+new methods on a class outside of the class definition, even in a different file.
+For example:
+
+```
+#=== some-class.hm ===
+someClass := {
+    ;;reset(@private This Str: str): null
+
+    ::someMethod(Int): string
+        return Str * Int
+}
+
+#=== other-file.hm ===
+{someClass} := \/some-class
+
+# define a new method on `someClass` from some-class.hm
+someClass::newMethod(String): int
+    for Int: int < 100
+        if someMethod(Int) == String
+            return Int
+    return -1
+
+SomeClass := someClass("hi")
+print(SomeClass newMethod("hihi"))  # should print 2
+print(SomeClass newMethod(""))      # should print 0
+print(SomeClass newMethod("hey"))   # should print -1
+```
+
+Note that the new method cannot access variables/methods inside the class that
+aren't visible to the file where the new method is being created (e.g., `other-file.hm`).
+Also, the new method is *not* visible to any other file, even if `other-file.hm` is
+imported by that file.
+
+TODO: discussion about how these sorts of package private methods might be good ways to define
+the implementation of the class, or some lower-level methods that might make the class definition
+too difficult to grasp at once.
+
+
 # modules
 
 Every file in hm-lang is its own module, and we make it easy to reference
@@ -2251,7 +2293,7 @@ array~t := {
 
 # standard flow constructs / flow control
 
-TODO -- description, plus `consider+case` and `if/else/elif`
+TODO -- description, plus `if/else/elif` section
 
 ## conditional expressions
 
@@ -2287,8 +2329,32 @@ else
     {X: 1, Y: DefaultValue}
 ```
 
-See the section on standard flow constructs / flow control for more info.
+### consider case statements
 
+
+Implementation details:  For strings, at compile time we do a fast hash of each 
+string case, and at run time we do a switch-case on the fast hash of the considered
+string.  (If the hashes of any two string cases collide, we redo all hashes with a
+different salt.)  Of course, at run-time, there might be collisions, so before we
+proceed with a match (if any), we check for string equality.  E.g., some pseudo-C++
+code:
+
+```
+switch (ConsideredString.fastHash(Salt)) {
+    case StringCase1.fastHash(Salt): { // precomputed with a stable hash
+        if (ConsideredString != StringCase1) {
+            goto __Default__;
+        }
+        // logic for StringCase1...
+        break;
+    }
+    // and similarly for other string cases...
+    default: {
+    __Default__:
+        // logic for no match
+    }
+}
+```
 
 ## for loops
 
