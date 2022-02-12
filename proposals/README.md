@@ -53,22 +53,23 @@ TODO: add : , ; ?! ??
 |   0       |   `()`    | parentheses               | grouping: `(A)`   | RTL           |
 |           |   `[]`    | parentheses               | grouping: `[A]`   |               |
 |           |   `{}`    | parentheses               | grouping: `{A}`   |               |
+|           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
+|           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
 |   1       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `->`    | creating namespace/scope  | binary: `A->B`    |               |
 |           |   ` `     | member access             | binary: `A B`     |               |
-|   2       |   `_`     | subscript/index/key       | binary: `A_B`     | RTL           |
-|           |   `^`     | superscript/power         | binary: `A^B`     |               |
+|           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
+|   2       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
-|           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
-|           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
+|           |   `--`    | unary decrement           | unary:  `--A`     |               |
+|           |   `++`    | unary increment           | unary:  `++A`     |               |
 |   3       |   ` `     | function call             | on fn: `a B`      | RTL           |
-|   4       |   `&`     | bitwise AND               | binary: `A&B`     | LTR           |
-|           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
-|           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
 |           |   `<>`    | bitwise flip              | unary:  `<>A`     |               |
-|           |   `>>`    | bitwise right shift       | binary: `A>>B`    |               |
+|           |   `-`     | unary minus               | unary:  `-A`      |               |
+|           |   `+`     | unary plus                | unary:  `+A`      |               |
+|   4       |   `>>`    | bitwise right shift       | binary: `A>>B`    | LTR           |
 |           |   `<<`    | bitwise left shift        | binary: `A<<B`    |               |
 |   5       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
 |           |   `/`     | divide                    | binary: `A/B`     |               |
@@ -77,6 +78,9 @@ TODO: add : , ; ?! ??
 |           |   `%%`    | remainder after //        | binary: `A%%B`    |               |
 |   6       |   `+`     | add                       | binary: `A+B`     | LTR           |
 |           |   `-`     | subtract                  | binary: `A-B`     |               |
+|           |   `&`     | bitwise AND               | binary: `A&B`     |               |
+|           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
+|           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
 |   7       |   `==`    | equality                  | binary: `A==B`    | LTR           |
 |           |   `!=`    | inequality                | binary: `A!=B`    |               |
 |   8       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
@@ -86,10 +90,6 @@ TODO: add : , ; ?! ??
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
 
-
-TODO: maybe move `|`, `&`, `><` and `<>` down to approximately + and -.  `<<` and `>>` is like
-multiplying by 2 to the power of something (RHS), so it should have higher priority than `*` and `/`,
-since it's in between true power and true multiply.
 
 ## namespace operator `->`
 
@@ -119,21 +119,27 @@ as long as the variable names don't overlap.  You can also use the namespace ope
 of functions to declare new variables, but its utility is mostly to avoid argument renaming.
 Like the member access operators below, the namespace operator binds left to right.
 
-## member access operators `::`, `;;`, and ` `
+## member access operators `::`, `;;`, and ` ` as well as subscripts `_`
 
 We use `::`, `;;`, and ` ` (member access) for accessing variables or functions that belong to
 another object.  The `::` operator ensures that the RHS operand is read only, not write,
 so that both LHS and RHS variables remain constant.  Oppositely, the `;;` scope operator passes
 the RHS operand as writable, and therefore cannot be used if the LHS variable is immutable.
 The ` ` member access operator is equivalent to `::` when the LHS is an immutable variable
-and `;;` when the LHS is a mutable variable.  Some examples:
+and `;;` when the LHS is a mutable variable.
+
+Subscripts `_` are not an allowed character for identifiers (e.g., variable or function names);
+a subscript acts as an operator to indexing containers like arrays, sets, maps, and tensors.
+E.g., for a map `Database; int_str`, then `Database_"Fred" = 3` sets the value at key "Fred" to 3.
+Or if we declare an array `Array; int_`, then `Array_3 = 100` sets the fourth value of the array
+to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  Some examples:
 
 ```
 someClass := {X: dbl, Y: dbl, I; str_}
 SomeClass ;= someClass(X: 1, Y: 2.3, I: ["hello", "world"])
 print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints ["hello", "world"]
 print(SomeClass::I_1)   # prints "world"
-print(SomeClass I_1)    # also prints "world", ` ` (member access) binds more strongly than `_`.
+print(SomeClass I_1)    # also prints "world", ` ` (member access) and `_` bind LTR.
 SomeClass;;I_4 = "love" # the fifth element is love.
 SomeClass::I_7 = "oops" # COMPILE ERROR, `::` means the array should be immutable.
 ```
@@ -149,9 +155,11 @@ does not change the instance but returns a sorted copy of the array (`::sort(): 
 getMedianSlow(Array: array~int): int
     if Array size() == 0
         throw "no elements in array, can't get median."
-    # make a copy of the array:
-    Sorted->Array := Array sort()   # same as `Array::sort()` since `Array` is immutable.
-    return Sorted->Array _ (Array size() // 2)
+    # make a copy of the array, but no longer allow access to it (via `@hide`):
+    Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is immutable.
+    # note that we need parentheses here around the desired array index
+    # since `//` binds less strongly than `_`:
+    return Sorted->Array _ (Sorted->Array size() // 2)
 
 # sorts the array and returns the median.
 getMedianSlow(@@Array; array~int): int
@@ -165,16 +173,25 @@ Note that if the LHS is immutable, you will not be able to use a `;;` method.
 To sum up, if the LHS is mutable, you can use `;;` or `::`, and ` ` (member access) will
 effectively be `;;`.  If the LHS is immutable, you can only use `::` and ` `, which are equivalent.
 
+Subscripts have the same binding strength as member access operators since they are conceptually
+similar operations.  This allows for operations like `++A_3` meaning `++(A_3)` and
+`--A B C_3` equivalent to `--(((A;;B);;C)_3)`.  Member access binds stronger than exponentation
+so that operations like `A B_C^3` mean `((A::B)_C)^3`.
+
 TODO: it might be better to use `;;` and `::` for all member access.
 
 TODO: note that `something() NestedField` doesn't track what people might expect,
 since this becomes `something( ()::NestedField )` which is equivalent to `something(Null)`.
 Throw a compiler error when it's `something() NestedField` but `something ()::NestedField` is ok.
-Recommend `{NestedField} := something()` instead to get the nested field.
+Recommend `{NestedField} := something()` or `(something()) NestedField` instead to get the nested field.
 
-## subscripts, superscripts, and related
+TODO: we might need some fancy logic to ensure that `Array_someFunction 3` parses correctly
+as `Array_(someFunction(3))`.  or do we allow subscripting by functions?  e.g., `Map_someFunction`
+will give you the value in the map held by key `someFunction`?
 
-Note that powers -- `^` and `**` which are equivalent -- as well as subscripts `_`
+## superscripts/exponentiation
+
+Note that exponentiation -- `^` and `**` which are equivalent --
 bind more strongly than a function call.  So something like `print X^2` will print
 the value of `X^2` (i.e., `print X^2` is equivalent to `print(X^2)`).  This is the
 case even if parentheses are used, e.g., `anyFunction(AnyExpression)^Power` is equivalent
@@ -183,11 +200,10 @@ use `anyFunction^Power(AnyExpression)` or `anyFunction^Power X` if `X` is atomic
 which are equivalent to `(anyFunction(AnyExpression))^Power` and `(anyFunction(X))^Power`,
 respectively.  These conventions follow mathematical notation.
 
-Subscripts `_` have similar binding strength, but are for indexing containers like arrays,
-sets, maps, and tensors.  If `X` is an array, then `print X_2` will print the third element
-in the array (since `X_0` is the first, using 0-indexing).
-
-TODO: library/relative imports probably belong in their own operator precedence.
+TODO: `Power(AnyExpression)` looks a lot like `Power AnyExpression` if `AnyExpression` is an atom,
+e.g., the variable `B`.  We probably need logic to ensure that ` ` becomes a function call
+(instead of member access) even if we have the situation `A B` but where `B` is an atom
+only by virtue of surrounding parentheses, i.e., `B = (Some + Expression)`.
 
 ## function calls
 
@@ -214,7 +230,29 @@ since this becomes `something( ()::somethingElse() )` which is a compiler error.
 
 TODO: `return` should follow these patterns as well; we shouldn't make an exception here.
 
-## division and remainder operators: / // % %%
+## bitshifts `<<` and `>>`
+
+The notation `A << B`, called "bitshift left", means to multiply `A` by `2^B`.  For example, 
+`A << 1 == A * 2`, `A << 2 == A * 4`, and `A << 3 == A * 8`.  Conversely, "bitshift right"
+`A >> B` means to divide `A` by `2^B`.  Typically, we use bitshifts `<<` and `>>`
+only for fixed-width integers, so that `A >> 5 == A // 32`, but there are overloads
+for other types that will do the expected full division.  For floats, e.g., 16.0 >> 5 == 0.5.
+Note that `A << 0 == A >> 0 == A`, and that negating the second operand is the same
+as switching the operation, i.e., `A << B == A >> -B`.
+
+Bitshifts have a higher precedence than multiplication and division because they are
+"stronger" operations: `100 << 3 == 800` whereas `100 * 3 == 300`, and the difference widens
+as the second operand increases; similarly for division, bitshift right `>>` is "stronger"
+than division at reducing the first operand via the second operand.
+Thus `7 * 31 >> 3` groups as `7 * (31 >> 3) == 21` (and not as `(7 * 31) >> 3 == 27`),
+and `105 // 5 << 2` groups as `105 // (5 << 2) == 5` and not `(105 // 5) << 2 == 84`.
+
+Looking the other direction, bitshifts have lower precedence than exponentiation because
+exponents are generally stronger -- as long as the first operand, the base, of the exponentiation is
+larger than two.  E.g., `3^4 == 81` is greater than `3 << 4 == 48`.
+Thus `2 << 3^2 == 2 << (3^2) == 1024` and not `(2 << 3)^2 == 256`, etc.
+
+## division and remainder operators: `/` `//` `%` `%%`
 
 The standard division operator, `/`, will promote integer operands to a rational return value.
 E.g., `dbl(3/4) == 0.75` or `6/4 == rtl(3)/rtl(2)`.
