@@ -180,10 +180,10 @@ so that operations like `A B_C^3` mean `((A::B)_C)^3`.
 
 TODO: it might be better to use `;;` and `::` for all member access.
 
-TODO: note that `something() NestedField` doesn't track what people might expect,
-since this becomes `something( ()::NestedField )` which is equivalent to `something(Null)`.
-Throw a compiler error when it's `something() NestedField` but `something ()::NestedField` is ok.
-Recommend `{NestedField} := something()` or `(something()) NestedField` instead to get the nested field.
+Note that `something() NestedField` will not be allowed; `()` breaks ` ` (member access).
+You can use `something()::NestedField`, but this will mean `something( ()::NestedField )`
+due to precedence, which will be `something(Null)`, which is probably not what you want.
+In these cases, we should have the compiler recommend `{NestedField} := something()`.
 
 TODO: we might need some fancy logic to ensure that `Array_someFunction 3` parses correctly
 as `Array_(someFunction(3))`.  or do we allow subscripting by functions?  e.g., `Map_someFunction`
@@ -204,6 +204,7 @@ TODO: `Power(AnyExpression)` looks a lot like `Power AnyExpression` if `AnyExpre
 e.g., the variable `B`.  We probably need logic to ensure that ` ` becomes a function call
 (instead of member access) even if we have the situation `A B` but where `B` is an atom
 only by virtue of surrounding parentheses, i.e., `B = (Some + Expression)`.
+E.g., `()` breaks member access via ` `.
 
 ## function calls
 
