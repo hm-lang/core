@@ -125,11 +125,11 @@ We use `::`, `;;`, and ` ` (member access) for accessing variables or functions 
 another object.  The `::` operator ensures that the RHS operand is read only, not write,
 so that both LHS and RHS variables remain constant.  Oppositely, the `;;` scope operator passes
 the RHS operand as writable, and therefore cannot be used if the LHS variable is immutable.
-The ` ` member access operator is equivalent to `::` when the LHS is an immutable variable
+The implicit member access operator ` ` is equivalent to `::` when the LHS is an immutable variable
 and `;;` when the LHS is a mutable variable.
 
 Subscripts `_` are not an allowed character for identifiers (e.g., variable or function names);
-a subscript acts as an operator to indexing containers like arrays, sets, maps, and tensors.
+a subscript acts as an operator for indexing containers like arrays, sets, maps, and tensors.
 E.g., for a map `Database; int_str`, then `Database_"Fred" = 3` sets the value at key "Fred" to 3.
 Or if we declare an array `Array; int_`, then `Array_3 = 100` sets the fourth value of the array
 to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  Some examples:
@@ -196,15 +196,13 @@ bind more strongly than a function call.  So something like `print X^2` will pri
 the value of `X^2` (i.e., `print X^2` is equivalent to `print(X^2)`).  This is the
 case even if parentheses are used, e.g., `anyFunction(AnyExpression)^Power` is equivalent
 to `anyFunction((AnyExpression)^Power)`.  If you want to take a power after the function call,
-use `anyFunction^Power(AnyExpression)` or `anyFunction^Power X` if `X` is atomic,
-which are equivalent to `(anyFunction(AnyExpression))^Power` and `(anyFunction(X))^Power`,
-respectively.  These conventions follow mathematical notation.
+use `anyFunction^Power(AnyExpression)`, which is equivalent to `(anyFunction(AnyExpression))^Power`.
+These conventions follow mathematical notation.
 
-TODO: `Power(AnyExpression)` looks a lot like `Power AnyExpression` if `AnyExpression` is an atom,
-e.g., the variable `B`.  We probably need logic to ensure that ` ` becomes a function call
-(instead of member access) even if we have the situation `A B` but where `B` is an atom
-only by virtue of surrounding parentheses, i.e., `B = (Some + Expression)`.
-E.g., `()` breaks member access via ` `.
+Note that `anyFunction^Power(AnyExpression)` is different than `anyFunction^Power AtomicExpression`,
+since parentheses `()` will break implicit member access ` `.  I.e., `anyFunction^Power X`
+actually becomes `anyFunction^(Power::X)`, while `anyFunction^Power(X)` parses as before
+as `(anyFunction(X))^Power` (which is probably what you want).
 
 ## function calls
 
@@ -361,6 +359,7 @@ someClass := { ::someMethod(): int }
 Nullable?; someClass = Null
 
 Value := Nullable someMethod()  # `Value` has type `int|null` now.
+# TODO: should we require ?:= or ?;= for defining variables that might be null?
 
 # eventually we want to support things like this, where the compiler
 # can tell if the type is nullable or not:
@@ -619,6 +618,11 @@ q(fn(): bool
 
 ### dynamically determining arguments for a function
 
+TODO: `null` is probably a subclass of `args`, a special, empty object that has no fields.
+We probably need to think of `args` as an `io` class, so that we can request fields to be
+returned and input fields as args.  E.g., with defaults in case the function doesn't assign them:
+`Io::Out = {OutputField1; 3, OtherField; "hi"}` and called like this: `someFunction(@@Io)`
+`Io::In = {InputField1: "hello", InputField2: "grate"}`.
 TODO: discuss the `args` type, which allows you to build up function arguments.
 e.g., `Args; args = {Hello: "World"}`.
 TODO: maybe make it a template type on the function you are going to call,
@@ -769,7 +773,7 @@ with various fields, since an argument has a name (the field name) as well as a 
 An object with a field that is `Null` should not be distinguishable from an object that
 does not have the field, since `Null` is the absence of a value.  Thus, if we count up
 the number of fields in an object using `size()`, we'll get results like this:
-`{} size() == 0`, `{Y: Null} size() == 0`, and `{Y: 5} size() == 1`.
+`{}::size() == 0`, `{Y: Null}::size() == 0`, and `{Y: 5}::size() == 1`.
 
 We also want to make it easy to chain function calls with variables that might be null,
 where we actually don't want to call an overload of the function if the argument is null.
@@ -777,6 +781,7 @@ where we actually don't want to call an overload of the function if the argument
 ```
 # in other languages, you might check for null before calling a function on a value.
 # this is also valid hm-lang but it's not idiomatic:
+# TODO: should we require ?:= or ?;= for defining variables that might be null?
 X := if Y != Null
     overloaded(Y)
 else
@@ -785,6 +790,7 @@ else
 # instead, you should use the more idiomatic hm-lang version.
 # putting a ?! after the argument name will check that argument;
 # if it is Null, the function will not be called and Null will be returned instead.
+# TODO: should we require ?:= or ?;= for defining variables that might be null?
 X := overloaded(Y?!)
 
 # either way, X has type `string|null`.
@@ -793,15 +799,15 @@ X := overloaded(Y?!)
 You can use `?!` with multiple arguments; if any argument with `?!` after it is null,
 then the function will not be called.
 
-TODO: should we make calling a function with a nullish variable explicit?  e.g.,
-`X := overloaded(Y?)`?  we could try to require using `?` for all variable names where
-the variable could be null.
+TODO: should we make calling a function with a nullish variable explicit?
+e.g., `someFunction(X?: overloaded(Y?!))`.  Only if we do the `X ?:= overloaded(Y?!)` type logic.
 
 This can also be used with the `return` function to only return if the value is not null.
 
 ```
 doSomething(X?: int): int
     # TODO: X * 3 should maybe not require ?! to do exactly what's expected below:
+    # TODO: should we require ?:= or ?;= for defining variables that might be null?
     Y := X?! * 3    # Y is Null or X*3 if X is not Null.
     return Y?!      # only returns if Y is not Null
     #/ do some other stuff /#
@@ -1747,6 +1753,49 @@ TODO: discussion about how these sorts of package private methods might be good 
 the implementation of the class, or some lower-level methods that might make the class definition
 too difficult to grasp at once.
 
+## singletons
+
+Defining a singleton class is quite easy, using the `singleton` function.  Like `extend`,
+this goes after a `lowerCamelCase` or `UpperCamelCase` declaration with `:=`, and any
+arguments inside of `singleton` are the parent classes that the singleton extends.  Standard
+singletons use `UpperCamelCase` since they are defining the variable and what it does:
+
+```
+AwesomeService := singleton(parentClass1, parentClass2, #/etc./#) {
+    UrlBase := "http://my/website/address.bazinga"
+    get(Id: string): awesomeData 
+        Json := Http get("${UrlBase}/awesome/${Id}") 
+        return awesomeData(Json)
+}
+```
+
+Using `lowerCamelCase` on the LHS actually defines an abstract singleton.  These are useful
+when you want to be able to grab an instance of the concrete child-class but only through
+the parent class reference.
+
+```
+### screen.hm ###
+screen := singleton() {
+    ;;draw(Image, Vector2): null
+    ;;clear(Color := color__Black)
+}
+### implementation/sdl-screen.hm ###
+SdlScreen := singleton(\/../screen screen) {
+    ;;draw(Image, Vector2): null
+        # actual implementation code:
+        SdlSurface draw(Image, Vector2)
+
+    ;;clear(Color := color__Black)
+        SdlSurface clear(Color)
+}
+### some-other-file.hm ###
+# this is an error if we haven't imported the sdl-screen file somewhere:
+Screen; screen
+Screen clear Color(R: 50, G: 0, B: 100)
+```
+
+You get a run-time error if multiple child-class singletons are imported/instantiated
+at the same time.
 
 # modules
 
@@ -2627,6 +2676,32 @@ might not even exist (e.g., the array was descoped).
 
 In this way, ownership of another variable is very strict in hm-lang.
 Only one object can modify the memory at some location (i.e., of a variable).
+
+## handling system callbacks
+
+TODO: think about audio callbacks.  how would this work with passing in
+a function which would handle them?  most languages allow something like this:
+```
+MySong ;= song(#/ first song /#)
+::audioCallback(Array; sample_): null
+    MySong::sample(@@Array)
+SdlAudio;;callback(audioCallback)
+...
+# other logic...
+...
+# this breaks things.
+MySong = song(#/ other song /#)
+```
+but we don't allow SdlAudio in hm-lang to take a reference/pointer to the
+audioCallback function; when passing in a nested function, it must be called only
+in that function, and not saved for later calling.
+
+TODO: do we do something like this instead?
+```
+sdlAudioWrapper := singleton() {
+    sample(
+}
+```
 
 
 # grammar/syntax
