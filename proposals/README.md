@@ -2697,12 +2697,61 @@ audioCallback function; when passing in a nested function, it must be called onl
 in that function, and not saved for later calling.
 
 TODO: do we do something like this instead?
+
 ```
-sdlAudioWrapper := singleton() {
-    sample(
+audio := singleton() {
+    # TODO: find a way to make it clear this is a fixed-size array
+    # but that it doesn't matter what size it is.  in C++, this would
+    # be a template type, e.g., `sample_~N`, but we don't actually
+    # want a templated method here.
+    @protected
+    ;;buffer(@@Array; sample_): null
 }
 ```
 
+```
+sdlAudio := singleton(audio) {
+    ;;reset() := cc{
+        SDL_AudioSpec DesiredSpec;
+        ... other stuff ...
+        DesiredSpec.callback = mixAudio;
+        DesiredSpec.userData = this;
+        SDL_OpenAudio(&DesiredSpec, &ActualSpec);
+        ... error checking ...
+    }
+
+    # TODO: explain how all methods which use ;; on this class or a descendant class
+    # automatically call this first, and only once, before executing the method.
+    @startMutate := cc{
+        SDL_LockAudio();
+    }
+
+    # TODO: explain how all methods which use ;; on this class or a descendant class
+    # automatically call this only once after executing the method.
+    @stopMutate := cc{
+        SDL_UnlockAudio();
+    }
+
+    @noMutateLocks
+    @protected
+    ;;buffer(@@Array; sample_): null
+}
+
+cc{
+    void mixAudio(void *Ptr, u8 *Stream, int ByteLength) {
+        sdlAudio *Audio = (sdlAudio *)Ptr;
+        ASSERT(Audio != Null && sizeof(u8) == 1);
+        int NumSamples = ByteLength / 2;
+        static array<sample> Array = array::fixedSize(NumSamples);
+        // TODO: depends on how we implement @@, but this is probably what we'll do:
+        Audio->buffer(&Array);
+        for (int I = 0; I < NumSamples; I += 2)
+        {   Stream[I] = Array[I].Sample.left();
+            Stream[I+1] = Array[I].Sample.right();
+        }
+    }
+}
+```
 
 # grammar/syntax
 
