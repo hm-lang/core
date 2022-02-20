@@ -2722,17 +2722,17 @@ sdlAudio := singleton(audio) {
 
     # TODO: explain how all methods which use ;; on this class or a descendant class
     # automatically call this first, and only once, before executing the method.
-    @startMutate := cc{
+    @mutateLock := cc{
         SDL_LockAudio();
     }
 
     # TODO: explain how all methods which use ;; on this class or a descendant class
     # automatically call this only once after executing the method.
-    @stopMutate := cc{
+    @mutateUnlock := cc{
         SDL_UnlockAudio();
     }
 
-    @noMutateLocks
+    @noMutateLock
     @protected
     ;;buffer(@@Array; sample_): null
 }
@@ -2745,8 +2745,8 @@ cc{
         static array<sample> Array = array::fixedSize(NumSamples);
         // TODO: depends on how we implement @@, but this is probably what we'll do:
         Audio->buffer(&Array);
-        for (int I = 0; I < NumSamples; I += 2)
-        {   Stream[I] = Array[I].Sample.left();
+        for (int I = 0; I < NumSamples; I += 2) {
+            Stream[I] = Array[I].Sample.left();
             Stream[I+1] = Array[I].Sample.right();
         }
     }
