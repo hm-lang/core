@@ -93,6 +93,7 @@ TODO: add : , ; ?! ??
 
 
 TODO: discussion on `~`
+needs to be RTL for `array~array~int` processing as `array~(array~int)`, etc.
 
 ## namespace operator `->`
 
@@ -1193,6 +1194,7 @@ And of course, class methods can also be overridden by child classes (see sectio
 
 TODO: can we use :: on the class name here somehow?  we should simplify the `__` and `::/;;` interop.
 TODO: `__` is overloaded; e.g., `int__` is `array~array~int` type, so update static usage.
+maybe use `:>` and `;>` for class functions, and `->` otherwise.
 
 Class functions (2) can't depend on any instance variables,
 and are declared using the double underscore operator `__`.  They are called with
@@ -2877,21 +2879,29 @@ Grammar := singleton() {
             FunctionDeclaration
         ])
         FunctionCall: sequence([FunctionName, AtomicStatement])
+        # TODO: templates, or maybe preprocess these into lowerCamelCase types with hooks
         FunctionType: sequence([
             identifier("fn")
             FunctionArgsWithReturnType
         ])
+        # TODO: templates, but see above.
         NonFunctionType: oneOf([
-            # set types, e.g., `_int` or `_str` and even
-            # nested set types e.g., `__int` or `___str`.
             sequence([
+                # set types, e.g., `_int` or `_str` and even
+                # nested set types e.g., `__int` or `___str`.
                 operator("_")
                 TypeElement
             ])
             sequence([
+                # map types, e.g., `str_int` or `dbl_str`
+                # as well as array types, e.g., `str_` or `dbl_`.
                 LowerCamelCase
-                # TODO
+                repeat(operator("_"), AtLeastTimes: 1)
+                # present if we're a map type, absent if an array type:
+                optional(TypeElement)
             ])
+            # simple type, e.g., `int` or `dbl` or `myClassType`
+            LowerCamelCase
         ])
         RhsStatement: oneOf([
             AtomicStatement,
@@ -2990,6 +3000,8 @@ parentheses := extend(tokenMatcher) {
         return True
 }
 
+# TODO: make this a function which returns either `repeatInterruptible` and `repeatTimes`
+# this is essentially the definition for repeatInterruptible:
 repeat := extend(tokenMatcher) {
     Interruptible: GrammarMatcher_
     # until `Until` is found, checks matches through `Interruptible` repeatedly.
