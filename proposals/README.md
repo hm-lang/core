@@ -58,7 +58,7 @@ TODO: add : , ; ?! ??
 |           |   `~`     | template/generic scope    | binary: `a~b`     |               |
 |   1       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
-|           |   `->`    | creating namespace/scope  | binary: `A->B`    |               |
+|           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
 |   2       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
@@ -95,10 +95,11 @@ TODO: add : , ; ?! ??
 TODO: discussion on `~`
 needs to be RTL for `array~array~int` processing as `array~(array~int)`, etc.
 
-## namespace operator `->`
+## new-namespace `->` or class-scope operators `->`, `:>`, and `;>`
 
-The namespace operator `->` is useful for creating default-named variables in a new/existing namespace,
-e.g., `New->Int`, `Old->String`, `Input->Array`, or `Output->Rune`, where the LHS is the namespace
+The operator `->` can be used in two ways: (1) for creating default-named variables in a new/existing
+namespace, and (2) as an indicator for class scoping for static/class functions.  Examples of (1):
+`New->Int`, `Old->String`, `Input->Array`, or `Output->Rune`, where the LHS is the namespace
 and the RHS is the variable name (typically the `UpperCamelCase` version of the `lowerCamelCase` type).
 This allows you to pass in default-named arguments into functions, while avoiding argument/variable
 name shadowing, which is not allowed in hm-lang.  For example:
@@ -122,6 +123,33 @@ You can use the same namespace for multiple variables, e.g., `Input->Rune` and `
 as long as the variable names don't overlap.  You can also use the namespace operator inside
 of functions to declare new variables, but its utility is mostly to avoid argument renaming.
 Like the member access operators below, the namespace operator binds left to right.
+
+For the other way (2), we use `->` for class functions, and `:>` and `;>` work here as well but for
+impure class functions.  Class functions are like "static" class methods in C++, and here
+are some examples:
+
+```
+exampleClass := {
+    # this pure function does not require an instance, and cannot use instance variables:
+    ->someStaticFunction(Y; int): int
+        Y /= 2
+        return Y move()
+
+    # this function does not require an instance, and cannot use instance variables,
+    # but it can read (but not write) global variables (or other files) due to `:>`:
+    :>someStaticImpureFunction(): int
+        YString := read(File: "Y")
+        return int(YString?!) ?? 0
+
+    # this function does not require an instance, and cannot use instance variables,
+    # but it can read/write global variables (or other files) due to `;>`:
+    ;>someStaticImpureFunctionWithSideEffects(Y: int): null
+        write(Y, File: "Y")
+}
+```
+
+See the classes section for more clarification and comparison to member access operators.
+
 
 ## member access operators `::`, `;;`, and ` ` as well as subscripts `_`
 
@@ -188,6 +216,11 @@ Note that `something() NestedField` will not be allowed; `()` breaks ` ` (member
 You can use `something()::NestedField`, but this will mean `something( ()::NestedField )`
 due to precedence, which will be `something(Null)`, which is probably not what you want.
 In these cases, we should have the compiler recommend `{NestedField} := something()`.
+
+TODO: we probably want to disallow this sequence as well, `()::X` or `();;X`.  we may also
+want to disallow any parentheses `(AnyExpression)::X` (and similarly for `;;`), although
+we are using them as examples above, at least when there is a preceding function call,
+e.g., `fn(AnyExpression)::X`, which is not `(fn(AnyExpression))::X`.
 
 TODO: we might need some fancy logic to ensure that `Array_someFunction 3` parses correctly
 as `Array_(someFunction(3))`.  or do we allow subscripting by functions?  e.g., `Map_someFunction`
@@ -1192,21 +1225,18 @@ See the section on member access operators for how resolution of ` ` works in th
 
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
-TODO: can we use :: on the class name here somehow?  we should simplify the `__` and `::/;;` interop.
-TODO: `__` is overloaded; e.g., `int__` is `array~array~int` type, so update static usage.
-maybe use `:>` and `;>` for class functions, and `->` otherwise.
-
-Class functions (2) can't depend on any instance variables,
-and are declared using the double underscore operator `__`.  They are called with
-the syntax `someClass__someStaticFunction(...Args)`.  They can be impure functions,
-however, accessing global-scoped variables for reading if declared with `::`
-or for read/write if declared with with `;;`.  For impure class functions, the `;;` or `::`
-should come after the `__` symbol, and the read vs. write clarification is required for
-the declaration but not the call.
+Class functions (2) can't depend on any instance variables, and are declared using one
+of the operators `->`, `:>`, or `;>`, depending on whether the function is pure, impure (read only),
+or impure (read/write).  They are called with the syntax `someClass->somePureStaticFunction(...Args)`,
+`someClass:>someReadOnlyImpureStaticFunction(...Args)`, and similarly for `;>` (impure read/write).
+Like with pure/impure functions and methods, accessing global-scoped variables for reading requires
+being declared with `:>`, or ';>` if global variables need to be read/write.
+TODO: we probably can allow calling using `->` at all times, but it might be good to be specific
+with `:>` and `;>`.
 
 Instance functions (3) must be pure functions; they can't depend on any instance variables,
 but they can be different from instance to instance.  They are defined without `;;`, `::`,
-or `__`, and they cannot be overridden by child classes but they can be overwritten.  I.e.,
+`->`, `:>`, or `;>`, and they cannot be overridden by child classes but they can be overwritten.  I.e.,
 if a child class defines the instance function of a parent class, it overwrites the parent's
 instance function; calling one calls the other.
 
@@ -1242,25 +1272,25 @@ exampleClass := {
     ;;addSomething(Int): null
         X += Int
 
-    # this function does not require an instance, and cannot use instance variables:
-    __someStaticFunction(Y; int): int
+    # this pure function does not require an instance, and cannot use instance variables:
+    ->someStaticFunction(Y; int): int
         Y /= 2
         return Y move()
 
     # this function does not require an instance, and cannot use instance variables,
-    # but it can read/write global variables (or other files) due to `;;`:
-    __;;someStaticImpureFunctionWithSideEffects(Y: int): null
+    # but it can read/write global variables (or other files) due to `;>`:
+    ;>someStaticImpureFunctionWithSideEffects(Y: int): null
         write(Y, File: "Y")
 
     # this function does not require an instance, and cannot use instance variables,
-    # but it can read (but not write) global variables (or other files) due to `::`:
-    __::someStaticImpureFunction(): int
+    # but it can read (but not write) global variables (or other files) due to `:>`:
+    :>someStaticImpureFunction(): int
         YString := read(File: "Y")
         return int(YString?!) ?? 0
 
     # class instance functions can be defined here; this is a *pure function*
     # that cannot depend on instance variables, however.  it can be set 
-    # individually for each class instance, unlike a static class function (`__`).
+    # individually for each class instance, unlike a static class function (`->`, `:>`, and `;>`).
     somePureFunction(): null
         print("hello!")
 }
@@ -1280,7 +1310,7 @@ ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 Note that we recommend using named fields for constructors rather than static
 class functions to create new instances of the class.  This is because named fields
 are self descriptive and don't require named static functions for readability.
-E.g., instead of `MyDate := dateClass__fromIsoString("2020-05-04")`, just use
+E.g., instead of `MyDate := dateClass->fromIsoString("2020-05-04")`, just use
 `MyDate := dateClass(IsoString: "2020-05-04")` and define the
 `;;reset(IsoString: string)` method accordingly.
 
@@ -1783,7 +1813,7 @@ the parent class reference.
 ### screen.hm ###
 screen := singleton() {
     ;;draw(Image, Vector2): null
-    ;;clear(Color := color__Black)
+    ;;clear(Color := color->Black)
 }
 ### implementation/sdl-screen.hm ###
 SdlScreen := singleton(\/../screen screen) {
@@ -1791,7 +1821,7 @@ SdlScreen := singleton(\/../screen screen) {
         # actual implementation code:
         SdlSurface draw(Image, Vector2)
 
-    ;;clear(Color := color__Black)
+    ;;clear(Color := color->Black)
         SdlSurface clear(Color)
 }
 ### some-other-file.hm ###
@@ -2513,7 +2543,7 @@ values that are enumerated via the method `count(): index`, the min and max valu
 `min(): index`, `max(): index`, and some convenience methods on any instance of the enumeration.
 
 ```
-Test: bool = False  # or `Test := bool__False`
+Test: bool = False  # or `Test := bool->False`
 
 # use `isUpperCamelCaseName()` to check for equality:
 if Test isTrue()
@@ -2522,14 +2552,14 @@ if Test isFalse()
     print "test is false!"
 
 # get the size (number of enumerated values) of the enum:
-print "bool has ${bool__count()} possibilities:"
+print "bool has ${bool->count()} possibilities:"
 # get the lowest and highest values of the enum:
-print "starting at ${bool__min()} and going to ${bool__max()}"
+print "starting at ${bool->min()} and going to ${bool->max()}"
 ```
 
 Because of this, it is a bit confusing to create an enum that has `Count` as an
 enumerated value name, but it is not illegal, since we can still distinguish between the
-enumerated value (`enumName__Count`) and total number of enumerated values (`enumName__count()`).
+enumerated value (`enumName->Count`) and total number of enumerated values (`enumName->count()`).
 
 Also note that the `count()` method will return the total number of
 enumerations, not the number +1 after the last enum value.  This can be confusing
@@ -2542,8 +2572,8 @@ sign := enumerate(
     Positive: 1
 )
 
-print "sign has ${sign__count()} values" # 3
-print "starting at ${sign__min()} and going to ${sign__max()}"  # -1 and 1
+print "sign has ${sign->count()} values" # 3
+print "starting at ${sign->min()} and going to ${sign->max()}"  # -1 and 1
 
 weird := enumerate(
     X: 1
@@ -2552,9 +2582,9 @@ weird := enumerate(
     Q: 9
 )
 
-print(weird__count())   # prints 4
-print(weird__min())     # prints 1
-print(weird__max())     # prints 9
+print(weird->count())   # prints 4
+print(weird->min())     # prints 1
+print(weird->max())     # prints 9
 ```
 
 ### Testing enums with lots of values
@@ -2574,7 +2604,7 @@ option := enumerate(
     NowYouWillBeSadForever
 )
 
-print "number of options should be 7:  ${option__count()}"
+print "number of options should be 7:  ${option->count()}"
 
 Option1 := option ContentWithLife
 
@@ -2625,9 +2655,9 @@ nonMutuallyExclusiveType := mask(
 # since that makes the number of values and how to lay them out harder to reason about
 
 # has all the same static methods as enum, though perhaps they are a bit surprising:
-nonMutuallyExclusiveType__count() == 16
-nonMutuallyExclusiveType__min() == 0
-nonMutuallyExclusiveType__max() == 15   # = X | Y | Z | T
+nonMutuallyExclusiveType->count() == 16
+nonMutuallyExclusiveType->min() == 0
+nonMutuallyExclusiveType->max() == 15   # = X | Y | Z | T
 
 Options ;= nonMutuallyExclusiveType()
 Options isNone()    # True.  note there is no `hasNone()` method, since that doesn't
