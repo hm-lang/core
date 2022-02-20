@@ -55,10 +55,11 @@ TODO: add : , ; ?! ??
 |           |   `{}`    | parentheses               | grouping: `{A}`   |               |
 |           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
+|           |   `~`     | template/generic scope    | binary: `a~b`     |               |
 |   1       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `->`    | creating namespace/scope  | binary: `A->B`    |               |
-|           |   ` `     | member access             | binary: `A B`     |               |
+|           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
 |   2       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
@@ -90,6 +91,8 @@ TODO: add : , ; ?! ??
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
 
+
+TODO: discussion on `~`
 
 ## namespace operator `->`
 
@@ -1189,6 +1192,7 @@ See the section on member access operators for how resolution of ` ` works in th
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
 TODO: can we use :: on the class name here somehow?  we should simplify the `__` and `::/;;` interop.
+TODO: `__` is overloaded; e.g., `int__` is `array~array~int` type, so update static usage.
 
 Class functions (2) can't depend on any instance variables,
 and are declared using the double underscore operator `__`.  They are called with
@@ -2778,7 +2782,11 @@ Note on terminology:
 # doesn't include stuff like LowerCamelCase or UpperCamelCase,
 # which are not grammatically relevant.
 grammarElement := enumerate(
-    TypeMatcher
+    # "TypeElement" to avoid overload with type/Type
+    TypeElement
+    FunctionType
+    NonFunctionType
+    FunctionArgsWithReturnType
     VariableName
     VariableDeclaration
     VariableDefinition
@@ -2809,15 +2817,18 @@ grammarMatcher := tokenMatcher | grammarElement | token
 Grammar := singleton() {
     @private
     Elements: tokenMatcher_grammarElement = [
-        TypeMatcher: TokenMatcher() #TODO
+        TypeElement: oneOf([
+            FunctionType
+            NonFunctionType
+        ])
         VariableName: UpperCamelCase
         VariableDeclaration: sequence([
             VariableName
             optional(operator("?"))
             oneOf([operator(":"), operator(";")])
-            TypeMatcher
+            TypeElement
         ])
-        VariableDefintion: oneOf([
+        VariableDefinition: oneOf([
             # VariableName: type = ...
             sequence([VariableDeclaration, operator("="), RhsStatement])
             # VariableName := ...
@@ -2825,33 +2836,63 @@ Grammar := singleton() {
             sequence([VariableName, oneOf([operator(";="), operator(":=")]), RhsStatement])
         ])
         FunctionName: LowerCamelCase
-        FunctionDeclaration: sequence([
-            FunctionName
-            optional(operator("?"))
+        FunctionDeclaration: oneOf([
+            # `fnName(Args): retType` or `fnName?(Args): retType`
+            sequence([
+                FunctionName
+                optional(operator("?"))
+                FunctionArgsWithReturnType
+            ])
+            # `fnName: fn(Args): retType` or similar
+            sequence([
+                FunctionName
+                oneOf([operator(":"), operator(";")])
+                FunctionType
+            ])
+        ])
+        FunctionArgsWithReturnType: sequence([
             list(FunctionArgument)
             optional(operator("?"))
             oneOf([operator(":"), operator(";")])
-            TypeMatcher
+            TypeElement
         ])
         FunctionDefinition: oneOf([
             # fnName(Args...): returnType
             #   BlockStatements
+            # TODO: probably need to require FunctionDeclaration to be on the start of a line
             sequence([FunctionDeclaration, Block])
             # fnName(Args...) := Statement
             sequence([
                 FunctionName 
                 list(FunctionArgument)
+                # TODO: maybe ?:= and ?;= as well
                 oneOf([operator(":="), operator(";=")])
                 RhsStatement
             ])
         ])
         FunctionArgument := oneOf([
-            FunctionDefinition
-            FunctionDeclaration
             VariableDefinition
             VariableDeclaration
+            FunctionDefinition
+            FunctionDeclaration
         ])
         FunctionCall: sequence([FunctionName, AtomicStatement])
+        FunctionType: sequence([
+            identifier("fn")
+            FunctionArgsWithReturnType
+        ])
+        NonFunctionType: oneOf([
+            # set types, e.g., `_int` or `_str` and even
+            # nested set types e.g., `__int` or `___str`.
+            sequence([
+                operator("_")
+                TypeElement
+            ])
+            sequence([
+                LowerCamelCase
+                # TODO
+            ])
+        ])
         RhsStatement: oneOf([
             AtomicStatement,
             sequence([AtomicStatement, AnyOperator, RhsStatement]),
