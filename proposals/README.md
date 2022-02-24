@@ -376,10 +376,14 @@ allowed to mutate the memory if it is declared as a mutable variable with `;`.
 
 To make it easy to indicate when a variable can be nullable, we reserve the question mark
 symbol, `?`, placed after the variable name.  E.g., `X?: int` declares a variable `X` that
-can be an integer or null.  An optional type can be made more explicit using the notation,
-`someType|null`, e.g., `int|null`.  The default value for an optional type is `Null`.
-For an optional type with more than one non-null type, we can use `Y: someType|anotherType|null`
-to make it clear that null is its own type, or we can use `Y?: someType|anotherType`.
+can be an integer or null.  The default value for an optional type is `Null`.
+For an optional type with more than one non-null type, we use `Y?: someType|anotherType`.
+In either case, you can use `;` instead of `:` to indicate that the variable is mutable.
+Note that if you are defining the variable inline (e.g., with `:=` or `;=`), you should
+prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a compiler error
+if a declared variable is nullable but `?` is not used, since we want the programmer to be
+aware of the fact that the variable could be null, even though the program will take care
+of null checks automatically and safely.
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The executable will automatically
@@ -395,8 +399,7 @@ someClass := { ::someMethod(): int }
 
 Nullable?; someClass = Null
 
-Value := Nullable someMethod()  # `Value` has type `int|null` now.
-# TODO: should we require ?:= or ?;= for defining variables that might be null?
+Value ?:= Nullable someMethod()  # `Value` has type `int|null` now, so it needs to be defined with `?`
 
 # eventually we want to support things like this, where the compiler
 # can tell if the type is nullable or not:
@@ -818,8 +821,7 @@ where we actually don't want to call an overload of the function if the argument
 ```
 # in other languages, you might check for null before calling a function on a value.
 # this is also valid hm-lang but it's not idiomatic:
-# TODO: should we require ?:= or ?;= for defining variables that might be null?
-X := if Y != Null
+X ?:= if Y != Null
     overloaded(Y)
 else
     Null
@@ -827,8 +829,7 @@ else
 # instead, you should use the more idiomatic hm-lang version.
 # putting a ?! after the argument name will check that argument;
 # if it is Null, the function will not be called and Null will be returned instead.
-# TODO: should we require ?:= or ?;= for defining variables that might be null?
-X := overloaded(Y?!)
+X ?:= overloaded(Y?!)
 
 # either way, X has type `string|null`.
 ```
@@ -844,8 +845,7 @@ This can also be used with the `return` function to only return if the value is 
 ```
 doSomething(X?: int): int
     # TODO: X * 3 should maybe not require ?! to do exactly what's expected below:
-    # TODO: should we require ?:= or ?;= for defining variables that might be null?
-    Y := X?! * 3    # Y is Null or X*3 if X is not Null.
+    Y ?:= X?! * 3    # Y is Null or X*3 if X is not Null.
     return Y?!      # only returns if Y is not Null
     #/ do some other stuff /#
     ...
@@ -938,7 +938,7 @@ The syntax for declaring a nullable/optional function is to put a `?` after the 
 but before the argument list.  E.g., `optionalFunction?(...Args): returnType` for a non-reassignable
 function and swapping `:` for `;` to create a reassignable function.
 When calling a nullable function, unless the function is explicitly checked for non-null,
-the return type will be nullable.  E.g., `X := optionalFunction(...Args)` will have a
+the return type will be nullable.  E.g., `X ?:= optionalFunction(...Args)` will have a
 type of `returnType|null`.  Nullable functions are checked by the executable, so the
 programmer doesn't necessarily have to do it.
 
@@ -1100,6 +1100,8 @@ using the syntax `~(type1, type2, ...)` or `~someType` (for just one generic typ
 after a function name but before the argument list.  We also allow defining templates
 inline for convenience.  e.g., `logger(T: ~t): t`, using `~` the first time you see
 the type (reading left to right).
+TODO: could do `logger(@infer t: type, T: t): t` if we don't want `~` for it.
+I prefer the efficiency of `logger(T: ~t): t`, though.
 
 ```
 # declaration equivalent to `logger ~(t) (T): t` or `logger(T: ~t): t`:
@@ -1745,6 +1747,8 @@ All classes have a few compiler-provided methods which cannot be overridden.
     constructors, e.g. `null` and `int`, e.g., `classType(int) == 5 Type`.
     Note also, the `classType` type also can be printed nicely, e.g.,
     `print("asdf" Type)` prints "str", and `str(1 Type Type) == "classType"`.
+    TODO: switch `classType` to `class`, since we don't need `class` anymore
+    for defining a class.  or maybe just `type`.
 
 TODO: check if `copy()` should be in the list.
 
@@ -2864,8 +2868,16 @@ Grammar := singleton() {
             # VariableName: type = ...
             sequence([VariableDeclaration, operator("="), RhsStatement])
             # VariableName := ...
-            # TODO: consider requiring ? if the variable type on the RHS is nullable, e.g., `?:=`
-            sequence([VariableName, oneOf([operator(";="), operator(":=")]), RhsStatement])
+            sequence([
+                VariableName
+                oneOf([
+                    operator("?;=")
+                    operator("?:=")
+                    operator(";=")
+                    operator(":=")
+                ])
+                RhsStatement
+            ])
         ])
         FunctionName: LowerCamelCase
         FunctionDeclaration: oneOf([
@@ -2897,8 +2909,12 @@ Grammar := singleton() {
             sequence([
                 FunctionName 
                 list(FunctionArgument)
-                # TODO: maybe ?:= and ?;= as well
-                oneOf([operator(":="), operator(";=")])
+                oneOf([
+                    operator("?;=")
+                    operator("?:=")
+                    operator(";=")
+                    operator(":=")
+                ])
                 RhsStatement
             ])
         ])
@@ -2954,6 +2970,8 @@ Grammar := singleton() {
             oneOf([
                 operator(":=")
                 doNotAllow(operator(";="), "Classes cannot be mutable.")
+                doNotAllow(operator("?;="), "Classes cannot be nullable/mutable.")
+                doNotAllow(operator("?:="), "Classes cannot be nullable.")
             ])
             optional(ExtendingParentClasses)
             parentheses(Block)
@@ -3018,7 +3036,7 @@ parentheses := extend(tokenMatcher) {
             return False
 
         InternalIndex; index = 0
-        PartialMatch := Grammar match(@@InternalIndex, CurrentToken InternalTokens, GrammarMatcher)
+        PartialMatch ?:= Grammar match(@@InternalIndex, CurrentToken InternalTokens, GrammarMatcher)
         if not PartialMatch
             return False
 
