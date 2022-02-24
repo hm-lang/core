@@ -528,9 +528,16 @@ v(X: dbl, Y: dbl): null
 # function that takes a function as an argument and returns a function
 # TODO: input function must be scoped to survive however long `wow` can be called;
 # how do we want to do closure??
-wow(Input fn(): string): fn(): int
+wow(Input->fn(): string): fn(): int
     return fn(): int
-        return Input fn() size()
+        return Input->fn() size()
+# TODO: this works if the input function is defined inline, e.g.,
+# someFn() := "hey"
+# otherFn := wow(someFn)
+# print(otherFn()) # 3
+# now `otherFn` can't escape the scope that it's defined in, otherwise the `someFn`
+# will get cleaned up and `otherFn` will segfault (or worse).  it's probably easier to
+# forbid new functions from escaping the scope that they were defined in.
 ```
 
 ## calling a function
@@ -651,20 +658,98 @@ anotherTestFunction(): bool
 q(anotherTestFunction)  # should print "function returned false!"
 
 # or you can create a nameless function yourself:
-q(fn(): bool
+q(;;fn(): bool
     return random()
 )   # will print one of the above due to randomness.
 ```
 
 ### dynamically determining arguments for a function
 
+We allow for dynamically setting arguments to a function by using the `api` type,
+which has two fields: `Request` and `Response` for the arguments and return values
+of the function, respectively.  These fields are so named to imply that the function
+can do just about anything (including fetching data from a remote server).  Now,
+`api` is very generic, so `Request` and `Response` can be filled with any fields.
+For example:
+
+```
+# define some function to call:
+someFunction(X: int): string
+    return "hi" * X
+# this is an ok overload because the return type is different.
+# however, this is not recommended, since the arguments are the same.
+# note that the earliest overload that matches will be default.
+someFunction(X: string): int
+    return X size()
+
+# use `Api` with `@@` so that `Api;;Response` can be updated.
+Api; api
+Api Request X = 2
+someFunction(@@Api)
+print(Api Response)  # prints {String: "hihi"}
+
+# define a default value for the Request object's field to get the other overload:
+Api; api
+Api Request X = "hello"
+Api Response Int = -1
+someFunction(@@Api)
+print(Api Response)  # prints {Int: 5}
+
+# dynamically determine arguments:
+Api; api = if someCondition()
+    {Request: X: 5, Response; String; "?"}
+else
+    {Request: X: "hey", Response; Int; -1}
+
+someFunction(@@Api)
+print(Api Response)  # will print {String: "hihihihihi"} or {Int: 3} depending on `someCondition()`.
+```
+
+Note that the `api` is so generic that you can put any fields that won't actually
+be used in the function call.  This can be dangerous, since errors won't be thrown
+if you have more fields defined than needed to call the function.  For example,
+with the above `someFunction` overloads, the first one is default, so it will cast
+a string value of the request field `X` to an integer if both (or neither) response
+fields are defined (`Int` and `String`), like this:
+
+```
+Api ;= api(Request: X: "4", Response: {Int: 0, String: ""})
+someFunction@@Api
+print(Api)  # prints {Request: {X: 4}, Response: {Int: 0, String: "hihihihi"}}
+```
+
+If run-time checks and throwing errors are desired, one should use the more specific
+`apiTo~fn` type, with `fn` the function you want arguments checked against.
+
+```
+# throws a compile-time error (if request and response are completely specified at the same time)
+# or a run-time error (if request and response are separately defined):
+Api ;= apiTo~someFunction(Request: X: "4", Response: {Int: 0, String: ""})  # error!!
+# the above will throw a compile-time error, since two values for Response are defined.
+
+# this is ok:
+Api2 ;= apiTo~someFunction(Request: X: "4", Response: Int: 0)
+# this is also ok, but will cast X to int right away, and will throw an error when defining `Api3`
+# if `X` is not a integer-like string rather than when calling someFunction (like `api` would).
+Api3 ;= apiTo~someFunction(Request: X: "4", Response: String: "")
+# also ok:
+Api4 ;= apiTo~someFunction(Request: X: 4, Response: String: "")
+```
+
+A few notes.  Even though functions can sometimes appear to only return one value,
+the `Response` field will be object-like.  Note that it's also not allowed to define
+an overload for the `api` type yourself.  This will give a compile error, e.g.:
+
+```
+# COMPILE ERROR!!  you cannot define an overload for `api`!
+someFunction(@@Api; api): null
+    print(Api Request X)
+```
+
 TODO: `null` is probably a subclass of `args`, a special, empty object that has no fields.
-We probably need to think of `args` as an `io` class, so that we can request fields to be
-returned and input fields as args.  E.g., with defaults in case the function doesn't assign them:
-`Io::Out = {OutputField1; 3, OtherField; "hi"}` and called like this: `someFunction(@@Io)`
-`Io::In = {InputField1: "hello", InputField2: "grate"}`.
 TODO: discuss the `args` type, which allows you to build up function arguments.
 e.g., `Args; args = {Hello: "World"}`.
+TODO: discuss that api;;Request/Response are both elements of type `args`
 TODO: maybe make it a template type on the function you are going to call,
 which would allow for checking whether the argument added was valid or not.
 Make `args` a super-generic type, and `argsTo~aFunction` be the specific type.
@@ -686,26 +771,22 @@ if SomeCondition
 else
     Args = {Times: 50, String: "Hello"}
 
-Result := myFn(Args)    # Result can be `null|dbl`
+Result ?:= myFn(Args)   # Result can be `null|dbl`
 ```
 
 TODO: i think it would be best not to throw a run-time error if the arguments
 don't match, e.g., if they are overspecified, especially for these dynamically
-built arguments.
+built arguments.  probably want to throw for `argsTo~fn`, however.
+TODO: decide if we want to allow defining an overload for the `args` type, e.g.,
+`someFunction(Args; args): null`.
 
 For the MMR pattern (using `@@` to pass in a variable that can be modified and returned),
-arguments look like this:
+you need to use the `api` type as mentioned above.
 
 ```
-someFunction(@@Int): dbl
-    Int += 6
-    return Int * 0.5
-
-Args; argsTo~someFunction
-
-Args Int = 10
-print(someFunction(Args))   # prints `8`
-print(Args Int)             # prints `16`
+Api ;= api(Request: Dbl: 1000, Response: Dbl: 0)
+myFn(@@Api)
+print(Api)  # prints {Request: {}, Response: Dbl: 5000}
 ```
 
 ### constant versus mutable arguments
