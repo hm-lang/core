@@ -242,6 +242,11 @@ so that operations like `A B_C^3` mean `((A::B)_C)^3`.
 
 TODO: it might be better to use `;;` and `::` for all member access.
 
+TODO: do we allow implicit member access, e.g., `Array (someFunction(3))`, to act as an
+implicit subscript?  like with C++, `Array[someFunction(3)]`.  In that case, do we even
+need the `_` operator?  the only downside with removing: `Object Field` and `Object(Field)`
+might be ambiguous compared to `Object_Field` (which definitely means `Object(Field)`).
+
 Note that `something() NestedField` will not be allowed; `()` breaks ` ` (member access).
 You can use `something()::NestedField`, but this will mean `something( ()::NestedField )`
 due to precedence, which will be `something(Null)`, which is probably not what you want.
