@@ -1,3 +1,33 @@
+# general syntax
+
+## variable and function names
+
+TODO: lower and upper camel case
+
+## tabs vs. spaces
+
+Blocks of code are made out of lines at the same indent level; an indent is four spaces.
+No more than 7 levels of indent are allowed, e.g., lines at 0, 4, 8, 12, 16, 20, 24 spaces.
+If you need more indents, refactor your code.
+
+## comments
+
+Comments come in three types: (1) end of line (EOL) comments, (2) mid-line comments,
+and (3) multiline comments.  End of line comments are the hash `#` followed by any
+character that is not `{`, `[`, or `(`.  All characters after an EOL comment are
+ignored; the compiler will start parsing on the next line.  A mid-line comment begins 
+with `#(`, `#[`, or `#{`, followed by any character that is not a `#`, and ends with
+the corresponding parenthesis and hash symbol, `)#`, `]#`, or `}#`, *on the same line*.
+All characters within the parentheses are ignored by the compiler.  Multiline comments
+begin with `#(#`, `#[#`, or `#{#`, and end with the corresponding `#)#`, `#]#`, or `#}#`
+*at the same tab indent*.  This means you can have nested multiline comments, as long as
+the nested symbols are at a new tab stop, and they can even be broken (e.g., an unmatched
+closing operator `#)#` as long as it is indented from the symbols which started the
+multiline comment), although this is not recommended.  To qualify as a multiline comment
+(either to open or close the comment), nothing else is allowed on the line before or after
+(besides spaces), otherwise an error is thrown.  All characters on all lines in between
+the mulitline comment symbols (e.g., `#(#` to `#)#`) are ignored.
+
 # overview of types
 
 Standard types whose instances can take up an arbitrary amount of memory:
@@ -928,7 +958,7 @@ doSomething(X?: int): int
     # TODO: X * 3 should maybe not require ?! to do exactly what's expected below:
     Y ?:= X?! * 3    # Y is Null or X*3 if X is not Null.
     return Y?!      # only returns if Y is not Null
-    #/ do some other stuff /#
+    #[ do some other stuff ]#
     ...
     return 3
 ```
@@ -1503,13 +1533,13 @@ example := {
     @visibility
     ::x(fn(Str): ~t) := fn(X)
 
+    # copy.  returns a copied value of `X`.  this method
+    # has lower priority than the no-copy getter above.
+    @visibility
+    ::x() := X
+
     # swapper: swaps the value of X with whatever is passed in
     #          returns the old value of X.
-    @visibility
-    ;;x(Str;): str
-        X <-> Str
-        return Str
-    # or, slightly more explicit (in that Str is to be modded):
     @visibility
     ;;x(@@Str):
         X <-> Str
@@ -1517,27 +1547,102 @@ example := {
     # modifier: allows the user to modify the value of X
     #           without copying it, using the MMR pattern.
     @visibility
-    ;;x(fn(@moved Str): str): null
-        X = fn(X move())
-    # or, slightly more explicit (in that Str is to be modded):
-    @visibility
     ;;x(fn(@@Str): ~t) := fn(@@X)
 }
 W = example()
-W x(fn(Str;): str
+W x(fn(@@Str)
     Str += ", world"
-    return Str move()
 )
 W x(fn(Str) := print(Str))
 ```
 
-TODO: check that getter/setter visibility is correct.
-
 If you define overloads for any of these methods on child classes,
 they will be used as the getters/setters for that variable.  Anyone
 trying to access the variable (or set it) will use the overloaded methods.
+Note that only one of the copy or getter methods needs to be defined
+on a class; the compiler will automatically use the defined method internally
+even if the undefined method is requested.  The same is true of swapper
+and modifier classes.
+
+```
+# a class with a copy method gets a getter method automatically:
+justCopyable := {
+    ::someVar(): int
+        return 1000
+
+    #{#
+    # the following becomes automatically defined:
+    ::someVar(fn(Int): ~t): t
+        SomeVar := someVar()
+        return fn(SomeVar)
+    #}#
+}
+
+# a class with a getter method gets a copy method automatically:
+justGettable := {
+    @invisible
+    SomeVar; int
+
+    ::someVar(fn(Int): ~t) := fn(SomeVar)
+
+    #{#
+    # the following becomes automatically defined:
+    ::someVar(): int
+        return someVar(fn(Int) := Int)
+    #}#
+}
+
+# a class with a swapper method gets a modifier method automatically:
+justSwappable := {
+    @invisible
+    SomeVar; int
+
+    @visibility
+    ;;someVar(@@Int): null
+        SomeVar <-> Int
+        # you can do some checks/modifications on SomeVar here if you want,
+        # though it's best not to surprise developers.  a default-constructed
+        # value for `SomeVar` (e.g., in this case `Int := 0`) should be allowed
+        # since we use it in the modifier to swap out the real value into a temp.
+        # if that's not allowed, you would want to define both the swapper
+        # and modifier methods yourself.
+
+    #(#
+    # the following becomes automatically defined:
+    ;;someVar(fn(@@Int): ~t): t
+        Temporary; int
+        # swap SomeVar into Temporary:
+        someVar(@@Temporary)    # could also write `SomeVar <-> Temporary`
+        T := fn(@@Temporary)
+        # swap Temporary back into SomeVar:
+        someVar(@@Temporary)
+        return T move()
+    #)#
+}
+
+# a class with a modifier method gets a swapper method automatically:
+justModdable := {
+    @invisible
+    SomeVar; int
+
+    ;;someVar(fn(@@Int): ~t): t
+        T := fn(@@SomeVar)
+        # you can do some checks/modifications on SomeVar here if you want,
+        # though it's best not to surprise developers
+        return T move()
+
+    #(#
+    # the following becomes automatically defined:
+    ;;someVar(@@Int): null
+        someVar(;;fn(@@Old->Int): null
+            Int <-> Old->Int
+        )
+    #)#
+}
+```
 
 TODO: some example of child class overriding parent class getter/setters.
+TODO: parent class with getter defined, child class with copy defined.
 
 ## parent-child classes and method overrides
 
@@ -1882,7 +1987,7 @@ arguments inside of `singleton` are the parent classes that the singleton extend
 singletons use `UpperCamelCase` since they are defining the variable and what it does:
 
 ```
-AwesomeService := singleton(parentClass1, parentClass2, #/etc./#) {
+AwesomeService := singleton(parentClass1, parentClass2, #[etc.]#) {
     UrlBase := "http://my/website/address.bazinga"
     get(Id: string): awesomeData 
         Json := Http get("${UrlBase}/awesome/${Id}") 
@@ -2803,7 +2908,7 @@ Only one object can modify the memory at some location (i.e., of a variable).
 TODO: think about audio callbacks.  how would this work with passing in
 a function which would handle them?  most languages allow something like this:
 ```
-MySong ;= song(#/ first song /#)
+MySong ;= song(#[ first song ]#)
 ::audioCallback(Array; sample_): null
     MySong::sample(@@Array)
 SdlAudio;;callback(audioCallback)
@@ -2811,7 +2916,7 @@ SdlAudio;;callback(audioCallback)
 # other logic...
 ...
 # this breaks things.
-MySong = song(#/ other song /#)
+MySong = song(#( other song )#)
 ```
 but we don't allow SdlAudio in hm-lang to take a reference/pointer to the
 audioCallback function; when passing in a nested function, it must be called only
@@ -3157,7 +3262,7 @@ repeat := extend(tokenMatcher) {
 # TODO: make sure the cyclic dependency is ok: i.e., Grammar match being called inside of
 # these token matchers...
 
-===
+#(#
 # e.g.
 for Variable: variableType < UpperBoundExclusive
     ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
@@ -3171,7 +3276,7 @@ for @lock Variable < UpperBoundExclusive
 # starting at number in the for loop
 for Variable := StartingValue, Variable < UpperBoundExclusive
     ... use Variable from StartingValue ...
-===
+#)#
 ForLoop := oneOf([
     sequence([
         keyword("for")
