@@ -221,6 +221,8 @@ getMedianSlow(Array: array~int): int
     Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is immutable.
     # note that we need parentheses here around the desired array index
     # since `//` binds less strongly than `_`:
+    # TODO: i think we can allow `Sorted->Array[Sorted->Array size() // 2]`
+    # if we have another overload for ` ` being implicit subscript access
     return Sorted->Array _ (Sorted->Array size() // 2)
 
 # sorts the array and returns the median.
@@ -1190,6 +1192,8 @@ fibonacci(Times: dbl): dbl
     OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
     return (GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)
 
+# TODO: this might be contradictory with the fact that they return something different;
+# the "default names" for the return values are "Int" and "Dbl", so those are technically different:
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 ```
 
@@ -1965,7 +1969,7 @@ someClass := {
 # define a new method on `someClass` from some-class.hm
 someClass::newMethod(String): int
     for Int: int < 100
-        if someMethod(Int) == String
+        if someClass::existingMethod == String
             return Int
     return -1
 
@@ -1994,7 +1998,7 @@ singletons use `UpperCamelCase` since they are defining the variable and what it
 ```
 AwesomeService := singleton(parentClass1, parentClass2, #[etc.]#) {
     UrlBase := "http://my/website/address.bazinga"
-    get(Id: string): awesomeData 
+    ::get(Id: string): awesomeData 
         Json := Http get("${UrlBase}/awesome/${Id}") 
         return awesomeData(Json)
 }
@@ -2092,8 +2096,6 @@ if it was an UpperCamelCase identifier.  E.g., `\\math` acts like one identifier
 so `\\math atan(X, Y)` resolves like `Math atan(X, Y)`, i.e., member access or drilling down
 from `Math := \\math`.  Similarly for any relative import; `\/relative/import/file someFunction(Q)`
 correctly becomes like `File someFunction(Q)` for `File := \/relative/import/file`.
-
-TODO: maybe require member access via `::` and `;;` for modules, e.g., `\\math::atan(X, Y)`.
 
 ## file access / file system
 
@@ -2253,7 +2255,7 @@ size is unknown at compile time, the fixed-size array will be defined on the hea
 # note you can use an input argument to define the return type's
 # fixed-array size, which is something like a generic:
 range(Int): int_Int
-    # TODO: use `assert(Int) < 0 !! "can't have a fixed negative-size array"`
+    # TODO: use `assert(Int) >= 0 !! "can't have a fixed negative-size array"`
     # where `!!` will check for a thrown error and rethrow with the new error message.
     if Int < 0
         throw "can't have a fixed negative-size array"
@@ -2314,6 +2316,7 @@ However, we allow casting from these prohibited types to allowed key types.  For
 NameDatabase; string_int
 NameDatabase_123 = "John"
 NameDatabase_124 = "Jane"
+# TODO: probably want to make rounding behavior explicit, e.g., `123.4::round(Stochastically)`:
 print(NameDatabase_123.4)   # prints "John" with 60% probability, "Jane" with 40%.
 
 # note that the definition of the key is an immutable array:
@@ -2322,6 +2325,8 @@ StackDatabase; string_(int_)    # parentheses are grammatically unnecessary,
                                 # i.e., `StackDatabase; string_int_` would be ok too.
 StackDatabase_[1,2,3] = "stack123"
 StackDatabase_[1,2,4] = "stack124"
+# TODO: probably need to do something like `[1.0, 2.0, 3.1];;;round(Stochastically)` here,
+# where `;;;` means to loop over elements of array and apply the method on the RHS.
 print(StackDatabase_[1.0, 2.0, 3.1])    # prints "stack123" with 90% probability, "stack124" with 10%
 # things get more complicated, of course, if all array elements are non-integer.
 # the array is cast to the key type (integer array) first.
@@ -2361,7 +2366,16 @@ map~(key, value) := {
     # allows access to modify the internal value, via MMR pattern.
     # passes the current value at the key into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the key.
-    ;;_(Key, fn(@moved Value): value): null
+    # if a value at `Key` is not already present, a default `Value` will be created.
+    ;;_(Key, fn(@@Value): ~t): t
+
+    # allows access to modify the internal value, via MMR pattern.
+    # different than the above version since if the value at `Key` is not present, a Null will
+    # be passed into the function.  if the Value wasn't Null, but becomes Null via the passed-in
+    # function, the key will be deleted from the map.  conversely, if the value was Null, but
+    # the passed-in function turns it into something non-null, the key/value will be added
+    # to the map.
+    ;;_(Key, fn(@@Value?): ~t): t
 
     ::size(): index
 
@@ -2414,7 +2428,7 @@ insertionOrderedMap~(key, value) := extend(map) {
             Key := KeyIndices_Index !!
             Value := IndexedValues_Index Value !!
             ForLoop := Loop->fn(Key, Value)
-            if ForLoop == forLoop Break
+            if ForLoop == forLoop->Break
                 break
             Index = IndexedValues_Index NextIndex
         # mostly equivalent to using nested functions to avoid copies:
@@ -2450,8 +2464,7 @@ insertionOrderedMap~(key, value) := extend(map) {
         assert(Index) != 0
         assert(IndexedValues) has(Index)
         return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~value): t
-            # TODO: see if the syntax for @@ works here or at `@@IndexedValue Value`:
-            return fn(IndexedValue@@Value)
+            return fn(@@IndexedValue Value)
         )
 }
 ```
@@ -2594,7 +2607,7 @@ array~t := {
             ForLoop := This_(Index, fn)
             # implicit:
             ForLoop := fn(This_Index)
-            if ForLoop == forLoop Break
+            if ForLoop == forLoop->Break
                 break
 
     # no-copy iteration, but can mutate the array.
@@ -2605,7 +2618,7 @@ array~t := {
             ForLoop := This_(Index, fn)
             # implicit:
             ForLoop := fn(@@This_Index)
-            if ForLoop == forLoop Break
+            if ForLoop == forLoop->Break
                 break
 }
 ```
