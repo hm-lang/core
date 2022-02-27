@@ -89,7 +89,7 @@ TODO: add : , ; ?! ??
 |   1       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
-|           |   ` `     | implicit member access    | binary: `A B`     |               |
+|           |   ` `     | implicit subscript        | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
 |   2       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
@@ -163,7 +163,7 @@ exampleClass := {
     # this pure function does not require an instance, and cannot use instance variables:
     ->someStaticFunction(Y; int): int
         Y /= 2
-        return Y move()
+        return Y;;move()
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read (but not write) global variables (or other files) due to `:>`:
@@ -181,7 +181,7 @@ exampleClass := {
 See the classes section for more clarification and comparison to member access operators.
 
 
-## member access operators `::`, `;;`, and ` ` as well as subscripts `_`
+## member access operators `::` and `;;`, as well as subscripts `_` and ` ` 
 
 We use `::`, `;;`, and ` ` (member access) for accessing variables or functions that belong to
 another object.  The `::` operator ensures that the RHS operand is read only, not write,
@@ -215,20 +215,20 @@ does not change the instance but returns a sorted copy of the array (`::sort(): 
 ```
 # there are better ways to get a median, but just to showcase member access:
 getMedianSlow(Array: array~int): int
-    if Array size() == 0
+    if Array::size() == 0
         throw "no elements in array, can't get median."
     # make a copy of the array, but no longer allow access to it (via `@hide`):
-    Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is immutable.
+    Sorted->Array := @hide Array::sort()
     # note that we need parentheses here around the desired array index
     # since `//` binds less strongly than `_`:
-    return Sorted->Array _ (Sorted->Array size() // 2)
+    return Sorted->Array[Sorted->Array size() // 2]
 
 # sorts the array and returns the median.
 getMedianSlow(@@Array; array~int): int
-    if Array size() == 0
+    if Array::size() == 0
         throw "no elements in array, can't get median."
-    Array sort()    # same as `Array;;sort()` since `Array` is mutable.
-    return Array _ (Array size() // 2)
+    Array;;sort()
+    return Array[Array size() // 2]
 ```
 
 Note that if the LHS is immutable, you will not be able to use a `;;` method.
@@ -554,11 +554,11 @@ v() := 600
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
-    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${\\math atan(X, Y)}")
+    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${\\math::atan(X, Y)}")
     # Note this could also be defined more concisely using $$,
     # which also prints the expression inside the parentheses with an equal sign and its value,
-    # although this will print `\\math atan(X, Y) = ...`, e.g.:
-    # print("$${X}, $${Y}, $${\\math atan(X, Y)}")
+    # although this will print `\\math::atan(X, Y) = ...`, e.g.:
+    # print("$${X}, $${Y}, $${\\math::atan(X, Y)}")
 
 # function that takes a function as an argument and returns a function
 # TODO: input function must be scoped to survive however long `wow` can be called;
@@ -977,16 +977,16 @@ using its methods inside the function, use the move-modify-return pattern.  E.g.
 
 ```
 MyObject ;= myObjectType(WhateverArgs: 5)
-MyObject = modify(MyObject move())
+MyObject = modify(MyObject;;move())
 # where the `modify` function is whatever you want:
 modify(MyObjectType; myObjectType): myObjectType
-    MyObjectType someMethod(12345)
-    return MyObjectType move()      # compiler can probably figure out this move()
+    MyObjectType;;someMethod(12345)
+    return MyObjectType;;move()     # compiler can probably figure out this move()
 ```
 
 For this pattern to avoid unnecessary copies, the modifying function must
 use the mutable argument definition (e.g., `;`), and the external caller
-of the modifying function must `move()` the object into the function's arguments.
+of the modifying function must `;;move()` the object into the function's arguments.
 
 To indicate what you're doing a more explicitly, you can use the `@@` annotation
 to an argument's variable name.  The `@@` annotation effectively adds the argument
@@ -997,7 +997,7 @@ but will not have the move-modify-return pattern applied.  For example:
 
 ```
 modify(@@MyObjectType; myObjectType):
-    MyObjectType someMethod(12345)
+    MyObjectType;;someMethod(12345)
 
 SomeInstance ;= myObjectType(...)
 # you can also use `@@` to call the function and have it update the variable.
@@ -1008,10 +1008,10 @@ modify(@@SomeInstance)
 # which expands into:
 modify(@moved MyObjectType; myObjectType): myObjectType
     MyObjectType someMethod(12345)
-    return MyObjectType move()      # compiler can probably figure out this move()
+    return MyObjectType;;move()     # compiler can probably figure out this move()
 
 SomeInstance ;= myObjectType(...)
-SomeInstance = modify(SomeInstance move())
+SomeInstance = modify(SomeInstance;;move())
 ```
 
 TODO: discuss allowing @moved as an argument annotation in order to require someone
@@ -1094,15 +1094,15 @@ parent := {
 Example ;= parent(X: 5, Y: 1)
 
 # define your own function for optionalMethod:
-Example optionalMethod(Z: dbl); int
-    return floor(Z * This X)   # note that you can use `This` to access the Example instance.
+Example::optionalMethod(Z: dbl); int
+    return floor(Z * This::X)   # note that you can use `This` to access the Example instance.
 
-Example optionalMethod(2.15)    # returns 10
+Example::optionalMethod(2.15)   # returns 10
 
 # or set it to Null:
-Example optionalMethod = Null
+Example::optionalMethod = Null
 
-Example optionalMethod(3.21)    # returns Null
+Example::optionalMethod(3.21)   # returns Null
 
 # child classes can define a "method" that overrides the parent's optional function:
 child := extend(parent) {
@@ -1112,23 +1112,23 @@ child := extend(parent) {
 
 Child ;= child(X: 6, Y: 2)
 
-Child optionalMethod(0)     # returns 12
+Child::optionalMethod(0)    # returns 12
 
 # but note that unless the method is protected, users can still redefine it.
-Child optionalMethod(Z: dbl): int
-    return floor(Z)
+Child;;optionalMethod(Z: dbl): int
+    return Z;;floor()
 
-Child optionalMethod(5.4)   # returns 5
+Child::optionalMethod(5.4)  # returns 5
 
 # also note that while the child method appears to always be defined,
 # we cannot stop a Null from being assigned here.  this is because
 # if the instance is passed into a function which takes a parent class,
 # that function scope can reassign the method to Null (since the parent
 # class has no restrictions).
-Child optionalMethod = Null
+Child::optionalMethod = Null
 
 # therefore the executable will always check for Null before calling the method:
-Child optionalMethod(1.45)  # returns Null
+Child::optionalMethod(1.45) # returns Null
 ```
 
 ## function overloads
@@ -1190,6 +1190,8 @@ fibonacci(Times: dbl): dbl
     OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
     return (GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)
 
+# TODO: this might be contradictory with the fact that they return something different;
+# the "default names" for the return values are "Int" and "Dbl", so those are technically different:
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 ```
 
@@ -1286,8 +1288,8 @@ ExampleClass; exampleClass
 
 # if we allow calling this instance's method in the `check` function, we get
 # results that depend on how many times the method has already been called:
-check(ExampleClass someMethod, 3)    # returns 7
-check(ExampleClass someMethod, 3)    # returns 1
+check(ExampleClass;;someMethod, 3)   # returns 7
+check(ExampleClass;;someMethod, 3)   # returns 1
 ```
 
 Calling an impure function anywhere in a function makes that function impure.
@@ -1326,20 +1328,19 @@ Mutating methods -- i.e., that modify the class instance, `This`, i.e., by modif
 its values/variables -- must be defined with a `;;` before the method name.
 Non-mutating methods must be defined with `::` and can access variables but not modify them.
 We'll use the notation `someClass;;someMutatingMethod()` to refer to mutating methods
-and `someClass::someMethod()` to refer to non-mutating methods.  Calling a class
-method does not require the `;;` or `::` prefix, but it is allowed, e.g.,
+and `someClass::someMethod()` to refer to non-mutating methods.  For example:
 
 ```
+someClass := {
+    ;;reset(This Name: str): null
+}
 SomeClass ;= someClass("hello!")
-SomeClass someMethod()      # ok
-SomeClass::someMethod()     # also ok
-SomeClass someMutatingMethod()  # ok
-SomeClass;;someMutatingMethod() # also ok
+SomeClass::someMethod()
+SomeClass;;someMutatingMethod()
 ```
 
-Note that you can overload a class method with both constant `::` and mutable `;;` versions;
-in that case it's recommended to be explicit and use `::` or `;;` instead of ` ` (member access).
-See the section on member access operators for how resolution of ` ` works in this case.
+Note that you can overload a class method with both constant `::` and mutable `;;` versions,
+but since callers must be explicit with which method they want, that's ok.
 
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
@@ -1377,9 +1378,9 @@ exampleClass := {
     # as the starting value based on a `reset` function.  this is true even
     # if the class instance variables are defined as immutable.
     ;;reset(X; int): null
-        This X = X move()
-    # or short-hand: `;;reset(This X: int)` or even `@reset(X: int)`
-    # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
+        This;;X = X;;move()
+    # or short-hand: `;;reset(This;;X: int)` or even `@reset(X: int)`
+    # adding `This` to the arg name will automatically set `This;;X` to the passed in `X`.
 
     # class methods can be defined as well.
     # this one does not change the underlying instance:
@@ -1393,7 +1394,7 @@ exampleClass := {
     # this pure function does not require an instance, and cannot use instance variables:
     ->someStaticFunction(Y; int): int
         Y /= 2
-        return Y move()
+        return Y;;move()
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read/write global variables (or other files) due to `;>`:
@@ -1621,7 +1622,7 @@ justSwappable := {
         T := fn(@@Temporary)
         # swap Temporary back into SomeVar:
         someVar(@@Temporary)
-        return T move()
+        return T;;move()
     #)#
 }
 
@@ -1634,7 +1635,7 @@ justModdable := {
         T := fn(@@SomeVar)
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers
-        return T move()
+        return T;;move()
 
     #(#
     # the following becomes automatically defined:
@@ -1669,7 +1670,7 @@ Some examples:
 
 ```
 animal := {
-    ;;reset(This Name: string): null
+    ;;reset(This;;Name: string): null
 
     # define two methods on `animal`: `speak` and `go`.
     # these are "abstract" methods, i.e., not implemented by this base class.
@@ -1818,7 +1819,7 @@ You can define methods on your class that work for a variety of types.
 someExample := {
     Value: int
     ;;reset(Int): null
-        This Value = Int
+        This;;Value = Int
     ::to(): ~t
         return t(Value)
 }
@@ -1844,7 +1845,7 @@ from a parent which is a generic/template class.
 ```
 # create a class with two generic types, `key` and `value`:
 genericClass~(key, value) := {
-    ;;reset(This Key: key, This Value: value): null
+    ;;reset(This;;Key; key, This;;Value; value): null
 }
 # if this class is just POD, you can use the equivalent type:
 # genericClass := ~(key, value) (Key: key, Value: value)
@@ -1872,8 +1873,8 @@ generic~t := {
 }
 
 Generic := generic~string
-Generic Value = "hello"
-print(Generic method(2))    # prints ("3" * 7)
+Generic;;Value = "hello"
+print(Generic::method(2))   # prints ("3" * 7)
 
 ==>
 // Put result into first argument, based on operands in second and third slots:
@@ -1926,7 +1927,7 @@ All classes have a few compiler-provided methods which cannot be overridden.
     ```
     X; null|int|dbl_
     X = [1.2, 3.4]
-    consider X Type
+    consider X::Type
         case null
             print("X was Null")
         case int
@@ -1935,9 +1936,9 @@ All classes have a few compiler-provided methods which cannot be overridden.
             print("X was an array of double")
     ```
     Note that the `classType` type can be created directly from the type
-    constructors, e.g. `null` and `int`, e.g., `classType(int) == 5 Type`.
+    constructors, e.g. `null` and `int`, e.g., `classType(int) == 5::Type`.
     Note also, the `classType` type also can be printed nicely, e.g.,
-    `print("asdf" Type)` prints "str", and `str(1 Type Type) == "classType"`.
+    `print("asdf"::Type)` prints "str", and `str(1::Type::Type) == "classType"`.
     TODO: switch `classType` to `class`, since we don't need `class` anymore
     for defining a class.  or maybe just `type`.
 
@@ -1953,7 +1954,7 @@ For example:
 ```
 #=== some-class.hm ===
 someClass := {
-    ;;reset(@private This Str: str): null
+    ;;reset(@private This::Str: str): null
 
     ::someMethod(Int): string
         return Str * Int
@@ -1965,14 +1966,14 @@ someClass := {
 # define a new method on `someClass` from some-class.hm
 someClass::newMethod(String): int
     for Int: int < 100
-        if someMethod(Int) == String
+        if someClass::existingMethod(Int) == String
             return Int
     return -1
 
 SomeClass := someClass("hi")
-print(SomeClass newMethod("hihi"))  # should print 2
-print(SomeClass newMethod(""))      # should print 0
-print(SomeClass newMethod("hey"))   # should print -1
+print(SomeClass::newMethod("hihi")) # should print 2
+print(SomeClass::newMethod(""))     # should print 0
+print(SomeClass::newMethod("hey"))  # should print -1
 ```
 
 Note that the new method cannot access variables/methods inside the class that
@@ -1994,8 +1995,8 @@ singletons use `UpperCamelCase` since they are defining the variable and what it
 ```
 AwesomeService := singleton(parentClass1, parentClass2, #[etc.]#) {
     UrlBase := "http://my/website/address.bazinga"
-    get(Id: string): awesomeData 
-        Json := Http get("${UrlBase}/awesome/${Id}") 
+    ::get(Id: string): awesomeData 
+        Json := Http::get("${UrlBase}/awesome/${Id}") 
         return awesomeData(Json)
 }
 ```
@@ -2011,18 +2012,18 @@ screen := singleton() {
     ;;clear(Color := color->Black)
 }
 ### implementation/sdl-screen.hm ###
-SdlScreen := singleton(\/../screen screen) {
+SdlScreen := singleton(\/../screen::screen) {
     ;;draw(Image, Vector2): null
         # actual implementation code:
-        SdlSurface draw(Image, Vector2)
+        SdlSurface;;draw(Image, Vector2)
 
     ;;clear(Color := color->Black)
-        SdlSurface clear(Color)
+        SdlSurface;;clear(Color)
 }
 ### some-other-file.hm ###
 # this is an error if we haven't imported the sdl-screen file somewhere:
 Screen; screen
-Screen clear Color(R: 50, G: 0, B: 100)
+Screen;;clear Color(R: 50, G: 0, B: 100)
 ```
 
 You get a run-time error if multiple child-class singletons are imported/instantiated
@@ -2050,14 +2051,14 @@ to invoke logic from these external files.
 ```
 # vector2.hm
 vector2 := {
-    ;;reset(This X: dbl, This Y: dbl): null
+    ;;reset(This::X: dbl, This::Y: dbl): null
 
-    ::dot(Vector2: vector2) := X * Vector2 X + Y * Vector2 Y
+    ::dot(Vector2: vector2) := X * Vector2::X + Y * Vector2::Y
 }
 
 # main.hm
 Vector2Module: hm = \/vector2    # .hm extension must be left off.
-Vector2 := Vector2Module vector2(X: 3, Y: 4)
+Vector2 := Vector2Module::vector2(X: 3, Y: 4)
 print(Vector2)
 # TODO, support destructuring in the future:
 # {vector2} := \/vector2
@@ -2071,10 +2072,10 @@ has compile-time errors they will be known at compile time, not run time.
 
 ```
 # importing a function from a file in a relative path:
-print(\/path/to/relative/file functionFromFile("hello, world!"))
+print(\/path/to/relative/file::functionFromFile("hello, world!"))
 
 # importing a function from the math library:
-Angle := \\math atan2(X: 5, Y: -3)
+Angle := \\math::atan2(X: 5, Y: -3)
 ```
 
 To import a path that has special characters, just use the special characters
@@ -2085,15 +2086,6 @@ surround the path, e.g., `\\[library/path/with spaces]` for a library path or
 use a backslash to escape the space, e.g., `\\library/path/with\ spaces` or
 `\/relative/path/with\ a\ space/to/a/great\ file`.  Other standard escape sequences
 (using backslashes) will probably be supported.
-
-Note that while `\\math atan(X, Y)` might look like grammatically like `\\math(atan(X, Y))`,
-which would be wrong for operator precedence, we instead take the entire import as
-if it was an UpperCamelCase identifier.  E.g., `\\math` acts like one identifier, `Math`,
-so `\\math atan(X, Y)` resolves like `Math atan(X, Y)`, i.e., member access or drilling down
-from `Math := \\math`.  Similarly for any relative import; `\/relative/import/file someFunction(Q)`
-correctly becomes like `File someFunction(Q)` for `File := \/relative/import/file`.
-
-TODO: maybe require member access via `::` and `;;` for modules, e.g., `\\math::atan(X, Y)`.
 
 ## file access / file system
 
@@ -2154,19 +2146,19 @@ it is always `Array`.  Example usage and declarations:
 ```
 # this is an immutable array:
 MyArray: dbl_ = [1.2, 3, 4.5]       # converts all to dbl
-MyArray append(5)   # COMPILE ERROR: MyArray is immutable
+MyArray;;append(5)  # COMPILE ERROR: MyArray is immutable
 MyArray_1 += 5      # COMPILE ERROR: MyArray is immutable
 
 # mutable integer array:
-Array; int_    # declaring a mutable, default-named integer array
-Array append(5)     # now Array == [5]
+Array; int_         # declaring a mutable, default-named integer array
+Array;;append(5)    # now Array == [5]
 Array_3 += 30       # now Array == [5, 0, 0, 30]
 Array_4 = 300       # now Array == [5, 0, 0, 30, 300]
 Array_2 -= 5        # now Array == [5, 0, -5, 30, 300]
 
 # mutable string array:
 StringArray; string_ = ["hi", "there"]
-print(StringArray pop())    # prints "there".  now StringArray == ["hi"]
+print(StringArray;;pop())   # prints "there".  now StringArray == ["hi"]
 ```
 
 The default implementation of `array` might be internally a contiguous deque,
@@ -2233,7 +2225,7 @@ doSomething(CopiedArray; dbl_): dbl_2
     # you wouldn't actually use a mutable array argument, unless you did
     # some computations using the array as a workspace.
     # PRETENDING TO DO SOMETHING USEFUL WITH CopiedArray:
-    return [CopiedArray pop(), CopiedArray pop()]
+    return [CopiedArray;;pop(), CopiedArray;;pop()]
 
 # a function with an immutable argument:
 doSomething(ConstArray: dbl_): dbl_2
@@ -2253,7 +2245,7 @@ size is unknown at compile time, the fixed-size array will be defined on the hea
 # note you can use an input argument to define the return type's
 # fixed-array size, which is something like a generic:
 range(Int): int_Int
-    # TODO: use `assert(Int) < 0 !! "can't have a fixed negative-size array"`
+    # TODO: use `assert(Int) >= 0 !! "can't have a fixed negative-size array"`
     # where `!!` will check for a thrown error and rethrow with the new error message.
     if Int < 0
         throw "can't have a fixed negative-size array"
@@ -2314,6 +2306,7 @@ However, we allow casting from these prohibited types to allowed key types.  For
 NameDatabase; string_int
 NameDatabase_123 = "John"
 NameDatabase_124 = "Jane"
+# TODO: probably want to make rounding behavior explicit, e.g., `123.4::round(Stochastically)`:
 print(NameDatabase_123.4)   # prints "John" with 60% probability, "Jane" with 40%.
 
 # note that the definition of the key is an immutable array:
@@ -2322,6 +2315,8 @@ StackDatabase; string_(int_)    # parentheses are grammatically unnecessary,
                                 # i.e., `StackDatabase; string_int_` would be ok too.
 StackDatabase_[1,2,3] = "stack123"
 StackDatabase_[1,2,4] = "stack124"
+# TODO: probably need to do something like `[1.0, 2.0, 3.1];;;round(Stochastically)` here,
+# where `;;;` means to loop over elements of array and apply the method on the RHS.
 print(StackDatabase_[1.0, 2.0, 3.1])    # prints "stack123" with 90% probability, "stack124" with 10%
 # things get more complicated, of course, if all array elements are non-integer.
 # the array is cast to the key type (integer array) first.
@@ -2361,7 +2356,16 @@ map~(key, value) := {
     # allows access to modify the internal value, via MMR pattern.
     # passes the current value at the key into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the key.
-    ;;_(Key, fn(@moved Value): value): null
+    # if a value at `Key` is not already present, a default one will be created.
+    ;;_(Key, fn(@@Value): ~t): t
+
+    # allows access to modify the internal value, via MMR pattern.
+    # different than the above version since if the value at `Key` is not present, a Null will
+    # be passed into the function.  if the Value wasn't Null, but becomes Null via the passed-in
+    # function, the key will be deleted from the map.  conversely, if the value was Null, but
+    # the passed-in function turns it into something non-null, the key/value will be added
+    # to the map.
+    ;;_(Key, fn(@@Value?): ~t): t
 
     ::size(): index
 
@@ -2393,36 +2397,36 @@ insertionOrderedMap~(key, value) := extend(map) {
     ;;_(Key, fn(@@Value): ~t): t
         Index ?:= KeyIndices_(Key)
         return if Index != Null
-            modifyAlreadyPresent(Index, fn)
+            ;;modifyAlreadyPresent(Index, fn)
         else
-            needToInsertThenModify(Key, fn)
+            ;;needToInsertThenModify(Key, fn)
 
     ::_(Key, fn(Value?): ~t): t
         Index ?:= KeyIndices_(Key)
         return if Index != Null
             assert(Index) != 0
             IndexedValues_(Index, ::dive(IndexedValue: indexedMapValue~value): t
-                return fn(IndexedValue Value)
+                return fn(IndexedValue::Value)
             )
         else
             fn(Null)
     
     ::forEach(Loop->fn(Key, Value): forLoop): null
-        Index ;= IndexedValues_0 NextIndex
+        Index ;= IndexedValues_0::NextIndex
         while Index != 0
             # TODO: check if this is correct usage of !!
             Key := KeyIndices_Index !!
-            Value := IndexedValues_Index Value !!
+            Value := IndexedValues_Index::Value !!
             ForLoop := Loop->fn(Key, Value)
-            if ForLoop == forLoop Break
+            if ForLoop == forLoop->Break
                 break
-            Index = IndexedValues_Index NextIndex
+            Index = IndexedValues_Index::NextIndex
         # mostly equivalent to using nested functions to avoid copies:
         # `ForLoop := KeyIndices_(Value: Index, ::fn(Key?):
         #      assert(Key) != Null
         #      return IndexedValues_(Index, New::fn(IndexedMapValue?):
         #          assert(IndexedMapValue) != Null
-        #          return Loop->fn(Key, IndexedMapValue Value)
+        #          return Loop->fn(Key, IndexedMapValue::Value)
         #      )
         #  )
         # `
@@ -2434,9 +2438,9 @@ insertionOrderedMap~(key, value) := extend(map) {
     ;;needToInsertThenModify(Key, fn(@@Value): ~t): t
         NewIndex := AvailableIndex++ || reshuffle()
         KeyIndices_Key = NewIndex
-        PreviouslyLastIndex := IndexedValues_0 PreviousIndex
+        PreviouslyLastIndex := IndexedValues_0::PreviousIndex
         IndexedValues_0 PreviousIndex = NewIndex
-        IndexedValues_PreviouslyLastIndex NextIndex = NewIndex
+        IndexedValues_PreviouslyLastIndex;;NextIndex = NewIndex
         IndexedValues_NewIndex = {
             PreviousIndex: PreviouslyLastIndex
             NextIndex: 0
@@ -2450,8 +2454,7 @@ insertionOrderedMap~(key, value) := extend(map) {
         assert(Index) != 0
         assert(IndexedValues) has(Index)
         return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~value): t
-            # TODO: see if the syntax for @@ works here or at `@@IndexedValue Value`:
-            return fn(IndexedValue@@Value)
+            return fn(@@IndexedValue::Value)
         )
 }
 ```
@@ -2594,7 +2597,7 @@ array~t := {
             ForLoop := This_(Index, fn)
             # implicit:
             ForLoop := fn(This_Index)
-            if ForLoop == forLoop Break
+            if ForLoop == forLoop->Break
                 break
 
     # no-copy iteration, but can mutate the array.
@@ -2605,7 +2608,7 @@ array~t := {
             ForLoop := This_(Index, fn)
             # implicit:
             ForLoop := fn(@@This_Index)
-            if ForLoop == forLoop Break
+            if ForLoop == forLoop->Break
                 break
 }
 ```
@@ -3205,7 +3208,7 @@ sequence := extend(tokenMatcher) {
     # TODO: some annotation to pass a variable up to the parent class,
     # e.g., `reset(@passTo(TokenMatcher) Name: str, OtherArgs...):`
     ;;reset(Name: str, Array: grammarMatcher_):
-        This Uninterrutible = Array move()
+        This Uninterrutible = Array;;move()
         tokenMatcher;;reset(Name)
 
     ::match(@@Index, Array: token_): bool
@@ -3249,7 +3252,7 @@ repeat := extend(tokenMatcher) {
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Interruptible`.
     ;;reset(Name: str, This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
-        This Interruptible = Array move()
+        This Interruptible = Array;;move()
         tokenMatcher;;reset(Name)
 
     ::match(@@Index, Array: token_): bool
