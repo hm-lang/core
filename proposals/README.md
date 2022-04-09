@@ -52,10 +52,10 @@ Note that the close parenthesis must be at the same indent as the line of the op
 The starting indent of the line is what matters, so a close parenthesis can be on the same
 line as an open parenthesis.
 
-One final rule which affects line continuations:
-if an operator begins the line at +1 indent, e.g., `*`, `&&`, `+`, `/=`, etc.,
-and the identifier which follows the operator is at +2 indent, then the line's indent
-will be counted from that identifier, i.e., at +2 indent, not the operator's indent.
+If an operator (e.g., `*`, `&&`, `+`, `/=`, etc.) begins the line with +Y indent, with Y >= 1,
+and the identifier which follows the operator is at +X indent (where X is greater than Y),
+then the line's indent will be counted from that identifier, i.e., at +X indent, not the
+operator's indent (+Y).  Here we have some +2 indent examples:
 
 ```
 SomeLineContinuationExampleVariable :=
@@ -73,6 +73,18 @@ AnotherLineContinuationVariable := CanOptionallyStartUpHere
             -   HoweverLong
         )
 ```
+
+Note that line continuations must be at least +2 indent, but can be more if desired:
+
+```
+ExamplePlusThreeIndent
+    :=      Hello
+        +   World
+        -   Continuing
+```
+
+Unless there are parentheses involved, all indents for subsequent line continuations
+should be the same.
 
 ## comments
 
@@ -152,6 +164,8 @@ TODO: add : , ; ?! ??
 |           |   `~`     | template/generic scope    | binary: `a~b`     |               |
 |   1       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
+|           |   `:>`    | read-only class variable  | binary: `A:>B`    |               |
+|           |   `;>`    | writeable class variable  | binary: `A;>B`    |               |
 |           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
