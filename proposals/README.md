@@ -4,11 +4,75 @@
 
 TODO: lower and upper camel case
 
-## tabs vs. spaces
+## blocks
+
+### tabs vs. spaces
 
 Blocks of code are made out of lines at the same indent level; an indent is four spaces.
 No more than 7 levels of indent are allowed, e.g., lines at 0, 4, 8, 12, 16, 20, 24 spaces.
 If you need more indents, refactor your code.
+
+### line continuations
+
+Lines can be continued at a +2 indent from the originating line, though there are some
+special rules here when parentheses are involved.  If an open parenthesis is encountered at
+the end of the line, and the next lines are only at +1 indent, then we assume an array
+is being constructed.  If any `:` or `;` are encountered in what otherwise might be a
+line-continued array, we assume we're creating an object/map.  If the line after an open
+parenthesis is at +2 indent, then we assume we are just continuing the line and not creating
+an array.
+
+```
+SomeVariable := someVeryLongFunctionNameBecauseItIsGoodToBeSpecific(10)
+        + 3             # indent at +2 ensures that 3 is added into SomeVariable.
+        - OtherVariable # don't keep indenting +2, keep at +2 from original.
+
+ArrayVariable := [
+    # Array elements are at indent +1 from an open parenthesis, trailing commas optional:
+    1
+    2
+    3
+    4
+]
+
+ObjectVariable := {
+    SomeValue: 100
+    OtherValue: "hi"
+}
+
+NotAnArray := (
+        Continuing + The + Line + AtPlus2Indent - (
+                Nested * Parentheses / Are + Ok
+                - Too
+        )
+)
+```
+
+Note that the close parenthesis must be at the same indent as the line of the open parenthesis.
+The starting indent of the line is what matters, so a close parenthesis can be on the same
+line as an open parenthesis.
+
+One final rule which affects line continuations:
+if an operator begins the line at +1 indent, e.g., `*`, `&&`, `+`, `/=`, etc.,
+and the identifier which follows the operator is at +2 indent, then the line's indent
+will be counted from that identifier, i.e., at +2 indent, not the operator's indent.
+
+```
+SomeLineContinuationExampleVariable :=
+        OptionalExpressionExplicitlyAtPlusTwoIndent
+    +   5 - someFunction(
+                AnotherOptionalExpression
+            +   NextVariable
+            -   CanKeepGoing
+            /   Indefinitely
+        )
+
+AnotherLineContinuationVariable := CanOptionallyStartUpHere
+    +   OkToNotHaveAPreviousLineStartingAtPlusTwoIndent * (
+                KeepGoingIfYouLike
+            -   HoweverLong
+        )
+```
 
 ## comments
 
@@ -26,7 +90,7 @@ closing operator `#)#` as long as it is indented from the symbols which started 
 multiline comment), although this is not recommended.  To qualify as a multiline comment
 (either to open or close the comment), nothing else is allowed on the line before or after
 (besides spaces), otherwise an error is thrown.  All characters on all lines in between
-the mulitline comment symbols (e.g., `#(#` to `#)#`) are ignored.
+the multiline comment symbols (e.g., `#(#` to `#)#`) are ignored.
 
 # overview of types
 
