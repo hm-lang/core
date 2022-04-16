@@ -124,6 +124,8 @@ Other types which have a fixed amount of memory:
 * `u16` : unsigned integer which can hold values from 0 to 65535, inclusive
 * `u32` : unsigned integer which can hold values from 0 to 2^32 - 1, inclusive
 * `u64` : unsigned integer which can hold values from 0 to 2^64 - 1, inclusive
+* `index` : signed integer, `i64` under the hood.  for indexing arrays starting at 0.
+* `ordinal` : signed integer, `i64` under the hood.  for indexing arrays starting at 1.
 
 and similarly for `i8` to `i64`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
@@ -169,6 +171,7 @@ TODO: add : , ; ?! ??
 |           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
+|           |   ` `     | implicit subscript        | binary: `A (B)`   |               |
 |   2       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
@@ -272,7 +275,10 @@ Subscripts `_` are not an allowed character for identifiers (e.g., variable or f
 a subscript acts as an operator for indexing containers like arrays, sets, maps, and tensors.
 E.g., for a map `Database; int_str`, then `Database_"Fred" = 3` sets the value at key "Fred" to 3.
 Or if we declare an array `Array; int_`, then `Array_3 = 100` sets the fourth value of the array
-to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  Some examples:
+to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  When a large expression
+is used to key the index, you may also use an implicit subscript, which occurs when we have
+a non-function LHS followed by parentheses, e.g., `Array[Some + Expression / Here]`.
+Some examples:
 
 ```
 someClass := {X: dbl, Y: dbl, I; str_}
@@ -282,6 +288,7 @@ print(SomeClass::I_1)   # prints "world"
 print(SomeClass I_1)    # also prints "world", ` ` (member access) and `_` bind LTR.
 SomeClass;;I_4 = "love" # the fifth element is love.
 SomeClass::I_7 = "oops" # COMPILE ERROR, `::` means the array should be immutable.
+SomeClass;;I[7] = "no problem"
 ```
 
 For class methods, `;;` (`::`) selects the overload that mutates (keeps constant) the class
@@ -318,19 +325,18 @@ effectively be `;;`.  If the LHS is immutable, you can only use `::` and ` `, wh
 Subscripts have the same binding strength as member access operators since they are conceptually
 similar operations.  This allows for operations like `++A_3` meaning `++(A_3)` and
 `--A B C_3` equivalent to `--(((A;;B);;C)_3)`.  Member access binds stronger than exponentation
-so that operations like `A B_C^3` mean `((A::B)_C)^3`.
+so that operations like `A B_C^3` mean `((A::B)_C)^3`.  Note that parentheses break up implicit
+member access, so that we can distinguish between implicit member access, e.g., `Object Field`,
+and implicit subscript, e.g., `Array(Index)`.  The former becomes `Object::Field` (or
+`Object;;Field` depending on the context), while the latter becomes `Array_Index`.
 
-TODO: it might be better to use `;;` and `::` for all member access.
-
-TODO: do we allow implicit member access, e.g., `Array (someFunction(3))`, to act as an
-implicit subscript?  like with C++, `Array[someFunction(3)]`.  In that case, do we even
-need the `_` operator?  the only downside with removing: `Object Field` and `Object(Field)`
-might be ambiguous compared to `Object_Field` (which definitely means `Object(Field)`).
-
-Note that `something() NestedField` will not be allowed; `()` breaks ` ` (member access).
-You can use `something()::NestedField`, but this will mean `something( ()::NestedField )`
-due to precedence, which will be `something(Null)`, which is probably not what you want.
-In these cases, we should have the compiler recommend `{NestedField} := something()`.
+Note that `something() NestedField` will not be allowed because `()` breaks ` ` (member access).
+You could use `something()::NestedField`, but this would mean `something( ()::NestedField )`
+due to precedence, which becomes `something(Null)`, which is probably not what you want.
+In these cases, we'll get a compiler error, and the compiler will recommend
+`{NestedField} := something()`.
+TODO: if we up the precedence of function call, then this goes back to making sense.
+`something()::NestedField` could be `(something())::NestedField`.
 
 TODO: we probably want to disallow this sequence as well, `()::X` or `();;X`.  we may also
 want to disallow any parentheses `(AnyExpression)::X` (and similarly for `;;`), although
@@ -340,6 +346,7 @@ e.g., `fn(AnyExpression)::X`, which is not `(fn(AnyExpression))::X`.
 TODO: we might need some fancy logic to ensure that `Array_someFunction 3` parses correctly
 as `Array_(someFunction(3))`.  or do we allow subscripting by functions?  e.g., `Map_someFunction`
 will give you the value in the map held by key `someFunction`?
+or we might want to increase the precedence of function call, e.g., for `Array_ordinal(1)`
 
 ## superscripts/exponentiation
 
