@@ -146,7 +146,7 @@ e.g., `Y: int = X floor()` is OK, or `X ceil()`, or `X round()`, or `X round Sto
 
 ## types of types
 
-TODO: discuss type and classType.
+TODO: discuss type.
 
 # operators and precedence
 
@@ -1928,8 +1928,8 @@ from a parent which is a generic/template class.
 genericClass~(key, value) := {
     ;;reset(This Key: key, This Value: value): null
 }
-# if this class is just POD, you can use the equivalent type:
-# genericClass := ~(key, value) (Key: key, Value: value)
+# also equivalent:
+# genericClass := (This Key: ~key, This Value: ~value)
 
 # creating an instance using type inference:
 ClassInstance := genericClass(Key: 5, Value: "hello")
@@ -2001,7 +2001,7 @@ All classes have a few compiler-provided methods which cannot be overridden.
     resetting the current instance to a default instance -- i.e., calling `reset()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
-* `::Type: classType` provides the class type.  This makes it easy to determine
+* `::Type: type` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
     TODO: discuss how `consider`'s `case` statements cast their arguments
     to the same type as the type of the `consider` statement.
@@ -2016,14 +2016,10 @@ All classes have a few compiler-provided methods which cannot be overridden.
         case dbl_
             print("X was an array of double")
     ```
-    Note that the `classType` type can be created directly from the type
-    constructors, e.g. `null` and `int`, e.g., `classType(int) == 5 Type`.
-    Note also, the `classType` type also can be printed nicely, e.g.,
-    `print("asdf" Type)` prints "str", and `str(1 Type Type) == "classType"`.
-    TODO: switch `classType` to `class`, since we don't need `class` anymore
-    for defining a class.  or maybe just `type`.
-
-TODO: check if `copy()` should be in the list.
+    Note that the `type` type can be created directly from the type
+    constructors, e.g. `null` and `int`, e.g., `type(int) == 5 Type`.
+    Note also, the `type` type also can be printed nicely, e.g.,
+    `print("asdf" Type)` prints "str", and `str(1 Type Type) == "type"`.
 
 ## adding methods to existing classes
 
