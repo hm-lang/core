@@ -164,47 +164,75 @@ TODO: add : , ; ?! ??
 |           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
 |           |   `~`     | template/generic scope    | binary: `a~b`     |               |
-|   1       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
+|   1       |   ` `     | function call             | on fn: `a B`      | RTL           |
+|   2       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `:>`    | read-only class variable  | binary: `A:>B`    |               |
 |           |   `;>`    | writeable class variable  | binary: `A;>B`    |               |
 |           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
-|           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
+|           |   `_`     | subscript/index/key       | binary: `A_B`     | LTR           |
 |           |   ` `     | implicit subscript        | binary: `A (B)`   |               |
-|   2       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
+|   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
-|           |   `^^`    | repeated application      | on fn: `a^^B(X)`  |               |
 |           |   `--`    | unary decrement           | unary:  `--A`     |               |
 |           |   `++`    | unary increment           | unary:  `++A`     |               |
-|   3       |   ` `     | function call             | on fn: `a B`      | RTL           |
-|           |   `<>`    | bitwise flip              | unary:  `<>A`     |               |
+|   4       |   `<>`    | bitwise flip              | unary:  `<>A`     | RTL           |
 |           |   `-`     | unary minus               | unary:  `-A`      |               |
 |           |   `+`     | unary plus                | unary:  `+A`      |               |
-|   4       |   `>>`    | bitwise right shift       | binary: `A>>B`    | LTR           |
+|   5       |   `>>`    | bitwise right shift       | binary: `A>>B`    | LTR           |
 |           |   `<<`    | bitwise left shift        | binary: `A<<B`    |               |
-|   5       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
+|   6       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
 |           |   `/`     | divide                    | binary: `A/B`     |               |
 |           |   `%`     | modulus                   | binary: `A%B`     |               |
 |           |   `//`    | integer divide            | binary: `A//B`    |               |
 |           |   `%%`    | remainder after //        | binary: `A%%B`    |               |
-|   6       |   `+`     | add                       | binary: `A+B`     | LTR           |
+|   7       |   `+`     | add                       | binary: `A+B`     | LTR           |
 |           |   `-`     | subtract                  | binary: `A-B`     |               |
 |           |   `&`     | bitwise AND               | binary: `A&B`     |               |
 |           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
 |           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
-|   7       |   `==`    | equality                  | binary: `A==B`    | LTR           |
+|   8       |   `==`    | equality                  | binary: `A==B`    | LTR           |
 |           |   `!=`    | inequality                | binary: `A!=B`    |               |
-|   8       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
+|   9       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
 |           |  `\|\|`   | logical OR                | binary: `A\|\|B`  |               |
 |           |   `??`    | nullish OR                | binary: `A??B`    |               |
-|   9       |   `=`     | assignment                | binary: `A = B`   | LTR           |
+|   10      |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
 
 
 TODO: discussion on `~`
 needs to be RTL for `array~array~int` processing as `array~(array~int)`, etc.
+
+## function calls
+
+Function calls are assumed whenever a function identifier (i.e., `lowerCamelCase`)
+occurs before an atomic expression.  E.g., `print X` where `X` is a variable name or other
+primitive constant (like `5`), or, using parentheses, `anyFunctionName(Any + Expression / Here)`.
+Function calls bind strongly, so that `sin X + 3` is equivalent to `(sin(X)) + 3`
+and `tan Y * 3` is equivalent to `(tan(Y)) * 3`, as well as `sin X^2` being equivalent
+to `(sin(X))^2`.  It is highly recommended (possibly to be enforced by the compiler)
+to write expressions the other way around, e.g., `3 * tan Y`, `3 + sin X`, and
+`sin(X)^2` so that the order of operations is more clear to developers.  Multiple function
+calls are associated right-to-left, so `sin cos tan X` is equivalent to `sin(cos(tan(X)))`.
+
+Note that methods defined on classes can be prefaced by member access (e.g., ` `, `::`, or `;;`),
+and that path will still be used for function specification, even though member access has
+less precedence.  So for example, if some instance `MyClassInstance` has a field `MyField`
+which itself has a method `print`, then `MyClassInstance::MyField::print("Carrots")` 
+(or `MyClassInstance MyField print "Carrots"`) will use the `print` function specified
+on `MyField` rather than the global `print` function, even though the function call has
+higher precedence than member access.  E.g., the compiler sees
+`MyClassInstance::MyField::(print "Carrots")`, but knows to use
+`MyClassInstance::MyField::print` when running the internal `(print "Carrots")`.
+
+It is recommended to use parentheses where possible, to help people see the flow more easily.
+E.g., `someFunction SomeInstance SomeField someMethod() FinalField` looks pretty complicated.
+This would compile as `(someFunction(SomeInstance)::SomeField::someMethod())::FinalField`,
+and including these parentheses would help others follow the flow.
+
+TODO: `return` should follow these patterns as well; we shouldn't make an exception here.
 
 ## new-namespace `->` or class-scope operators `->`, `:>`, and `;>`
 
@@ -306,9 +334,7 @@ getMedianSlow(Array: array~int): int
     Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is immutable.
     # note that we need parentheses here around the desired array index
     # since `//` binds less strongly than `_`:
-    # TODO: i think we can allow `Sorted->Array[Sorted->Array size() // 2]`
-    # if we have another overload for ` ` being implicit subscript access
-    return Sorted->Array _ (Sorted->Array size() // 2)
+    return Sorted->Array[Sorted->Array size() // 2]
 
 # sorts the array and returns the median.
 getMedianSlow(@@Array; array~int): int
@@ -330,63 +356,18 @@ member access, so that we can distinguish between implicit member access, e.g., 
 and implicit subscript, e.g., `Array(Index)`.  The former becomes `Object::Field` (or
 `Object;;Field` depending on the context), while the latter becomes `Array_Index`.
 
-Note that `something() NestedField` will not be allowed because `()` breaks ` ` (member access).
-You could use `something()::NestedField`, but this would mean `something( ()::NestedField )`
-due to precedence, which becomes `something(Null)`, which is probably not what you want.
-In these cases, we'll get a compiler error, and the compiler will recommend
-`{NestedField} := something()`.
-TODO: if we up the precedence of function call, then this goes back to making sense.
-`something()::NestedField` could be `(something())::NestedField`.
-
-TODO: we probably want to disallow this sequence as well, `()::X` or `();;X`.  we may also
-want to disallow any parentheses `(AnyExpression)::X` (and similarly for `;;`), although
-we are using them as examples above, at least when there is a preceding function call,
-e.g., `fn(AnyExpression)::X`, which is not `(fn(AnyExpression))::X`.
-
-TODO: we might need some fancy logic to ensure that `Array_someFunction 3` parses correctly
-as `Array_(someFunction(3))`.  or do we allow subscripting by functions?  e.g., `Map_someFunction`
-will give you the value in the map held by key `someFunction`?
-or we might want to increase the precedence of function call, e.g., for `Array_ordinal(1)`
+Note that `something() NestedField` becomes `(something())::NestedField` due to
+the function call having higher precedence.  (You can also use destructuring if you want
+to keep a variable for multiple uses: `{NestedField} := something()`.)
+Similarly, using a function on the RHS of a subscript operation will call the function
+since it has higher priority.  E.g., `Array_someFunction 3` becomes `Array_(someFunction(3))`.
 
 ## superscripts/exponentiation
 
 Note that exponentiation -- `^` and `**` which are equivalent --
-bind more strongly than a function call.  So something like `print X^2` will print
-the value of `X^2` (i.e., `print X^2` is equivalent to `print(X^2)`).  This is the
-case even if parentheses are used, e.g., `anyFunction(AnyExpression)^Power` is equivalent
-to `anyFunction((AnyExpression)^Power)`.  If you want to take a power after the function call,
-use `anyFunction^Power(AnyExpression)`, which is equivalent to `(anyFunction(AnyExpression))^Power`.
-These conventions follow mathematical notation.
-
-Note that `anyFunction^Power(AnyExpression)` is different than `anyFunction^Power AtomicExpression`,
-since parentheses `()` will break implicit member access ` `.  I.e., `anyFunction^Power X`
-actually becomes `anyFunction^(Power::X)`, while `anyFunction^Power(X)` parses as before
-as `(anyFunction(X))^Power` (which is probably what you want).
-
-## function calls
-
-Function calls are assumed whenever a function identifier (i.e., `lowerCamelCase`)
-occurs before an atomic expression.  E.g., `print X` where `X` is a variable name or other
-primitive constant (like `5`), or, using parentheses, `print(Any + Expression / Here)`.
-Function calls bind strongly, so that `sin X + 3` is equivalent to `(sin(X)) + 3`
-and `tan Y * 3` is equivalent to `(tan(Y)) * 3`, but see above for preempting operators.
-It is highly recommended (possibly to be enforced by the compiler) to write expressions
-the other way around, e.g., `3 * tan Y` and `3 + sin X`, so that the order of operations
-is more clear to developers.  Multiple function calls are associated right-to-left,
-so `sin cos tan X` is equivalent to `sin(cos(tan(X)))`.
-
-TODO: If there is any ambiguity between function calling and member access, the compiler
-will yell at you, since you are probably making it hard for developers to read as well.
-The reason is so that combining function calls and member access isn't as confusing:
-`someFunction SomeInstance SomeField someMethod() FinalField` is too complicated.
-Looks like this would compile as
-`someFunction(  SomeInstance::SomeField::someMethod( ()::FinalField )  )`
-which is probably not what you want (`()::FinalField` would be Null.)
-
-TODO: note that `something() somethingElse()` doesn't track what people might expect,
-since this becomes `something( ()::somethingElse() )` which is a compiler error.
-
-TODO: `return` should follow these patterns as well; we shouldn't make an exception here.
+binds less strongly than function calls and member access.  So something like `sin X^2` will be
+equivalent to `(sin(X))^2`).  It is more clear to use the following syntax:
+use `anyFunction(AnyExpression)^Power`, which is equivalent to `(anyFunction(AnyExpression))^Power`.
 
 ## bitshifts `<<` and `>>`
 
@@ -589,7 +570,7 @@ MutableVec2 X += 4                  # OK
 MutableVec2 Y -= 1                  # OK
 
 # when defined with `:`, the object is deeply constant, so its fields cannot be changed:
-ImmutableVec2: vector2 = (X: 5, Y: 3)    # note you can use : when defining.
+ImmutableVec2: vector2 = (X; 5, Y; 3)    # note you can use ; when initializing.
 ImmutableVec2 = vector2(X: 6, Y: 3)  # COMPILE ERROR, ImmutableVec2 is non-reassignable
 ImmutableVec2 X += 4                 # COMPILE ERROR, ImmutableVec2 is deeply constant
 ImmutableVec2 Y -= 1                 # COMPILE ERROR, ImmutableVec2 is deeply constant
@@ -605,8 +586,8 @@ X; int = 4  # defined as mutable and reassignable
 
 if SomeCondition
     @lock X = 7 # locks X after assigning it to the value of 7.
-                # For the remainder of this indented block, you can use X but not reassign it
-                # you also can't use mutable, i.e., non-const, methods on X.
+                # For the remainder of this indented block, you can use X but not reassign it.
+                # You also can't use mutable, i.e., non-const, methods on X.
 else
     @lock X # lock X to whatever value it was for this block.
             # You can still use X but not reassign/mutate it.
@@ -618,7 +599,8 @@ X += 5      # can modify X back in this block; there are no constraints here.
 ## hiding variables for the remainder of the block
 
 TODO: @hide annotation, doesn't descope the variable, just hides it from being used
-by new statements/functions.
+by new statements/functions.  You can use it one last time with the annotation, however,
+e.g., `Date := date(@hide DateString)`.
 
 # functions
 
@@ -711,6 +693,8 @@ v 100, X: 10
 
 TODO: since `return` is considered a function, do we allow `return X + 5` or require `return(X + 5)`?
 if the former, then what would be the value of `return f X + 3`?
+maybe since return is a control statement (like `if` or `for`),
+it doesn't have to follow the laws of functions...
 
 ### functions as arguments
 
@@ -1016,7 +1000,7 @@ with various fields, since an argument has a name (the field name) as well as a 
 An object with a field that is `Null` should not be distinguishable from an object that
 does not have the field, since `Null` is the absence of a value.  Thus, if we count up
 the number of fields in an object using `size()`, we'll get results like this:
-`{}::size() == 0`, `{Y: Null}::size() == 0`, and `{Y: 5}::size() == 1`.
+`object()::size() == 0`, `{Y: Null}::size() == 0`, and `{Y: 5}::size() == 1`.
 
 We also want to make it easy to chain function calls with variables that might be null,
 where we actually don't want to call an overload of the function if the argument is null.
@@ -1054,6 +1038,9 @@ doSomething(X?: int): int
     ...
     return 3
 ```
+
+TODO: move this section above the constant vs. mutable arg section, since that fits
+better with the next section, or below the next section.
 
 ## move-modify-return (MMR) pattern
 
@@ -1279,6 +1266,7 @@ fibonacci(Times: dbl): dbl
 
 # TODO: this might be contradictory with the fact that they return something different;
 # the "default names" for the return values are "Int" and "Dbl", so those are technically different:
+# just return null and print the result.
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 ```
 
@@ -2107,7 +2095,7 @@ SdlScreen := singleton(\/../screen screen) {
 ### some-other-file.hm ###
 # this is an error if we haven't imported the sdl-screen file somewhere:
 Screen; screen
-Screen clear Color(R: 50, G: 0, B: 100)
+Screen clear color(R: 50, G: 0, B: 100)
 ```
 
 You get a run-time error if multiple child-class singletons are imported/instantiated
@@ -2636,6 +2624,7 @@ range~t := extend(iterator~t) {
             return Result
         return Null
 
+    # TODO: double check indent here.  i think the second+ lines should be indented.
     ::peak() := if NextIndex < LessThan
         NextIndex 
     else
@@ -2718,6 +2707,7 @@ for ternary operators (like
 In hm-lang, we borrow from Kotlin the idea that
 [`if` is an expression](https://kotlinlang.org/docs/control-flow.html#if-expression)
 and write something like:
+TODO: probably indent here?
 
 ```
 X := if Condition
@@ -2733,6 +2723,7 @@ Note that ternary logic short-circuits operations, so that calling the function
 `doSomething()` only occurs if `Condition` is true.  Also, only the last line
 of a block can become the RHS value for a statement like this.
 
+TODO: probably indent here?
 TODO: more discussion about how `return` works vs. putting a RHS statement on a line.
 TODO: add a way to get two variables out of this, e.g.,
 ```
