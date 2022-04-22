@@ -232,8 +232,6 @@ E.g., `someFunction SomeInstance SomeField someMethod() FinalField` looks pretty
 This would compile as `(someFunction(SomeInstance)::SomeField::someMethod())::FinalField`,
 and including these parentheses would help others follow the flow.
 
-TODO: `return` should follow these patterns as well; we shouldn't make an exception here.
-
 ## new-namespace `->` or class-scope operators `->`, `:>`, and `;>`
 
 The operator `->` can be used in two ways: (1) for creating default-named variables in a new/existing
@@ -628,20 +626,6 @@ v(X: dbl, Y: dbl): null
     # which also prints the expression inside the parentheses with an equal sign and its value,
     # although this will print `\\math atan(X, Y) = ...`, e.g.:
     # print("$${X}, $${Y}, $${\\math atan(X, Y)}")
-
-# function that takes a function as an argument and returns a function
-# TODO: input function must be scoped to survive however long `wow` can be called;
-# how do we want to do closure??
-wow(Input->fn(): string): fn(): int
-    return fn(): int
-        return Input->fn() size()
-# TODO: this works if the input function is defined inline, e.g.,
-# someFn() := "hey"
-# otherFn := wow(someFn)
-# print(otherFn()) # 3
-# now `otherFn` can't escape the scope that it's defined in, otherwise the `someFn`
-# will get cleaned up and `otherFn` will segfault (or worse).  it's probably easier to
-# forbid new functions from escaping the scope that they were defined in.
 ```
 
 ## calling a function
@@ -2695,6 +2679,7 @@ array~t := {
 
 # standard flow constructs / flow control
 
+TODO -- `return`
 TODO -- description, plus `if/else/elif` section
 
 ## conditional expressions
@@ -2955,13 +2940,103 @@ Options = T
 Options isT()   # True, since Options is now solely T
 ```
 
-# pointers/references don't exist
+# lifetimes and closures
 
-TODO: reconsider -- `SomeInstance @@()` to get the pointer for `SomeInstance`.
-you could only pass them in as arguments, but not hold onto them in scopes.
-You would have them as type-specifiers: `someFunction(SomeInstance: @@someInstance)`.
-The nice thing about no pointers is that you don't have to match arguments based
-on pointers or non-pointers.
+## lifetimes of variables and functions
+
+Variable and function lifetimes are usually scoped to the block that they
+were defined in.  Initialization happens when they are encountered, and
+descoping/destruction happens in reverse order when the block ends.  With
+functions we have to be especially careful when they are impure (i.e.,
+defined with a prefix `::` or `;;` for read-only and read-write functions).
+If an impure function's lifetime exceeds that of any of its hidden
+inputs' lifetimes, we'll get a segfault or worse.
+
+Let's illustrate the problem with an example:
+
+```
+# define a re-definable function.  we also allow it to be impure:
+;;liveItUp(String); index
+    return String size()
+
+if SomeCondition
+    SomeIndex; index = 9
+    # redefine:
+    ;;liveItUp(String); index
+        return String size() + ++SomeIndex
+
+    print liveItUp("hi")    # this should print 12
+    print liveItUp("ok")    # this should print 13
+
+print liveItUp("no")        # should this print 14 or 2??
+```
+
+Within the `if SomeCondition` block, a new variable `SomeIndex` gets defined,
+which is used to declare a new version of `liveItUp`.  But once that block
+is finished, `SomeIndex` gets cleaned up without care that it was used elsewhere,
+and if `liveItUp` is called with the new definition, it may segfault (or start
+changing some other random variable's data).  Therefore, we must not allow the
+expectation that `liveItUp("no")` will return 14 outside of the block.
+
+We actually don't want `liveItUp("no")` to return 2 here, either; we want this
+code to fail at compilation.  We want to detect when users are trying to do
+closures (popular in garbage-collected languages) and let them know this is
+not allowed.
+TODO: maybe we want to allow an impure function to "take" a variable into its own
+private scope so that we could return liveItUp here, but that would require some
+new syntax.
+
+You can define variables and use them inside impure functions (either `;;` or `::`),
+but they must be defined *before* the impure function is first declared.  So this
+would be allowed:
+
+```
+SomeIndex; index = 9
+;;liveItUp(String); index
+    return String size()
+
+if SomeCondition
+    # redefine:
+    ;;liveItUp(String); index
+        return String size() + ++SomeIndex
+
+    print liveItUp("hi")    # this should print 12
+    print liveItUp("ok")    # this should print 13
+
+print liveItUp("no")        # prints 14
+```
+
+Similarly, returning a function from within a function is breaking scope:
+
+```
+# this produces a COMPILER error:
+nextGenerator(Int; int): ;;fn(): int
+    return ;;fn():
+        return ++Int    # ERROR! lifetime of Int does not exceed returned function!
+```
+
+The `Int` here only lives inside of the block when `nextGenerator` is called,
+and so it will not be there for the returned function.
+
+TODO: discussion here: should we allow functions to be passed in as if they are pointers?
+i think this is fine, but maybe there are some edge cases that allow pointers to escape.
+need to double check...
+
+```
+# function that takes a function as an argument and returns a function
+# this closure is ok because the returned function has internals that have greater lifetimes
+# than itself.  i.e., the input function will be destroyed only after the output function
+# is descoped.  note that because the returned function is impure, it is prefixed with `::`.
+wow(Input->fn(): string): ::fn(): int
+    # example usage:
+    # someFn() := "hey"
+    # otherFn := wow(someFn)
+    # print(otherFn()) # 3
+    return fn(): int
+        return Input->fn() size()
+```
+
+## pointers/references don't exist
 
 To modify a value that is held by another class instance, e.g., the
 element of an array, we use the MMR pattern.  The class instance will
