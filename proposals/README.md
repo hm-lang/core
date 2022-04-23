@@ -2,7 +2,28 @@
 
 ## variable and function names
 
-TODO: lower and upper camel case
+Identifiers in hm-lang are very important.  The capitalization (or lack thereof)
+of the first letter indicates whether the identifier is a variable or a function.
+Since we think of functions as verb-like, they are `lowerCamelCase` identifiers, e.g.,
+`makeToast` or `runMarathon`.  On the other hand, variables are names, and we think
+of them as proper nouns (like names), e.g., `Bob` or `MaxArraySize`, so they are
+`UpperCamelCase` identifiers.  Class names are `lowerCamelCase`, since they
+act more functions than variables; e.g., you can convert one class instance into
+another class's instance, like `int(MyNumberString)` which converts `MyNumberString`
+(presumably a `string` type) into a big integer.
+
+There are a few reserved keywords, like `if`, `else`, `elif`, `with`, `return`,
+which are function-like but will consume the rest of the statement, even without parentheses.
+E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function, whereas
+something like `sin X + 5` will give the value `sin(X) + 5` due to operator precedence.
+
+Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
+most importantly in contrast to most other languages, underscores (`_`) are also not allowed.
+In hm-lang, underscores are considered subscripts, which allow access to an array,
+e.g., `Numbers_3` is equivalent to `Numbers[3]`, which gives the fourth element in the array
+called `Numbers` (since arrays are zero-indexed).
+
+TODO: also support unicode in identifiers.
 
 ## blocks
 
