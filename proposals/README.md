@@ -3144,6 +3144,26 @@ cc{
 }
 ```
 
+TODO: or something like this?  Use a keyword `with` to ensure cleanup.
+
+```
+SdlAudio; sdlAudio
+#...
+Song; song
+with SdlAudio callback(Song callback)
+    # other logic with song playing in the background
+```
+
+If this is the case, we might need a new built-in class, e.g., `caller~t`,
+which in this case `sdlAudio` inherits from.
+But this sort of makes it difficult to attach multiple callbacks in cases
+where more than one is relevant.  (Lots of nesting here.)
+
+Maybe we need to invert the flow; the called class should be `callable~t`,
+e.g., `song := extends(callable~array~sample)`.  When the callable is destructed,
+any connections it has to a `caller~t` class will automatically be destructed.
+E.g., set up the callback via `SdlAudio callback(@@Song)`.
+
 # grammar/syntax
 
 TODO: discussion on parentheses -- we'd like all to be equal () == {} == [], but
