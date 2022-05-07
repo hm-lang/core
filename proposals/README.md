@@ -2629,7 +2629,6 @@ range~t := extend(iterator~t) {
             return Result
         return Null
 
-    # TODO: double check indent here.  i think the second+ lines should be indented.
     ::peak() := if NextIndex < LessThan
         NextIndex 
     else
@@ -2713,7 +2712,6 @@ for ternary operators (like
 In hm-lang, we borrow from Kotlin the idea that
 [`if` is an expression](https://kotlinlang.org/docs/control-flow.html#if-expression)
 and write something like:
-TODO: probably indent here?
 
 ```
 X := if Condition
@@ -2729,7 +2727,6 @@ Note that ternary logic short-circuits operations, so that calling the function
 `doSomething()` only occurs if `Condition` is true.  Also, only the last line
 of a block can become the RHS value for a statement like this.
 
-TODO: probably indent here?
 TODO: more discussion about how `return` works vs. putting a RHS statement on a line.
 TODO: add a way to get two variables out of this, e.g.,
 ```
@@ -2739,8 +2736,39 @@ else
     {X: 1, Y: DefaultValue}
 ```
 
+Note that indent matters quite a bit here.  Conditional blocks are supposed to indent
+at +1 from the initial condition (e.g., `if` or `else`), but the +1 is measured from
+the line which starts the conditional (e.g., `{X, Y}` in the previous example).  Indenting
+more than this would trigger line continuation logic.  I.e., at +2 or more indent,
+the next line is considered part of the original statement and not a block.  For example:
+
+```
+Q ?:= if Condition
+        What + IndentTwice
+# actually looks to the compiler like:
+Q ?:= if Condition What + IndentTwice
+```
+
+Which will give a compiler error since there is no internal block for the `if` statement.
+
 ### consider case statements
 
+TODO: non-ternary example
+
+You can use RHS expressions for the last line of a `case` block to return a value
+to the original scope.  In this example, `X` can become 5, 7, or 100
+
+```
+X := consider String
+    case "hello"
+        print("hello to you, too!")
+        5
+    case "world"
+        print("it's a big place")
+        7
+    default
+        100
+```
 
 Implementation details:  For strings, at compile time we do a fast hash of each 
 string case, and at run time we do a switch-case on the fast hash of the considered
@@ -3273,10 +3301,10 @@ Grammar := singleton() {
         ])
         FunctionName: LowerCamelCase
         FunctionDeclaration: oneOf([
-            # `fnName(Args): retType` or `fnName?(Args): retType`
+            # `fnName(Args): retType`, `fnName?(Args): retType`, or
+            # `fnName(Args)?: retType`, also allowing `;` instead of `:`.
             sequence([
                 FunctionName
-                optional(operator("?"))
                 FunctionArgsWithReturnType
             ])
             # `fnName: fn(Args): retType` or similar
