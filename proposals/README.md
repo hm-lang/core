@@ -167,6 +167,11 @@ Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
 TODO: we probably actually want people to explicitly specify the type of rounding they want.
 e.g., `Y: int = X floor()` is OK, or `X ceil()`, or `X round()`, or `X round Stochastically`
 
+TODO: casting to a complex type, e.g., `(int|str)(SomeValue)` will pass through `SomeValue`
+if it is an `int` or a `str`, otherwise try `int(SomeValue)` if that is allowed, and finally
+`str(SomeValue)` if that is allowed.  If none of the above are allowed, the compiler will
+throw an error.
+
 ## types of types
 
 TODO: discuss type.
@@ -695,16 +700,16 @@ However, if you are specifying a single, named argument, you can avoid using par
 v(X: dbl, Int): null    # definition
 
 v 100       # executes v(X: 0.0, Int: 100)
-v X: 5      # executes v(X: 5, Int: 0)
+v X: 5      # executes v(X: dbl(5), Int: 0)
 
 # COMPILE ERROR: need parentheses here, since commas bind less strongly than function-spaces:
 v 100, X: 10
 ```
 
-TODO: since `return` is considered a function, do we allow `return X + 5` or require `return(X + 5)`?
-if the former, then what would be the value of `return f X + 3`?
-maybe since return is a control statement (like `if` or `for`),
-it doesn't have to follow the laws of functions...
+Note, even though `return` looks like a function (since it is `lowerCamelCase`), it behaves
+as a control statement (like `if` or `for`).  So it doesn't need to follow these laws;
+it consumes the remainder of the line for the return value.
+E.g., `return f X + 3` is the same as `return(f(X) + 3)`.
 
 ### functions as arguments
 
@@ -2704,6 +2709,8 @@ array~t := {
 
 # standard flow constructs / flow control
 
+We have a few standard control statements or flow control keywords in hm-lang.
+
 TODO -- `return`
 TODO -- description, plus `if/else/elif` section
 
@@ -2748,6 +2755,7 @@ more than this would trigger line continuation logic.  I.e., at +2 or more inden
 the next line is considered part of the original statement and not a block.  For example:
 
 ```
+# ERROR, NOT WHAT YOU WANT:
 Q ?:= if Condition
         What + IndentTwice
 # actually looks to the compiler like:
@@ -2756,12 +2764,16 @@ Q ?:= if Condition What + IndentTwice
 
 Which will give a compiler error since there is no internal block for the `if` statement.
 
-### consider case statements
+### consider-case statements
 
-TODO: non-ternary example
+TODO: non-ternary example with numbers.
+TODO: fallThrough keyword and behavior when multiple cases are in a row.
+TODO: consider doing `case Option1, Option2` instead of `case Option1 \n case Option2` with implied fallThrough.
+TODO: explain how `case` values are cast to the same type as the value being `consider`-ed.
 
 You can use RHS expressions for the last line of a `case` block to return a value
-to the original scope.  In this example, `X` can become 5, 7, or 100
+to the original scope.  In this example, `X` can become 5, 7, or 100, with various
+side effects (i.e., printing).
 
 ```
 X := consider String
@@ -2812,12 +2824,14 @@ for Value: int < 10
 
 # for-loop whose counter can be modified inside the block.
 # not recommended, since it's a bit harder to reason about.
-for Special; int < 5
-    print("A: ${Special}")
+for Special; int < 4
+    print("A:${Special}")
     ++Special
-    print("B: ${Special}")
+    print("B:${Special}")
     ++Special
-# prints "A: 0", "B: 1", "A: 3" "B: 4"
+# prints "A:0", "B:1", "A:3", "B:4"     # notice skip from B:1 to A:3 as `Special`
+# increments on its own because of the for-loop iteration logic.  Note also the
+# possibly undesired behavior that `Special` becomes >= 4 inside the for-loop block.
 
 # for-loop iterating over non-number elements:
 vector2 := {X: dbl, Y: dbl}
@@ -2826,7 +2840,8 @@ for (Vector2: vector2) in Array
     print(Vector2)
 
 # when using `in`, we need to use parentheses around the iterand,
-# but we don't to be explicit with the type if the variable name is default:
+# but we don't need to be explicit with the type if the variable name is
+# the default name for the variable type:
 for (Vector2) in Array
     print(Vector2)
 ```
@@ -2925,7 +2940,7 @@ option := enumerate(
 
 print "number of options should be 7:  ${option->count()}"
 
-Option1 := option ContentWithLife
+Option1 := option->ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
 if Option1 isNotAGoodOption()
@@ -2945,6 +2960,10 @@ consider Option1
     default
         print "that was boring"
 ```
+
+Note that we don't have to do `option->NotAGoodOption` (and similarly for other options)
+along with the `case` keyword.  The compiler knows that since `Option1` is of type `option`,
+that you are looking at the different values for `option` in the different cases.
 
 ### Default value of an enumeration
 
@@ -3213,6 +3232,9 @@ which in this case `sdlAudio` inherits from.
 But this sort of makes it difficult to attach multiple callbacks in cases
 where more than one is relevant.  (Lots of nesting here.)
 
+TODO: This next approach is my favorite, delete the earlier stuff.
+Allow `caller~t` and `callee~t` types that are built-in.
+
 Maybe we need to invert the flow; the called class should be `callable~t`,
 e.g., `song := extends(callable~array~sample)`.  When the callable is destructed,
 any connections it has to a `caller~t` class will automatically be destructed.
@@ -3222,6 +3244,15 @@ E.g., set up the callback via `SdlAudio callback(@@Song)`.
 
 TODO: discussion on parentheses -- we'd like all to be equal () == {} == [], but
 our notation might be difficult to distinguish arrays from arguments.
+Maybe we assume that we're creating an argument object, unless we are explicitly
+casting to an array.
+
+```
+# this could be an object with arguments, e.g., {X: X, Int: 100, Y: Y}:
+QuestionableChoices := {X, 100, Y}
+activate(QuestionableChoices)           # calls `activate` with the arguments object.
+NowAnArray := int_(QuestionableChoices) # makes an array of [X, 100, Y]
+```
 
 TODO: () or {} or [] are equivalent to Null, or a null object or empty args list.
 
