@@ -529,7 +529,12 @@ if Nullable != Null
     NonNullValue := Nullable someMethod()   # `NonNullValue` here must be `int`.
 ```
 
-TODO: how to handle forced conversions from null to non-null types
+It is not allowed to implicitly cast from a nullable type to a non-nullable type,
+e.g., `Value := Nullable someMethod()`.  The compiler will require that we define
+`Value` with `?:=`, or that we explicitly cast via whatever ending type we desire,
+e.g., `Value := int(Nullable someMethod())`.  Note that `whateverType(Null)` is
+the same as `whateverType()`, and number types (e.g., `int()` or `flt()`)  default
+to 0.
 
 Optional functions are defined in a similar way (cf. section on nullable functions),
 with the `?` just after the function name, e.g., `someFunction?(...Args): returnType`.
