@@ -6,7 +6,7 @@ Identifiers in hm-lang are very important.  The capitalization (or lack thereof)
 of the first letter indicates whether the identifier is a variable or a function.
 Since we think of functions as verb-like, they are `lowerCamelCase` identifiers, e.g.,
 `makeToast` or `runMarathon`.  On the other hand, variables are names, and we think
-of them as proper nouns (like names), e.g., `Bob` or `MaxArraySize`, so they are
+of them as proper nouns (like names), e.g., `Sam` or `MaxArraySize`, so they are
 `UpperCamelCase` identifiers.  Class names are `lowerCamelCase`, since they
 act more functions than variables; e.g., you can convert one class instance into
 another class's instance, like `int(MyNumberString)` which converts `MyNumberString`
@@ -107,6 +107,50 @@ ExamplePlusThreeIndent
 Unless there are parentheses involved, all indents for subsequent line continuations
 should be the same.
 
+### block parentheses and commas
+
+You can use `(*` ... `)` to define a block inline, or similarly with the other parentheses
+(i.e., `[*` ... `]` and `{*` ... `}`.  The parentheses block "operator" is grammatically
+the same as a standard block, i.e., going to a new line and indenting to +1.
+This is useful for short `if` statements, e.g., `if SomeCondition (*doSomething())`.
+
+Similarly, note that commas are essentially equivalent to a new line and tabbing to the
+same indent (indent +0).  This allows you to have multiple statements on one line, in any block,
+by using commas.  E.g.,
+
+```
+# standard version:
+if SomeCondition
+    print("toggling shutoff")
+    shutdown()
+
+# comma version:
+if SomeCondition
+    # NOTE: not recommended, since it's easy to accidentally skip reading
+    # the statements that aren't first:
+    print("toggling shutoff"), shutdown()
+
+# block parentheses version
+if SomeCondition (* print("toggling shutoff"), shutdown() )
+```
+
+If the block parentheses encapsulate content over multiple lines, note that
+the additional lines need to be tabbed to +1 indent to match the +1 indent given by `(*`.
+Multiline block parentheses are useful if you want to clearly delineate where your blocks
+begin and end, which helps some editors navigate more quickly to the beginning/end of the block.
+TODO: probably want a compile error if there's content after `(*` on a multiline block,
+since it looks cleaner.
+
+```
+# multiline block parentheses
+if SomeCondition (*
+    print("toggling shutdown")
+    print("waiting one more tick")
+    print("almost..."), print("it's a bit weird to use comma statements")
+    shutdown()
+)
+```
+
 ## comments
 
 Comments come in three types: (1) end of line (EOL) comments, (2) mid-line comments,
@@ -181,9 +225,6 @@ TODO: discuss type.
 Operator priority.
 
 TODO: add : , ; ?! ??
-TODO: have `(*` `[*` and `{*` be inline block indents.
-e.g., `if SomeCondition (*print("hello")) else (*print("world!"))` for an inline if/else.
-consider other options, too, e.g., `(,` and `(/`.
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
@@ -226,7 +267,10 @@ consider other options, too, e.g., `(,` and `(/`.
 |   9       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
 |           |  `\|\|`   | logical OR                | binary: `A\|\|B`  |               |
 |           |   `??`    | nullish OR                | binary: `A??B`    |               |
-|   10      |   `=`     | assignment                | binary: `A = B`   | LTR           |
+|   10      | `(*   )`  | block parentheses         | grouping: `(*A)`  | RTL           |
+|           | `[*   ]`  | block parentheses         | grouping: `[*A]`  |               |
+|           | `{*   }`  | block parentheses         | grouping: `{*A}`  |               |
+|   11      |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
 
@@ -653,6 +697,9 @@ v(): int
 # but in simple cases like this you can also define inline:
 v() := 600
 
+# inline, but with explicit type
+v(): int = 600
+
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
     print("X = ${X}, Y = ${Y}, atan(Y, X) = ${\\math atan(X, Y)}")
@@ -660,6 +707,18 @@ v(X: dbl, Y: dbl): null
     # which also prints the expression inside the parentheses with an equal sign and its value,
     # although this will print `\\math atan(X, Y) = ...`, e.g.:
     # print("$${X}, $${Y}, $${\\math atan(X, Y)}")
+
+# Note that it is also ok to use parentheses around a function definition,
+# but you should use the block parentheses notation `(*`.
+# TODO: see if we need to use `(*` or can get away with `(`.
+
+excite(Times: int): str {*
+    return "hi!" * Times
+}
+
+# You can also define functions inline with the `(*` ... `)` block operator.
+
+oh(Really; dbl): dbl {* Really *= 2.5, return 50 + Really }
 ```
 
 ## calling a function
@@ -785,6 +844,34 @@ q(anotherTestFunction)  # should print "function returned false!"
 q(;;fn(): bool
     return random()
 )   # will print one of the above due to randomness.
+
+# TODO: maybe not a good idea from here to END_TODO
+# unnamed functions are good candiates for using the `(*` ... `)` block operator,
+# although they will require a prefix of `::` or `;;` if they are impure, since
+# we are converting to a function which requires this annotation:
+q ;;{* bool(random()) }     # optional: `q ;;(* return bool(random()) )`
+
+Result; bool = False
+q ::[*Result]               # optional: `q ::[* return Result ]`
+
+# if the function is pure, then things look even simpler:
+q(*True)                    # optional: `q(* return True )`.
+
+# TODO: make sure that `q::(* ... )` and `q::fn(): bool (* ... )`
+# don't run afoul of the member access operator `;;` and `::` bits.
+# maybe would need to do `q(*: ... )` and `q(*; ...)` if so, and `fn;;(...): ...`
+# or maybe would need to ensure wrapped in more parentheses, e.g.,
+q(;;{*bool(random())})
+
+# you can also do multiple lines with the "block parentheses" operators:
+q(*
+    print("hello"), print("world")
+    return True
+)
+# TODO: does this actually make sense?  then technically this should also work:
+q
+    return False
+# END_TODO
 ```
 
 ### dynamically determining arguments for a function
@@ -1462,6 +1549,11 @@ instance of the class is needed.  It is a compiler error if a `;;reset()` method
 
 When defining methods or functions of all kinds, note that you can use `this`
 to refer to the current class instance type.
+
+TODO: do we need "block parentheses" notation here, e.g., `{*`?  i don't think so, because
+`{*` should only be required for places where a parentheses can mean something else.
+here there is no ambiguity, we are creating an object, but because the LHS is lowerCamelCase,
+we are creating a class.
 
 ```
 exampleClass := {
@@ -2736,6 +2828,9 @@ else
     DefaultValue
 
 # now X is either the result of `doSomething()` or `DefaultValue`.
+# note, we can also do this with the `(*` `)` operator to indicate blocks, e.g..
+
+X := if Condition (* doSomething() ) else (* calculateSideEffects(...), DefaultValue )
 ```
 
 Note that ternary logic short-circuits operations, so that calling the function
@@ -2788,6 +2883,10 @@ X := consider String
         7
     default
         100
+
+# Note again that you can use `(*` ... `)` block operators to make these inline.
+# Try to keep usage to code that can fit legibly on one line:
+Y := consider String (* case "hello" (*5), case "world" (*7), default (*100) )
 ```
 
 Implementation details:  For strings, at compile time we do a fast hash of each 
