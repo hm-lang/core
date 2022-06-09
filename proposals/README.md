@@ -181,6 +181,9 @@ TODO: discuss type.
 Operator priority.
 
 TODO: add : , ; ?! ??
+TODO: have `(*` `[*` and `{*` be inline block indents.
+e.g., `if SomeCondition (*print("hello")) else (*print("world!"))` for an inline if/else.
+consider other options, too, e.g., `(,` and `(/`.
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
@@ -3109,7 +3112,7 @@ wow(Input->fn(): string): ::fn(): int
         return Input->fn() size()
 ```
 
-## pointers/references don't exist
+## pointers/references don't exist: "no pointers" rule
 
 To modify a value that is held by another class instance, e.g., the
 element of an array, we use the MMR pattern.  The class instance will
@@ -3143,102 +3146,49 @@ Only one object can modify the memory at some location (i.e., of a variable).
 
 ## handling system callbacks
 
-TODO: think about audio callbacks.  how would this work with passing in
-a function which would handle them?  most languages allow something like this:
-```
-MySong ;= song(#[ first song ]#)
-::audioCallback(Array; sample_): null
-    MySong::sample(@@Array)
-SdlAudio;;callback(audioCallback)
-...
-# other logic...
-...
-# this breaks things.
-MySong = song(#( other song )#)
-```
-but we don't allow SdlAudio in hm-lang to take a reference/pointer to the
-audioCallback function; when passing in a nested function, it must be called only
-in that function, and not saved for later calling.
-
-TODO: do we do something like this instead?
+We want to allow a `caller`/`callee` contract which enables methods defined
+on one class instance to be called by another class instance, without being
+in the same nested scope.  (This is strictly regulated, since it is an exception
+to the "no pointers" rule.)  The `caller` which will call the callback needs
+to be defined before the `callee`, e.g., as a singleton or other instance.
+When the `callee` is descoped, it will deregister itself with the `caller`
+internally, so that the `caller` will no longer call the `callee`.
 
 ```
-audio := singleton() {
+# caller := { Callees; _(ptr~callee~t), runCallbacks(T: t): for (Ptr) in Callees (*Ptr call(T)) }
+audio := singleton(caller~(@@sample_)) {
+    # this `audio` class will call the `call` method on the `callee` class.
+    # TODO: actually show some logic for the calling.
+
+    # amount of time between samples:
+    DeltaT: flt
+}
+
+audioCallee := extend(callee~(@@sample_)) {
+    Frequency; flt = 440
+    Phase; flt = 0
+
     # TODO: find a way to make it clear this is a fixed-size array
     # but that it doesn't matter what size it is.  in C++, this would
     # be a template type, e.g., `sample_~N`, but we don't actually
     # want a templated method here.
-    @protected
-    ;;buffer(@@Array; sample_): null
-}
-```
-
-```
-sdlAudio := singleton(audio) {
-    ;;reset() := cc{
-        SDL_AudioSpec DesiredSpec;
-        ... other stuff ...
-        DesiredSpec.callback = mixAudio;
-        DesiredSpec.userData = this;
-        SDL_OpenAudio(&DesiredSpec, &ActualSpec);
-        ... error checking ...
-    }
-
-    # TODO: explain how all methods which use ;; on this class or a descendant class
-    # automatically call this first, and only once, before executing the method.
-    @mutateLock := cc{
-        SDL_LockAudio();
-    }
-
-    # TODO: explain how all methods which use ;; on this class or a descendant class
-    # automatically call this only once after executing the method.
-    @mutateUnlock := cc{
-        SDL_UnlockAudio();
-    }
-
-    @noMutateLock
-    @protected
-    ;;buffer(@@Array; sample_): null
+    ;;call(@@Array; sample_): null
+        for Index: index < Array size()
+            # TODO: maybe implicitly use `\\math Pi` inside the `\\math sin` function,
+            # but only if `Pi` is not defined elsewhere.  i.e., `\\math` becomes a scope
+            # which everything is looked up within.
+            Array_Index = sample(Mono: \\math sin(2 * Pi * Phase))
+            Phase += Frequency * Audio DeltaT
 }
 
-cc{
-    void mixAudio(void *Ptr, u8 *Stream, int ByteLength) {
-        sdlAudio *Audio = (sdlAudio *)Ptr;
-        ASSERT(Audio != Null && sizeof(u8) == 1);
-        int NumSamples = ByteLength / 2;
-        static array<sample> Array = array::fixedSize(NumSamples);
-        // TODO: depends on how we implement @@, but this is probably what we'll do:
-        Audio->buffer(&Array);
-        for (int I = 0; I < NumSamples; I += 2) {
-            Stream[I] = Array[I].Sample.left();
-            Stream[I+1] = Array[I].Sample.right();
-        }
-    }
-}
+someFunction(): null
+    Callee; audioCallee
+    Callee Frequency = 880
+    Audio call(@@Callee)
+    sleep Seconds: 10
+    # `Audio uncall(@@Callee)` automatically happens when `Callee` is descoped.
 ```
 
-TODO: or something like this?  Use a keyword `with` to ensure cleanup.
-
-```
-SdlAudio; sdlAudio
-#...
-Song; song
-with SdlAudio callback(Song callback)
-    # other logic with song playing in the background
-```
-
-If this is the case, we might need a new built-in class, e.g., `caller~t`,
-which in this case `sdlAudio` inherits from.
-But this sort of makes it difficult to attach multiple callbacks in cases
-where more than one is relevant.  (Lots of nesting here.)
-
-TODO: This next approach is my favorite, delete the earlier stuff.
-Allow `caller~t` and `callee~t` types that are built-in.
-
-Maybe we need to invert the flow; the called class should be `callable~t`,
-e.g., `song := extends(callable~array~sample)`.  When the callable is destructed,
-any connections it has to a `caller~t` class will automatically be destructed.
-E.g., set up the callback via `SdlAudio callback(@@Song)`.
 
 # grammar/syntax
 
