@@ -228,12 +228,11 @@ TODO: add : , ; ?! ??
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
-|   0       |   `()`    | parentheses               | grouping: `(A)`   | RTL           |
+|   0       |   `()`    | parentheses               | grouping: `(A)`   | ??            |
 |           |   `[]`    | parentheses               | grouping: `[A]`   |               |
 |           |   `{}`    | parentheses               | grouping: `{A}`   |               |
 |           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
-|           |   `~`     | template/generic scope    | binary: `a~b`     |               |
 |   1       |   ` `     | function call             | on fn: `a B`      | RTL           |
 |   2       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
@@ -241,12 +240,13 @@ TODO: add : , ; ?! ??
 |           |   `;>`    | writeable class variable  | binary: `A;>B`    |               |
 |           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
-|           |   `_`     | subscript/index/key       | binary: `A_B`     | LTR           |
+|           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
 |           |   ` `     | implicit subscript        | binary: `A (B)`   |               |
 |   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `--`    | unary decrement           | unary:  `--A`     |               |
 |           |   `++`    | unary increment           | unary:  `++A`     |               |
+|           |   `~`     | template/generic scope    | binary: `a~b`     |               |
 |   4       |   `<>`    | bitwise flip              | unary:  `<>A`     | RTL           |
 |           |   `-`     | unary minus               | unary:  `-A`      |               |
 |           |   `+`     | unary plus                | unary:  `+A`      |               |
@@ -267,7 +267,7 @@ TODO: add : , ; ?! ??
 |   9       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
 |           |  `\|\|`   | logical OR                | binary: `A\|\|B`  |               |
 |           |   `??`    | nullish OR                | binary: `A??B`    |               |
-|   10      | `(*   )`  | block parentheses         | grouping: `(*A)`  | RTL           |
+|   10      | `(*   )`  | block parentheses         | grouping: `(*A)`  | ??            |
 |           | `[*   ]`  | block parentheses         | grouping: `[*A]`  |               |
 |           | `{*   }`  | block parentheses         | grouping: `{*A}`  |               |
 |   11      |   `=`     | assignment                | binary: `A = B`   | LTR           |
