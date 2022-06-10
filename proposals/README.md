@@ -2799,6 +2799,16 @@ array~t := {
             ForLoop := fn(@@This_Index)
             if ForLoop == forLoop->Break
                 break
+
+    # TODO: use :; or ;: for "template" const/mutable versions,
+    # so that you can define const and mutable array iterators at
+    # the same time.  use `@:` as @@ if mutable, otherwise ` ` if not.
+    # TODO: maybe use `@$` instead of `@:`.
+    ;:forEach(fn(@:T): forLoop): bool
+        for Index: index < size()
+            if fn(@:This_Index) == forLoop->Break
+                return True
+        return False
 }
 ```
 
