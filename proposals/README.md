@@ -250,6 +250,9 @@ TODO: add : , ; ?! ??
 |   4       |   `<>`    | bitwise flip              | unary:  `<>A`     | RTL           |
 |           |   `-`     | unary minus               | unary:  `-A`      |               |
 |           |   `+`     | unary plus                | unary:  `+A`      |               |
+|           |   `::`    | const prefix              | unary:  `::A`     |               |
+|           |   `;;`    | mutable prefix            | unary:  `;;A`     |               |
+|           |   `;:`    | mutability template       | unary:  `;:A`     |               |
 |   5       |   `>>`    | bitwise right shift       | binary: `A>>B`    | LTR           |
 |           |   `<<`    | bitwise left shift        | binary: `A<<B`    |               |
 |   6       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
@@ -408,7 +411,9 @@ getMedianSlow(Array: array~int): int
     return Sorted->Array[Sorted->Array size() // 2]
 
 # sorts the array and returns the median.
-getMedianSlow(@@Array; array~int): int
+# NOTE: the `;;` prefix on the `array` means it is passed as a reference.
+# (you can also define this argument as `;;Array; array~int`.)
+getMedianSlow(Array; ;;array~int): int
     if Array size() == 0
         throw "no elements in array, can't get median."
     Array sort()    # same as `Array;;sort()` since `Array` is mutable.
@@ -498,7 +503,7 @@ differs from the modulus, `%`, when the operands have opposing signs.
 ## assignment operators
 
 TODO: `??=`.
-TODO: discussion on `<->` being swap.  swap as a function would have required `swap(@@X, @@Y)`
+TODO: discussion on `<->` being swap.  swap as a function would have required `swap(;;X, ;;Y)`
 to be consistent.
 
 # declaring and using variables
@@ -893,17 +898,17 @@ someFunction(X: int): string
 someFunction(X: string): int
     return X size()
 
-# use `Api` with `@@` so that `Api;;Response` can be updated.
+# use `Api` with `;;` so that `Api;;Response` can be updated.
 Api; api
 Api Request X = 2
-someFunction(@@Api)
+someFunction(;;Api)
 print(Api Response)  # prints {String: "hihi"}
 
 # define a default value for the Request object's field to get the other overload:
 Api; api
 Api Request X = "hello"
 Api Response Int = -1
-someFunction(@@Api)
+someFunction(;;Api)
 print(Api Response)  # prints {Int: 5}
 
 # dynamically determine arguments:
@@ -912,7 +917,7 @@ Api; api = if someCondition()
 else
     {Request: X: "hey", Response; Int; -1}
 
-someFunction(@@Api)
+someFunction(;;Api)
 print(Api Response)  # will print {String: "hihihihihi"} or {Int: 3} depending on `someCondition()`.
 ```
 
@@ -925,7 +930,7 @@ fields are defined (`Int` and `String`), like this:
 
 ```
 Api ;= api(Request: X: "4", Response: {Int: 0, String: ""})
-someFunction@@Api
+someFunction(;;Api)
 print(Api)  # prints {Request: {X: 4}, Response: {Int: 0, String: "hihihihi"}}
 ```
 
@@ -953,7 +958,7 @@ an overload for the `api` type yourself.  This will give a compile error, e.g.:
 
 ```
 # COMPILE ERROR!!  you cannot define an overload for `api`!
-someFunction(@@Api; api): null
+someFunction(;;Api; api): null
     print(Api Request X)
 ```
 
@@ -991,12 +996,12 @@ built arguments.  probably want to throw for `argsTo~fn`, however.
 TODO: decide if we want to allow defining an overload for the `args` type, e.g.,
 `someFunction(Args; args): null`.
 
-For the MMR pattern (using `@@` to pass in a variable that can be modified and returned),
+For the MMR pattern (using `;;` to pass in a variable that can be modified and returned),
 you need to use the `api` type as mentioned above.
 
 ```
 Api ;= api(Request: Dbl: 1000, Response: Dbl: 0)
-myFn(@@Api)
+myFn(;;Api)
 print(Api)  # prints {Request: {}, Response: Dbl: 5000}
 ```
 
@@ -1149,6 +1154,9 @@ better with the next section, or below the next section.
 
 ## move-modify-return (MMR) pattern
 
+TODO: probably deprecate this, `;;` makes sense as a reference, and it has a specific
+meaning, i.e., that it will modify an existing variable.
+
 Since a function cannot modify variables outside of the function, any changes
 that are to be made outside of the function must be effected by using the
 return values of the function.  To modify an object outside of a function
@@ -1167,22 +1175,20 @@ For this pattern to avoid unnecessary copies, the modifying function must
 use the mutable argument definition (e.g., `;`), and the external caller
 of the modifying function must `move()` the object into the function's arguments.
 
-To indicate what you're doing a more explicitly, you can use the `@@` annotation
-to an argument's variable name.  The `@@` annotation effectively adds the argument
+To indicate what you're doing a more explicitly, you can use the `;;` prefix
+to an argument's variable name.  The `;;` prefix effectively adds the argument
 to both the function's arguments and return value.  If the value type is omitted,
-`@@` implies a mutable variable, e.g., `fn(@@Int): null` implies `fn(Int; int): int`.
+`;;` implies a mutable variable, e.g., `fn(;;Int): null` implies `fn(Int; int): int`.
 Other values can also be passed into the function (or returned) at the regular spot(s),
 but will not have the move-modify-return pattern applied.  For example:
 
 ```
-modify(@@MyObjectType; myObjectType):
+modify(;;MyObjectType; myObjectType):
     MyObjectType someMethod(12345)
 
 SomeInstance ;= myObjectType(...)
-# you can also use `@@` to call the function and have it update the variable.
-# TODO: maybe use a different syntax here, like `modify(SomeInstance mmr())`
-# or `modify(SomeInstance @@())`, or `@ddr()`.
-modify(@@SomeInstance)
+# you can also use `;;` to call the function and have it update the variable.
+modify(;;SomeInstance)
 
 # which expands into:
 modify(@moved MyObjectType; myObjectType): myObjectType
@@ -1197,8 +1203,8 @@ TODO: discuss allowing @moved as an argument annotation in order to require some
 to `move()` a variable into the function.  don't just allow compiler warnings,
 those will expand unnecessarily.
 
-TODO: discuss how arguments annotated with `@@` can't conflict with other return values
-of functions.
+TODO: discuss how arguments prefixed with `;;` can't conflict with other return values
+of functions.  i.e., how does this work for non-null return types?
 
 
 ## redefining a function
@@ -1733,16 +1739,20 @@ example := {
     # swapper: swaps the value of X with whatever is passed in
     #          returns the old value of X.
     @visibility
-    ;;x(@@Str):
+    ;;x(;;Str):
         X <-> Str
 
     # modifier: allows the user to modify the value of X
     #           without copying it, using the MMR pattern.
     @visibility
-    ;;x(fn(@@Str): ~t) := fn(@@X)
+    ;;x(fn(;;Str): ~t) := fn(;;X)
+
+    # note that the getter and modifier can be "templated" const/mutable
+    # via the `;:` template mutability operator.
+    ;:x(fn(;:Str): ~t) := fn(;:X)
 }
 W = example()
-W x(fn(@@Str)
+W x(fn(;;Str)
     Str += ", world"
 )
 W x(fn(Str) := print(Str))
@@ -1790,7 +1800,7 @@ justSwappable := {
     SomeVar; int
 
     @visibility
-    ;;someVar(@@Int): null
+    ;;someVar(;;Int): null
         SomeVar <-> Int
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers.  a default-constructed
@@ -1800,14 +1810,14 @@ justSwappable := {
         # and modifier methods yourself.
 
     #(#
-    # the following becomes automatically defined:
-    ;;someVar(fn(@@Int): ~t): t
+    # the following modifier becomes automatically defined:
+    ;;someVar(fn(;;Int): ~t): t
         Temporary; int
         # swap SomeVar into Temporary:
-        someVar(@@Temporary)    # could also write `SomeVar <-> Temporary`
-        T := fn(@@Temporary)
+        someVar(;;Temporary)    # could also write `SomeVar <-> Temporary`
+        T := fn(;;Temporary)
         # swap Temporary back into SomeVar:
-        someVar(@@Temporary)
+        someVar(;;Temporary)
         return T move()
     #)#
 }
@@ -1817,16 +1827,16 @@ justModdable := {
     @invisible
     SomeVar; int
 
-    ;;someVar(fn(@@Int): ~t): t
-        T := fn(@@SomeVar)
+    ;;someVar(fn(;;Int): ~t): t
+        T := fn(;;SomeVar)
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers
         return T move()
 
     #(#
-    # the following becomes automatically defined:
-    ;;someVar(@@Int): null
-        someVar(;;fn(@@Old->Int): null
+    # the following swapper becomes automatically defined:
+    ;;someVar(;;Int): null
+        someVar(;;fn(;;Old->Int): null
             Int <-> Old->Int
         )
     #)#
@@ -2530,7 +2540,7 @@ map~(key, value) := {
     # returns a copy of the value at key, too.
     ;;_(Key): value
 
-    # getter, which will create a value instance if it's not present at Key.
+    # getter, which will create a default value instance if it's not present at Key.
     ;;_(Key, fn(Value): ~t): t
 
     # returns a Null if key is not in the map.
@@ -2546,15 +2556,22 @@ map~(key, value) := {
     # passes the current value at the key into the passed-in function (to be specific, moves it).
     # the return value of the passed-in function will become the new value at the key.
     # if a value at `Key` is not already present, a default `Value` will be created.
-    ;;_(Key, fn(@@Value): ~t): t
+    ;;_(Key, fn(;;Value): ~t): t
 
     # allows access to modify the internal value, via MMR pattern.
-    # different than the above version since if the value at `Key` is not present, a Null will
-    # be passed into the function.  if the Value wasn't Null, but becomes Null via the passed-in
+    # nullable modifier, which passes `Null` into the passed-in function if the value at `Key`
+    # is not present.  if the Value wasn't Null, but becomes Null via the passed-in
     # function, the key will be deleted from the map.  conversely, if the value was Null, but
     # the passed-in function turns it into something non-null, the key/value will be added
     # to the map.
-    ;;_(Key, fn(@@Value?): ~t): t
+    ;;_(Key, fn(;;Value?): ~t): t
+
+    # getter and modifier in one definition, with the `;:` "template mutability" operator:
+    # will throw for the const map (`::`) if Key is not in the map.
+    ;:_(Key, fn(;:Value): ~t): t
+
+    # nullable getter/modifier in one definition, with the `;:` template mutability operator:
+    ;:_(Key, fn(;:Value?): ~t): t
 
     ::size(): index
 
@@ -2583,7 +2600,7 @@ insertionOrderedMap~(key, value) := extend(map) {
     NextAvailableIndex; @private index = 1
 
     # creates a default value if not present at the key to pass in to the modifier:
-    ;;_(Key, fn(@@Value): ~t): t
+    ;;_(Key, fn(;;Value): ~t): t
         Index ?:= KeyIndices_(Key)
         return if Index != Null
             modifyAlreadyPresent(Index, fn)
@@ -2624,7 +2641,7 @@ insertionOrderedMap~(key, value) := extend(map) {
 
     # modifier for a keyed value not yet in the map, need to insert a default first:
     @private
-    ;;needToInsertThenModify(Key, fn(@@Value): ~t): t
+    ;;needToInsertThenModify(Key, fn(;;Value): ~t): t
         NewIndex := AvailableIndex++ || reshuffle()
         KeyIndices_Key = NewIndex
         PreviouslyLastIndex := IndexedValues_0 PreviousIndex
@@ -2639,11 +2656,11 @@ insertionOrderedMap~(key, value) := extend(map) {
 
     # modifier for an already indexed value in the map:
     @private
-    modifyAlreadyPresent(Index, fn(@@Value): ~t): t
+    modifyAlreadyPresent(Index, fn(;;Value): ~t): t
         assert(Index) != 0
         assert(IndexedValues) has(Index)
-        return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~value): t
-            return fn(@@IndexedValue Value)
+        return IndexedValues_(Index, ::dive(;;IndexedValue; indexedMapValue~value): t
+            return fn(;;IndexedValue Value)
         )
 }
 ```
@@ -2790,26 +2807,20 @@ array~t := {
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;forEach(fn(@@T): forLoop): null
+    ;;forEach(fn(;;T): forLoop): null
         for Index: index < size()
             # do a swap on the value based on the passed in function:
             # explicit:
             ForLoop := This_(Index, fn)
             # implicit:
-            ForLoop := fn(@@This_Index)
+            ForLoop := fn(;;This_Index)
             if ForLoop == forLoop->Break
                 break
 
-    # TODO: use :; or ;: for "template" const/mutable versions,
-    # so that you can define const and mutable array iterators at
-    # the same time.  use `@:` as @@ if mutable, otherwise ` ` if not.
-    # TODO: maybe use `@$` instead of `@:`.
-    # TODO: maybe switch to `::T` and `;;T` for const/mutable reference T so that
-    # we can use the same symbols everywhere, instead of @@.  that would make things
-    # more C++-y.  (e.g., `::t` => `const t &`, `;;t` => `t &`.)
-    ;:forEach(fn(@:T): forLoop): bool
+    # mutability template for both of the above:
+    ;:forEach(fn(;:T): forLoop): bool
         for Index: index < size()
-            if fn(@:This_Index) == forLoop->Break
+            if fn(;:This_Index) == forLoop->Break
                 return True
         return False
 }
@@ -3268,7 +3279,7 @@ internally, so that the `caller` will no longer call the `callee`.
 
 ```
 # caller := { Callees; _(ptr~callee~t), runCallbacks(T: t): for (Ptr) in Callees (*Ptr call(T)) }
-audio := singleton(caller~(@@sample_)) {
+audio := singleton(caller~(;;sample_)) {
     # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
@@ -3276,7 +3287,7 @@ audio := singleton(caller~(@@sample_)) {
     DeltaT: flt
 }
 
-audioCallee := extend(callee~(@@sample_)) {
+audioCallee := extend(callee~(;;sample_)) {
     Frequency; flt = 440
     Phase; flt = 0
 
@@ -3284,21 +3295,24 @@ audioCallee := extend(callee~(@@sample_)) {
     # but that it doesn't matter what size it is.  in C++, this would
     # be a template type, e.g., `sample_~N`, but we don't actually
     # want a templated method here.
-    ;;call(@@Array; sample_): null
+    ;;call(;;Array; sample_): null
         for Index: index < Array size()
             # TODO: maybe implicitly use `\\math Pi` inside the `\\math sin` function,
             # but only if `Pi` is not defined elsewhere.  i.e., `\\math` becomes a scope
             # which everything is looked up within.
             Array_Index = sample(Mono: \\math sin(2 * Pi * Phase))
             Phase += Frequency * Audio DeltaT
+
+    # automatically defined by the callee class:
+    ;;hangUp(): null  
 }
 
 someFunction(): null
     Callee; audioCallee
     Callee Frequency = 880
-    Audio call(@@Callee)
+    Audio call(;;Callee)
     sleep Seconds: 10
-    # `Audio uncall(@@Callee)` automatically happens when `Callee` is descoped.
+    # `Audio hangUp(;;Callee)` automatically happens when `Callee` is descoped.
 ```
 
 
@@ -3363,7 +3377,7 @@ tokenMatcher := {
     # through "Grammar match(...)" in order to restore the Index
     # in case of a bad match.  @private so that only Grammar can call.
     @private
-    ::match(@@Index, Array: token_): bool
+    ::match(;;Index, Array: token_): bool
 }
 
 grammarMatcher := tokenMatcher | grammarElement | token
@@ -3495,18 +3509,18 @@ Grammar := singleton() {
             parentheses(Block)
         ])
         EndOfInput: tokenMatcher(
-            match(@@Index, Array: token_) := Index >= Array size()
+            match(;;Index, Array: token_) := Index >= Array size()
         )
     ]
 
-    match(@@Index, Array: token_, GrammarMatcher): bool
+    match(;;Index, Array: token_, GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
         Matched := consider GrammarMatcher Type
             case tokenMatcher
-                GrammarMatcher match(@@Index, Array)
+                GrammarMatcher match(;;Index, Array)
             case grammarElement
-                Elements_GrammarMatcher match(@@Index, Array)
+                Elements_GrammarMatcher match(;;Index, Array)
             case token
                 Index < Array size() && Array _ Index++ == Grammar Matcher
         if not Matched
@@ -3535,9 +3549,9 @@ sequence := extend(tokenMatcher) {
         This Uninterrutible = Array move()
         tokenMatcher;;reset(Name)
 
-    ::match(@@Index, Array: token_): bool
+    ::match(;;Index, Array: token_): bool
         for (GrammarMatcher) in Uninterruptible
-            if not Grammar match(@@Index, Array, GrammarMatcher)
+            if not Grammar match(;;Index, Array, GrammarMatcher)
                 return False
         return True
 }
@@ -3547,14 +3561,14 @@ parentheses := extend(tokenMatcher) {
     ;;reset(Name: str, This GrammarMatcher):
         tokenMatcher;;reset(Name)
 
-    ::match(@@Index, Array: token_): bool
+    ::match(;;Index, Array: token_): bool
         # TODO: make sure copies are elided for constant temporaries like this:
         CurrentToken := Array_Index
         if CurrentToken Type != parentheseToken
             return False
 
         InternalIndex; index = 0
-        PartialMatch ?:= Grammar match(@@InternalIndex, CurrentToken InternalTokens, GrammarMatcher)
+        PartialMatch ?:= Grammar match(;;InternalIndex, CurrentToken InternalTokens, GrammarMatcher)
         if not PartialMatch
             return False
 
@@ -3579,16 +3593,16 @@ repeat := extend(tokenMatcher) {
         This Interruptible = Array move()
         tokenMatcher;;reset(Name)
 
-    ::match(@@Index, Array: token_): bool
+    ::match(;;Index, Array: token_): bool
         if Index >= Array size()
             return False
 
         while True
             for (GrammarMatcher) in Interruptible
                 # always check the escape sequence, Until:
-                if Grammar match(@@Index, Array, Until)
+                if Grammar match(;;Index, Array, Until)
                     return True
-                if not Grammar match(@@Index, GrammarMatcher)
+                if not Grammar match(;;Index, GrammarMatcher)
                     return False
 }
 # TODO: make sure the cyclic dependency is ok: i.e., Grammar match being called inside of
