@@ -411,9 +411,8 @@ getMedianSlow(Array: array~int): int
     return Sorted->Array[Sorted->Array size() // 2]
 
 # sorts the array and returns the median.
-# NOTE: the `;;` prefix on the `array` means it is passed as a reference.
-# (you can also define this argument as `;;Array; array~int`.)
-getMedianSlow(Array; ;;array~int): int
+# NOTE: the `;;` prefix on the `Array` variable means it is passed as a reference.
+getMedianSlow(;;Array; array~int): int
     if Array size() == 0
         throw "no elements in array, can't get median."
     Array sort()    # same as `Array;;sort()` since `Array` is mutable.
@@ -996,8 +995,8 @@ built arguments.  probably want to throw for `argsTo~fn`, however.
 TODO: decide if we want to allow defining an overload for the `args` type, e.g.,
 `someFunction(Args; args): null`.
 
-For the MMR pattern (using `;;` to pass in a variable that can be modified and returned),
-you need to use the `api` type as mentioned above.
+We should pass in a reference (using `;;` to indicate the variable can be modified
+inside the function) in order to update the response appropriately.
 
 ```
 Api ;= api(Request: Dbl: 1000, Response: Dbl: 0)
@@ -1152,59 +1151,27 @@ doSomething(X?: int): int
 TODO: move this section above the constant vs. mutable arg section, since that fits
 better with the next section, or below the next section.
 
-## move-modify-return (MMR) pattern
+## references as argument types only
 
-TODO: probably deprecate this, `;;` makes sense as a reference, and it has a specific
-meaning, i.e., that it will modify an existing variable.
-
-Since a function cannot modify variables outside of the function, any changes
-that are to be made outside of the function must be effected by using the
-return values of the function.  To modify an object outside of a function
-using its methods inside the function, use the move-modify-return pattern.  E.g.,
-
-```
-MyObject ;= myObjectType(WhateverArgs: 5)
-MyObject = modify(MyObject move())
-# where the `modify` function is whatever you want:
-modify(MyObjectType; myObjectType): myObjectType
-    MyObjectType someMethod(12345)
-    return MyObjectType move()      # compiler can probably figure out this move()
-```
-
-For this pattern to avoid unnecessary copies, the modifying function must
-use the mutable argument definition (e.g., `;`), and the external caller
-of the modifying function must `move()` the object into the function's arguments.
-
-To indicate what you're doing a more explicitly, you can use the `;;` prefix
-to an argument's variable name.  The `;;` prefix effectively adds the argument
-to both the function's arguments and return value.  If the value type is omitted,
-`;;` implies a mutable variable, e.g., `fn(;;Int): null` implies `fn(Int; int): int`.
-Other values can also be passed into the function (or returned) at the regular spot(s),
-but will not have the move-modify-return pattern applied.  For example:
+To indicate that a reference is being passed in, you need to use the `;;` prefix
+on an argument's variable name when calling a function.  Similarly, when defining
+a function, `;;` can be used as a prefix on the argument name.
 
 ```
 modify(;;MyObjectType; myObjectType):
-    MyObjectType someMethod(12345)
+    MyObjectType someMutatingMethod(12345)
 
 SomeInstance ;= myObjectType(...)
-# you can also use `;;` to call the function and have it update the variable.
+# you must use `;;` when calling the function in order to activate this overload,
+# and to make SomeInstance be mutated by its method `someMutatingMethod`.
 modify(;;SomeInstance)
-
-# which expands into:
-modify(@moved MyObjectType; myObjectType): myObjectType
-    MyObjectType someMethod(12345)
-    return MyObjectType move()      # compiler can probably figure out this move()
-
-SomeInstance ;= myObjectType(...)
-SomeInstance = modify(SomeInstance move())
 ```
 
 TODO: discuss allowing @moved as an argument annotation in order to require someone
 to `move()` a variable into the function.  don't just allow compiler warnings,
 those will expand unnecessarily.
 
-TODO: discuss how arguments prefixed with `;;` can't conflict with other return values
-of functions.  i.e., how does this work for non-null return types?
+TODO: discuss how arguments prefixed with `;;` are separate overloads of functions.
 
 
 ## redefining a function
@@ -1743,7 +1710,7 @@ example := {
         X <-> Str
 
     # modifier: allows the user to modify the value of X
-    #           without copying it, using the MMR pattern.
+    #           without copying it, using references.
     @visibility
     ;;x(fn(;;Str): ~t) := fn(;;X)
 
@@ -2288,7 +2255,7 @@ correctly becomes like `File someFunction(Q)` for `File := \/relative/import/fil
 
 ## file access / file system
 
-TODO: how does file access work with the MMR pattern
+TODO: how does file access work with the reference pattern
 E.g., we need to make sure that functions which access the file system are declared with `;;` or `::`.
 
 # errors and asserts
@@ -2367,25 +2334,32 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 ```
 # some relevant pieces of the class definition
 array~t := {
-    # getter, which creates a default-initialized value if necessary.
-    # (also will add default-initialized values up to this index, if above current size.)
-    ;;_(Index, fn(T): ~u): u
+    # swapper, sets the value at the index, returning the old value in the reference.
+    # if the swapped in value is Null but the array value wasn't Null, the array
+    # will shrink by one, and all later indexed values will move down one index.
+    # TODO: check all @moved annotations to switch to references
+    ;;_(Index, ;;T?): null
 
-    # swapper, sets the value at the index, returning the old value if present:
-    ;;_(Index, @moved T)?: t
+    # modifier, allows access to modify the internal value via reference.
+    # passes the current value at the index into the passed-in function by reference (`;;`).
+    # if Index >= the current size(), then the array size is increased (to Index + 1)
+    # and filled with default values so that a valid reference can be passed into the callback.
+    ;;_(Index, fn(;;T): ~u): u
 
-    # modifier, allows access to modify the internal value, via MMR pattern.
-    # passes the current value at the index into the passed-in function (to be specific, moves it).
-    # the return value of the passed-in function will become the new value at the index.
-    ;;_(Index, fn(@moved T): t): null
-
-    # returns a Null if index is out of bounds in the array:
     # getter, which returns a Null if index is out of bounds in the array:
-    ::_(Index, fn(T?): ~u): u
+    ::_(Index, fn(::T?): ~u): u
+    
+    # nullable modifier, which returns a Null if index is out of bounds in the array.
+    # if the reference to the value in the array (`;;T?`) is null, but you switch to
+    # something non-null, the array will expand to that size (with default values
+    # in between, if necessary).  if you set the reference to Null and it wasn't
+    # Null before, then the array will shrink by one, and all later index values
+    # will move down one.
+    ;;_(Index, fn(;;T?): ~u): u
 
     ::size(): index
 
-    ;;append(T;): null
+    ;;append(T): null
 
     ;;pop(Index: index = -1): t
 
@@ -2552,16 +2526,15 @@ map~(key, value) := {
     # sets the value at the key, returning the old value:
     ;;_(Key, Value;): value
 
-    # allows access to modify the internal value, via MMR pattern.
-    # passes the current value at the key into the passed-in function (to be specific, moves it).
+    # modifier, allows access to modify the internal value via reference.
+    # passes the current value at the key into the passed-in function by reference (`;;`).
     # the return value of the passed-in function will become the new value at the key.
     # if a value at `Key` is not already present, a default `Value` will be created.
     ;;_(Key, fn(;;Value): ~t): t
 
-    # allows access to modify the internal value, via MMR pattern.
-    # nullable modifier, which passes `Null` into the passed-in function if the value at `Key`
-    # is not present.  if the Value wasn't Null, but becomes Null via the passed-in
-    # function, the key will be deleted from the map.  conversely, if the value was Null, but
+    # nullable modifier, which returns a Null if the key is not in the map.
+    # if the Value wasn't Null, but becomes Null via the passed-in function,
+    # the key will be deleted from the map.  conversely, if the value was Null, but
     # the passed-in function turns it into something non-null, the key/value will be added
     # to the map.
     ;;_(Key, fn(;;Value?): ~t): t
@@ -2724,13 +2697,14 @@ iterator~t := {
     # present only if underlying container supports inserting a new element (before `peak()`)
     ;;insert?(T): null
 
-    # replaces the element at `next()` based on the return value;
-    # the next value is passed in as an argument to `replace`,
-    # and the iterator should increment.  cf. MMR pattern.
-    # if there was an element at this point in the container,
-    # and a null is returned, the element (and its former location)
-    # should be deleted out of the container.
-    ;;replace(T?)?: t
+    # replaces the element at `next()` based on the passed-in value,
+    # and the iterator should increment (i.e., skip the value you just passed in).
+    # if there was an element at this point in the container, and a null
+    # is passed into `replace`, then the element (and its former location)
+    # should be deleted out of the container.  if `next()` is Null but the passed-in
+    # reference is not, then the new value should be added to the container.
+    # the value that *was* at `next()` will be swapped into the reference.
+    ;;replace?(;;T?): null
 }
 ```
 
@@ -2762,20 +2736,20 @@ for (Index: index) in range(LessThan: 10)
 # prints "0" to "9"
 ```
 
-TODO: how does this work with the MMR framework for remove, insert, etc.?
+TODO: how does this work with the "no pointers" framework?
 
 For example, here is an array iterator:
 
 ```
 arrayIterator~t := extend(iterator~t) {
-    # to use MMR, we need to pass in the array;
+    # to avoid creating a pointer, we need to pass in the array;
     # move the array in to avoid copying.
     # this @reset annotation creates a function signature of
     # ;;reset(
     #   This Array; t_, This NextIndex; index = 0
     # ): {Array: t_, NextIndex: index}
     # which automatically returns the old value of the Array (and NextIndex) if requested.
-    @reset(Array: t_, NextIndex: index = 0)
+    @reset(@moved Array: t_, NextIndex: index = 0)
     # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
     # e.g., 
     #   MyArray; int_ = [1,2,3,4]
@@ -3235,24 +3209,21 @@ wow(Input->fn(): string): ::fn(): int
         return Input->fn() size()
 ```
 
-## pointers/references don't exist: "no pointers" rule
+## the "no pointers" rule
 
 To modify a value that is held by another class instance, e.g., the
-element of an array, we use the MMR pattern.  The class instance will
-pass in the current value (via a move) to a modifying function. 
-Whatever value the modifying function returns will be used to replace the
-value held by the class instance.  This obviates the need for pointers,
-and though the explicit usage of the MMR pattern can look clumsy,
-we can make MMR invisible using some syntactical sugar.
+element of an array, we can use references (i.e., `;;`).  However, we
+are not allowed to grab a hold of the reference for longer than the
+duration of the function call/scope.  We use some syntax sugar in order
+to make this not look clumsy.
 
 ```
 ArrayArray; int__ = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
 ArrayArray_0 append(4)  # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
-ArrayArray_(0, fn(@moved Array: int_): int_
+ArrayArray_(0, fn(;;Array: int_): null
     Array append(4)
-    return Array
 )
 ```
 
