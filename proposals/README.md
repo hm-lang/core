@@ -2804,6 +2804,9 @@ array~t := {
     # so that you can define const and mutable array iterators at
     # the same time.  use `@:` as @@ if mutable, otherwise ` ` if not.
     # TODO: maybe use `@$` instead of `@:`.
+    # TODO: maybe switch to `::T` and `;;T` for const/mutable reference T so that
+    # we can use the same symbols everywhere, instead of @@.  that would make things
+    # more C++-y.  (e.g., `::t` => `const t &`, `;;t` => `t &`.)
     ;:forEach(fn(@:T): forLoop): bool
         for Index: index < size()
             if fn(@:This_Index) == forLoop->Break
