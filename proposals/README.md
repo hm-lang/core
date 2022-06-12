@@ -218,7 +218,49 @@ throw an error.
 
 ## types of types
 
-TODO: discuss type.
+Every variable has a reflexive type which describes the object/primitive that is held
+in the variable.  This can be accessed via the `::Type` field on instances, and the `->Type`
+field on functions/classes.  For example,
+
+```
+vector3 := {X; dbl, Y; dbl, Z; dbl}
+
+Vector3 := vector3(X: 1.2, Y: -1.4, Z: 1.6)
+
+print(Vector3::Type)                    # prints `type->Vector3`
+print(vector3->Type == Vector3::Type)   # this prints true
+
+VectorType: type = Vector3::Type
+
+# TODO: double check that we wouldn't need type of a type to be some nested monstrosity
+# for some reasonable code.
+print(VectorType::Type)     # type of a type, still resolves to `type->Vector3`.
+
+# creates a dynamical instance of vector3; the compiler doesn't know it's a vector3.
+# even though we know it comes from a vector3, `VectorType` is generically a `type`.
+# TODO: probably can make the compiler a little bit smart about this, based on the
+# assignments that could be possibly made to VectorType.  in this case, it's const,
+# with no other assignment options besides Vector3::Type, so it must be a vector3 type.
+AnotherVector3 := VectorType new(X: 5, Y: 6, Z: -7)
+```
+
+TODO: this takes away `Type` and `type` as keywords that might be desirable for use
+(e.g., `type` in some mock text for a test element).  can we do
+a built in operator, e.g., a postfix `!` or prefix `?`  ?  Still would need a name for
+the type, but could maybe prefix it specially, e.g., `@type` or `?type`, `@t`, `@@`, or `@?`...
+TODO: might want to do the same for move, e.g., `@move()`.
+TODO: how far should this go?  e.g., to `@return` and `@if` and `@else`?
+
+TODO: flesh out `type` class a bit more.
+```
+type := {
+    # Type instances have a `new` method which allows you to construct an
+    # instance of the class.
+    ::new(...Args): ~t
+}
+```
+
+TODO: types of functions, shouldn't really have `new`.
 
 # operators and precedence
 
@@ -1003,6 +1045,13 @@ Api ;= api(Request: Dbl: 1000, Response: Dbl: 0)
 myFn(;;Api)
 print(Api)  # prints {Request: {}, Response: Dbl: 5000}
 ```
+
+TODO: discussion about what reference types look like inside `api`.  it might be
+nice to use the `Request` being populated with it, as well as the `Response`.
+TODO: if so, we probably want to say that `fn(;;Name: ~t): null` and `fn(Name: ~t): {Name: t}`
+are the same type.  just a question of what `fn(;;Name: ~t): int` looks like, expanded...
+maybe `fn(Name: ~t): {Name: t, Int: int}`.  This is MMR-lite, so maybe we should bring it back,
+especially for async network API requests, since you can't send a reference to another computer.
 
 ### constant versus mutable arguments
 
@@ -2794,7 +2843,7 @@ array~t := {
     # mutability template for both of the above:
     ;:forEach(fn(;:T): forLoop): bool
         for Index: index < size()
-            if fn(;:This_Index) == forLoop->Break
+            if fn(;:This_Index) isBreak()
                 return True
         return False
 }
