@@ -114,6 +114,8 @@ You can use `(*` ... `)` to define a block inline, or similarly with the other p
 the same as a standard block, i.e., going to a new line and indenting to +1.
 This is useful for short `if` statements, e.g., `if SomeCondition (*doSomething())`.
 
+TODO: consider using `(/ )` instead.  `(* )` is a bit more unique, visibly, however.
+
 Similarly, note that commas are essentially equivalent to a new line and tabbing to the
 same indent (indent +0).  This allows you to have multiple statements on one line, in any block,
 by using commas.  E.g.,
@@ -1149,7 +1151,7 @@ calling the overload that defined the missing argument case.  I.e.:
 Y?; int = ... # Y is maybe null, maybe non-null
 
 # the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
-Z := overloaded(Y)  
+Z := overloaded(Y?)  
 # Z has type `dbl|string` due to the different return types of the overloads.
 ```
 
@@ -1159,6 +1161,32 @@ An object with a field that is `Null` should not be distinguishable from an obje
 does not have the field, since `Null` is the absence of a value.  Thus, if we count up
 the number of fields in an object using `size()`, we'll get results like this:
 `object()::size() == 0`, `{Y: Null}::size() == 0`, and `{Y: 5}::size() == 1`.
+
+Note that when calling a function with a nullable variable/expression, we need to
+indicate that the field is nullable if the expression itself is null (or nullable). 
+Just like when we define nullable variables, we use `?:=` or `?;=`, we need to use
+`?:` or `?;` (or some equivalent) when passing a nullable field.  For example:
+
+```
+someFunction(X?: int): int
+    return X ?? 1000
+
+# when argument is not null:
+someFunction(X: 100)    # OK, expression for X is definitely not null
+someFunction(X?: 100)   # ERROR! expression for X is definitely not null
+
+# when argument is an existing variable:
+X ?;= Null
+print(someFunction(X?))  # can do `X?: X`, but that's not idiomatic.
+
+# when argument is a new nullable expression:
+someFunction(X?: someNullishFunction())  # REQUIRED since someNullishFunction can return a Null
+someFunction(X: someNullishFunction())   # ERROR! someNullishFunction is nullable, need `X?:`.
+
+# where someNullishFunction might look like this:
+::someNullishFunction()?: int
+    return if SomeCondition (* Null ) else (* 100 )
+```
 
 We also want to make it easy to chain function calls with variables that might be null,
 where we actually don't want to call an overload of the function if the argument is null.
@@ -1181,9 +1209,6 @@ X ?:= overloaded(Y?!)
 
 You can use `?!` with multiple arguments; if any argument with `?!` after it is null,
 then the function will not be called.
-
-TODO: should we make calling a function with a nullish variable explicit?
-e.g., `someFunction(X?: overloaded(Y?!))`.  Only if we do the `X ?:= overloaded(Y?!)` type logic.
 
 This can also be used with the `return` function to only return if the value is not null.
 
