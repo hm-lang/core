@@ -1227,11 +1227,13 @@ better with the next section, or below the next section.
 
 ## references as argument types only
 
-To indicate that a reference is being passed in, you need to use the `;;` prefix
-on an argument's variable name when calling a function.  Similarly, when defining
-a function, `;;` can be used as a prefix on the argument name.
+To indicate that a variable is being passed as a reference, i.e., so that modifications
+inside the function will be persist on the variable outside the function, you can use
+the `;;` prefix on the variable name when creating the argument list for a function.
+The `;;` is used in both creating the function and in calling the function.
 
 ```
+# reference-type function with default-named input:
 modify(;;MyObjectType; myObjectType):
     MyObjectType someMutatingMethod(12345)
 
@@ -1239,13 +1241,75 @@ SomeInstance ;= myObjectType(...)
 # you must use `;;` when calling the function in order to activate this overload,
 # and to make SomeInstance be mutated by its method `someMutatingMethod`.
 modify(;;SomeInstance)
+
+# example reference-type function with non-default named input:
+modify(;;ModifyMe; myObjectType):
+    ModifyMe someMutationMethod(123)
+
+modify(ModifyMe; ;;SomeInstance)
 ```
+
+Note that you cannot declare a reference type variable outside of an argument list.
+E.g.,
+
+```
+MyVariable ;= myObjectType(10)
+;;MyReference := MyVariable     # NOT ALLOWED.  COMPILER ERROR.
+```
+
+This is because reference types do not technically exist in hm-lang.  The `;;` prefix
+is just syntactic sugar for passing in a `move()`d variable and getting it returned
+from the function.  So the above valid examples actually define these overloads:
+
+```
+modify(@moved MyObjectType; myObjectType): myObjectType
+    MyObjectType someMutatingMethod(12345)
+    return MyObjectType move()
+
+SomeInstance ;= myObjectType(...)
+SomeInstance = modify(SomeInstance move())
+
+modify(@moved ModifyMe; myObjectType): {ModifyMe: myObjectType}
+    ModifyMe someMutatingMethod(12345)
+    return {ModifyMe move()}
+
+# TODO: figure out syntax that we want here.  could also do
+# {ModifyMe} := modify(ModifyMe: SomeInstance move())
+# SomeInstance = @hide ModifyMe move()
+# OR MAYBE:
+# {SomeInstance as ModifyMe} = modify(ModifyMe: SomeInstance move())
+SomeInstance = modify(ModifyMe: SomeInstance move()) ModifyMe
+```
+
+TODO: maybe when defining function arguments, have `;` mean that you move the variable in.
+e.g., `SomeInstance = modify(ModifyMe; SomeInstance) ModifyMe`.
+this might not be super clear, however, and it'd be better to have clarity for readability.
+the `;` or `:` should only affect the variable use inside the function, not the argument passed in.
+
+This is known as the Move-Modify-Return (MMR) paradigm, and it is useful to think about
+this as how it would work for network requests.  Another computer can't take a reference
+to your variable, but it can take your value for it, modify it, and return it.
+
+Because functions defined with `;;` argument prefixes really just expand to passed-in
+and returned-out variables, it's important to think about how they play nicely with
+other return fields.  E.g.,
+
+```
+ToMatch ;= 100
+;;match(;;Index, Array: int_): bool
+    while Index < Array size()
+        if Array[Index] == ToMatch
+            return True
+        ++Index
+    return False
+```
+
+TODO: discussion here on how this becomes `;;match(@moved Index, Array: int_): {Index, bool}`
+and how we resolve the overload for something like `if ;;match(;;Index, Array) (* doSomething() )`.
 
 TODO: discuss allowing @moved as an argument annotation in order to require someone
 to `move()` a variable into the function.  don't just allow compiler warnings,
 those will expand unnecessarily.
-
-TODO: discuss how arguments prefixed with `;;` are separate overloads of functions.
 
 
 ## redefining a function
