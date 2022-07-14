@@ -1232,6 +1232,10 @@ inside the function will be persist on the variable outside the function, you ca
 the `;;` prefix on the variable name when creating the argument list for a function.
 The `;;` is used in both creating the function and in calling the function.
 
+TODO: this notation is a bit overloaded with impure functions, which use `;;` as a prefix
+if they modify the global scope.  if this is the same underlying concept, great, but this
+seems a bit different.  we probably should revert to `@@` instead of `;;`.
+
 ```
 # reference-type function with default-named input:
 modify(;;MyObjectType; myObjectType):
@@ -1299,7 +1303,7 @@ ToMatch ;= 100
     return False
 ```
 
-TODO: discussion here on how this becomes `;;match(@moved Index, Array: int_): {Index, bool}`
+TODO: discussion here on how this becomes `;;match(@moved Index, Array: int_): {Index, Bool}`
 and how we resolve the overload for something like `if ;;match(;;Index, Array) (* doSomething() )`.
 
 TODO: discuss allowing @moved as an argument annotation in order to require someone
