@@ -249,7 +249,8 @@ AnotherVector3 := VectorType new(X: 5, Y: 6, Z: -7)
 TODO: this takes away `Type` and `type` as keywords that might be desirable for use
 (e.g., `type` in some mock text for a test element).  can we do
 a built in operator, e.g., a postfix `!` or prefix `?`  ?  Still would need a name for
-the type, but could maybe prefix it specially, e.g., `@type` or `?type`, `@t`, `@@`, or `@?`...
+the type, but could maybe prefix it specially, e.g., `@type` or `?type`, `@t`, or `@?`...
+or maybe even `what` or `is`.  `MyInstance Is`.
 TODO: might want to do the same for move, e.g., `@move()`.
 TODO: how far should this go?  e.g., to `@return` and `@if` and `@else`?
 
@@ -277,6 +278,9 @@ TODO: add : , ; ?! ??
 |           |   `{}`    | parentheses               | grouping: `{A}`   |               |
 |           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
+|           |   `::`    | const prefix              | unary:  `::A`     |               |
+|           |   `;;`    | mutable prefix            | unary:  `;;A`     |               |
+|           |   `;:`    | mutability template       | unary:  `;:A`     |               |
 |   1       |   ` `     | function call             | on fn: `a B`      | RTL           |
 |   2       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
@@ -294,9 +298,6 @@ TODO: add : , ; ?! ??
 |   4       |   `<>`    | bitwise flip              | unary:  `<>A`     | RTL           |
 |           |   `-`     | unary minus               | unary:  `-A`      |               |
 |           |   `+`     | unary plus                | unary:  `+A`      |               |
-|           |   `::`    | const prefix              | unary:  `::A`     |               |
-|           |   `;;`    | mutable prefix            | unary:  `;;A`     |               |
-|           |   `;:`    | mutability template       | unary:  `;:A`     |               |
 |   5       |   `>>`    | bitwise right shift       | binary: `A>>B`    | LTR           |
 |           |   `<<`    | bitwise left shift        | binary: `A<<B`    |               |
 |   6       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
@@ -455,8 +456,8 @@ getMedianSlow(Array: array~int): int
     return Sorted->Array[Sorted->Array size() // 2]
 
 # sorts the array and returns the median.
-# NOTE: the `;;` prefix on the `Array` variable means it is passed as a reference.
-getMedianSlow(;;Array; array~int): int
+# NOTE: the `@@` prefix on the `Array` variable means it is passed as a reference.
+getMedianSlow(@@Array; array~int): int
     if Array size() == 0
         throw "no elements in array, can't get median."
     Array sort()    # same as `Array;;sort()` since `Array` is mutable.
@@ -546,7 +547,7 @@ differs from the modulus, `%`, when the operands have opposing signs.
 ## assignment operators
 
 TODO: `??=`.
-TODO: discussion on `<->` being swap.  swap as a function would have required `swap(;;X, ;;Y)`
+TODO: discussion on `<->` being swap.  swap as a function would have required `swap(@@X, @@Y)`
 to be consistent.
 
 # declaring and using variables
@@ -890,14 +891,14 @@ q(anotherTestFunction)  # should print "function returned false!"
 
 # or you can create a nameless function yourself:
 q(;;fn(): bool
-    return random()
+    return random() > 0.5
 )   # will print one of the above due to randomness.
 
 # TODO: maybe not a good idea from here to END_TODO
 # unnamed functions are good candiates for using the `(*` ... `)` block operator,
 # although they will require a prefix of `::` or `;;` if they are impure, since
 # we are converting to a function which requires this annotation:
-q ;;{* bool(random()) }     # optional: `q ;;(* return bool(random()) )`
+q ;;{* bool(random() > 0.5) }   # optional: `q ;;(* return bool(random() > 0.5) )`
 
 Result; bool = False
 q ::[*Result]               # optional: `q ::[* return Result ]`
@@ -909,7 +910,7 @@ q(*True)                    # optional: `q(* return True )`.
 # don't run afoul of the member access operator `;;` and `::` bits.
 # maybe would need to do `q(*: ... )` and `q(*; ...)` if so, and `fn;;(...): ...`
 # or maybe would need to ensure wrapped in more parentheses, e.g.,
-q(;;{*bool(random())})
+q(;;{*bool(random() > 0.5)})
 
 # you can also do multiple lines with the "block parentheses" operators:
 q(*
@@ -919,6 +920,7 @@ q(*
 # TODO: does this actually make sense?  then technically this should also work:
 q
     return False
+# TODO: maybe use `(> ... )` for a function block.  but this is getting pretty specific...
 # END_TODO
 ```
 
@@ -941,17 +943,17 @@ someFunction(X: int): string
 someFunction(X: string): int
     return X size()
 
-# use `Api` with `;;` so that `Api;;Response` can be updated.
+# use `Api` with `@@` so that `Api;;Response` can be updated.
 Api; api
 Api Request X = 2
-someFunction(;;Api)
+someFunction(@@Api)
 print(Api Response)  # prints {String: "hihi"}
 
 # define a default value for the Request object's field to get the other overload:
 Api; api
 Api Request X = "hello"
 Api Response Int = -1
-someFunction(;;Api)
+someFunction(@@Api)
 print(Api Response)  # prints {Int: 5}
 
 # dynamically determine arguments:
@@ -960,7 +962,7 @@ Api; api = if someCondition()
 else
     {Request: X: "hey", Response; Int; -1}
 
-someFunction(;;Api)
+someFunction(@@Api)
 print(Api Response)  # will print {String: "hihihihihi"} or {Int: 3} depending on `someCondition()`.
 ```
 
@@ -973,7 +975,7 @@ fields are defined (`Int` and `String`), like this:
 
 ```
 Api ;= api(Request: X: "4", Response: {Int: 0, String: ""})
-someFunction(;;Api)
+someFunction(@@Api)
 print(Api)  # prints {Request: {X: 4}, Response: {Int: 0, String: "hihihihi"}}
 ```
 
@@ -1001,10 +1003,12 @@ an overload for the `api` type yourself.  This will give a compile error, e.g.:
 
 ```
 # COMPILE ERROR!!  you cannot define an overload for `api`!
-someFunction(;;Api; api): null
+someFunction(@@Api; api): null
     print(Api Request X)
 ```
 
+TODO: switch to `io` instead of `args` (since `io` applies to return values as well as arguments).
+TODO: `Io` has optional `Warning` and `Error` fields.
 TODO: `null` is probably a subclass of `args`, a special, empty object that has no fields.
 TODO: discuss the `args` type, which allows you to build up function arguments.
 e.g., `Args; args = {Hello: "World"}`.
@@ -1039,21 +1043,23 @@ built arguments.  probably want to throw for `argsTo~fn`, however.
 TODO: decide if we want to allow defining an overload for the `args` type, e.g.,
 `someFunction(Args; args): null`.
 
-We should pass in a reference (using `;;` to indicate the variable can be modified
+We should pass in a reference (using `@@` to indicate the variable can be modified
 inside the function) in order to update the response appropriately.
 
 ```
 Api ;= api(Request: Dbl: 1000, Response: Dbl: 0)
-myFn(;;Api)
+myFn(@@Api)
 print(Api)  # prints {Request: {}, Response: Dbl: 5000}
 ```
 
 TODO: discussion about what reference types look like inside `api`.  it might be
 nice to use the `Request` being populated with it, as well as the `Response`.
-TODO: if so, we probably want to say that `fn(;;Name: ~t): null` and `fn(Name: ~t): {Name: t}`
-are the same type.  just a question of what `fn(;;Name: ~t): int` looks like, expanded...
-maybe `fn(Name: ~t): {Name: t, Int: int}`.  This is MMR-lite, so maybe we should bring it back,
-especially for async network API requests, since you can't send a reference to another computer.
+
+TODO: maybe use `io` instead of `api`, with `Io In` and `Io Out`.
+Or maybe `a` for `A In` and `A Out`.  or maybe even `go` for `Go In` and `Go Out`.
+or maybe even `call`, with `Call In` and `Call Out`.
+TODO: i like `Call` the best, but `Input` and `Output` are probably more specific.
+TODO: maybe we should also have a send+and+receive/MMR field, e.g., `Modified` or `Moved`.
 
 ### constant versus mutable arguments
 
@@ -1229,28 +1235,26 @@ better with the next section, or below the next section.
 
 To indicate that a variable is being passed as a reference, i.e., so that modifications
 inside the function will be persist on the variable outside the function, you can use
-the `;;` prefix on the variable name when creating the argument list for a function.
-The `;;` is used in both creating the function and in calling the function.
-
-TODO: this notation is a bit overloaded with impure functions, which use `;;` as a prefix
-if they modify the global scope.  if this is the same underlying concept, great, but this
-seems a bit different.  we probably should revert to `@@` instead of `;;`.
+the `@@` prefix on the variable name when creating the argument list for a function.
+The `@@` is used in both creating the function and in calling the function.
 
 ```
 # reference-type function with default-named input:
-modify(;;MyObjectType; myObjectType):
+modify(@@MyObjectType):     # equivalent to `modify(@@MyObjectType: myObjectType): null`.
     MyObjectType someMutatingMethod(12345)
 
 SomeInstance ;= myObjectType(...)
-# you must use `;;` when calling the function in order to activate this overload,
+# you must use `@@` when calling the function in order to activate this overload,
 # and to make SomeInstance be mutated by its method `someMutatingMethod`.
-modify(;;SomeInstance)
+modify(@@SomeInstance)
 
 # example reference-type function with non-default named input:
-modify(;;ModifyMe; myObjectType):
+modify(@@ModifyMe; myObjectType):
     ModifyMe someMutationMethod(123)
 
-modify(ModifyMe; ;;SomeInstance)
+modify(ModifyMe: @@SomeInstance)
+# or maybe
+modify(@@SomeInstance as ModifyMe)
 ```
 
 Note that you cannot declare a reference type variable outside of an argument list.
@@ -1258,10 +1262,10 @@ E.g.,
 
 ```
 MyVariable ;= myObjectType(10)
-;;MyReference := MyVariable     # NOT ALLOWED.  COMPILER ERROR.
+@@MyReference := MyVariable     # NOT ALLOWED.  COMPILER ERROR.
 ```
 
-This is because reference types do not technically exist in hm-lang.  The `;;` prefix
+This is because reference types do not technically exist in hm-lang.  The `@@` prefix
 is just syntactic sugar for passing in a `move()`d variable and getting it returned
 from the function.  So the above valid examples actually define these overloads:
 
@@ -1289,13 +1293,14 @@ This is known as the Move-Modify-Return (MMR) paradigm, and it is useful to thin
 this as how it would work for network requests.  Another computer can't take a reference
 to your variable, but it can take your value for it, modify it, and return it.
 
-Because functions defined with `;;` argument prefixes really just expand to passed-in
+Because functions defined with `@@` argument prefixes really just expand to passed-in
 and returned-out variables, it's important to think about how they play nicely with
 other return fields.  E.g.,
 
 ```
 ToMatch ;= 100
-;;match(;;Index, Array: int_): bool
+# an impure function which relies on `ToMatch`:
+::match(@@Index, Array: int_): bool
     while Index < Array size()
         if Array[Index] == ToMatch
             return True
@@ -1303,8 +1308,22 @@ ToMatch ;= 100
     return False
 ```
 
-TODO: discussion here on how this becomes `;;match(@moved Index, Array: int_): {Index, Bool}`
-and how we resolve the overload for something like `if ;;match(;;Index, Array) (* doSomething() )`.
+TODO: discussion here on how this becomes `::match(@moved Index, Array: int_): {Index, Bool}`
+and how we resolve the overload for something like `if ::match(@@Index, Array) (* doSomething() )`.
+TODO: make return values part of an `io` object.  If return is null, then `Io` is Null (empty object). 
+if return is a single variable (e.g., `hello(Int): str), then `Io` populates a default-named field
+with the instance (e.g., `Io Str`).  If the return is multiple variables, `Io` has all those fields.
+But if some of those fields are MMR-style fields (e.g., input and output), they are effectively removed
+from `Io` and cannot be referenced on the output of the function call; e.g.,
+`::match(@@Index, Array) Index` will fail since `Index` was already outputted via `@@`.
+Casting `io` to boolean, e.g., via `if Io (* doSomething() )` will check first to see if `Io` is a
+single-field object (SFO).  If so, then we'll cast that field to boolean.  Otherwise, we'll check
+if `Io` has a boolean field -- e.g., `if Io` => `if Io Bool`.  Otherwise, we'll throw a compile error,
+requesting users to be more specific.
+Don't actually use `io` behind the scenes, except in dynamic programming or cases where it's ambiguous,
+since creating objects will incur overhead, but just for organization.
+TODO: we should use `call` behind the scenes here instead of `io`, since we check to see if
+`Call Moved` was populated (only done if `@@` is used), otherwise fall back to `Call Output`.
 
 TODO: discuss allowing @moved as an argument annotation in order to require someone
 to `move()` a variable into the function.  don't just allow compiler warnings,
@@ -1843,20 +1862,20 @@ example := {
     # swapper: swaps the value of X with whatever is passed in
     #          returns the old value of X.
     @visibility
-    ;;x(;;Str):
+    ;;x(@@Str):
         X <-> Str
 
     # modifier: allows the user to modify the value of X
     #           without copying it, using references.
     @visibility
-    ;;x(fn(;;Str): ~t) := fn(;;X)
+    ;;x(fn(@@Str): ~t) := fn(@@X)
 
     # note that the getter and modifier can be "templated" const/mutable
     # via the `;:` template mutability operator.
     ;:x(fn(;:Str): ~t) := fn(;:X)
 }
 W = example()
-W x(fn(;;Str)
+W x(fn(@@Str)
     Str += ", world"
 )
 W x(fn(Str) := print(Str))
@@ -1904,7 +1923,7 @@ justSwappable := {
     SomeVar; int
 
     @visibility
-    ;;someVar(;;Int): null
+    ;;someVar(@@Int): null
         SomeVar <-> Int
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers.  a default-constructed
@@ -1915,10 +1934,10 @@ justSwappable := {
 
     #(#
     # the following modifier becomes automatically defined:
-    ;;someVar(fn(;;Int): ~t): t
+    ;;someVar(fn(@@Int): ~t): t
         Temporary; int
         # swap SomeVar into Temporary:
-        someVar(;;Temporary)    # could also write `SomeVar <-> Temporary`
+        someVar(@@Temporary)    # could also write `SomeVar <-> Temporary`
         T := fn(;;Temporary)
         # swap Temporary back into SomeVar:
         someVar(;;Temporary)
@@ -1931,16 +1950,16 @@ justModdable := {
     @invisible
     SomeVar; int
 
-    ;;someVar(fn(;;Int): ~t): t
-        T := fn(;;SomeVar)
+    ;;someVar(fn(@@Int): ~t): t
+        T := fn(@@SomeVar)
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers
         return T move()
 
     #(#
     # the following swapper becomes automatically defined:
-    ;;someVar(;;Int): null
-        someVar(;;fn(;;Old->Int): null
+    ;;someVar(@@Int): null
+        someVar(;;fn(@@Old->Int): null
             Int <-> Old->Int
         )
     #)#
@@ -2475,24 +2494,24 @@ array~t := {
     # if the swapped in value is Null but the array value wasn't Null, the array
     # will shrink by one, and all later indexed values will move down one index.
     # TODO: check all @moved annotations to switch to references
-    ;;_(Index, ;;T?): null
+    ;;_(Index, @@T?): null
 
     # modifier, allows access to modify the internal value via reference.
-    # passes the current value at the index into the passed-in function by reference (`;;`).
+    # passes the current value at the index into the passed-in function by reference (`@@`).
     # if Index >= the current size(), then the array size is increased (to Index + 1)
     # and filled with default values so that a valid reference can be passed into the callback.
-    ;;_(Index, fn(;;T): ~u): u
+    ;;_(Index, fn(@@T): ~u): u
 
     # getter, which returns a Null if index is out of bounds in the array:
     ::_(Index, fn(::T?): ~u): u
     
     # nullable modifier, which returns a Null if index is out of bounds in the array.
-    # if the reference to the value in the array (`;;T?`) is null, but you switch to
+    # if the reference to the value in the array (`@@T?`) is null, but you switch to
     # something non-null, the array will expand to that size (with default values
     # in between, if necessary).  if you set the reference to Null and it wasn't
     # Null before, then the array will shrink by one, and all later index values
     # will move down one.
-    ;;_(Index, fn(;;T?): ~u): u
+    ;;_(Index, fn(@@T?): ~u): u
 
     ::size(): index
 
@@ -2664,17 +2683,17 @@ map~(key, value) := {
     ;;_(Key, Value;): value
 
     # modifier, allows access to modify the internal value via reference.
-    # passes the current value at the key into the passed-in function by reference (`;;`).
+    # passes the current value at the key into the passed-in function by reference (`@@`).
     # the return value of the passed-in function will become the new value at the key.
     # if a value at `Key` is not already present, a default `Value` will be created.
-    ;;_(Key, fn(;;Value): ~t): t
+    ;;_(Key, fn(@@Value): ~t): t
 
     # nullable modifier, which returns a Null if the key is not in the map.
     # if the Value wasn't Null, but becomes Null via the passed-in function,
     # the key will be deleted from the map.  conversely, if the value was Null, but
     # the passed-in function turns it into something non-null, the key/value will be added
     # to the map.
-    ;;_(Key, fn(;;Value?): ~t): t
+    ;;_(Key, fn(@@Value?): ~t): t
 
     # getter and modifier in one definition, with the `;:` "template mutability" operator:
     # will throw for the const map (`::`) if Key is not in the map.
@@ -2710,7 +2729,7 @@ insertionOrderedMap~(key, value) := extend(map) {
     NextAvailableIndex; @private index = 1
 
     # creates a default value if not present at the key to pass in to the modifier:
-    ;;_(Key, fn(;;Value): ~t): t
+    ;;_(Key, fn(@@Value): ~t): t
         Index ?:= KeyIndices_(Key)
         return if Index != Null
             modifyAlreadyPresent(Index, fn)
@@ -2751,7 +2770,7 @@ insertionOrderedMap~(key, value) := extend(map) {
 
     # modifier for a keyed value not yet in the map, need to insert a default first:
     @private
-    ;;needToInsertThenModify(Key, fn(;;Value): ~t): t
+    ;;needToInsertThenModify(Key, fn(@@Value): ~t): t
         NewIndex := AvailableIndex++ || reshuffle()
         KeyIndices_Key = NewIndex
         PreviouslyLastIndex := IndexedValues_0 PreviousIndex
@@ -2766,11 +2785,11 @@ insertionOrderedMap~(key, value) := extend(map) {
 
     # modifier for an already indexed value in the map:
     @private
-    modifyAlreadyPresent(Index, fn(;;Value): ~t): t
+    modifyAlreadyPresent(Index, fn(@@Value): ~t): t
         assert(Index) != 0
         assert(IndexedValues) has(Index)
-        return IndexedValues_(Index, ::dive(;;IndexedValue; indexedMapValue~value): t
-            return fn(;;IndexedValue Value)
+        return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~value): t
+            return fn(@@IndexedValue Value)
         )
 }
 ```
@@ -2841,7 +2860,7 @@ iterator~t := {
     # should be deleted out of the container.  if `next()` is Null but the passed-in
     # reference is not, then the new value should be added to the container.
     # the value that *was* at `next()` will be swapped into the reference.
-    ;;replace?(;;T?): null
+    ;;replace?(@@T?): null
 }
 ```
 
@@ -2918,13 +2937,13 @@ array~t := {
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;forEach(fn(;;T): forLoop): null
+    ;;forEach(fn(@@T): forLoop): null
         for Index: index < size()
             # do a swap on the value based on the passed in function:
             # explicit:
             ForLoop := This_(Index, fn)
             # implicit:
-            ForLoop := fn(;;This_Index)
+            ForLoop := fn(@@This_Index)
             if ForLoop == forLoop->Break
                 break
 
@@ -3349,7 +3368,7 @@ wow(Input->fn(): string): ::fn(): int
 ## the "no pointers" rule
 
 To modify a value that is held by another class instance, e.g., the
-element of an array, we can use references (i.e., `;;`).  However, we
+element of an array, we can use references (i.e., `@@`).  However, we
 are not allowed to grab a hold of the reference for longer than the
 duration of the function call/scope.  We use some syntax sugar in order
 to make this not look clumsy.
@@ -3359,7 +3378,7 @@ ArrayArray; int__ = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
 ArrayArray_0 append(4)  # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
-ArrayArray_(0, fn(;;Array: int_): null
+ArrayArray_(0, fn(@@Array: int_): null
     Array append(4)
 )
 ```
@@ -3387,7 +3406,7 @@ internally, so that the `caller` will no longer call the `callee`.
 
 ```
 # caller := { Callees; _(ptr~callee~t), runCallbacks(T: t): for (Ptr) in Callees (*Ptr call(T)) }
-audio := singleton(caller~(;;sample_)) {
+audio := singleton(caller~(@@sample_)) {
     # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
@@ -3395,7 +3414,7 @@ audio := singleton(caller~(;;sample_)) {
     DeltaT: flt
 }
 
-audioCallee := extend(callee~(;;sample_)) {
+audioCallee := extend(callee~(@@sample_)) {
     Frequency; flt = 440
     Phase; flt = 0
 
@@ -3403,7 +3422,7 @@ audioCallee := extend(callee~(;;sample_)) {
     # but that it doesn't matter what size it is.  in C++, this would
     # be a template type, e.g., `sample_~N`, but we don't actually
     # want a templated method here.
-    ;;call(;;Array; sample_): null
+    ;;call(@@Array; sample_): null
         for Index: index < Array size()
             # TODO: maybe implicitly use `\\math Pi` inside the `\\math sin` function,
             # but only if `Pi` is not defined elsewhere.  i.e., `\\math` becomes a scope
@@ -3418,9 +3437,9 @@ audioCallee := extend(callee~(;;sample_)) {
 someFunction(): null
     Callee; audioCallee
     Callee Frequency = 880
-    Audio call(;;Callee)
+    Audio call(@@Callee)
     sleep Seconds: 10
-    # `Audio hangUp(;;Callee)` automatically happens when `Callee` is descoped.
+    # `Audio hangUp(@@Callee)` automatically happens when `Callee` is descoped.
 ```
 
 
@@ -3485,7 +3504,7 @@ tokenMatcher := {
     # through "Grammar match(...)" in order to restore the Index
     # in case of a bad match.  @private so that only Grammar can call.
     @private
-    ::match(;;Index, Array: token_): bool
+    ::match(@@Index, Array: token_): bool
 }
 
 grammarMatcher := tokenMatcher | grammarElement | token
@@ -3617,18 +3636,18 @@ Grammar := singleton() {
             parentheses(Block)
         ])
         EndOfInput: tokenMatcher(
-            match(;;Index, Array: token_) := Index >= Array size()
+            match(@@Index, Array: token_) := Index >= Array size()
         )
     ]
 
-    match(;;Index, Array: token_, GrammarMatcher): bool
+    match(@@Index, Array: token_, GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
         Matched := consider GrammarMatcher Type
             case tokenMatcher
-                GrammarMatcher match(;;Index, Array)
+                GrammarMatcher match(@@Index, Array)
             case grammarElement
-                Elements_GrammarMatcher match(;;Index, Array)
+                Elements_GrammarMatcher match(@@Index, Array)
             case token
                 Index < Array size() && Array _ Index++ == Grammar Matcher
         if not Matched
@@ -3657,9 +3676,9 @@ sequence := extend(tokenMatcher) {
         This Uninterrutible = Array move()
         tokenMatcher;;reset(Name)
 
-    ::match(;;Index, Array: token_): bool
+    ::match(@@Index, Array: token_): bool
         for (GrammarMatcher) in Uninterruptible
-            if not Grammar match(;;Index, Array, GrammarMatcher)
+            if not Grammar match(@@Index, Array, GrammarMatcher)
                 return False
         return True
 }
@@ -3669,14 +3688,14 @@ parentheses := extend(tokenMatcher) {
     ;;reset(Name: str, This GrammarMatcher):
         tokenMatcher;;reset(Name)
 
-    ::match(;;Index, Array: token_): bool
+    ::match(@@Index, Array: token_): bool
         # TODO: make sure copies are elided for constant temporaries like this:
         CurrentToken := Array_Index
         if CurrentToken Type != parentheseToken
             return False
 
         InternalIndex; index = 0
-        PartialMatch ?:= Grammar match(;;InternalIndex, CurrentToken InternalTokens, GrammarMatcher)
+        PartialMatch ?:= Grammar match(@@InternalIndex, CurrentToken InternalTokens, GrammarMatcher)
         if not PartialMatch
             return False
 
@@ -3701,16 +3720,16 @@ repeat := extend(tokenMatcher) {
         This Interruptible = Array move()
         tokenMatcher;;reset(Name)
 
-    ::match(;;Index, Array: token_): bool
+    ::match(@@Index, Array: token_): bool
         if Index >= Array size()
             return False
 
         while True
             for (GrammarMatcher) in Interruptible
                 # always check the escape sequence, Until:
-                if Grammar match(;;Index, Array, Until)
+                if Grammar match(@@Index, Array, Until)
                     return True
-                if not Grammar match(;;Index, GrammarMatcher)
+                if not Grammar match(@@Index, GrammarMatcher)
                     return False
 }
 # TODO: make sure the cyclic dependency is ok: i.e., Grammar match being called inside of
