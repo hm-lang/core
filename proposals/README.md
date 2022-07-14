@@ -1281,11 +1281,6 @@ modify(@moved ModifyMe; myObjectType): {ModifyMe: myObjectType}
 SomeInstance = modify(ModifyMe: SomeInstance move()) ModifyMe
 ```
 
-TODO: maybe when defining function arguments, have `;` mean that you move the variable in.
-e.g., `SomeInstance = modify(ModifyMe; SomeInstance) ModifyMe`.
-this might not be super clear, however, and it'd be better to have clarity for readability.
-the `;` or `:` should only affect the variable use inside the function, not the argument passed in.
-
 This is known as the Move-Modify-Return (MMR) paradigm, and it is useful to think about
 this as how it would work for network requests.  Another computer can't take a reference
 to your variable, but it can take your value for it, modify it, and return it.
