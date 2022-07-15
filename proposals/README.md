@@ -930,25 +930,44 @@ We allow for dynamically setting arguments to a function by using the `call` typ
 which has a few fields: `Input` and `Output` for the arguments and return values
 of the function, as well as optional `Warning` and `Error` fields for any issues
 encountered when calling the function.  These fields are named to imply that the function
-can do just about anything (including fetching data from a remote server).
-
-TODO: do we add a field, `Modified`, used for any variables passed into the function as 
-moved values and returned out?
+call can do just about anything (including fetching data from a remote server).
 
 ```
 call := {
-    Input; io
-    Output; io
+    Input; object
+    Output; object
     Warning?; string
     # TODO: consider letting this be `error|string` type, or requiring `error` only:
     Error?; string
+
+    # TODO: is this the right notation that we want to use for an arbitrary argument name, i.e., ~Name?
+    # TODO: maybe move `@moved` to the type, e.g., `~Name: @moved ~t`
+    # TODO: maybe rename `@moved` to `@unnamed`, which implies temporary or moved
+    # sets up the function call to use an overload which inputs a field and returns it,
+    # i.e., for MMR-style input -> output variables.
+    # NOTE: use before the function call
+    exchange(@moved ~Name; ~t): null
+        Output Name = t()
+        Input Name = Name move()
+
+    # moves a field value from `Output` into the passed-in reference.
+    # NOTE: use after the function call; can be used in conjunction with `exchange`, e.g.,
+    #   Call; call
+    #   Call exchange(ThisValue: 10)
+    #   whateverFunction(@@Call)
+    #   ThisValue; int
+    #   Call takeOut(@@ThisValue)
+    takeOut(@@~Name: ~t): null
+        Name = Output Name move()
 }
 ```
 
 Now, `call` is very generic, so `Input` and `Output` can be filled with any fields (or none),
-and this logic is encapsulated in the type `io`.  The `io` type can be thought of as one of the
-following types:  `null`, `object` (fields with string-like keys and any-type values), or
-`sfo` (single-field object).
+and this logic is encapsulated in the type `object`.  The `object` type can be thought of as
+a collection of nullable fields; if all fields are null, then the object acts like a null.
+If only one field is defined, it is a "single field object", or `sfo` type.  The fields have
+keys that are symbols (they can be identified by letters/words in code, like `Object FieldKey`),
+and values that have any type.
 
 When passing in a `call` instance to actually call a function, the `Input` field will be treated
 as constant/read-only after being cast to the field types specified by the chosen function overload.
@@ -956,6 +975,8 @@ as constant/read-only after being cast to the field types specified by the chose
 The `Output` field will be considered "write-only", except for the fact that we'll read what fields
 are defined in `Output` to determine which overload to use.  This allows you to define "default
 values" for the output fields, which won't get overwritten if the function doesn't write to them.
+TODO: fields defined in both input and output might not be read-only inputs, they probably will get
+moved over to output for MMR purposes.  so we probably don't want to guarantee that `Input` is read-only
 
 Let's try an example:
 
@@ -1036,13 +1057,14 @@ someFunction(@@Call; call): null
 
 TODO: probably can allow defining an overload for a `call` argument that is not default-named,
 i.e., something like `@@MyCall; call` is ok.
-TODO: `null` is probably a subclass of `io`, a special, empty object that has no fields.
-TODO: discuss the `io` type, which allows you to build up function arguments.
-e.g., `Io; io = {Hello: "World"}`.
+TODO: discuss the `object` type, which allows you to build up function arguments.
+e.g., `Object; object = {Hello: "World"}`.
+TODO: the `object` type is recursive, too.  need to think of a good way to handle weird stuff here,
+or requesting subfields of a field that was not an object.
 
 If you want the output field to be determined in the normal way (by checking what is
 using the function's return value), you can also use `myFn->input` as a way to create
-type-safe `io` for the `Input` field of a `myFn->call`, i.e., the correctly typed
+type-safe `object` for the `Input` field of a `myFn->call`, i.e., the correctly typed
 arguments to any overload of `myFn`.
 
 TODO: `myFn->output` probably doesn't exist in a type-safe way, since the output is
@@ -1070,16 +1092,16 @@ TODO: i think it would be best not to throw a run-time error if the arguments
 don't match, e.g., if they are overspecified, especially for these dynamically
 built arguments.
 
-Note: You *can* create your own overload of a function with the `io` type as a generic
+Note: You *can* create your own overload of a function with the `object` type as a generic
 input, but it *cannot* be named `Input`.  This is for the same reason that we don't
 allow overloading a function with a `call` argument.  For example:
 
 ```
-myFunction(Input: io):          # COMPILER ERROR, this is not allowed.
+myFunction(Input: object):      # COMPILER ERROR, this is not allowed.
     print(Input DidIDefineThis)
     print(Input MaybeThisToo)
 
-myFunction(Cool: io):           # OK
+myFunction(Cool: object):       # OK
     print(Cool DidIDefineThis)
     print(Cool MaybeThisToo)
 
@@ -1319,8 +1341,6 @@ This is known as the Move-Modify-Return (MMR) paradigm, and it is useful to thin
 this as how it would work for network requests.  Another computer can't take a reference
 to your variable, but it can take your value for it, modify it, and return it.
 
-TODO: rethink (again) whether MMR is right if `call` has a `Modified` field.
-
 Because functions defined with `@@` argument prefixes really just expand to passed-in
 and returned-out variables, it's important to think about how they play nicely with
 other return fields.  E.g.,
@@ -1338,20 +1358,18 @@ ToMatch ;= 100
 
 TODO: discussion here on how this becomes `::match(@moved Index, Array: int_): {Index, Bool}`
 and how we resolve the overload for something like `if ::match(@@Index, Array) (* doSomething() )`.
-TODO: make return values part of an `io` object.  If return is null, then `Io` is Null (empty object). 
-if return is a single variable (e.g., `hello(Int): str), then `Io` populates a default-named field
-with the instance (e.g., `Io Str`).  If the return is multiple variables, `Io` has all those fields.
+TODO: make return values part of an `object`.  If return is null, then `Output` is Null (empty object). 
+if return is a single variable (e.g., `hello(Int): str), then `Output` populates a default-named field
+with the instance (e.g., `Output Str`).  If the return is multiple variables, `Output` has all those fields.
 But if some of those fields are MMR-style fields (e.g., input and output), they are effectively removed
-from `Io` and cannot be referenced on the output of the function call; e.g.,
+from `Output` and cannot be referenced on the output of the function call; e.g.,
 `::match(@@Index, Array) Index` will fail since `Index` was already outputted via `@@`.
-Casting `io` to boolean, e.g., via `if Io (* doSomething() )` will check first to see if `Io` is a
+Casting `object` to boolean, e.g., via `if Output (* doSomething() )` will check first to see if `Output` is a
 single-field object (SFO).  If so, then we'll cast that field to boolean.  Otherwise, we'll check
-if `Io` has a boolean field -- e.g., `if Io` => `if Io Bool`.  Otherwise, we'll throw a compile error,
+if `Output` has a boolean field -- e.g., `if Output` => `if Output Bool`.  Otherwise, we'll throw a compile error,
 requesting users to be more specific.
-Don't actually use `io` behind the scenes, except in dynamic programming or cases where it's ambiguous,
+Don't actually use `object` behind the scenes, except in dynamic programming or cases where it's ambiguous,
 since creating objects will incur overhead, but just for organization.
-TODO: we should use `call` behind the scenes here instead of `io`, since we check to see if
-`Call Moved` was populated (only done if `@@` is used), otherwise fall back to `Call Output`.
 
 TODO: discuss allowing @moved as an argument annotation in order to require someone
 to `move()` a variable into the function.  don't just allow compiler warnings,
