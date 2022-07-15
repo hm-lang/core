@@ -926,99 +926,127 @@ q
 
 ### dynamically determining arguments for a function
 
-We allow for dynamically setting arguments to a function by using the `api` type,
-which has two fields: `Request` and `Response` for the arguments and return values
-of the function, respectively.  These fields are so named to imply that the function
-can do just about anything (including fetching data from a remote server).  Now,
-`api` is very generic, so `Request` and `Response` can be filled with any fields.
-For example:
+We allow for dynamically setting arguments to a function by using the `call` type,
+which has a few fields: `Input` and `Output` for the arguments and return values
+of the function, as well as optional `Warning` and `Error` fields for any issues
+encountered when calling the function.  These fields are named to imply that the function
+can do just about anything (including fetching data from a remote server).
+
+TODO: do we add a field, `Modified`, used for any variables passed into the function as 
+moved values and returned out?
+
+```
+call := {
+    Input; io
+    Output; io
+    Warning?; string
+    # TODO: consider letting this be `error|string` type, or requiring `error` only:
+    Error?; string
+}
+```
+
+Now, `call` is very generic, so `Input` and `Output` can be filled with any fields (or none),
+and this logic is encapsulated in the type `io`.  The `io` type can be thought of as one of the
+following types:  `null`, `object` (fields with string-like keys and any-type values), or
+`sfo` (single-field object).
+
+When passing in a `call` instance to actually call a function, the `Input` field will be treated
+as constant/read-only after being cast to the field types specified by the chosen function overload.
+(E.g., if an argument type is `string` but a number is passed in, it will be converted to a string.)
+The `Output` field will be considered "write-only", except for the fact that we'll read what fields
+are defined in `Output` to determine which overload to use.  This allows you to define "default
+values" for the output fields, which won't get overwritten if the function doesn't write to them.
+
+Let's try an example:
 
 ```
 # define some function to call:
 someFunction(X: int): string
     return "hi" * X
 # this is an ok overload because the return type is different.
-# however, this is not recommended, since the arguments are the same.
+# however, this is not recommended, since the arguments are named the same.
 # note that the earliest overload that matches will be default.
 someFunction(X: string): int
     return X size()
 
-# use `Api` with `@@` so that `Api;;Response` can be updated.
-Api; api
-Api Request X = 2
-someFunction(@@Api)
-print(Api Response)  # prints {String: "hihi"}
+# example which will use the default overload:
+Call; call
+Call Input X = 2
+# use `Call` with `@@` so that `Call;;Output` can be updated.
+someFunction(@@Call)
+print(Call Output)  # prints {String: "hihi"}
 
-# define a default value for the Request object's field to get the other overload:
-Api; api
-Api Request X = "hello"
-Api Response Int = -1
-someFunction(@@Api)
-print(Api Response)  # prints {Int: 5}
+# define a default value for the Input object's field to get the other overload:
+Call; call
+Call Input X = "hello"
+Call Output Int = -1
+someFunction(@@Call)
+print(Call Output)  # prints {Int: 5}
 
-# dynamically determine arguments:
-Api; api = if someCondition()
-    {Request: X: 5, Response; String; "?"}
+# dynamically determine the function overload:
+Call; call = if someCondition()
+    {Input: X: 5, Output; String; "?"}
 else
-    {Request: X: "hey", Response; Int; -1}
+    {Input: X: "hey", Output; Int; -1}
 
-someFunction(@@Api)
-print(Api Response)  # will print {String: "hihihihihi"} or {Int: 3} depending on `someCondition()`.
+someFunction(@@Call)
+print(Call Output)  # will print {String: "hihihihihi"} or {Int: 3} depending on `someCondition()`.
 ```
 
-Note that the `api` is so generic that you can put any fields that won't actually
+Note that `call` is so generic that you can put any fields that won't actually
 be used in the function call.  This can be dangerous, since errors won't be thrown
 if you have more fields defined than needed to call the function.  For example,
 with the above `someFunction` overloads, the first one is default, so it will cast
-a string value of the request field `X` to an integer if both (or neither) response
+a string value of the input field `X` to an integer if both (or neither) output
 fields are defined (`Int` and `String`), like this:
 
 ```
-Api ;= api(Request: X: "4", Response: {Int: 0, String: ""})
-someFunction(@@Api)
-print(Api)  # prints {Request: {X: 4}, Response: {Int: 0, String: "hihihihi"}}
+Call ;= call(Input: X: "4", Output: {Int: 0, String: ""})
+someFunction(@@Call)
+print(Call)  # prints {Input: {X: 4}, Output: {Int: 0, String: "hihihihi"}}
 ```
 
 If run-time checks and throwing errors are desired, one should use the more specific
-`apiTo~fn` type, with `fn` the function you want arguments checked against.
+`myFn->call` type, with `myFn` the function you want arguments checked against.
 
 ```
-# throws a compile-time error (if request and response are completely specified at the same time)
-# or a run-time error (if request and response are separately defined):
-Api ;= apiTo~someFunction(Request: X: "4", Response: {Int: 0, String: ""})  # error!!
-# the above will throw a compile-time error, since two values for Response are defined.
+# throws a compile-time error (if input and output are completely specified at the same time)
+# or a run-time error (if input and output are separately defined):
+Call ;= someFunction->call(Input: X: "4", Output: {Int: 0, String: ""})  # error!!
+# the above will throw a compile-time error, since two values for Output are defined.
 
 # this is ok:
-Api2 ;= apiTo~someFunction(Request: X: "4", Response: Int: 0)
-# this is also ok, but will cast X to int right away, and will throw an error when defining `Api3`
-# if `X` is not a integer-like string rather than when calling someFunction (like `api` would).
-Api3 ;= apiTo~someFunction(Request: X: "4", Response: String: "")
+Call2 ;= someFunction->call(Input: X: "4", Output: Int: 0)
+# this is also ok, but will cast X to int right away, and will throw an error when defining `Call3`
+# if `X` is not a integer-like string rather than when calling someFunction (like `call` would).
+Call3 ;= someFunction->call(Input: X: "4", Output: String: "")
 # also ok:
-Api4 ;= apiTo~someFunction(Request: X: 4, Response: String: "")
+Call4 ;= someFunction->call(Input: X: 4, Output: String: "")
 ```
 
-A few notes.  Even though functions can sometimes appear to only return one value,
-the `Response` field will be object-like.  Note that it's also not allowed to define
-an overload for the `api` type yourself.  This will give a compile error, e.g.:
+Note that it's also not allowed to define an overload for the `call` type yourself.
+This will give a compile error, e.g.:
+TODO: explain reasoning here.
 
 ```
-# COMPILE ERROR!!  you cannot define an overload for `api`!
-someFunction(@@Api; api): null
-    print(Api Request X)
+# COMPILE ERROR!!  you cannot define an overload for `call`!
+someFunction(@@Call; call): null
+    print(Call Input X)
 ```
 
-TODO: switch to `io` instead of `args` (since `io` applies to return values as well as arguments).
-TODO: `Io` has optional `Warning` and `Error` fields.
-TODO: `null` is probably a subclass of `args`, a special, empty object that has no fields.
-TODO: discuss the `args` type, which allows you to build up function arguments.
-e.g., `Args; args = {Hello: "World"}`.
-TODO: discuss that api;;Request/Response are both elements of type `args`
-TODO: maybe make it a template type on the function you are going to call,
-which would allow for checking whether the argument added was valid or not.
-Make `args` a super-generic type, and `argsTo~aFunction` be the specific type.
-casting `args` to `argsTo~aFunction` requires some parsing, just like
-using `aFunction` with a generic `args` argument.
-E.g.,
+TODO: probably can allow defining an overload for a `call` argument that is not default-named,
+i.e., something like `@@MyCall; call` is ok.
+TODO: `null` is probably a subclass of `io`, a special, empty object that has no fields.
+TODO: discuss the `io` type, which allows you to build up function arguments.
+e.g., `Io; io = {Hello: "World"}`.
+
+If you want the output field to be determined in the normal way (by checking what is
+using the function's return value), you can also use `myFn->input` as a way to create
+type-safe `io` for the `Input` field of a `myFn->call`, i.e., the correctly typed
+arguments to any overload of `myFn`.
+
+TODO: `myFn->output` probably doesn't exist in a type-safe way, since the output is
+determined by the input and chosen overload.
 
 ```
 myFn(Times: int, String): null
@@ -1027,39 +1055,37 @@ myFn(Times: int, String): null
 myFn(Dbl: dbl): dbl
     return 5 * Dbl
 
-Args; argsTo~myFn = {}
+Input; myFn->input = {}
 if SomeCondition
-    # TODO: think of the syntax for inlining.  maybe `Args Dbl := 123.3`??
-    Args Dbl = 123.3
+    Input Dbl = 123.3
 else
-    Args = {Times: 50, String: "Hello"}
+    Input = {Times: 50, String: "Hello"}
+# other fields defined on `Input` would give compiler errors, or mismatched fields,
+# e.g., `Input = {Times: 1, Dbl: 1.4}` would give an error.
 
-Result ?:= myFn(Args)   # Result can be `null|dbl`
+Result ?:= myFn(Input)   # Result can be `null|dbl`
 ```
 
 TODO: i think it would be best not to throw a run-time error if the arguments
 don't match, e.g., if they are overspecified, especially for these dynamically
-built arguments.  probably want to throw for `argsTo~fn`, however.
-TODO: decide if we want to allow defining an overload for the `args` type, e.g.,
-`someFunction(Args; args): null`.
+built arguments.
 
-We should pass in a reference (using `@@` to indicate the variable can be modified
-inside the function) in order to update the response appropriately.
+Note: You *can* create your own overload of a function with the `io` type as a generic
+input, but it *cannot* be named `Input`.  This is for the same reason that we don't
+allow overloading a function with a `call` argument.  For example:
 
 ```
-Api ;= api(Request: Dbl: 1000, Response: Dbl: 0)
-myFn(@@Api)
-print(Api)  # prints {Request: {}, Response: Dbl: 5000}
+myFunction(Input: io):          # COMPILER ERROR, this is not allowed.
+    print(Input DidIDefineThis)
+    print(Input MaybeThisToo)
+
+myFunction(Cool: io):           # OK
+    print(Cool DidIDefineThis)
+    print(Cool MaybeThisToo)
+
+# prints "True" and then "Null" since `Cool MaybeThisToo` is not defined.
+myFunction(Cool: {DidIDefineThis: True, X: 5})
 ```
-
-TODO: discussion about what reference types look like inside `api`.  it might be
-nice to use the `Request` being populated with it, as well as the `Response`.
-
-TODO: maybe use `io` instead of `api`, with `Io In` and `Io Out`.
-Or maybe `a` for `A In` and `A Out`.  or maybe even `go` for `Go In` and `Go Out`.
-or maybe even `call`, with `Call In` and `Call Out`.
-TODO: i like `Call` the best, but `Input` and `Output` are probably more specific.
-TODO: maybe we should also have a send+and+receive/MMR field, e.g., `Modified` or `Moved`.
 
 ### constant versus mutable arguments
 
@@ -1240,7 +1266,7 @@ The `@@` is used in both creating the function and in calling the function.
 
 ```
 # reference-type function with default-named input:
-modify(@@MyObjectType):     # equivalent to `modify(@@MyObjectType: myObjectType): null`.
+modify(@@MyObjectType):     # equivalent to `modify(@@MyObjectType; myObjectType): null`.
     MyObjectType someMutatingMethod(12345)
 
 SomeInstance ;= myObjectType(...)
@@ -1292,6 +1318,8 @@ SomeInstance = modify(ModifyMe: SomeInstance move()) ModifyMe
 This is known as the Move-Modify-Return (MMR) paradigm, and it is useful to think about
 this as how it would work for network requests.  Another computer can't take a reference
 to your variable, but it can take your value for it, modify it, and return it.
+
+TODO: rethink (again) whether MMR is right if `call` has a `Modified` field.
 
 Because functions defined with `@@` argument prefixes really just expand to passed-in
 and returned-out variables, it's important to think about how they play nicely with
