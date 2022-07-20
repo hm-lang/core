@@ -248,10 +248,10 @@ AnotherVector3 := VectorType new(X: 5, Y: 6, Z: -7)
 
 TODO: this takes away `Type` and `type` as keywords that might be desirable for use
 (e.g., `type` in some mock text for a test element).  can we do
-a built in operator, e.g., a postfix `!` or prefix `?`  ?  Still would need a name for
+a built in operator, e.g., a prefix `?`  ?  Still would need a name for
 the type, but could maybe prefix it specially, e.g., `@type` or `?type`, `@t`, or `@?`...
 or maybe even `what` or `is`.  `MyInstance Is`.
-TODO: might want to do the same for move, e.g., `@move()`.  or maybe switch to `reset()`.
+e.g., `if X is(int)` or `X Is == is->int`.  i think we could prefer the former, since it reads better.
 TODO: how far should this go?  e.g., to `@return` and `@if` and `@else`?
 
 TODO: flesh out `type` class a bit more.
@@ -290,6 +290,7 @@ TODO: add : , ; ?! ??
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
 |           |   ` `     | implicit subscript        | binary: `A (B)`   |               |
+|           |   `!`     | postfix move+reset        | unary:  `A!`      |               |
 |   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `--`    | unary decrement           | unary:  `--A`     |               |
@@ -298,6 +299,7 @@ TODO: add : , ; ?! ??
 |   4       |   `<>`    | bitwise flip              | unary:  `<>A`     | RTL           |
 |           |   `-`     | unary minus               | unary:  `-A`      |               |
 |           |   `+`     | unary plus                | unary:  `+A`      |               |
+|           |   `!`     | prefix boolean not        | unary:  `!A`      |               |
 |   5       |   `>>`    | bitwise right shift       | binary: `A>>B`    | LTR           |
 |           |   `<<`    | bitwise left shift        | binary: `A<<B`    |               |
 |   6       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
@@ -391,7 +393,7 @@ exampleClass := {
     # this pure function does not require an instance, and cannot use instance variables:
     ->someStaticFunction(Y; int): int
         Y /= 2
-        return Y move()
+        return Y!
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read (but not write) global variables (or other files) due to `:>`:
@@ -407,7 +409,6 @@ exampleClass := {
 ```
 
 See the classes section for more clarification and comparison to member access operators.
-
 
 ## member access operators `::`, `;;`, and ` ` as well as subscripts `_`
 
@@ -481,6 +482,35 @@ the function call having higher precedence.  (You can also use destructuring if 
 to keep a variable for multiple uses: `{NestedField} := something()`.)
 Similarly, using a function on the RHS of a subscript operation will call the function
 since it has higher priority.  E.g., `Array_someFunction 3` becomes `Array_(someFunction(3))`.
+
+## prefix and postfix exclamation points `!`
+
+The operator `!` is always unary (except when combined with equals for not equals,
+e.g., `!=`).  It can act as a prefix operator "not", e.g., `!A`, pronounced "not A",
+or a postfix operator on a variable, e.g., `Z!`, pronounced "Z nixxed".  In the first
+example, prefix `!` calls the `::!(): bool` method defined on `A`, which creates a
+temporary value of the boolean opposite of `A` without modifying `A`.  In the second
+case, it calls a built-in method on `Z`, which moves the current data out of `Z` into
+a temporary instance of whatever type `Z` is, and resets `Z` to a blank/default state.
+This is a "move and reset" operation.  Ideally, after a move+reset `Z!`, then checking
+whether `Z` evaluates to boolean false, i.e., by `!Z`, should return true.
+
+Note, it's easier to think about positive boolean actions sometimes than negatives,
+so we allow defining either `::!!(): bool` or `::!(): bool` on a class, the former
+allowing you to cast a value, e.g., `A`, to its positive boolean form `!!A`, pronounced
+"not not A."  Note, you cannot define both `!` and `!!` overloads for a class, since
+that would make things like `!!!` ambiguous.
+
+For one final use case, you can have a postfix `!` on an argument name to indicate
+that you should pass in a temporary value for that argument, e.g.,
+```
+myFunction(TempVariable!; someType): null
+```
+Temporaries can either come from the right hand side (RHS) of some expression
+(e.g., `X * 3`), or by nixxing a variable (e.g., `X!`).  It is a compiler error
+if you try to pass in something that could be non-temporary (e.g., a plain `X`).
+
+TODO: more discussion about temporaries
 
 ## superscripts/exponentiation
 
@@ -941,14 +971,11 @@ call := {
     Error?; string
 
     # TODO: is this the right notation that we want to use for an arbitrary argument name, i.e., ~Name?
-    # TODO: maybe move `@moved` to the type, e.g., `~Name: @moved ~t`
-    # TODO: maybe rename `@moved` to `@rhs` or `@tmp`, which implies temporary or moved
-    # sets up the function call to use an overload which inputs a field and returns it,
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
-    exchange(@moved ~Name; ~t): null
+    exchange(~Name!; ~t): null
         Output Name = t()
-        Input Name = Name move()
+        Input Name = Name
 
     # moves a field value from `Output` into the passed-in reference.
     # NOTE: use after the function call; can be used in conjunction with `exchange`, e.g.,
@@ -958,7 +985,7 @@ call := {
     #   ThisValue; int
     #   Call takeOut(@@ThisValue)
     takeOut(@@~Name: ~t): null
-        Name = Output Name move()
+        Name = Output Name!
 }
 ```
 
@@ -1253,6 +1280,7 @@ X ?:= if Y != Null
 else
     Null
 
+# TODO: make sure `?!` plays nicely with the new moved semantics, or switch to something new.
 # instead, you should use the more idiomatic hm-lang version.
 # putting a ?! after the argument name will check that argument;
 # if it is Null, the function will not be called and Null will be returned instead.
@@ -1314,27 +1342,27 @@ MyVariable ;= myObjectType(10)
 ```
 
 This is because reference types do not technically exist in hm-lang.  The `@@` prefix
-is just syntactic sugar for passing in a `move()`d variable and getting it returned
+is just syntactic sugar for passing in a `!` temporified variable and getting it returned
 from the function.  So the above valid examples actually define these overloads:
 
 ```
-modify(@moved MyObjectType; myObjectType): myObjectType
+modify(MyObjectType!; myObjectType): myObjectType
     MyObjectType someMutatingMethod(12345)
-    return MyObjectType move()
+    return MyObjectType!
 
 SomeInstance ;= myObjectType(...)
-SomeInstance = modify(SomeInstance move())
+SomeInstance = modify(SomeInstance!)
 
-modify(@moved ModifyMe; myObjectType): {ModifyMe: myObjectType}
+modify(ModifyMe!; myObjectType): {ModifyMe: myObjectType}
     ModifyMe someMutatingMethod(12345)
-    return {ModifyMe move()}
+    return {ModifyMe!}
 
 # TODO: figure out syntax that we want here.  could also do
-# {ModifyMe} := modify(ModifyMe: SomeInstance move())
-# SomeInstance = @hide ModifyMe move()
+# {ModifyMe} := modify(ModifyMe: SomeInstance!)
+# SomeInstance = @hide ModifyMe!
 # OR MAYBE:
-# {SomeInstance as ModifyMe} = modify(ModifyMe: SomeInstance move())
-SomeInstance = modify(ModifyMe: SomeInstance move()) ModifyMe
+# {SomeInstance as ModifyMe} = modify(ModifyMe: SomeInstance!)
+SomeInstance = modify(ModifyMe: SomeInstance!) ModifyMe
 ```
 
 This is known as the Move-Modify-Return (MMR) paradigm, and it is useful to think about
@@ -1356,7 +1384,7 @@ ToMatch ;= 100
     return False
 ```
 
-TODO: discussion here on how this becomes `::match(@moved Index, Array: int_): {Index, Bool}`
+TODO: discussion here on how this becomes `::match(Index!, Array: int_): {Index, Bool}`
 and how we resolve the overload for something like `if ::match(@@Index, Array) (* doSomething() )`.
 TODO: make return values part of an `object`.  If return is null, then `Output` is Null (empty object). 
 if return is a single variable (e.g., `hello(Int): str), then `Output` populates a default-named field
@@ -1370,11 +1398,6 @@ if `Output` has a boolean field -- e.g., `if Output` => `if Output Bool`.  Other
 requesting users to be more specific.
 Don't actually use `object` behind the scenes, except in dynamic programming or cases where it's ambiguous,
 since creating objects will incur overhead, but just for organization.
-
-TODO: discuss allowing @moved as an argument annotation in order to require someone
-to `move()` a variable into the function.  don't just allow compiler warnings,
-those will expand unnecessarily.
-
 
 ## redefining a function
 
@@ -1739,7 +1762,7 @@ exampleClass := {
     # as the starting value based on a `reset` function.  this is true even
     # if the class instance variables are defined as immutable.
     ;;reset(X; int): null
-        This X = X move()
+        This X = X!
     # or short-hand: `;;reset(This X: int)` or even `@reset(X: int)`
     # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
 
@@ -1755,7 +1778,7 @@ exampleClass := {
     # this pure function does not require an instance, and cannot use instance variables:
     ->someStaticFunction(Y; int): int
         Y /= 2
-        return Y move()
+        return Y!
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read/write global variables (or other files) due to `;>`:
@@ -1987,7 +2010,7 @@ justSwappable := {
         T := fn(;;Temporary)
         # swap Temporary back into SomeVar:
         someVar(;;Temporary)
-        return T move()
+        return T!
     #)#
 }
 
@@ -2000,7 +2023,7 @@ justModdable := {
         T := fn(@@SomeVar)
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers
-        return T move()
+        return T!
 
     #(#
     # the following swapper becomes automatically defined:
@@ -2281,7 +2304,7 @@ public:
 
 All classes have a few compiler-provided methods which cannot be overridden.
 
-* `;;move(): this` creates a temporary with the current instance's values, while
+* `;;!: this` creates a temporary with the current instance's values, while
     resetting the current instance to a default instance -- i.e., calling `reset()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
@@ -2539,8 +2562,10 @@ array~t := {
     # swapper, sets the value at the index, returning the old value in the reference.
     # if the swapped in value is Null but the array value wasn't Null, the array
     # will shrink by one, and all later indexed values will move down one index.
-    # TODO: check all @moved annotations to switch to references
     ;;_(Index, @@T?): null
+
+    ::!!(): bool    # prefix !! operator
+        return size() > 0
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the index into the passed-in function by reference (`@@`).
@@ -2948,10 +2973,11 @@ arrayIterator~t := extend(iterator~t) {
     # move the array in to avoid copying.
     # this @reset annotation creates a function signature of
     # ;;reset(
-    #   This Array; t_, This NextIndex; index = 0
+    #   This Array!; t_, This NextIndex; index = 0
     # ): {Array: t_, NextIndex: index}
     # which automatically returns the old value of the Array (and NextIndex) if requested.
-    @reset(@moved Array: t_, NextIndex: index = 0)
+    @reset(Array!: t_, NextIndex: index = 0)
+    # TODO: see if there's a better syntax for this:
     # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
     # e.g., 
     #   MyArray; int_ = [1,2,3,4]
@@ -3718,9 +3744,9 @@ sequence := extend(tokenMatcher) {
     Uninterruptible: grammarMatcher_
     # TODO: some annotation to pass a variable up to the parent class,
     # e.g., `reset(@passTo(TokenMatcher) Name: str, OtherArgs...):`
-    ;;reset(Name: str, Array: grammarMatcher_):
-        This Uninterrutible = Array move()
+    ;;reset(Name: str, Array; grammarMatcher_):
         tokenMatcher;;reset(Name)
+        This Uninterrutible = Array!
 
     ::match(@@Index, Array: token_): bool
         for (GrammarMatcher) in Uninterruptible
@@ -3763,7 +3789,7 @@ repeat := extend(tokenMatcher) {
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Interruptible`.
     ;;reset(Name: str, This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
-        This Interruptible = Array move()
+        This Interruptible = Array!
         tokenMatcher;;reset(Name)
 
     ::match(@@Index, Array: token_): bool
