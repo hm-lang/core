@@ -251,7 +251,7 @@ TODO: this takes away `Type` and `type` as keywords that might be desirable for 
 a built in operator, e.g., a postfix `!` or prefix `?`  ?  Still would need a name for
 the type, but could maybe prefix it specially, e.g., `@type` or `?type`, `@t`, or `@?`...
 or maybe even `what` or `is`.  `MyInstance Is`.
-TODO: might want to do the same for move, e.g., `@move()`.
+TODO: might want to do the same for move, e.g., `@move()`.  or maybe switch to `reset()`.
 TODO: how far should this go?  e.g., to `@return` and `@if` and `@else`?
 
 TODO: flesh out `type` class a bit more.
@@ -942,7 +942,7 @@ call := {
 
     # TODO: is this the right notation that we want to use for an arbitrary argument name, i.e., ~Name?
     # TODO: maybe move `@moved` to the type, e.g., `~Name: @moved ~t`
-    # TODO: maybe rename `@moved` to `@unnamed`, which implies temporary or moved
+    # TODO: maybe rename `@moved` to `@rhs` or `@tmp`, which implies temporary or moved
     # sets up the function call to use an overload which inputs a field and returns it,
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
