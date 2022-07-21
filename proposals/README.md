@@ -269,7 +269,7 @@ TODO: types of functions, shouldn't really have `new`.
 
 Operator priority.
 
-TODO: add : , ; ?! ??
+TODO: add : , ; ?? @?
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
@@ -399,7 +399,7 @@ exampleClass := {
     # but it can read (but not write) global variables (or other files) due to `:>`:
     :>someStaticImpureFunction(): int
         YString := read(File: "Y")
-        return int(YString?!) ?? 0
+        return int(YString@?) ?? 7
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read/write global variables (or other files) due to `;>`:
@@ -1280,25 +1280,24 @@ X ?:= if Y != Null
 else
     Null
 
-# TODO: make sure `?!` plays nicely with the new moved semantics, or switch to something new.
 # instead, you should use the more idiomatic hm-lang version.
-# putting a ?! after the argument name will check that argument;
+# putting a @? after the argument name will check that argument;
 # if it is Null, the function will not be called and Null will be returned instead.
-X ?:= overloaded(Y?!)
+X ?:= overloaded(Y@?)
 
 # either way, X has type `string|null`.
 ```
 
-You can use `?!` with multiple arguments; if any argument with `?!` after it is null,
+You can use `@?` with multiple arguments; if any argument with `@?` after it is null,
 then the function will not be called.
 
 This can also be used with the `return` function to only return if the value is not null.
 
 ```
 doSomething(X?: int): int
-    # TODO: X * 3 should maybe not require ?! to do exactly what's expected below:
-    Y ?:= X?! * 3    # Y is Null or X*3 if X is not Null.
-    return Y?!      # only returns if Y is not Null
+    # TODO: X * 3 should maybe not require @? to do exactly what's expected below:
+    Y ?:= X@? * 3    # Y is Null or X*3 if X is not Null.
+    return Y@?      # only returns if Y is not Null
     #[ do some other stuff ]#
     ...
     return 3
@@ -1789,7 +1788,7 @@ exampleClass := {
     # but it can read (but not write) global variables (or other files) due to `:>`:
     :>someStaticImpureFunction(): int
         YString := read(File: "Y")
-        return int(YString?!) ?? 0
+        return int(YString@?) ?? 7
 
     # class instance functions can be defined here; this is a *pure function*
     # that cannot depend on instance variables, however.  it can be set 
