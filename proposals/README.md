@@ -221,42 +221,47 @@ throw an error.
 ## types of types
 
 Every variable has a reflexive type which describes the object/primitive that is held
-in the variable.  This can be accessed via the `::Type` field on instances, and the `->Type`
-field on functions/classes.  For example,
+in the variable.  This can be accessed via the `::Is` field on instances, and the `->Is`
+field on functions/classes.  If comparing against a known type, i.e., to check if some
+variable is an integer, it is highly recommended to use the `::is` method, e.g., 
+
+```
+X; dbl|int = 4
+...
+if X is(int)
+    print("X is an integer")
+elif X is(dbl)
+    print("X is a double")
+```
+
+This reads a little better than something like `if X Is == int`, but the latter also is
+valid hm-lang (and does what you expect).  Some more examples:
 
 ```
 vector3 := {X; dbl, Y; dbl, Z; dbl}
 
 Vector3 := vector3(X: 1.2, Y: -1.4, Z: 1.6)
 
-print(Vector3::Type)                    # prints `type->Vector3`
-print(vector3->Type == Vector3::Type)   # this prints true
+print(Vector3::Is)                      # prints `is->vector3`
+print(vector3->Is == Vector3::Is)       # this prints true
 
-VectorType: type = Vector3::Type
+VectorIs: is = Vector3::Is
 
 # TODO: double check that we wouldn't need type of a type to be some nested monstrosity
 # for some reasonable code.
-print(VectorType::Type)     # type of a type, still resolves to `type->Vector3`.
+print(VectorIs::Is)         # type of a type, still resolves to `is->vector3`.
 
 # creates a dynamical instance of vector3; the compiler doesn't know it's a vector3.
-# even though we know it comes from a vector3, `VectorType` is generically a `type`.
+# even though we know it comes from a vector3, `VectorIs` is generically an `is`.
 # TODO: probably can make the compiler a little bit smart about this, based on the
-# assignments that could be possibly made to VectorType.  in this case, it's const,
-# with no other assignment options besides Vector3::Type, so it must be a vector3 type.
-AnotherVector3 := VectorType new(X: 5, Y: 6, Z: -7)
+# assignments that could be possibly made to VectorIs.  in this case, it's const,
+# with no other assignment options besides Vector3::Is, so it must be a vector3 type.
+AnotherVector3 := VectorIs new(X: 5, Y: 6, Z: -7)
 ```
 
-TODO: this takes away `Type` and `type` as keywords that might be desirable for use
-(e.g., `type` in some mock text for a test element).  can we do
-a built in operator, e.g., a prefix `?`  ?  Still would need a name for
-the type, but could maybe prefix it specially, e.g., `@type` or `?type`, `@t`, or `@?`...
-or maybe even `what` or `is`.  `MyInstance Is`.
-e.g., `if X is(int)` or `X Is == is->int`.  i think we could prefer the former, since it reads better.
-TODO: how far should this go?  e.g., to `@return` and `@if` and `@else`?
-
-TODO: flesh out `type` class a bit more.
+TODO: flesh out `is` class a bit more.
 ```
-type := {
+is := {
     # Type instances have a `new` method which allows you to construct an
     # instance of the class.
     ::new(...Args): ~t
@@ -1119,14 +1124,14 @@ TODO: i think it would be best not to throw a run-time error if the arguments
 don't match, e.g., if they are overspecified, especially for these dynamically
 built arguments.
 
-Note: You *can* create your own overload of a function with the `object` type as a generic
-input, but it *cannot* be named `Input`.  This is for the same reason that we don't
+Note: You *can* create your own overload of a function with the `object` type as
+input, but it *cannot* be default-named `Object`.  This is for the same reason that we don't
 allow overloading a function with a `call` argument.  For example:
 
 ```
-myFunction(Input: object):      # COMPILER ERROR, this is not allowed.
-    print(Input DidIDefineThis)
-    print(Input MaybeThisToo)
+myFunction(Object):             # COMPILER ERROR, this is not allowed.
+    print(Object DidIDefineThis)
+    print(Object MaybeThisToo)
 
 myFunction(Cool: object):       # OK
     print(Cool DidIDefineThis)
@@ -2307,14 +2312,14 @@ All classes have a few compiler-provided methods which cannot be overridden.
     resetting the current instance to a default instance -- i.e., calling `reset()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
-* `::Type: type` provides the class type.  This makes it easy to determine
+* `::Is: is` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
     TODO: discuss how `consider`'s `case` statements cast their arguments
     to the same type as the type of the `consider` statement.
     ```
     X; null|int|dbl_
     X = [1.2, 3.4]
-    consider X Type
+    consider X Is
         case null
             print("X was Null")
         case int
@@ -2323,9 +2328,12 @@ All classes have a few compiler-provided methods which cannot be overridden.
             print("X was an array of double")
     ```
     Note that the `type` type can be created directly from the type
-    constructors, e.g. `null` and `int`, e.g., `type(int) == 5 Type`.
+    constructors, e.g. `null` and `int`, e.g., `type(int) == 5 Is`.
     Note also, the `type` type also can be printed nicely, e.g.,
-    `print("asdf" Type)` prints "str", and `str(1 Type Type) == "type"`.
+    `print("asdf" Is)` prints "str", and `str(1 Is) == "int"`.
+    TODO: figure out how to get around the problem of an object with
+    a field defined as `is` or `Is`.  Maybe we need to use string access,
+    e.g., `Object "MyField" = 3`
 
 ## adding methods to existing classes
 
@@ -3714,7 +3722,7 @@ Grammar := singleton() {
     match(@@Index, Array: token_, GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
-        Matched := consider GrammarMatcher Type
+        Matched := consider GrammarMatcher Is
             case tokenMatcher
                 GrammarMatcher match(@@Index, Array)
             case grammarElement
@@ -3762,11 +3770,11 @@ parentheses := extend(tokenMatcher) {
     ::match(@@Index, Array: token_): bool
         # TODO: make sure copies are elided for constant temporaries like this:
         CurrentToken := Array_Index
-        if CurrentToken Type != parentheseToken
+        if CurrentToken Is != parenthesesToken
             return False
 
         InternalIndex; index = 0
-        PartialMatch ?:= Grammar match(@@InternalIndex, CurrentToken InternalTokens, GrammarMatcher)
+        PartialMatch := Grammar match(@@InternalIndex, CurrentToken InternalTokens, GrammarMatcher)
         if not PartialMatch
             return False
 
