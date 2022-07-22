@@ -1467,7 +1467,7 @@ Some examples:
 ```
 # creating an optional method in a class:
 parent := {
-    @reset(X: dbl, Y: dbl)
+    ;;reset(This X: dbl, This Y: dbl) := Null
 
     ::optionalMethod?(Z: dbl); int
 }
@@ -1767,7 +1767,7 @@ exampleClass := {
     # if the class instance variables are defined as immutable.
     ;;reset(X; int): null
         This X = X!
-    # or short-hand: `;;reset(This X: int)` or even `@reset(X: int)`
+    # or short-hand: `;;reset(This X: int) := Null`
     # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
 
     # class methods can be defined as well.
@@ -2978,12 +2978,7 @@ For example, here is an array iterator:
 arrayIterator~t := extend(iterator~t) {
     # to avoid creating a pointer, we need to pass in the array;
     # move the array in to avoid copying.
-    # this @reset annotation creates a function signature of
-    # ;;reset(
-    #   This Array!; t_, This NextIndex; index = 0
-    # ): {Array: t_, NextIndex: index}
-    # which automatically returns the old value of the Array (and NextIndex) if requested.
-    @reset(Array!: t_, NextIndex: index = 0)
+    ;;reset(This Array!: t_, This NextIndex: index = 0) := Null
     # TODO: see if there's a better syntax for this:
     # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
     # e.g., 
@@ -3577,7 +3572,7 @@ grammarElement := enumerate(
 )
 
 tokenMatcher := {
-    @reset(Name: str = "")
+    ;;reset(This Name: str = "") := Null
     # don't have to restore the token array Index to the correct state,
     # consume as many tokens as you like here.  make sure to go
     # through "Grammar match(...)" in order to restore the Index
