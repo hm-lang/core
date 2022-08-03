@@ -330,6 +330,7 @@ TODO: add : , ; ?? @?
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
 
 
+TODO: discussion on and/not/or.  those should all be keywords/overloads for `&&/prefix !/||`.
 TODO: discussion on `~`
 needs to be RTL for `array~array~int` processing as `array~(array~int)`, etc.
 
@@ -642,6 +643,9 @@ prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a comp
 if a declared variable is nullable but `?` is not used, since we want the programmer to be
 aware of the fact that the variable could be null, even though the program will take care
 of null checks automatically and safely.
+
+TODO: double check all nullable variable boolean operations.  we maybe should ensure
+checking against `X != Null` first, then any subsequent checks, e.g., `X != 0`.
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The executable will automatically
@@ -2493,13 +2497,14 @@ E.g., we need to make sure that functions which access the file system are decla
 # errors and asserts
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
-e.g., `map.hm` has a `mapError` type which can be caught using `catch error` or `catch mapError`.
+e.g., `map.hm` has a `map->error` type which can be caught using `catch error` or `catch map->error`.
 Use `throw errorType("message ${HelpfulVariableToDebug}")` to throw a specific error, or 
 `throw "message ${HelpfulVariableToDebug}"` to automatically use the correct error subclass for
 whatever context you're in.  Note that you're not able to throw a module-specific error
-from another module (e.g., you can't throw `mapError` from the `array.hm` module), but you can
-throw explicitly defined errors from other modules, as long as they are visible to you
-(see section on public/protected/private visibility).
+from another module (e.g., you can't throw `map->error` from the `array.hm` module), but you can
+*catch* module-specific errors from another module (e.g., `catch map->error` from the `array.hm`
+module).  Of course, you can throw/catch explicitly defined errors from other modules, as long as
+they are visible to you (see section on public/protected/private visibility).
 
 The built-in `assert` function will promote the passed-in value to a wrapper class with all the
 same methods, but which will throw if the returned value of any used method is not truthy.
@@ -2514,11 +2519,11 @@ assert(SomeClass) method(100)       # throws if `SomeClass method(100)` is not t
 ```
 
 Note that `assert` logic is always run, even in non-debug code.  To only check statements
-in the debug binary, use `assertDebug`, which has the same signature as `assert`.  Using
-`assertDebug` is not recommended, except to enforce the caller contract of private/protected
-methods.  Otherwise, `assert` should be used, especially for public methods.  Note also
-that `assert` (and `assertDebug`) will throw the correct error subclass for the module that
-they're in.
+in the debug binary, use `debug->assert`, which has the same signature as `assert`.  Using
+`debug->assert` is not recommended, except to enforce the caller contract of private/protected
+methods.  For public methods, `assert` should always be used to check arguments.  Note also
+that `assert` will throw the correct error subclass for the module that it is in;
+`debug->assert` will throw a `debug->error` to help indicate that it is not a production error.
 
 TODO: try/catch/finally 
 
