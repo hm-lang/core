@@ -1,0 +1,29 @@
+rune := extend(i32) {
+    ::isOpenParenthesis(): bool = consider I32
+        case '('
+        case '['
+        case '{'
+            True
+        default
+            False
+    ::isCloseParenthesis(): bool = consider I32
+        case ')'
+        case ']'
+        case '}'
+            True
+        default
+            False
+    ::toCloseParenthesis(): rune = consider I32
+        case '('
+            ')'
+        case '['
+            ']'
+        case '{'
+            '}'
+        default
+            throw "rune ${surroundWith('`')} was not an open parenthesis"
+    ::surroundWith(Rune; rune): str
+        if This == Rune
+            return "${Rune}\\${Rune}${Rune}"
+        return "${Rune}${This}${Rune}"
+}

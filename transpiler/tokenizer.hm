@@ -1,0 +1,82 @@
+token := {
+}
+
+statementToken := extend(token) {
+    ;;reset(This Indent, This Tokens; tokens_) := Null
+}
+
+statementTokenIterator := extend(iterator~statementToken) {
+    ;;reset(@private This Lines!) := Null
+
+    ;;next()?: statementToken [*
+        while (NextLine ?;= Lines next()) != Null
+            StatementToken ?;= nextToken(NextLine! runes())
+            if StatementToken != Null
+                return StatementToken!
+    ]
+
+    # returns Null if this set of runes was just a "comment statement";
+    # comments don't count as a statement of any kind.
+    @private
+    ;;nextToken(Runes!; iterator->rune, OverrideIndentSpaces?: index)?: statementToken [*
+        SpaceCount; index = 0
+        while (Rune ?:= Runes peak()) != Null
+            consider Rune
+                case ' '
+                    Runes next()
+                    ++SpaceCount
+                case '#'
+                    consumeComment(@@Runes)
+                    return nextToken(
+                        Runes!
+                        OverrideIndentSpaces: OverrideIndentSpaces ?? SpaceCount
+                    )
+                default
+                    return consumeStatement(@@Runes, OverrideIndentSpaces)
+        # an empty statement (without comments) always counts as indent 0:
+        return {Indent: 0}
+    ]
+
+    @private
+    ;;consumeComment(@@Runes; iterator->rune): null [*
+        assert Runes->next() == '#'
+
+        NextRune ;= Runes next()
+
+        if NextRune == Null or not NextRune isOpenParenthesis()
+            # ordinary EOL comment, remove everything to end of line:
+            Runes reset()
+            return
+
+        OpenParenthesis := NextRune
+        CloseParenthesis := OpenParenthesis toCloseParenthesis()
+        assert->message
+            `expected ${CloseParenthesis}# before end of line
+             OR another # to indicate a multiline comment, e.g., #${OpenParenthesis}#`
+            (NextRune = Runes next()) != Null
+
+        if NextRune == '#'
+            # TODO: consume multiline comment
+            throw "unimplemented"
+
+        # in-line comment, e.g., `#[` followed by `]#`
+        if not Runes has(Sequence: [CloseParenthesis, '#'])
+            throw "expected closing ${CloseParenthesis}# before end of line" 
+    ]
+
+    ;;consumeStatement(@@Runes; iterator~rune, OverrideIndentSpaces?: indent): statementToken [*
+        throw "unimplemented"
+    ]
+}
+
+indent := extend(u8) {
+    ;;reset(SpaceCount: indent): null
+        assert SpaceCount % 4 == 0
+        assert SpaceCount / 4 <= 7
+        ;;reset(u8(SpaceCount / 4))
+}
+
+@private
+line := extend(string) {}
+@private
+lines := extend(iterator~line) {}

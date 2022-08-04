@@ -1,0 +1,7 @@
+iterator~t := {
+    # returns true if this iterator has a sequence like what is passed in;
+    # stopping to not consume any more iterable elements if so.
+    # returns false if no match, consuming all iterable elements.
+    ;;has(Sequence: array~t): bool
+        throw "unimplemented"
+}
