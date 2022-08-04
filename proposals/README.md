@@ -12,7 +12,7 @@ act more functions than variables; e.g., you can convert one class instance into
 another class's instance, like `int(MyNumberString)` which converts `MyNumberString`
 (presumably a `string` type) into a big integer.
 
-There are a few reserved keywords, like `if`, `else`, `elif`, `with`, `return`,
+There are a few reserved keywords, like `if`, `else`, `elif`, `with`, `return`, `assert`,
 which are function-like but will consume the rest of the statement, even without parentheses.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function, whereas
 something like `sin X + 5` will give the value `sin(X) + 5` due to operator precedence.
@@ -2506,17 +2506,24 @@ from another module (e.g., you can't throw `map->error` from the `array.hm` modu
 module).  Of course, you can throw/catch explicitly defined errors from other modules, as long as
 they are visible to you (see section on public/protected/private visibility).
 
-The built-in `assert` function will promote the passed-in value to a wrapper class with all the
-same methods, but which will throw if the returned value of any used method is not truthy.
+The built-in `assert` statement will throw if the rest of the statement does not evolve to truthy.
 As a bonus, when throwing, all values will be logged to stderr as well for debugging purposes.
+
 ```
-assert(SomeVariable) == ExpectedValue   # throws if `SomeVariable != ExpectedValue`,
+assert SomeVariable == ExpectedValue    # throws if `SomeVariable != ExpectedValue`,
                                         # printing to stderr the values of both `SomeVariable`
                                         # and `ExpectedValue` if so.
 
-assert(SomeClass) method(100)       # throws if `SomeClass method(100)` is not truthy,
-                                    # printing value of `SomeClass`, `method`, and `100`.
+assert SomeClass method(100)        # throws if `SomeClass method(100)` is not truthy,
+                                    # printing value of `SomeClass` and `SomeClass method(100)`.
+
+assert SomeClass otherMethod("hi") > 10     # throws if `SomeClass otherMethod("hi") <= 10`,
+                                            # printing value of `SomeClass` as well as
+                                            # `SomeClass otherMethod("hi")`.
 ```
+
+It is not allowed to use `assert` inside an expression; it must be at the start of a statement,
+since it is a "greedy" keyword that consumes the rest of the statement.
 
 Note that `assert` logic is always run, even in non-debug code.  To only check statements
 in the debug binary, use `debug->assert`, which has the same signature as `assert`.  Using
