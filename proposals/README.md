@@ -2525,15 +2525,22 @@ assert SomeClass otherMethod("hi") > 10     # throws if `SomeClass otherMethod("
 
 It is not allowed to use `assert` inside an expression; it must be at the start of a statement,
 since it is a "greedy" keyword that consumes the rest of the statement.  For customization of
-the error message, you can add an indented string after the `assert` statement.  This is mostly
-helpful when you're checking a logical expression that isn't self documenting.  Be careful not
-to double indent here, since that would mean line continuation (i.e., of the `assert` statement).
+the error, you can add an optional indented line that includes an error, some class instance
+that inherits from error, or an error message specifically.  This is mostly helpful when
+you're checking a logical expression that isn't self documenting.  Be careful not to double
+indent here, since that would mean line continuation (i.e., of the `assert` statement).
 
 ```
+# custom error:
+assert This Might Not Be Self Explanatory
+    myCustomError("should have tried X instead of Y")
+
+# default error:
 assert SomeString endsWith(")")
     `expected nothing else on the line
      after the parenthetical.`
 
+# probably not intentional, parses as `Whatever Expression "this is a ..."`:
 assert WhateverExpression
         "this is a double indented line, doesn't count as the assert error message"
 ```
