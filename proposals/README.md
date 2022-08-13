@@ -12,7 +12,8 @@ act more functions than variables; e.g., you can convert one class instance into
 another class's instance, like `int(MyNumberString)` which converts `MyNumberString`
 (presumably a `string` type) into a big integer.
 
-There are a few reserved keywords, like `if`, `else`, `elif`, `with`, `return`, `assert`,
+There are a few reserved keywords, like `if`, `else`, `with`, `return`, `assert`,
+`throw`, `catch`, 
 which are function-like but will consume the rest of the statement, even without parentheses.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function, whereas
 something like `sin X + 5` will give the value `sin(X) + 5` due to operator precedence.
@@ -230,7 +231,7 @@ X; dbl|int = 4
 ...
 if X is(int)
     print("X is an integer")
-elif X is(dbl)
+else if X is(dbl)
     print("X is a double")
 ```
 
@@ -2523,7 +2524,19 @@ assert SomeClass otherMethod("hi") > 10     # throws if `SomeClass otherMethod("
 ```
 
 It is not allowed to use `assert` inside an expression; it must be at the start of a statement,
-since it is a "greedy" keyword that consumes the rest of the statement.
+since it is a "greedy" keyword that consumes the rest of the statement.  For customization of
+the error message, you can add an indented string after the `assert` statement.  This is mostly
+helpful when you're checking a logical expression that isn't self documenting.  Be careful not
+to double indent here, since that would mean line continuation (i.e., of the `assert` statement).
+
+```
+assert SomeString endsWith(")")
+    `expected nothing else on the line
+     after the parenthetical.`
+
+assert WhateverExpression
+        "this is a double indented line, doesn't count as the assert error message"
+```
 
 Note that `assert` logic is always run, even in non-debug code.  To only check statements
 in the debug binary, use `debug->assert`, which has the same signature as `assert`.  Using
@@ -3047,11 +3060,11 @@ array~t := {
 We have a few standard control statements or flow control keywords in hm-lang.
 
 TODO -- `return`
-TODO -- description, plus `if/else/elif` section
+TODO -- description, plus `if/else/else if` section
 
 ## conditional expressions
 
-Conditional statements including `if`, `elif`, `else`, as well as `consider` and `case`,
+Conditional statements including `if`, `else if`, `else`, as well as `consider` and `case`,
 can act as expressions and return values to the wider scope.  This obviates the need
 for ternary operators (like
 `X = doSomething() if Condition else DefaultValue` in python, or
@@ -3287,7 +3300,7 @@ Option1 := option->ContentWithLife
 # avoid doing this if you are checking many possibilities:
 if Option1 isNotAGoodOption()
     print "oh no"
-elif Option1 isOopsYouMissedIt()
+else if Option1 isOopsYouMissedIt()
     print "whoops"
 ...
 

@@ -18,9 +18,9 @@ statementTokenIterator := extend(iterator~statementToken) {
     # returns Null if this set of runes was just a "comment statement";
     # comments don't count as a statement of any kind.
     @private
-    ;;nextToken(Runes!; iterator->rune, OverrideIndentSpaces?: index)?: statementToken [*
+    ;;nextToken(Runes!; iterator~rune, OverrideIndentSpaces?: index)?: statementToken [*
         SpaceCount; index = 0
-        while (Rune ?:= Runes peak()) != Null
+        while (Rune ?:= Runes peak()) != Null {*
             consider Rune
                 case ' '
                     Runes next()
@@ -33,12 +33,13 @@ statementTokenIterator := extend(iterator~statementToken) {
                     )
                 default
                     return consumeStatement(@@Runes, OverrideIndentSpaces)
+        }
         # an empty statement (without comments) always counts as indent 0:
         return {Indent: 0}
     ]
 
     @private
-    ;;consumeComment(@@Runes; iterator->rune): null [*
+    ;;consumeComment(@@Runes; iterator~rune): null [*
         assert Runes->next() == '#'
 
         NextRune ;= Runes next()
@@ -50,10 +51,10 @@ statementTokenIterator := extend(iterator~statementToken) {
 
         OpenParenthesis := NextRune
         CloseParenthesis := OpenParenthesis toCloseParenthesis()
-        assert->message
+
+        assert (NextRune = Runes next()) != Null
             `expected ${CloseParenthesis}# before end of line
              OR another # to indicate a multiline comment, e.g., #${OpenParenthesis}#`
-            (NextRune = Runes next()) != Null
 
         if NextRune == '#'
             # TODO: consume multiline comment
