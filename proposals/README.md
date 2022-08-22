@@ -1937,6 +1937,11 @@ example := {
     @visibility
     ::x() := X
 
+    # move+reset
+    @visibility
+    ;;x()!: str
+        return X!
+
     # swapper: swaps the value of X with whatever is passed in
     #          returns the old value of X.
     @visibility
@@ -1995,7 +2000,7 @@ justGettable := {
     #}#
 }
 
-# a class with a swapper method gets a modifier method automatically:
+# a class with a swapper method gets a modifier and move+reset method automatically:
 justSwappable := {
     @invisible
     SomeVar; int
@@ -2020,10 +2025,17 @@ justSwappable := {
         # swap Temporary back into SomeVar:
         someVar(;;Temporary)
         return T!
+
+    # and the following move+reset method becomes automatically defined:
+    ;;someVar()!: t
+        Temporary; int
+        # swap SomeVar into Temporary:
+        someVar(@@Temporary)    # could also write `SomeVar <-> Temporary`
+        return Temporary!
     #)#
 }
 
-# a class with a modifier method gets a swapper method automatically:
+# a class with a modifier method gets a swapper and move+reset method automatically:
 justModdable := {
     @invisible
     SomeVar; int
@@ -2040,8 +2052,20 @@ justModdable := {
         someVar(;;fn(@@Old->Int): null
             Int <-> Old->Int
         )
+
+    # and the following move+reset method becomes automatically defined:
+    ;;someVar()!: t
+        Result; int
+        someVar(;;fn(@@Int): null
+             Result <-> Int
+        )
+        return Result!
     #)#
 }
+
+# A class with just a move+reset method doesn't get swapper and modifier methods automatically;
+# the move+reset method is in some sense a one way modification (pull only) whereas swapper and
+# modifier methods are two way (push and pull).
 ```
 
 TODO: some example of child class overriding parent class getter/setters.
