@@ -1,0 +1,13 @@
+string := {
+    This_(Index): rune
+    This_(Index): char
+
+    @allowParenthesesOverloadsForFormatting
+    This[T: ~t]: string
+        return This + string(Content: T, Prefix: '[', Postfix: ']')
+    This(T: ~t): string
+        return This + string(Content: T, Prefix: '(', Postfix: ')')
+    This{T: ~t}: string
+        return This + string(Content: T, Prefix: '{', Postfix: '}')
+}
+

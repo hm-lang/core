@@ -1,0 +1,10 @@
+str := {
+    @private
+    ByteDeque; deque~u8
+
+    This_Index: rune
+        throw "unimplemented"
+
+    This_Index: char
+        return char(ByteDeque[Index])
+}

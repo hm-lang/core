@@ -1,0 +1,27 @@
+ordinal := extend(i64) {
+    This := Ordinal
+
+    @implicit
+    ::to(): index
+        assert Ordinal >= 1
+        return i64(Ordinal - 1)
+}
+
+test["Ordinal", fn():
+    test("formats correctly", fn():
+        assert str(ordinal(100)) == "ordinal(100)"
+        assert "hello " + ordinal(12) == "hello ordinal(12)"
+    )
+
+    test("converts to index explicitly", fn():
+        assert index(ordinal(510)) == 509
+        assert index(ordinal(1000)) == 999
+    )
+
+    test("converts to index implicitly", fn():
+        stringify(Index) := str(Index)
+
+        assert stringify(ordinal(100)) == "index(99)"
+        assert ordinal(200) == index(199)
+    )
+]
