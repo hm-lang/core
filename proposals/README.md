@@ -2627,7 +2627,7 @@ array~t := {
     # will shrink by one, and all later indexed values will move down one index.
     ;;_(Index, @@T?): null
 
-    ::!!(): bool    # prefix !! operator
+    ::!!This: bool
         return size() > 0
 
     # modifier, allows access to modify the internal value via reference.
@@ -2708,10 +2708,8 @@ size is unknown at compile time, the fixed-size array will be defined on the hea
 # note you can use an input argument to define the return type's
 # fixed-array size, which is something like a generic:
 range(Int): int_Int
-    # TODO: use `assert(Int) >= 0 !! "can't have a fixed negative-size array"`
-    # where `!!` will check for a thrown error and rethrow with the new error message.
-    if Int < 0
-        throw "can't have a fixed negative-size array"
+    assert Int >= 0
+        "can't have a fixed negative-size array"
     Result; int_Int
     for I: int < Int
         Result_I = I
@@ -2873,7 +2871,7 @@ insertionOrderedMap~(key, value) := extend(map) {
     ::_(Key, fn(Value?): ~t): t
         Index ?:= KeyIndices_(Key)
         return if Index != Null
-            assert(Index) != 0
+            assert Index != 0
             IndexedValues_(Index, ::dive(IndexedValue: indexedMapValue~value): t
                 return fn(IndexedValue Value)
             )
@@ -2883,18 +2881,17 @@ insertionOrderedMap~(key, value) := extend(map) {
     ::forEach(Loop->fn(Key, Value): forLoop): null
         Index ;= IndexedValues_0 NextIndex
         while Index != 0
-            # TODO: check if this is correct usage of !!
-            Key := KeyIndices_Index !!
-            Value := IndexedValues_Index Value !!
+            Key := KeyIndices_Index
+            {Value} := IndexedValues_Index
             ForLoop := Loop->fn(Key, Value)
             if ForLoop == forLoop->Break
                 break
             Index = IndexedValues_Index NextIndex
         # mostly equivalent to using nested functions to avoid copies:
         # `ForLoop := KeyIndices_(Value: Index, ::fn(Key?):
-        #      assert(Key) != Null
+        #      assert Key != Null
         #      return IndexedValues_(Index, New::fn(IndexedMapValue?):
-        #          assert(IndexedMapValue) != Null
+        #          assert IndexedMapValue != Null
         #          return Loop->fn(Key, IndexedMapValue Value)
         #      )
         #  )
@@ -2920,8 +2917,8 @@ insertionOrderedMap~(key, value) := extend(map) {
     # modifier for an already indexed value in the map:
     @private
     modifyAlreadyPresent(Index, fn(@@Value): ~t): t
-        assert(Index) != 0
-        assert(IndexedValues) has(Index)
+        assert Index != 0
+        assert IndexedValues has(Index)
         return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~value): t
             return fn(@@IndexedValue Value)
         )

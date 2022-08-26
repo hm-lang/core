@@ -2,6 +2,7 @@
 
 array~t := extend(indexable) {
     @cc{
+        # TODO: include a push+pop system for cc visibility, e.g., @visibilityPush(private) and @visibilityPop()
         private:
         std::vector<t> Internal;
     }
