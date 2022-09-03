@@ -296,7 +296,7 @@ TODO: add : , ; ?? @?
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
 |           |   ` `     | implicit subscript        | binary: `A (B)`   |               |
-|           |   `!`     | postfix move+reset        | unary:  `A!`      |               |
+|           |   `!`     | postfix moot = move+reset | unary:  `A!`      |               |
 |   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `--`    | unary decrement           | unary:  `--A`     |               |
@@ -494,30 +494,35 @@ since it has higher priority.  E.g., `Array_someFunction 3` becomes `Array_(some
 
 The operator `!` is always unary (except when combined with equals for not equals,
 e.g., `!=`).  It can act as a prefix operator "not", e.g., `!A`, pronounced "not A",
-or a postfix operator on a variable, e.g., `Z!`, pronounced "Z nixxed".  In the first
-example, prefix `!` calls the `::!(): bool` method defined on `A`, which creates a
+or a postfix operator on a variable, e.g., `Z!`, pronounced "Z mooted".  In the first
+example, prefix `!` calls the `::!This: bool` method defined on `A`, which creates a
 temporary value of the boolean opposite of `A` without modifying `A`.  In the second
 case, it calls a built-in method on `Z`, which moves the current data out of `Z` into
 a temporary instance of whatever type `Z` is, and resets `Z` to a blank/default state.
-This is a "move and reset" operation.  Ideally, after a move+reset `Z!`, then checking
-whether `Z` evaluates to boolean false, i.e., by `!Z`, should return true.
+This is a "move and reset" operation, or "moot" for short.  Overloads for prefix `!`
+should follow the rule that, after e.g., `Z!`, checking whether `Z` evaluates to false,
+i.e., by `!Z`, should return true.
 
 Note, it's easier to think about positive boolean actions sometimes than negatives,
-so we allow defining either `::!!(): bool` or `::!(): bool` on a class, the former
+so we allow defining either `::!!This: bool` or `::!This: bool` on a class, the former
 allowing you to cast a value, e.g., `A`, to its positive boolean form `!!A`, pronounced
 "not not A."  Note, you cannot define both `!` and `!!` overloads for a class, since
 that would make things like `!!!` ambiguous.
 
 For one final use case, you can have a postfix `!` on an argument name to indicate
-that you should pass in a temporary value for that argument, e.g.,
+that you should pass in a mooted value for that argument, e.g.,
 ```
-myFunction(TempVariable!; someType): null
-```
-Temporaries can either come from the right hand side (RHS) of some expression
-(e.g., `X * 3`), or by nixxing a variable (e.g., `X!`).  It is a compiler error
-if you try to pass in something that could be non-temporary (e.g., a plain `X`).
+# function declaration:
+myFunction(Mooted!; someType): null
 
-TODO: more discussion about temporaries
+# calling the function:
+MyValue; someType   # variable needs to be mutable to be mooted
+myFunction(Mooted: MyValue!)
+```
+Note that you cannot moot a temporary value; e.g., `(SomeValue + 4)!` doesn't make sense.
+You can only moot an existing variable, e.g., `SomeValue!`.
+
+See section on mooted arguments for more information.
 
 ## superscripts/exponentiation
 
@@ -1316,7 +1321,70 @@ doSomething(X?: int): int
 TODO: move this section above the constant vs. mutable arg section, since that fits
 better with the next section, or below the next section.
 
-## references as argument types only
+### mooted arguments
+
+You can define an overload for a mooted argument.  A mooted argument is by default
+a mutable variable (e.g., `String!` is the same as `String!; string`).  A mooted
+argument is the closest thing hm-lang has to a reference, since it indicates that
+the argument came from an existing variable in the outer scope.  See the section on
+MMR for more details.
+
+TODO: we probably could get away with disallowing a mooted overload along with a
+mutable or immutable overload.  We already disallow mutable+immutable overloads;
+the real thing we want to make different is the mooted + return value for MMR.
+
+```
+example := {
+    SearchValue; string
+
+    # mooted argument:
+    ;;doStuff(String!):
+        SearchValue = String!   # remember to use `!` if you want to move it again.
+
+    #   // defines in C++:
+    #   void hm(doStuff)(hm(mooted)<hm(string)> String) {
+    #       hm(SearchValue) = hm(moot)(String); // probably could infer std::move() here.
+    #   }
+
+    # immutable argument:
+    ;;doStuff(String):
+        SearchValue = String    # requires a copy here unless String was a temporary at the callsite.
+
+    #   // defines in C++:
+    #   void hm(doStuff)(const hm(string) &String) {
+    #       hm(SearchValue) = String;   // this makes a copy
+    #   }
+    #   void hm(doStuff)(hm(string) &&String) {
+    #       hm(SearchValue) = String;   // probably could infer std::move(String) here.
+    #   }
+
+    # mutable argument:
+    # REMINDER! only one mutable/immutable overload can be declared,
+    # since they define the same underlying C++ methods in both cases.
+    ;;doStuff(String;):
+        SearchValue = String!   # no-copy, just move if String was a temporary at the callsite.
+
+    #   // defines in C++:
+    #   void hm(doStuff)(hm(string) &&String) {
+    #       hm(SearchValue) = std::move(String);
+    #   }
+    #   void hm(doStuff)(const hm(string) &ImmutableString) {
+    #       hm(string) String = ImmutableString;
+    #       hm(SearchValue) = hm(moot)(String); // probably could infer std::move(String) here.
+    #   }
+}
+```
+
+When calling a function in hm-lang with a mooted argument, i.e., `doStuff(X!)`, hm-lang will
+first try to use the overload for the moot argument.  If none is defined, hm-lang will switch
+to the overload with a temporary argument.
+
+Temporaries (C++ rvalues) come from some expression like `X * 3` or `4 + Somevalue`, and
+can only be used on the right-hand side (RHS) of equations.  References (C++ lvalues), e.g.,
+`X` or `SomeValue`, can be used on both left hand sides (LHS) and RHS of equations.
+Temporaries cannot be mooted, only references can.
+
+## references as argument types only: MMR
 
 To indicate that a variable is being passed as a reference, i.e., so that modifications
 inside the function will be persist on the variable outside the function, you can use
@@ -1351,7 +1419,7 @@ MyVariable ;= myObjectType(10)
 ```
 
 This is because reference types do not technically exist in hm-lang.  The `@@` prefix
-is just syntactic sugar for passing in a `!` temporified variable and getting it returned
+is just syntactic sugar for passing in a mooted (postfix `!`) variable and getting it returned
 from the function.  So the above valid examples actually define these overloads:
 
 ```
