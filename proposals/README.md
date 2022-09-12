@@ -2648,6 +2648,19 @@ TODO: try/catch/finally
 
 # standard container classes (and helpers)
 
+```
+container~t := {
+    ;;insert(T): null
+
+    # returns true iff the element was present in the container before being removed:
+    ;;remove(T): bool
+
+    ::contains(T): bool
+
+    ::size(): index
+}
+```
+
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
@@ -2689,7 +2702,7 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 
 ```
 # some relevant pieces of the class definition
-array~t := {
+array~t := extend(container~t, container~{Index, T}) {
     # swapper, sets the value at the index, returning the old value in the reference.
     # if the swapped in value is Null but the array value wasn't Null, the array
     # will shrink by one, and all later indexed values will move down one index.
@@ -2864,7 +2877,7 @@ change places inside the map and/or collide with an existing key.
 Some relevant pieces of the class definition:
 
 ```
-map~(key, value) := {
+map~(key, value) := extend(container~key, container~{Key, Value}, container~value) {
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at key, too.
@@ -3003,7 +3016,7 @@ opposite side of the array type (i.e., the array looks like `arrayElementType_`)
 The default-named variable name for a set is `Set`.
 
 ```
-set~t := {
+set~t := extend(container~t) {
     # returns true if the passed-in element is present in the set.
     ::_(T): bool
 
@@ -3047,9 +3060,11 @@ iterator~t := {
     # TODO: figure out a nice syntax for this method to automatically
     # be defined IF replace is defined, and to return a null in replace,
     # but allow it to be overridden if remove is defined separately.
+    # TODO: maybe require this for all containers that we use, so that things work "as expected"
     ;;remove?()?: t
 
     # present only if underlying container supports inserting a new element (before `peak()`)
+    # TODO: maybe require this for all containers that we use, so that things work "as expected"
     ;;insert?(T): null
 
     # replaces the element at `next()` based on the passed-in value,
@@ -3968,3 +3983,8 @@ or is the syntax unambiguous enough to not need them?
 # tokenizer
 
 TODO
+
+# references via keys
+
+TODO: maybe want to separate elements inside a container from container in a consistent way.
+e.g., `Array[3]` -> `Key; key~array~int = 3, Array[Key]`.
