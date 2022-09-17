@@ -4,10 +4,12 @@ string := {
 
     @allowParenthesesOverloadsForFormatting
     This[T: ~t]: string
-        return This + string(Content: T, Prefix: '[', Postfix: ']')
+        return This + '[' + string(T) + ']'
     This(T: ~t): string
-        return This + string(Content: T, Prefix: '(', Postfix: ')')
+        return This + '(' + string(T) + ')'
     This{T: ~t}: string
-        return This + string(Content: T, Prefix: '{', Postfix: '}')
-}
+        return This + '{' + string(T) + '}'
 
+    # TODO: optimizations like this:
+    # This + (String): string->builder
+}
