@@ -686,7 +686,7 @@ Optional functions are defined in a similar way (cf. section on nullable functio
 with the `?` just after the function name, e.g., `someFunction?(...Args): returnType`.
 
 TODO: how do we declare a function of multiple types?  e.g.,
-`someFunction: (fn(Dbl): string) | (fn(Dbl, Name: string): int)`.
+`someFunction: ((Dbl): string) | ((Dbl, Name: string): int)`.
 This might have some usage for function overloads.  Maybe we disallow these and require
 declare the overloads individually.
 
@@ -916,7 +916,9 @@ f(5)        # ok
 ```
 
 If passing functions as an argument where the function name doesn't matter,
-the default-named function is `fn`.
+the default-named argument for a function is `fn`.  When *declaring* a function
+with a function argument, the default name must be used (`fn`); when *defining*
+a lambda function for use inside a function, the default name can be omitted.
 
 ```
 q(fn(): bool): null
@@ -934,10 +936,19 @@ anotherTestFunction(): bool
     return False
 q(anotherTestFunction)  # should print "function returned false!"
 
-# or you can create a nameless function yourself:
+# or you can create a default-named function yourself:
 q(;;fn(): bool
     return random() > 0.5
 )   # will print one of the above due to randomness.
+
+# when defining a lambda (not declaring it), you can omit the name:
+q(() := True)
+
+# or you can do multiline with a name-omitted lambda:
+X; bool
+q(;;():
+    return X
+)
 
 # TODO: maybe not a good idea from here to END_TODO
 # unnamed functions are good candiates for using the `(*` ... `)` block operator,
@@ -1489,7 +1500,7 @@ greetings(Noun: "World")
 
 # or redefine it:
 # option 1:
-greetings = fn(Noun: string): null
+greetings = (Noun: string): null
     print "Hi, ${Noun}!"
 # option 2:
 greetings = "Greetings, ${$Noun}!"
@@ -1521,7 +1532,7 @@ means that the return type is nullable.  The possible combinations are therefore
 * `nullableFunction?(...Args): returnType` is a nullable function,
   which, if non-null, will return a non-null `returnType` instance.
   Conversely, if `nullableFunction` is null, trying to call it will return null.
-  You can also declare this as `nullableFunction?: fn(...Args): returnType`.
+  You can also declare this as `nullableFunction?: (...Args): returnType`.
 
 * `nullableReturnFunction(...Args)?: returnType` is a non-null function
   which can return a nullable instance of `returnType`.  You can declare
@@ -1531,8 +1542,8 @@ means that the return type is nullable.  The possible combinations are therefore
   which can return a null `returnType` instance, even if the function is non-null.
   I.e., if `superNullFunction` is null, trying to call it will return null,
   but even if it's not null `superNullFunction` can still return null.
-  You can also declare this as `superNullFunction?: fn(...Args)?: returnType`
-  or `superNullFunction?: fn(...Args): returnType|null)`.
+  You can also declare this as `superNullFunction?: (...Args)?: returnType`
+  or `superNullFunction?: (...Args): returnType|null)`.
 
 
 Some examples:
@@ -2029,7 +2040,7 @@ W = example()
 W x(fn(@@Str)
     Str += ", world"
 )
-W x(fn(Str) := print(Str))
+W x((Str) := print(Str))
 ```
 
 If you define overloads for any of these methods on child classes,
@@ -2089,9 +2100,9 @@ justSwappable := {
         Temporary; int
         # swap SomeVar into Temporary:
         someVar(@@Temporary)    # could also write `SomeVar <-> Temporary`
-        T := fn(;;Temporary)
+        T := fn(@@Temporary)
         # swap Temporary back into SomeVar:
-        someVar(;;Temporary)
+        someVar(@@Temporary)
         return T!
 
     # and the following move+reset method becomes automatically defined:
@@ -2117,22 +2128,22 @@ justModdable := {
     #(#
     # the following swapper becomes automatically defined:
     ;;someVar(@@Int): null
-        someVar(;;fn(@@Old->Int): null
+        someVar(;;(@@Old->Int): null
             Int <-> Old->Int
         )
 
     # and the following move+reset method becomes automatically defined:
     ;;someVar()!: t
         Result; int
-        someVar(;;fn(@@Int): null
+        someVar(;;(@@Int): null
              Result <-> Int
         )
         return Result!
     #)#
 }
 
-# A class with just a move+reset method doesn't get swapper and modifier methods automatically;
-# the move+reset method is in some sense a one way modification (pull only) whereas swapper and
+# A class with just a moot (move+reset) method doesn't get swapper and modifier methods automatically;
+# the moot method is in some sense a one way modification (pull only) whereas swapper and
 # modifier methods are two way (push and pull).
 ```
 
@@ -2953,7 +2964,7 @@ insertionOrderedMap~(key, value) := extend(map) {
         Index ?:= KeyIndices_(Key)
         return if Index != Null
             assert Index != 0
-            IndexedValues_(Index, ::dive(IndexedValue: indexedMapValue~value): t
+            IndexedValues_(Index, ::(IndexedValue: indexedMapValue~value): t
                 return fn(IndexedValue Value)
             )
         else
@@ -2969,9 +2980,9 @@ insertionOrderedMap~(key, value) := extend(map) {
                 break
             Index = IndexedValues_Index NextIndex
         # mostly equivalent to using nested functions to avoid copies:
-        # `ForLoop := KeyIndices_(Value: Index, ::fn(Key?):
+        # `ForLoop := KeyIndices_(Value: Index, ::(Key?):
         #      assert Key != Null
-        #      return IndexedValues_(Index, New::fn(IndexedMapValue?):
+        #      return IndexedValues_(Index, ::(IndexedMapValue?):
         #          assert IndexedMapValue != Null
         #          return Loop->fn(Key, IndexedMapValue Value)
         #      )
@@ -3000,7 +3011,7 @@ insertionOrderedMap~(key, value) := extend(map) {
     modifyAlreadyPresent(Index, fn(@@Value): ~t): t
         assert Index != 0
         assert IndexedValues has(Index)
-        return IndexedValues_(Index, ::dive(@@IndexedValue; indexedMapValue~value): t
+        return IndexedValues_(Index, ::(@@IndexedValue; indexedMapValue~value): t
             return fn(@@IndexedValue Value)
         )
 }
@@ -3549,8 +3560,8 @@ Similarly, returning a function from within a function is breaking scope:
 
 ```
 # this produces a COMPILER error:
-nextGenerator(Int; int): ;;fn(): int
-    return ;;fn():
+nextGenerator(Int; int): ;;(): int
+    return ;;():
         return ++Int    # ERROR! lifetime of Int does not exceed returned function!
 ```
 
@@ -3566,12 +3577,12 @@ need to double check...
 # this closure is ok because the returned function has internals that have greater lifetimes
 # than itself.  i.e., the input function will be destroyed only after the output function
 # is descoped.  note that because the returned function is impure, it is prefixed with `::`.
-wow(Input->fn(): string): ::fn(): int
+wow(Input->fn(): string): ::(): int
     # example usage:
     # someFn() := "hey"
     # otherFn := wow(someFn)
     # print(otherFn()) # 3
-    return fn(): int
+    return (): int
         return Input->fn() size()
 ```
 
@@ -3588,7 +3599,7 @@ ArrayArray; int__ = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
 ArrayArray_0 append(4)  # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
-ArrayArray_(0, fn(@@Array: int_): null
+ArrayArray_(0, (@@Array: int_): null
     Array append(4)
 )
 ```
@@ -3772,11 +3783,24 @@ Grammar := singleton() {
         FunctionDefinition: oneOf([
             # fnName(Args...): returnType
             #   BlockStatements
-            # TODO: probably need to require FunctionDeclaration to be on the start of a line
             sequence([FunctionDeclaration, Block])
+            # (Args...): returnType
+            #   BlockStatements
+            sequence([FunctionArgsWithReturnType, Block])
             # fnName(Args...) := Statement
             sequence([
                 FunctionName 
+                list(FunctionArgument)
+                oneOf([
+                    operator("?;=")
+                    operator("?:=")
+                    operator(";=")
+                    operator(":=")
+                ])
+                RhsStatement
+            ])
+            # (Args...) := Statement
+            sequence([
                 list(FunctionArgument)
                 oneOf([
                     operator("?;=")
@@ -3796,7 +3820,13 @@ Grammar := singleton() {
         FunctionCall: sequence([FunctionName, AtomicStatement])
         # TODO: templates, or maybe preprocess these into lowerCamelCase types with hooks
         FunctionType: sequence([
-            identifier("fn")
+            optional(oneOf([
+                operator("::")
+                operator(";:")
+                operator(":;")
+                operator(";;")
+            ]))
+            optional(identifier("fn"))
             FunctionArgsWithReturnType
         ])
         # TODO: templates, but see above.
@@ -3828,21 +3858,23 @@ Grammar := singleton() {
             parentheses(RhsStatement)
             list(DefinedArgument)
         ])
-        ClassName: LowerCamelCase
-        ExtendingParentClasses: sequence([
+        ClassName: sequence([
+            LowerCamelCase
+            optional(TemplateArguments)
+        ])
+        ExtendParentClasses: sequence([
             keyword("extend")
             list(ClassName)
         ])
         ClassDefinition: sequence([
             ClassName
-            optional(TemplateArguments)
             oneOf([
                 operator(":=")
                 doNotAllow(operator(";="), "Classes cannot be mutable.")
                 doNotAllow(operator("?;="), "Classes cannot be nullable/mutable.")
                 doNotAllow(operator("?:="), "Classes cannot be nullable.")
             ])
-            optional(ExtendingParentClasses)
+            optional(ExtendParentClasses)
             parentheses(Block)
         ])
         EndOfInput: tokenMatcher(
