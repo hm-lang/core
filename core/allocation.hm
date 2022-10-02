@@ -66,28 +66,24 @@ allocation~t := {
         }
     }
 
-    @protected
     ;;defaultConstructInBounds(Index): null
         debug->assert Index >= 0 and Index < Size
         @cc{
             new (Memory + hm(Index)) hm(t)();
         }
 
-    @protected
     ;;moveConstructInBounds(Index, T!): null
         debug->assert Index >= 0 and Index < Size
         @cc{
             new (Memory + hm(Index)) hm(t)(std::move(hm(T)));
         }
 
-    @protected
     ;;copyConstructInBounds(Index, T): null
         debug->assert Index >= 0 and Index < Size
         @cc{
             new (Memory + hm(Index)) hm(t)(hm(T));
         }
 
-    @protected
     ;;deconstructInBounds(Index): null
         debug->assert Index >= 0 and Index < Size
         @cc{
