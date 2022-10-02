@@ -1,0 +1,96 @@
+# A class that handles low-level contiguous memory access.
+# You must handle initializing/constructing and destructing elements in this class;
+# which elements are initialized *must be known* by the class instance which
+# uses the allocation.  E.g., a stack is initialized in the range [0, `Stack size()`).
+# This class is only allowed to be used inside other core classes.
+@protected @final
+allocation~t := {
+    @protected
+    Size; index = 0
+
+    @cc{
+    private:
+        hm(t) *Memory = Null;
+
+    public:
+        hm(allocation)(hm(index) _Size) {
+            if (_Size > 0) {
+                if ( _Size > (size_t)(-1) / sizeof( hm(t) ) ) {
+                    throw hm(allocationError)(hm(string)("cannot allocate enormous size: ") + _Size, AT);
+                }
+                size_t Bytes = _Size * sizeof( hm(t) );
+                Memory = (hm(t) *)malloc(Bytes);
+                if (Memory == Null) {
+                    throw hm(allocationError)(hm(string)("out of memory; cannot allocate size: ") + _Size, AT);
+                }
+                hm(Size) = _Size;
+            } else if (_Size < 0) {
+                throw hm(allocationError)(hm(string)("invalid allocation size: ") + _Size, AT);
+            }
+        }
+
+        void reset() {
+            free(Memory);
+            Memory = Null;
+            hm(Size) = 0;
+        }
+
+        ~hm(allocation) {
+            reset();
+        }
+
+        // no copy constructor:
+        hm(allocation)(const hm(allocation) &Allocation) = delete;
+
+        // no copy assignment:
+        hm(allocation) &operator = (const hm(allocation) &Allocation) = delete;
+
+        // move constructor:
+        hm(allocation)(hm(allocation) &&Allocation) {
+            take(std::move(Allocation));
+        }
+
+        // move assignment:
+        hm(allocation) &operator = (hm(allocation) &&Allocation) {
+            if (&Allocation != this) {
+                take(std::move(Allocation));
+            }
+            return *this;
+        }
+
+    private:
+        inline void take(hm(allocation) &&Allocation) {
+            reset();
+            std::swap(hm(Size), Allocation.hm(Size));
+            std::swap(hm(Memory), Allocation.hm(Memory));
+        }
+    }
+
+    @protected
+    ;;defaultConstructInBounds(Index): null
+        debug->assert Index >= 0 and Index < Size
+        @cc{
+            new (Memory + hm(Index)) hm(t)();
+        }
+
+    @protected
+    ;;moveConstructInBounds(Index, T!): null
+        debug->assert Index >= 0 and Index < Size
+        @cc{
+            new (Memory + hm(Index)) hm(t)(std::move(hm(T)));
+        }
+
+    @protected
+    ;;copyConstructInBounds(Index, T): null
+        debug->assert Index >= 0 and Index < Size
+        @cc{
+            new (Memory + hm(Index)) hm(t)(hm(T));
+        }
+
+    @protected
+    ;;deconstructInBounds(Index): null
+        debug->assert Index >= 0 and Index < Size
+        @cc{
+            (Memory + hm(Index))->~hm(t)();
+        }
+}
