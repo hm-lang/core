@@ -430,7 +430,7 @@ Subscripts `_` are not an allowed character for identifiers (e.g., variable or f
 a subscript acts as an operator for indexing containers like arrays, sets, maps, and tensors.
 E.g., for a map `Database; int_str`, then `Database_"Fred" = 3` sets the value at key "Fred" to 3.
 Or if we declare an array `Array; int_`, then `Array_3 = 100` sets the fourth value of the array
-to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  When a large expression
+to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  When an expression
 is used to key the index, you may also use an implicit subscript, which occurs when we have
 a non-function LHS followed by parentheses, e.g., `Array[Some + Expression / Here]`.
 Some examples:
@@ -2760,11 +2760,15 @@ We declare an array with a fixed number of elements using the notation
 `elementType_FixedSize`, where `FixedSize` is a constant integer expression (e.g., 5)
 or a variable that can be converted to the `index` type.  Fixed-size array elements
 will be initialized to the default value of the element type, e.g., 0 for number types.
-Most of the methods of `array` are present on the fixed-size array type as well,
-except those that modify the size of the array.  As usual, the arrays are zero-indexed,
-so the first element in a fixed-size array `Array` is `Array_0`.
 
-As an optimization, fixed-size arrays can be passed in without a copy to functions taking
+Under the hood, fixed-size arrays *are* standard arrays, but they will throw for any
+operation that changes the array size.  hm-lang attempts to throw compiler errors where
+possible (i.e., by deleting methods like `pop` or `append`), but there may be runtime
+errors (e.g., `Array[X] = 3` where `X` is unknown by the compiler).  Like regular arrays,
+fixed-size arrays are zero-indexed, so the first element in a fixed-size array
+`Array` is `Array_0`.
+
+Fixed-size arrays can be passed in without a copy to functions taking
 an array as an immutable argument, but will be of course copied into a 
 resizable array if the argument is mutable.  Some examples:
 
@@ -2808,6 +2812,66 @@ range(Int): int_Int
     return Result
 
 print(range(10))    # prints [0,1,2,3,4,5,6,7,8,9]
+```
+
+### possible implementation
+
+In hm-lang:
+
+```
+fixedSizeArray~t := extend(array~t) {
+    @hide pop
+    @hide insert
+    @hide erase
+    @hide append
+    @hide shift
+    # TODO: double check this syntax.
+    @for (Array;;method) in array~t
+        ;;method(@@Call; method->call): null
+            SizeBefore := size()
+            Array;;method(Call)
+            assert size() != SizeBefore
+}
+```
+
+In C++, we might do something like this:
+
+```
+template <class t>
+class fixedSizeArray {
+    array<t> Internal;
+public:
+    const array<t> *operator -> () const {
+        return &Internal;
+    }
+    fixedSizeArrayModifier<t> modify() {
+        return fixedSizeArrayModifier<t>(&Internal);
+    }
+};
+
+template <class t>
+class fixedSizeArrayModifier {
+    array<t> *Internal;
+    index InitialSize;
+public:
+    fixedSizeArrayModifier(array<t> *Array)
+    :   Internal(Array),
+        InitialSize(Array->size())
+    {}
+
+    NO_COPY(fixedSizeArrayModifier)
+    NO_MOVE(fixedSizeArrayModifier)
+
+    ~fixedSizeArrayModifier() {
+        if (Internal->size() != InitialSize) {
+            throw fixedSizeArrayError("Fixed-size array was modified");
+        }
+    }
+
+    array<t> *operator -> () {
+        return &Internal;
+    }
+};
 ```
 
 ## maps
