@@ -4084,3 +4084,24 @@ TODO
 
 TODO: maybe want to separate elements inside a container from container in a consistent way.
 e.g., `Array[3]` -> `Key; key~array~int = 3, Array[Key]`.
+
+# object format
+
+Every variable instance has two different storage layouts, one for "only type" and one for
+"dynamic type."  "Only-type" variables require no extra memory to determine what type they are.
+For example, an array of `i32` has some storage layout for the `array` type, but
+each `i32` element has "only type" storage, which is 4 consecutive bytes, ensuring that the
+array is packed tightly.  "Dynamic-type" variables include things like objects and instances
+that could be one of many class types (e.g., a parent or a child class).
+
+TODO: storage for dynamic types, can we create wrapper classes with enough memory and
+cast to them (i.e., without allocation)?  need to know the possible memory layouts beforehand,
+i.e., all possible child classes.  if we know for certain how files are loaded and used, 
+and ensure encapsulation in some way, we can probably update max storage required if a child
+class is loaded, and undo the update once the child class is unloaded.
+
+TODO: discuss having all instance methods in some special virtual table, e.g., possibly 
+with additional reflection information (for things like `@for (MyClass;;method) in myClass`
+macro code).
+
+TODO: make it possible to have template methods with template classes
