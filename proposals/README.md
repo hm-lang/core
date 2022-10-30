@@ -4092,7 +4092,55 @@ Every variable instance has two different storage layouts, one for "only type" a
 For example, an array of `i32` has some storage layout for the `array` type, but
 each `i32` element has "only type" storage, which is 4 consecutive bytes, ensuring that the
 array is packed tightly.  "Dynamic-type" variables include things like objects and instances
-that could be one of many class types (e.g., a parent or a child class).
+that could be one of many class types (e.g., a parent or a child class).  Because of this,
+dynamic-type variables include a 64 bit field for their type at the start of the instance,
+acting much like a vtable.  However, the type table includes more than just method pointers.
+
+```
+typedef u64 typeId;
+
+struct variableType {
+    string Name;
+    typeId TypeId;
+};
+
+typedef array<variableType> argumentsType;
+
+struct overloadType {
+    typeId InstanceTypeId; // 0 if this is not a method overload
+    argumentsType Input;
+    argumentsType Output;
+};
+
+struct overload {
+    typeId InstanceTypeId; // 0 if this is not a method overload
+    argumentsType Input;
+    argumentsType Output;
+
+    void *FunctionPointer;
+};
+
+struct overloadMatcher {
+    array<overload> Overloads;
+
+    // TODO: can `reference` be a no-copy no-move type class?
+    // TODO: can we make this an `arrayElementReference` under the hood with type erasure?
+    constNullableReference<overload> match(const overloadType &OverloadType) const;
+};
+
+// C++ code: info for a type
+struct typeInfo {
+    typeId Id;
+    string Name;
+
+    // Class types have variables, methods, and class functions defined in here:
+    array<variableType> Fields;
+
+    // A function typeInfo should have nonempty Overloads:
+    overloadMatcher OverloadMatcher;
+};
+```
+
 
 TODO: storage for dynamic types, can we create wrapper classes with enough memory and
 cast to them (i.e., without allocation)?  need to know the possible memory layouts beforehand,
