@@ -2528,6 +2528,46 @@ Screen clear color(R: 50, G: 0, B: 100)
 You get a run-time error if multiple child-class singletons are imported/instantiated
 at the same time.
 
+# aliases
+
+Aliases enable writing out logic with semantically similar descriptions, and 
+are useful for gently adjusting programmer expectations.  The hm-lang formatter will
+substitute the preferred name for any aliases found, and the compiler will only
+warn on finding aliases.
+TODO: maybe combine formatter/compiler.
+
+Aliases can be used for simple naming conventions, e.g.:
+
+```
+options := mask(
+    oneOf(AlignInheritX := 0, AlignCenterX, AlignLeft, AlignRight)
+    @alias InheritAlignX := AlignInheritX
+)
+
+Options := options->InheritAlignX   # converts to `options->AlignInheritX` on next format.
+```
+
+Aliases can also be used for more complicated logic and even deprecating code.
+
+```
+myClass := {
+    ;;reset(This X; int) := null
+
+    # This was here before...
+    # ;;myDeprecatedMethod(DeltaX: int): null
+    #     X += DeltaX
+
+    # But we're preferring direct access now:
+    @alias ;;myDeprecatedMethod(DeltaX: int): null
+        X += DeltaX
+}
+
+MyClass ;= myClass(X: 4)
+MyClass myDeprecatedMethod(DeltaX: 3)   # converts to `MyClass X += 3` on next format.
+```
+
+While it is possible, it is not recommended to use aliases to inline code.
+
 # modules
 
 Every file in hm-lang is its own module, and we make it easy to reference
@@ -3595,10 +3635,17 @@ Note that we have the best packing if the number of non-zero values is 3 (requir
 7 (requiring 3 powers of two), or, in general, one less than a power of two (i.e., `2^P - 1`,
 requiring `P` powers of two).
 
-## interplay with `alias`
+## named value-combinations
 
-TODO: e.g., `AlignCenter := alias(AlignCenterX | AlignCenterY)`.  or maybe we don't even
-need the `alias`.
+Masks can also include shortcuts for various combinations using the `:=` operator, e.g.:
+
+```
+myMask := mask(
+    X
+    Y
+    XAndY := X | Y
+)
+```
 
 # lifetimes and closures
 
