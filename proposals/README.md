@@ -3554,6 +3554,52 @@ Options = T
 Options isT()   # True, since Options is now solely T
 ```
 
+## interplay with `oneOf`
+
+We can also create a mask with one or more `oneOf` fields, e.g.:
+
+```
+options := mask(
+    oneOf([AlignCenterX, AlignLeft, AlignRight])
+    oneOf([AlignCenterY, AlignTop, AlignBottom])
+
+    oneOf([FontVerySmall, FontSmall, FontNormal := 0, FontLarge, FontVeryLarge])
+)
+```
+
+It is a compiler error to assign multiple values from the same `oneOf`:
+
+```
+Options; options = AlignCenterX | AlignRight     # COMPILER ERROR!
+```
+
+Note that internally, an `OR` combination of the `oneOf` values may actually be valid;
+it may be another one of the `oneOf` values in order to save bits.  Otherwise, each
+new value in the `oneOf` would need a new power of 2.  For example, we can represent
+`oneOf([AlignCenterX, AlignLeft, AlignRight])` with only two powers of two, e.g.,
+`AlignCenterX = 4`, `AlignLeft = 8`, and `AlignRight = 12`.  Because of this, there
+is special logic with `|` and `&` for `oneOf` values in masks.
+
+```
+Options2; options = AlignCenterX
+Options2 |= AlignRight    # will clear out existing AlignCenterX/Left/Right first before `OR`ing
+if Options2 & AlignCenterX
+    print "this will never trigger even if AlignCenterX == 4 and AlignRight == 12."
+```
+
+You can also explicitly tell the mask to avoid assigning a power of two to one of the
+`oneOf` values by setting it to zero (e.g., `oneOf([..., Value := 0, ... ])`.
+For example, the font size `oneOf` earlier could be represented by 3 powers of two, e.g.,
+`FontVerySmall = 16`, `FontSmall = 32`, `FontLarge = 64`, `FontVeryLarge = 96`.
+Note that we have the best packing if the number of non-zero values is 3 (requiring 2 powers of two),
+7 (requiring 3 powers of two), or, in general, one less than a power of two (i.e., `2^P - 1`,
+requiring `P` powers of two).
+
+## interplay with `alias`
+
+TODO: e.g., `AlignCenter := alias(AlignCenterX | AlignCenterY)`.  or maybe we don't even
+need the `alias`.
+
 # lifetimes and closures
 
 ## lifetimes of variables and functions
