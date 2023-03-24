@@ -362,6 +362,13 @@ E.g., `someFunction SomeInstance SomeField someMethod() FinalField` looks pretty
 This would compile as `(someFunction(SomeInstance)::SomeField::someMethod())::FinalField`,
 and including these parentheses would help others follow the flow.
 
+Deep dive!  Function calls are higher priority than member access because `someMethod() FinalField`
+would compile as `someMethod( ()::FinalField )` otherwise, which would evaluate to `someMethod(Null)`
+since `()::FinalField` is accessing the `FinalField` field on the object `()`, for which there is
+no field value (i.e, a null field value).  In addition, `X_someFunction 3` would compile as
+`(X_someFunction)[3]`, which is almost certainly not what is desired, unless `X` is a map with
+*function* keys.
+
 ## new-namespace `->` or class-scope operators `->`, `:>`, and `;>`
 
 The operator `->` can be used in two ways: (1) for creating default-named variables in a new/existing
@@ -3445,6 +3452,7 @@ masks for a similar class type that allows multiple options at once.
 For example:
 
 ```
+# TODO: should definitions be `False := 0` and `True := 1` ?
 # Enums use a similar syntax as maps when being defined,
 # except that the left-hand side must be an UpperCamelCase identifier:
 bool := enumerate(
