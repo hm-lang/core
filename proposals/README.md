@@ -1008,6 +1008,13 @@ call := {
     # note you can have an arbitrary variable name here via `~Name`,
     # and the variable name string can be accessed via `@Name`.  TODO: switch to `@@Name`
     # TODO: switch @@ for MMR to something else.  `fn(PureIn, Io) -> (PureOut, Io):`  ??
+    # TODO: `fn(PureIn, Io): (PureOut, Io)` could become `fn(PureIn, @io Io, @out PureOut):`
+    # with `@in` being the default argument type, i.e., input.
+    # TODO: `fn(PureIn, Io): (PureOut, Io)` could become `fn(PureIn, ;;Io, ..PureOut):`
+    # however, `;;Io` looks like a reference, but also looks a bit overloaded with
+    # impure function definitions (`;;myFunction() := OutsideScopeVariable = 3`),
+    # but maybe it's true that impure functions need to be passed "by reference" like this.
+    # TODO: figure out how remote server call would work with an impure function.
     # TODO: maybe rethink how `if` statements can work with block parentheses `(* ... )`
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
@@ -1348,9 +1355,7 @@ better with the next section, or below the next section.
 
 You can define an overload for a mooted argument.  A mooted argument is by default
 a mutable variable (e.g., `String!` is the same as `String!; string`).  A mooted
-argument is the closest thing hm-lang has to a reference, since it indicates that
-the argument came from an existing variable in the outer scope.  See the section on
-MMR for more details.
+argument is similar to a temporary in C++.  See the section on MMR for more details.
 
 TODO: we probably could get away with disallowing a mooted overload along with a
 mutable or immutable overload.  We already disallow mutable+immutable overloads;
