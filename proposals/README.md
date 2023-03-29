@@ -949,9 +949,11 @@ q(;;fn(): bool
 )   # will print one of the above due to randomness.
 
 # when defining a lambda (not declaring it), you can omit the name:
+# TODO: is this true??
 q(() := True)
 
 # or you can do multiline with a name-omitted lambda:
+# TODO: is this true??
 X; bool
 q(;;():
     return X
@@ -997,28 +999,31 @@ call can do just about anything (including fetching data from a remote server).
 
 ```
 call := {
-    Input; object
-    Output; object
+    Input; any_str
+    Output; any_str
     Warning?; string
     # TODO: consider letting this be `error|string` type, or requiring `error` only:
     Error?; string
 
-    # TODO: is this the right notation that we want to use for an arbitrary argument name, i.e., ~Name?
+    # note you can have an arbitrary variable name here via `~Name`,
+    # and the variable name string can be accessed via `@Name`.  TODO: switch to `@@Name`
+    # TODO: switch @@ for MMR to something else.  `fn(PureIn, Io) -> (PureOut, Io):`  ??
+    # TODO: maybe rethink how `if` statements can work with block parentheses `(* ... )`
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
-    exchange(~Name!; ~t): null
-        Output Name = t()
-        Input Name = Name
+    io(~Name!; ~t): null
+        Output_@Name = t()
+        Input_@Name = Name!
 
     # moves a field value from `Output` into the passed-in reference.
-    # NOTE: use after the function call; can be used in conjunction with `exchange`, e.g.,
+    # NOTE: use after the function call; can be used in conjunction with `io`, e.g.,
     #   Call; call
-    #   Call exchange(ThisValue: 10)
+    #   Call io(ThisValue: 10)
     #   whateverFunction(@@Call)
     #   ThisValue; int
     #   Call takeOut(@@ThisValue)
     takeOut(@@~Name: ~t): null
-        Name = Output Name!
+        Name = Output_@Name!
 }
 ```
 
