@@ -781,13 +781,9 @@ e.g., `Date := date(@hide DateString)`.
 
 # functions
 
-Functions are named using `lowerCamelCase` identifiers.  All functions
-must return something, and `null` is a valid return type.  (There is no "void" type.)
-TODO: Probably it's ok to avoid writing in the `null` return type; if no
-return type is specified, `null` is assumed, unless we are writing an inline function
-where we can infer the return argument value immediately.
-
-```
+Functions are named using `lowerCamelCase` identifiers.
+TODO: maybe switch to new @in/@out stuff.
+ ```
 # declaring a function with no arguments that returns a big integer
 v(): int
 
@@ -1010,10 +1006,22 @@ call := {
     # TODO: switch @@ for MMR to something else.  `fn(PureIn, Io) -> (PureOut, Io):`  ??
     # TODO: `fn(PureIn, Io): (PureOut, Io)` could become `fn(PureIn, @io Io, @out PureOut):`
     # with `@in` being the default argument type, i.e., input.
+    # TODO: maybe switch `;;Io` to `Io!!` everywhere below to imply moot-moot, i.e., two moves.
     # TODO: `fn(PureIn, Io): (PureOut, Io)` could become `fn(PureIn, ;;Io, ..PureOut):`
     # however, `;;Io` looks like a reference, but also looks a bit overloaded with
     # impure function definitions (`;;myFunction() := OutsideScopeVariable = 3`),
     # but maybe it's true that impure functions need to be passed "by reference" like this.
+    # is there a way to do this with just a single symbol?
+    # Declaration:
+    #   fn(In: inType, InCopiedForModification; inCopyType, ;;Io; ioType, ..Out; outType)
+    # Calling with pre-existing/already-declared variables:
+    #   fn(In, InCopiedForModification, ;;Io, ..Out)  
+    # Calling with variables we instantiate:
+    #   fn(In: 3, InCopiedForModification: 4, ;;Io: 5, ..Out)
+    # Calling with pre-existing variables with different names:
+    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: ;;MyIo, Out: ..MyOut)
+    # Calling with newly declared variables with different names:
+    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: ;;MyIo, MyOut: )
     # TODO: figure out how remote server call would work with an impure function.
     # TODO: maybe rethink how `if` statements can work with block parentheses `(* ... )`
     # i.e., for MMR-style input -> output variables.
@@ -1061,6 +1069,12 @@ someFunction(X: int): string
 # note that the earliest overload that matches will be default.
 someFunction(X: string): int
     return X size()
+
+MyString: string = someFunction(X: 100)     # uses the first overload
+MyInt: int = someFunction(X: "cow")         # uses the second overload
+WhatIsThis := someFunction(X: "asdf")       # WARNING! calls first overload
+
+# TODO: this might be easier to understand if we used @in/@out arguments
 
 # example which will use the default overload:
 Call; call
@@ -1221,6 +1235,25 @@ The reason that the `;` or `:` argument definition doesn't change the function
 signature is because in either case, the variables passed in from the outside
 are not affected by the internal parts of the function.  That is, the function
 cannot modify the external variables at all.
+
+The implementation in C++ might look something like this:
+
+```
+// function declaration is the same for both `fn(Str;)` and `fn(Str)`:
+void fn(const string &String);
+
+// with the definition, the constant one is not a surprise:
+void fn(const string &String) {
+    // do stuff with String from the hm function definition, but it's constant.
+}
+
+// with the definition, the mutable one has a copy-on-write wrapper:
+void fn(const string &_String) {
+    cowWrapper<string> String(_String);
+    // do stuff with String from the hm function definition, but it's mutable.
+    // note that `_String` is hidden from the hm language code.
+}
+```
 
 ### nullable arguments
 
