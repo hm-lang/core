@@ -1003,25 +1003,21 @@ call := {
 
     # note you can have an arbitrary variable name here via `~Name`,
     # and the variable name string can be accessed via `@Name`.  TODO: switch to `@@Name`
-    # TODO: switch @@ for MMR to something else.  `fn(PureIn, Io) -> (PureOut, Io):`  ??
-    # TODO: `fn(PureIn, Io): (PureOut, Io)` could become `fn(PureIn, @io Io, @out PureOut):`
+    # TODO: switch @@ for MMR to something else, e.g., !!.  `fn(PureIn, Io) -> (PureOut, Io):`  ??
+    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, @io Io, @out Out):`
     # with `@in` being the default argument type, i.e., input.
-    # TODO: maybe switch `;;Io` to `Io!!` everywhere below to imply moot-moot, i.e., two moves.
-    # TODO: `fn(PureIn, Io): (PureOut, Io)` could become `fn(PureIn, ;;Io, ..PureOut):`
-    # however, `;;Io` looks like a reference, but also looks a bit overloaded with
-    # impure function definitions (`;;myFunction() := OutsideScopeVariable = 3`),
-    # but maybe it's true that impure functions need to be passed "by reference" like this.
-    # is there a way to do this with just a single symbol?
+    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):`
     # Declaration:
-    #   fn(In: inType, InCopiedForModification; inCopyType, ;;Io; ioType, ..Out; outType)
+    #   fn(In: inType, InCopiedForModification; inCopyType, Io!! ioType, ->Out: outType)
     # Calling with pre-existing/already-declared variables:
-    #   fn(In, InCopiedForModification, ;;Io, ..Out)  
+    #   In: inType, InCopiedForModification: copiedType, Io; ioType, Out: outType
+    #   fn(In, InCopiedForModification, Io!!, ->Out)
     # Calling with variables we instantiate:
-    #   fn(In: 3, InCopiedForModification: 4, ;;Io: 5, ..Out)
+    #   fn(In: 3, InCopiedForModification: 4, Io: 5!!, ->Out: outType)
     # Calling with pre-existing variables with different names:
-    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: ;;MyIo, Out: ..MyOut)
-    # Calling with newly declared variables with different names:
-    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: ;;MyIo, MyOut: )
+    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, ->Out: MyOut)
+    # Calling with newly declared variables with different output names:
+    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, ->Out: MyOut: outType)
     # TODO: figure out how remote server call would work with an impure function.
     # TODO: maybe rethink how `if` statements can work with block parentheses `(* ... )`
     # i.e., for MMR-style input -> output variables.
@@ -1244,14 +1240,24 @@ void fn(const string &String);
 
 // with the definition, the constant one is not a surprise:
 void fn(const string &String) {
-    // do stuff with String from the hm function definition, but it's constant.
+    // do stuff with String from the hm function definition, and it's constant.
+}
+// although we also get a temporary overload as well:
+void fn(string &&_String) {
+    const string &String = _String;
+    // do stuff with String from the hm function definition, and it's constant.
+    // note that `_String` is hidden from the hm language code.
 }
 
 // with the definition, the mutable one has a copy-on-write wrapper:
 void fn(const string &_String) {
     cowWrapper<string> String(_String);
-    // do stuff with String from the hm function definition, but it's mutable.
+    // do stuff with String from the hm function definition, but it's possibly mutable.
     // note that `_String` is hidden from the hm language code.
+}
+// but the temporary overload also works as expected
+void fn(string &&String) {
+    // do stuff with String from the hm function definition, and it's mutable.
 }
 ```
 
@@ -1860,6 +1866,8 @@ in that case it's recommended to be explicit and use `::` or `;;` instead of ` `
 See the section on member access operators for how resolution of ` ` works in this case.
 
 And of course, class methods can also be overridden by child classes (see section on overrides).
+
+TODO: maybe switch class functions to `_`, `_::` and `_;;` so we allow `->` for output variables.
 
 Class functions (2) can't depend on any instance variables, and are declared using one
 of the operators `->`, `:>`, or `;>`, depending on whether the function is pure, impure (read only),
