@@ -422,6 +422,8 @@ exampleClass := {
 }
 ```
 
+TODO: `$>` `$:` and `$;` don't look bad either, but i think i prefer the above more.
+
 See the classes section for more clarification and comparison to member access operators.
 
 ## member access operators `::`, `;;`, and ` ` as well as subscripts `_`
@@ -1006,21 +1008,39 @@ call := {
     # TODO: we probably want a more narrow fix here since we'd only not know the name of
     # a variable in these contexts where we're passing in a `~Name: ~t` style argument.
     # maybe something with ~.  maybe `@~Name`
-    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, @io Io, @out Out):`
-    # with `@in` being the default argument type, i.e., input.
-    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):` or `fn(In, ;;Io, ->Out):`
-    #       `fn(>>In, <<Out, <>Io)` or `fn(In, ?>Out, Io!!)`. or use `?>` for class functions.
+    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):`
     # Declaration:
     #   fn(In: inType, InCopiedForModification; inCopyType, Io!! ioType, ->Out: outType)
     # Calling with pre-existing/already-declared variables:
-    #   In: inType, InCopiedForModification: copiedType, Io; ioType, Out: outType
+    #   In := inType(3)
+    #   InCopiedForModification ;= inCopyType(7)
+    #   Io ;= ioType(5)
+    #   Out; outType
     #   fn(In, InCopiedForModification, Io!!, ->Out)
     # Calling with variables we instantiate:
-    #   fn(In: 3, InCopiedForModification: 4, Io: 5!!, ->Out: outType)
+    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
+    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out: outType)
+    #   print(Out)  # Out is now available outside of the fn scope.
+    # Calling with variables we instantiate, and letting output be mutable
+    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
+    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out; outType)
+    #   Out += 4  # Out is now available outside of the fn scope and can be modified.
     # Calling with pre-existing variables with different names:
-    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, ->Out: MyOut)
-    # Calling with newly declared variables with different output names:
-    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, ->Out: MyOut: outType)
+    #   MyIn := inType(3)
+    #   MyCopied := inCopyType(7)
+    #   MyIo ;= ioType(5)
+    #   MyOut; outType
+    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, Out: ->MyOut)
+    #   MyOut += 4  # note MyOut is still mutable based on definition above.
+    # Calling with newly declared variables with newly declared output variables with different names:
+    #   fn(..., Out: ->MyOut: outType)
+    #   print(MyOut)    # `MyOut` available here, but it's constant from here on out.
+    # Calling with newly declared variables with mutable output variables:
+    #   fn(..., Out: ->MyOut; outType)
+    #   MyOut += 4      # `MyOut` available and mutable.
+    # TODO: a nice consistent way to return values from a function the normal way
+    #       and a few specific values, e.g., `Result := fn(..., OneReturnField: ->StashHere: fieldType)`
+    #       `Result` will be all the other fields besides `OneReturnField`.
     # TODO: figure out how remote server call would work with an impure function.
     #       this is probably impossible.  no way to keep track of how an impure function
     #       would have called things (i.e., read a value off the local disk, written it later, etc.)
