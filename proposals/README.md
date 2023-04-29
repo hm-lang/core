@@ -275,7 +275,7 @@ TODO: types of functions, shouldn't really have `new`.
 
 Operator priority.
 
-TODO: add : , ; ?? @?
+TODO: add : , ; ?? postfix/prefix ?
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
@@ -413,7 +413,7 @@ exampleClass := {
     # but it can read (but not write) global variables (or other files) due to `:>`:
     :>someStaticImpureFunction(): int
         YString := read(File: "Y")
-        return int(YString@?) ?? 7
+        return int(?YString) ?? 7
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read/write global variables (or other files) due to `;>`:
@@ -1005,12 +1005,12 @@ call := {
     # and the variable name string can be accessed via `@Name`.  TODO: switch to `@@Name`
     # TODO: we probably want a more narrow fix here since we'd only not know the name of
     # a variable in these contexts where we're passing in a `~Name: ~t` style argument.
-    # maybe something with ~.
+    # maybe something with ~.  maybe `@~Name`
     # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, @io Io, @out Out):`
     # with `@in` being the default argument type, i.e., input.
-    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):`
+    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):` or `fn(In, ;;Io, ->Out):`
     # Declaration:
-    #   fn(In: inType, InCopiedForModification; inCopyType, Io!! ioType, ->Out: outType)
+    #   fn(In: inType, InCopiedForModification; inCopyType, Io!!; ioType, ->Out: outType)
     # Calling with pre-existing/already-declared variables:
     #   In: inType, InCopiedForModification: copiedType, Io; ioType, Out: outType
     #   fn(In, InCopiedForModification, Io!!, ->Out)
@@ -1021,6 +1021,8 @@ call := {
     # Calling with newly declared variables with different output names:
     #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, ->Out: MyOut: outType)
     # TODO: figure out how remote server call would work with an impure function.
+    #       this is probably impossible.  no way to keep track of how an impure function
+    #       would have called things (i.e., read a value off the local disk, written it later, etc.)
     # TODO: maybe rethink how `if` statements can work with block parentheses `(* ... )`
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
@@ -1367,23 +1369,23 @@ else
     Null
 
 # instead, you should use the more idiomatic hm-lang version.
-# putting a @? after the argument name will check that argument;
+# putting a ? before the argument name will check that argument;
 # if it is Null, the function will not be called and Null will be returned instead.
-X ?:= overloaded(Y@?)
+X ?:= overloaded(?Y)
 
 # either way, X has type `string|null`.
 ```
 
-You can use `@?` with multiple arguments; if any argument with `@?` after it is null,
+You can use prefix `?` with multiple arguments; if any argument with prefix `?` is null,
 then the function will not be called.
 
 This can also be used with the `return` function to only return if the value is not null.
 
 ```
 doSomething(X?: int): int
-    # TODO: X * 3 should maybe not require @? to do exactly what's expected below:
-    Y ?:= X@? * 3    # Y is Null or X*3 if X is not Null.
-    return Y@?      # only returns if Y is not Null
+    # TODO: X * 3 should maybe not require prefix ? to do exactly what's expected below:
+    Y ?:= ?X * 3    # Y is Null or X*3 if X is not Null.
+    return ?Y       # only returns if Y is not Null
     #[ do some other stuff ]#
     ...
     return 3
@@ -1946,7 +1948,7 @@ exampleClass := {
     # but it can read (but not write) global variables (or other files) due to `:>`:
     :>someStaticImpureFunction(): int
         YString := read(File: "Y")
-        return int(YString@?) ?? 7
+        return int(?YString) ?? 7
 
     # class instance functions can be defined here; this is a *pure function*
     # that cannot depend on instance variables, however.  it can be set 
