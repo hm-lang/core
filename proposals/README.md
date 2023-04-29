@@ -472,7 +472,7 @@ getMedianSlow(Array: array~int): int
 
 # sorts the array and returns the median.
 # NOTE: the `!!` postfix on the `Array` variable roughly means it is passed as a reference.
-getMedianSlow(Array!!; array~int): int
+getMedianSlow(Array!! array~int): int
     if Array size() == 0
         throw "no elements in array, can't get median."
     Array sort()    # same as `Array;;sort()` since `Array` is mutable.
@@ -1009,8 +1009,9 @@ call := {
     # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, @io Io, @out Out):`
     # with `@in` being the default argument type, i.e., input.
     # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):` or `fn(In, ;;Io, ->Out):`
+    #       `fn(>>In, <<Out, <>Io)` or `fn(In, ?>Out, Io!!)`. or use `?>` for class functions.
     # Declaration:
-    #   fn(In: inType, InCopiedForModification; inCopyType, Io!!; ioType, ->Out: outType)
+    #   fn(In: inType, InCopiedForModification; inCopyType, Io!! ioType, ->Out: outType)
     # Calling with pre-existing/already-declared variables:
     #   In: inType, InCopiedForModification: copiedType, Io; ioType, Out: outType
     #   fn(In, InCopiedForModification, Io!!, ->Out)
@@ -2938,7 +2939,8 @@ fixedSizeArray~t := extend(array~t) {
     @hide shift
     # TODO: double check this syntax.
     @for (Array;;method) in array~t
-        ;;method(Call!!; method->call): null
+        # `(Argument!!; argType)` is also ok, but a postfix `!!` type defaults to mutable.
+        ;;method(Call!! method->call): null
             SizeBefore := size()
             Array;;method(Call)
             assert size() != SizeBefore
@@ -3186,7 +3188,7 @@ insertionOrderedMap~(key, value) := extend(map) {
     modifyAlreadyPresent(Index, fn(Value!!): ~t): t
         assert Index != 0
         assert IndexedValues has(Index)
-        return IndexedValues_(Index, ::(IndexedValue!!; indexedMapValue~value): t
+        return IndexedValues_(Index, ::(IndexedValue!! indexedMapValue~value): t
             return fn(IndexedValue Value!!)
         )
 }
@@ -3828,7 +3830,7 @@ ArrayArray; int__ = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
 ArrayArray_0 append(4)  # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
-ArrayArray_(0, (Array!!; int_): null
+ArrayArray_(0, (Array!! int_): null
     Array append(4)
 )
 ```
@@ -3874,7 +3876,7 @@ audioCallee := extend(callee~(sample_!!)) {
     # but that it doesn't matter what size it is.  in C++, this would
     # be a template type, e.g., `sample_~N`, but we don't actually
     # want a templated method here.
-    ;;call(Array!!; sample_): null
+    ;;call(Array!! sample_): null
         for Index: index < Array size()
             # TODO: maybe implicitly use `\\math Pi` inside the `\\math sin` function,
             # but only if `Pi` is not defined elsewhere.  i.e., `\\math` becomes a scope
