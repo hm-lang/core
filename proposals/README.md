@@ -1030,6 +1030,8 @@ call := {
     #   MyOut; outType
     #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, Out: ->MyOut)
     #   MyOut += 4  # note MyOut is still mutable based on definition above.
+    #   TODO: should we do `Io: <->MyIo` instead of `MyIo!!`?  maybe not.  `<->` only implies one switch,
+    #         whereas !! implies two moots, which is effectively what happens.
     # Calling with newly declared variables with newly declared output variables with different names:
     #   fn(..., Out: ->MyOut: outType)
     #   print(MyOut)    # `MyOut` available here, but it's constant from here on out.
