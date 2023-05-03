@@ -115,7 +115,7 @@ You can use `(*` ... `)` to define a block inline, or similarly with the other p
 the same as a standard block, i.e., going to a new line and indenting to +1.
 This is useful for short `if` statements, e.g., `if SomeCondition (*doSomething())`.
 
-TODO: consider using `(/ )` instead.  `(* )` is a bit more unique, visibly, however.
+TODO: i think we should use `$(` instead.
 
 Similarly, note that commas are essentially equivalent to a new line and tabbing to the
 same indent (indent +0).  This allows you to have multiple statements on one line, in any block,
@@ -421,8 +421,6 @@ exampleClass := {
         write(Y, File: "Y")
 }
 ```
-
-TODO: `$>` `$:` and `$;` don't look bad either, but i think i prefer the above more.
 
 See the classes section for more clarification and comparison to member access operators.
 
@@ -1367,6 +1365,7 @@ someFunction(X?: 100)   # ERROR! expression for X is definitely not null
 
 # when argument is an existing variable:
 X ?;= Null
+# TODO: do we really want to require a ? here?  if so, we probably need it in a bunch of other locations.
 print(someFunction(X?))  # can do `X?: X`, but that's not idiomatic.
 
 # when argument is a new nullable expression:
