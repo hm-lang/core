@@ -110,10 +110,10 @@ should be the same.
 
 ### block parentheses and commas
 
-You can use `(*` ... `)` to define a block inline, or similarly with the other parentheses
-(i.e., `[*` ... `]` and `{*` ... `}`.  The parentheses block "operator" is grammatically
+You can use `$(` ... `)` to define a block inline, or similarly with the other parentheses
+(i.e., `$[` ... `]` and `${` ... `}`.  The parentheses block "operator" is grammatically
 the same as a standard block, i.e., going to a new line and indenting to +1.
-This is useful for short `if` statements, e.g., `if SomeCondition (*doSomething())`.
+This is useful for short `if` statements, e.g., `if SomeCondition $(doSomething())`.
 
 TODO: i think we should use `$(` instead.
 
@@ -134,19 +134,19 @@ if SomeCondition
     print("toggling shutoff"), shutdown()
 
 # block parentheses version
-if SomeCondition (* print("toggling shutoff"), shutdown() )
+if SomeCondition $( print("toggling shutoff"), shutdown() )
 ```
 
 If the block parentheses encapsulate content over multiple lines, note that
-the additional lines need to be tabbed to +1 indent to match the +1 indent given by `(*`.
+the additional lines need to be tabbed to +1 indent to match the +1 indent given by `$(`.
 Multiline block parentheses are useful if you want to clearly delineate where your blocks
 begin and end, which helps some editors navigate more quickly to the beginning/end of the block.
-TODO: probably want a compile error if there's content after `(*` on a multiline block,
+TODO: probably want a compile error if there's content after `$(` on a multiline block,
 since it looks cleaner.
 
 ```
 # multiline block parentheses
-if SomeCondition (*
+if SomeCondition $(
     print("toggling shutdown")
     print("waiting one more tick")
     print("almost..."), print("it's a bit weird to use comma statements")
@@ -323,9 +323,9 @@ TODO: add : , ; ?? postfix/prefix ?
 |   9       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
 |           |  `\|\|`   | logical OR                | binary: `A\|\|B`  |               |
 |           |   `??`    | nullish OR                | binary: `A??B`    |               |
-|   10      | `(*   )`  | block parentheses         | grouping: `(*A)`  | ??            |
-|           | `[*   ]`  | block parentheses         | grouping: `[*A]`  |               |
-|           | `{*   }`  | block parentheses         | grouping: `{*A}`  |               |
+|   10      | `$(   )`  | block parentheses         | grouping: `$(A)`  | ??            |
+|           | `$[   ]`  | block parentheses         | grouping: `$[A]`  |               |
+|           | `${   }`  | block parentheses         | grouping: `${A}`  |               |
 |   11      |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
@@ -806,16 +806,16 @@ v(X: dbl, Y: dbl): null
     # print("$${X}, $${Y}, $${\\math atan(X, Y)}")
 
 # Note that it is also ok to use parentheses around a function definition,
-# but you should use the block parentheses notation `(*`.
-# TODO: see if we need to use `(*` or can get away with `(`.
+# but you should use the block parentheses notation `$(`.
+# TODO: see if we need to use `$(` or can get away with `(`.
 
-excite(Times: int): str {*
+excite(Times: int): str ${
     return "hi!" * Times
 }
 
-# You can also define functions inline with the `(*` ... `)` block operator.
+# You can also define functions inline with the `$(` ... `)` block operator.
 
-oh(Really; dbl): dbl {* Really *= 2.5, return 50 + Really }
+oh(Really; dbl): dbl ${ Really *= 2.5, return 50 + Really }
 ```
 
 ## calling a function
@@ -956,25 +956,25 @@ q(;;():
 )
 
 # TODO: maybe not a good idea from here to END_TODO
-# unnamed functions are good candiates for using the `(*` ... `)` block operator,
-# although they will require a prefix of `::` or `;;` if they are impure, since
+#       i'm not a big fan of how we'd use impure functions here
+#       but not for things like if statements (e.g., `return if X ${Y} else ${Z}`)
+#       where we're not specifying the pure/impureness of things.
+# unnamed functions are good candiates for using the `$(` ... `)` block operator,
+# although they will require adding `::` or `;;` if they are impure, since
 # we are converting to a function which requires this annotation:
-q ;;{* bool(random() > 0.5) }   # optional: `q ;;(* return bool(random() > 0.5) )`
+q $;;{ bool(random() > 0.5) }   # optional: `q $;;( return bool(random() > 0.5) )`
 
 Result; bool = False
-q ::[*Result]               # optional: `q ::[* return Result ]`
+q $::[Result]               # optional: `q $::[ return Result ]`
 
 # if the function is pure, then things look even simpler:
-q(*True)                    # optional: `q(* return True )`.
+q$(True)                    # optional: `q$( return True )`.
 
-# TODO: make sure that `q::(* ... )` and `q::fn(): bool (* ... )`
-# don't run afoul of the member access operator `;;` and `::` bits.
-# maybe would need to do `q(*: ... )` and `q(*; ...)` if so, and `fn;;(...): ...`
-# or maybe would need to ensure wrapped in more parentheses, e.g.,
-q(;;{*bool(random() > 0.5)})
+# also ok:
+q($;;{bool(random() > 0.5)})
 
 # you can also do multiple lines with the "block parentheses" operators:
-q(*
+q$(
     print("hello"), print("world")
     return True
 )
@@ -1042,7 +1042,7 @@ call := {
     # TODO: figure out how remote server call would work with an impure function.
     #       this is probably impossible.  no way to keep track of how an impure function
     #       would have called things (i.e., read a value off the local disk, written it later, etc.)
-    # TODO: maybe rethink how `if` statements can work with block parentheses `(* ... )`
+    # TODO: maybe rethink how `if` statements can work with block parentheses `$( ... )`
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
     io(~Name!; ~t): null
@@ -1374,7 +1374,7 @@ someFunction(X: someNullishFunction())   # ERROR! someNullishFunction is nullabl
 
 # where someNullishFunction might look like this:
 ::someNullishFunction()?: int
-    return if SomeCondition (* Null ) else (* 100 )
+    return if SomeCondition $( Null ) else $( 100 )
 ```
 
 We also want to make it easy to chain function calls with variables that might be null,
@@ -1560,14 +1560,14 @@ ToMatch ;= 100
 ```
 
 TODO: discussion here on how this becomes `::match(Index!, Array: int_): {Index, Bool}`
-and how we resolve the overload for something like `if ::match(Index!!, Array) (* doSomething() )`.
+and how we resolve the overload for something like `if ::match(Index!!, Array) $( doSomething() )`.
 TODO: make return values part of an `object`.  If return is null, then `Output` is Null (empty object). 
 if return is a single variable (e.g., `hello(Int): str), then `Output` populates a default-named field
 with the instance (e.g., `Output Str`).  If the return is multiple variables, `Output` has all those fields.
 But if some of those fields are MMR-style fields (e.g., input and output), they are effectively removed
 from `Output` and cannot be referenced on the output of the function call; e.g.,
 `::match(Index!!, Array) Index` will fail since `Index` was already outputted via `!!`.
-Casting `object` to boolean, e.g., via `if Output (* doSomething() )` will check first to see if `Output` is a
+Casting `object` to boolean, e.g., via `if Output $( doSomething() )` will check first to see if `Output` is a
 single-field object (SFO).  If so, then we'll cast that field to boolean.  Otherwise, we'll check
 if `Output` has a boolean field -- e.g., `if Output` => `if Output Bool`.  Otherwise, we'll throw a compile error,
 requesting users to be more specific.
@@ -1927,8 +1927,8 @@ instance of the class is needed.  It is a compiler error if a `;;reset()` method
 When defining methods or functions of all kinds, note that you can use `this`
 to refer to the current class instance type.
 
-TODO: do we need "block parentheses" notation here, e.g., `{*`?  i don't think so, because
-`{*` should only be required for places where a parentheses can mean something else.
+TODO: do we need "block parentheses" notation here, e.g., `${`?  i don't think so, because
+`${` should only be required for places where a parentheses can mean something else.
 here there is no ambiguity, we are creating an object, but because the LHS is lowerCamelCase,
 we are creating a class.
 
@@ -3399,9 +3399,9 @@ else
     DefaultValue
 
 # now X is either the result of `doSomething()` or `DefaultValue`.
-# note, we can also do this with the `(*` `)` operator to indicate blocks, e.g..
+# note, we can also do this with the `$(` `)` operator to indicate blocks, e.g..
 
-X := if Condition (* doSomething() ) else (* calculateSideEffects(...), DefaultValue )
+X := if Condition $( doSomething() ) else $( calculateSideEffects(...), DefaultValue )
 ```
 
 Note that ternary logic short-circuits operations, so that calling the function
@@ -3455,9 +3455,9 @@ X := consider String
     default
         100
 
-# Note again that you can use `(*` ... `)` block operators to make these inline.
+# Note again that you can use `$(` ... `)` block operators to make these inline.
 # Try to keep usage to code that can fit legibly on one line:
-Y := consider String (* case "hello" (*5), case "world" (*7), default (*100) )
+Y := consider String $( case "hello" $(5), case "world" $(7), default $(100) )
 ```
 
 Implementation details:  For strings, at compile time we do a fast hash of each 
@@ -3876,7 +3876,7 @@ When the `callee` is descoped, it will deregister itself with the `caller`
 internally, so that the `caller` will no longer call the `callee`.
 
 ```
-# caller := { Callees; _(ptr~callee~t), runCallbacks(T: t): for (Ptr) in Callees (*Ptr call(T)) }
+# caller := { Callees; _(ptr~callee~t), runCallbacks(T: t): for (Ptr) in Callees $(Ptr call(T)) }
 # TODO: we probably don't want to allow !! on a type, since !! implies input an output logic,
 # it's not technically a type but syntactic sugar on the variable input/output logic.
 audio := singleton(caller~(sample_!!)) {
