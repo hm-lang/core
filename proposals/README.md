@@ -292,6 +292,7 @@ TODO: add : , ; ?? postfix/prefix ?
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `:>`    | read-only class variable  | binary: `A:>B`    |               |
 |           |   `;>`    | writeable class variable  | binary: `A;>B`    |               |
+|           |   `->`    | new output argument name  | unary:  `->A`     |               |
 |           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
@@ -371,8 +372,27 @@ no field value (i.e, a null field value).  In addition, `X_someFunction 3` would
 
 ## new-namespace `->` or class-scope operators `->`, `:>`, and `;>`
 
-The operator `->` can be used in two ways: (1) for creating default-named variables in a new/existing
-namespace, and (2) as an indicator for class scoping for static/class functions.  Examples of (1):
+The operator `->` can be used in three ways: (1) as a unary operator for an output-only argument
+name in a function declaration or function call, (2) for creating default-named variables in a
+new/existing namespace, and (3) as an indicator for class scoping for static/class functions.
+
+We'll discuss more in the function-call section, but here are some examples of (1):
+
+```
+# function declaration + definition, uses `Output` as an output variable via `->Output`.
+myFunction(Input: int, ->Output; str):
+    Output = str(Input)
+
+# function calling:
+Output := myFunction(Input: 301)  # Output = "301"
+# equivalently, defines an immutable `Output` in this scope:
+myFunction(Input: 301, ->Output: str)
+
+# argument renaming is also possible; this defines `MyOutput` in this scope:
+myFunction(Input: 445, Output: ->MyOutput: str)
+```
+
+Examples of (2):
 `New->Int`, `Old->String`, `Input->Array`, or `Output->Rune`, where the LHS is the namespace
 and the RHS is the variable name (typically the `UpperCamelCase` version of the `lowerCamelCase` type).
 This allows you to pass in default-named arguments into functions, while avoiding argument/variable
@@ -398,7 +418,7 @@ as long as the variable names don't overlap.  You can also use the namespace ope
 of functions to declare new variables, but its utility is mostly to avoid argument renaming.
 Like the member access operators below, the namespace operator binds left to right.
 
-For the other way (2), we use `->` for class functions, and `:>` and `;>` work here as well but for
+For the final way (3), we use `->` for class functions, and `:>` and `;>` work here as well but for
 impure class functions.  Class functions are like "static" class methods in C++, and here
 are some examples:
 
@@ -1030,8 +1050,6 @@ call := {
     #   MyOut; outType
     #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, Out: ->MyOut)
     #   MyOut += 4  # note MyOut is still mutable based on definition above.
-    #   TODO: should we do `Io: <->MyIo` instead of `MyIo!!`?  maybe not.  `<->` only implies one switch,
-    #         whereas !! implies two moots, which is effectively what happens.
     # Calling with newly declared variables with newly declared output variables with different names:
     #   fn(..., Out: ->MyOut: outType)
     #   print(MyOut)    # `MyOut` available here, but it's constant from here on out.
@@ -1415,6 +1433,11 @@ doSomething(X?: int): int
 
 TODO: move this section above the constant vs. mutable arg section, since that fits
 better with the next section, or below the next section.
+
+### output arguments
+
+TODO: discussion on `fn(->Whatever)`, `fn(->Whatever: myType)`, renames, etc.
+TODO: discussion on destructuring.
 
 ### mooted arguments
 
