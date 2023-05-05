@@ -1209,29 +1209,109 @@ Input-only arguments are guaranteed not to change the value of any backing varia
 in the outside scope.  They are passed essentially by constant reference (e.g., C++
 `const t &`) but will be copied-on-write (COW) if they are modified inside the function.
 Output-only arguments are just the return values of the function, i.e., the fields
-of an output object.
-
-TODO: discussion on `fn(->Whatever)`, `fn(->Whatever: myType)`, renames, etc.
-TODO: discussion on destructuring.
+of an output object.  These can be thought of as pointers from the caller's scope that
+the function is allowed to modify the pointed-at value of, write-only (no read).  IO
+arguments are of course readable and writeable variables from the caller's scope.
+Here are some simple examples of input and output variables:
+TODO: do we want Output and IO arguments to essentially be (special) pointers?
+      We may want to re-write the MMR section for this.
 
 ```
-    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):`
-    # Declaration:
-    #   fn(In: inType, InCopiedForModification; inCopyType, Io!! ioType, ->Out: outType)
-    # Calling with pre-existing/already-declared variables:
-    #   In := inType(3)
-    #   InCopiedForModification ;= inCopyType(7)
-    #   Io ;= ioType(5)
-    #   Out; outType
-    #   fn(In, InCopiedForModification, Io!!, ->Out)
-    # Calling with variables we instantiate:
-    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
-    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out: outType)
-    #   print(Out)  # Out is now available outside of the fn scope.
-    # Calling with variables we instantiate, and letting output be mutable
-    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
-    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out; outType)
-    #   Out += 4  # Out is now available outside of the fn scope and can be modified.
+# this function has an input variable `Input: int` and an output variable `Str; str`:
+fn(Input: int): str
+    return "hi" * Input
+# alternative, equivalent definition:
+fn(Input: int, ->Str; str):
+    Str = "hi" * Input
+
+# when calling the function, you can specifically declare/initialize the output variable
+# via `->` with no prefix, like this:
+fn(Input: 3, ->Str:)    # equivalent to `fn(Input: 3, ->Str: str)` due to default naming.
+print(Str)              # prints "hihihi"
+
+# you can make the newly initialized output variable mutable for later via an explicit `;`
+fn(Input: 4, ->Str;)    # equivalent to `fn(Input: 4, ->Str; str)` due to default naming.
+print(Str)              # prints "hihihihi"
+Str += "yo"             # Str is now "hihihihiyo"
+
+# alternatively, you can pre-define the output variable and then avoid using `;` or `:`.
+Str ;= str("asdf")      # note it needs to be mutable.
+fn(Input: 2, ->Str)     # note there is no `;` or `:` here.
+print(Str)              # prints "hihi"
+
+# note that you can also immediately define the output variable, as usual:
+Str := fn(Input: 1)     # Str = "hi"
+```
+
+Here are some more complicated examples which include IO variables:
+
+```
+# === function definition ===========================
+# this function rounds down a dbl and returns the integer and fractional parts via
+# `RoundDown` and `Io` respectively:
+fraction(In: string, Io: dbl): (Io: dbl, RoundDown: int)
+    print(In)
+    RoundDown := Io round(DOWN)
+    return {Io: Io - RoundDown, RoundDown}
+
+# equivalent definition using MMR syntax:
+fraction(In: string, Io!! dbl): (RoundDown: int)
+    print(In)
+    RoundDown := Io round(DOWN)
+    Io -= RoundDown
+    return {RoundDown}
+
+# equivalent definition using MMR and output argument syntax:
+fraction(In: string, Io!! dbl, ->RoundDown; int):
+    print(In)
+    RoundDown = Io round(DOWN)
+    Io -= RoundDown
+# note that we can't have variable shadows, so this would throw a compile error:
+# `fraction(In: str, Io: dbl, ->Io; dbl, ->RoundDown; int)`
+
+# === function calling ==============================
+# we can call with variables that get defined inline like this.
+{Io: dbl, RoundDown: int} = fraction(In: "hello!", Io: 1.234)
+# note `Io` and `RoundDown` are both immutable outside the function scope.
+
+# we can call with pre-existing variables, using MMR, like this:
+In := "hello!"
+Io ;= 1.234     # note `;` so it's mutable.
+RoundDown; int
+fraction(In, Io!!, ->RoundDown)
+
+# we can call with variables that get defined inline like this, besides `Io`, which is MMR.
+Io ;= 1.234     # note `;` so it's mutable.
+fraction(In: "hello!", Io!!, ->RoundDown; int)
+
+# This should not be supported: `fraction(In: "hello!", Io: 1.234, ->Io: dbl, ->RoundDown: int)`
+# Because inside the function, we might have ambiguous expectations for how `Io` behaves
+# if it is read after it is written inside the function.
+
+# === calling the function with variable renaming ===
+# with pre-existing variables, using MMR syntax:
+Greeting := "hello!"
+InputOutput ;= 1.234     # note `;` so it's mutable.
+# TODO: this kinda looks bad for output argument renaming, maybe require doing something below:
+{RoundDown: IntegerPart; int} = fraction(In: Greeting, Io: InputOutput!!)
+
+# with pre-existing variables, using MMR and output argument syntax:
+Greeting := "hello!"
+InputOutput ;= 1.234     # note `;` so it's mutable.
+IntegerPart; int
+fraction(In: Greeting, Io: InputOutput!!, RoundDown: ->IntegerPart)
+
+# we can call with variables that get defined inline like this, besides `Io`, which is MMR.
+InputOutput ;= 1.234     # note `;` so it's mutable.
+fraction(In: "hello!", Io: InputOutput!!, RoundDown: ->IntegerPart: int)
+```
+
+
+TODO: discussion on destructuring.
+      this is ok `{Str:} = fn(Input: 3)` but `Str := fn(Input: 3)` works if fn output is a SFO.
+      also discuss `{A:, B:, C;} = whatever(X)` for defining mutability/constancy individually.
+
+```
     # Calling with pre-existing variables with different names:
     #   MyIn := inType(3)
     #   MyCopied := inCopyType(7)
