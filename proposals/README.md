@@ -1005,235 +1005,6 @@ q
 # END_TODO
 ```
 
-### dynamically determining arguments for a function
-
-We allow for dynamically setting arguments to a function by using the `call` type,
-which has a few fields: `Input` and `Output` for the arguments and return values
-of the function, as well as optional `Warning` and `Error` fields for any issues
-encountered when calling the function.  These fields are named to imply that the function
-call can do just about anything (including fetching data from a remote server).
-
-```
-call := {
-    Input; any_str
-    Output; any_str
-    Warning?; string
-    # TODO: consider letting this be `error|string` type, or requiring `error` only:
-    Error?; string
-
-    # note you can have an arbitrary variable name here via `~Name`,
-    # and the variable name string can be accessed via `@Name`.  TODO: switch to `@@Name`
-    # TODO: we probably want a more narrow fix here since we'd only not know the name of
-    # a variable in these contexts where we're passing in a `~Name: ~t` style argument.
-    # maybe something with ~.  maybe `@~Name`
-    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):`
-    # Declaration:
-    #   fn(In: inType, InCopiedForModification; inCopyType, Io!! ioType, ->Out: outType)
-    # Calling with pre-existing/already-declared variables:
-    #   In := inType(3)
-    #   InCopiedForModification ;= inCopyType(7)
-    #   Io ;= ioType(5)
-    #   Out; outType
-    #   fn(In, InCopiedForModification, Io!!, ->Out)
-    # Calling with variables we instantiate:
-    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
-    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out: outType)
-    #   print(Out)  # Out is now available outside of the fn scope.
-    # Calling with variables we instantiate, and letting output be mutable
-    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
-    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out; outType)
-    #   Out += 4  # Out is now available outside of the fn scope and can be modified.
-    # Calling with pre-existing variables with different names:
-    #   MyIn := inType(3)
-    #   MyCopied := inCopyType(7)
-    #   MyIo ;= ioType(5)
-    #   MyOut; outType
-    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, Out: ->MyOut)
-    #   MyOut += 4  # note MyOut is still mutable based on definition above.
-    # Calling with newly declared variables with newly declared output variables with different names:
-    #   fn(..., Out: ->MyOut: outType)
-    #   print(MyOut)    # `MyOut` available here, but it's constant from here on out.
-    # Calling with newly declared variables with mutable output variables:
-    #   fn(..., Out: ->MyOut; outType)
-    #   MyOut += 4      # `MyOut` available and mutable.
-    # TODO: a nice consistent way to return values from a function the normal way
-    #       and a few specific values, e.g., `Result := fn(..., OneReturnField: ->StashHere: fieldType)`
-    #       `Result` will be all the other fields besides `OneReturnField`.
-    # TODO: figure out how remote server call would work with an impure function.
-    #       this is probably impossible.  no way to keep track of how an impure function
-    #       would have called things (i.e., read a value off the local disk, written it later, etc.)
-    # TODO: maybe rethink how `if` statements can work with block parentheses `$( ... )`
-    # i.e., for MMR-style input -> output variables.
-    # NOTE: use before the function call
-    io(~Name!; ~t): null
-        Output_@Name = t()
-        Input_@Name = Name!
-
-    # moves a field value from `Output` into the passed-in reference.
-    # NOTE: use after the function call; can be used in conjunction with `io`, e.g.,
-    #   Call; call
-    #   Call io(ThisValue: 10)
-    #   whateverFunction(Call!!)
-    #   ThisValue; int
-    #   Call takeOut(ThisValue!!)
-    takeOut(~Name!!: ~t): null
-        Name = Output_@Name!
-}
-```
-
-Now, `call` is very generic, so `Input` and `Output` can be filled with any fields (or none),
-and this logic is encapsulated in the type `object`.  The `object` type can be thought of as
-a collection of nullable fields; if all fields are null, then the object acts like a null.
-If only one field is defined, it is a "single field object", or `sfo` type.  The fields have
-keys that are symbols (they can be identified by letters/words in code, like `Object FieldKey`),
-and values that have any type.
-
-When passing in a `call` instance to actually call a function, the `Input` field will be treated
-as constant/read-only after being cast to the field types specified by the chosen function overload.
-(E.g., if an argument type is `string` but a number is passed in, it will be converted to a string.)
-The `Output` field will be considered "write-only", except for the fact that we'll read what fields
-are defined in `Output` to determine which overload to use.  This allows you to define "default
-values" for the output fields, which won't get overwritten if the function doesn't write to them.
-TODO: fields defined in both input and output might not be read-only inputs, they probably will get
-moved over to output for MMR purposes.  so we probably don't want to guarantee that `Input` is read-only
-
-Let's try an example:
-
-```
-# define some function to call:
-someFunction(X: int): string
-    return "hi" * X
-# this is an ok overload because the return type is different.
-# however, this is not recommended, since the arguments are named the same.
-# note that the earliest overload that matches will be default.
-someFunction(X: string): int
-    return X size()
-
-MyString: string = someFunction(X: 100)     # uses the first overload
-MyInt: int = someFunction(X: "cow")         # uses the second overload
-WhatIsThis := someFunction(X: "asdf")       # WARNING! calls first overload
-
-# TODO: this might be easier to understand if we used @in/@out arguments
-
-# example which will use the default overload:
-Call; call
-Call Input X = 2
-# use `Call` with `!!` so that `Call;;Output` can be updated.
-someFunction(Call!!)
-print(Call Output)  # prints {String: "hihi"}
-
-# define a default value for the Input object's field to get the other overload:
-Call; call
-Call Input X = "hello"
-Call Output Int = -1
-someFunction(Call!!)
-print(Call Output)  # prints {Int: 5}
-
-# dynamically determine the function overload:
-Call; call = if someCondition()
-    {Input: X: 5, Output; String; "?"}
-else
-    {Input: X: "hey", Output; Int; -1}
-
-someFunction(Call!!)
-print(Call Output)  # will print {String: "hihihihihi"} or {Int: 3} depending on `someCondition()`.
-```
-
-Note that `call` is so generic that you can put any fields that won't actually
-be used in the function call.  This can be dangerous, since errors won't be thrown
-if you have more fields defined than needed to call the function.  For example,
-with the above `someFunction` overloads, the first one is default, so it will cast
-a string value of the input field `X` to an integer if both (or neither) output
-fields are defined (`Int` and `String`), like this:
-
-```
-Call ;= call(Input: X: "4", Output: {Int: 0, String: ""})
-someFunction(Call!!)
-print(Call)  # prints {Input: {X: 4}, Output: {Int: 0, String: "hihihihi"}}
-```
-
-If run-time checks and throwing errors are desired, one should use the more specific
-`myFn->call` type, with `myFn` the function you want arguments checked against.
-
-```
-# throws a compile-time error (if input and output are completely specified at the same time)
-# or a run-time error (if input and output are separately defined):
-Call ;= someFunction->call(Input: X: "4", Output: {Int: 0, String: ""})  # error!!
-# the above will throw a compile-time error, since two values for Output are defined.
-
-# this is ok:
-Call2 ;= someFunction->call(Input: X: "4", Output: Int: 0)
-# this is also ok, but will cast X to int right away, and will throw an error when defining `Call3`
-# if `X` is not a integer-like string rather than when calling someFunction (like `call` would).
-Call3 ;= someFunction->call(Input: X: "4", Output: String: "")
-# also ok:
-Call4 ;= someFunction->call(Input: X: 4, Output: String: "")
-```
-
-Note that it's also not allowed to define an overload for the `call` type yourself.
-This will give a compile error, e.g.:
-TODO: explain reasoning here.
-
-```
-# COMPILE ERROR!!  you cannot define an overload for `call`!
-someFunction(Call!!): null
-    print(Call Input X)
-```
-
-TODO: probably can allow defining an overload for a `call` argument that is not default-named,
-i.e., something like `MyCall!!; call` is ok.
-TODO: discuss the `object` type, which allows you to build up function arguments.
-e.g., `Object; object = {Hello: "World"}`.
-TODO: the `object` type is recursive, too.  need to think of a good way to handle weird stuff here,
-or requesting subfields of a field that was not an object.
-
-If you want the output field to be determined in the normal way (by checking what is
-using the function's return value), you can also use `myFn->input` as a way to create
-type-safe `object` for the `Input` field of a `myFn->call`, i.e., the correctly typed
-arguments to any overload of `myFn`.
-
-TODO: `myFn->output` probably doesn't exist in a type-safe way, since the output is
-determined by the input and chosen overload.
-
-```
-myFn(Times: int, String): null
-    for Int: int < Times
-        print(String)
-myFn(Dbl: dbl): dbl
-    return 5 * Dbl
-
-Input; myFn->input = {}
-if SomeCondition
-    Input Dbl = 123.3
-else
-    Input = {Times: 50, String: "Hello"}
-# other fields defined on `Input` would give compiler errors, or mismatched fields,
-# e.g., `Input = {Times: 1, Dbl: 1.4}` would give an error.
-
-Result ?:= myFn(Input)   # Result can be `null|dbl`
-```
-
-TODO: i think it would be best not to throw a run-time error if the arguments
-don't match, e.g., if they are overspecified, especially for these dynamically
-built arguments.
-
-Note: You *can* create your own overload of a function with the `object` type as
-input, but it *cannot* be default-named `Object`.  This is for the same reason that we don't
-allow overloading a function with a `call` argument.  For example:
-
-```
-myFunction(Object):             # COMPILER ERROR, this is not allowed.
-    print(Object DidIDefineThis)
-    print(Object MaybeThisToo)
-
-myFunction(Cool: object):       # OK
-    print(Cool DidIDefineThis)
-    print(Cool MaybeThisToo)
-
-# prints "True" and then "Null" since `Cool MaybeThisToo` is not defined.
-myFunction(Cool: {DidIDefineThis: True, X: 5})
-```
-
 ### constant versus mutable arguments
 
 Functions can be defined with mutable or immutable arguments, but that does
@@ -1502,6 +1273,235 @@ Temporaries (C++ rvalues) come from some expression like `X * 3` or `4 + Someval
 can only be used on the right-hand side (RHS) of equations.  References (C++ lvalues), e.g.,
 `X` or `SomeValue`, can be used on both left hand sides (LHS) and RHS of equations.
 Temporaries cannot be mooted, only references can.
+
+### dynamically determining arguments for a function
+
+We allow for dynamically setting arguments to a function by using the `call` type,
+which has a few fields: `Input` and `Output` for the arguments and return values
+of the function, as well as optional `Warning` and `Error` fields for any issues
+encountered when calling the function.  These fields are named to imply that the function
+call can do just about anything (including fetching data from a remote server).
+
+```
+call := {
+    Input; any_str
+    Output; any_str
+    Warning?; string
+    # TODO: consider letting this be `error|string` type, or requiring `error` only:
+    Error?; string
+
+    # note you can have an arbitrary variable name here via `~Name`,
+    # and the variable name string can be accessed via `@Name`.  TODO: switch to `@@Name`
+    # TODO: we probably want a more narrow fix here since we'd only not know the name of
+    # a variable in these contexts where we're passing in a `~Name: ~t` style argument.
+    # maybe something with ~.  maybe `@~Name`
+    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):`
+    # Declaration:
+    #   fn(In: inType, InCopiedForModification; inCopyType, Io!! ioType, ->Out: outType)
+    # Calling with pre-existing/already-declared variables:
+    #   In := inType(3)
+    #   InCopiedForModification ;= inCopyType(7)
+    #   Io ;= ioType(5)
+    #   Out; outType
+    #   fn(In, InCopiedForModification, Io!!, ->Out)
+    # Calling with variables we instantiate:
+    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
+    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out: outType)
+    #   print(Out)  # Out is now available outside of the fn scope.
+    # Calling with variables we instantiate, and letting output be mutable
+    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
+    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out; outType)
+    #   Out += 4  # Out is now available outside of the fn scope and can be modified.
+    # Calling with pre-existing variables with different names:
+    #   MyIn := inType(3)
+    #   MyCopied := inCopyType(7)
+    #   MyIo ;= ioType(5)
+    #   MyOut; outType
+    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, Out: ->MyOut)
+    #   MyOut += 4  # note MyOut is still mutable based on definition above.
+    # Calling with newly declared variables with newly declared output variables with different names:
+    #   fn(..., Out: ->MyOut: outType)
+    #   print(MyOut)    # `MyOut` available here, but it's constant from here on out.
+    # Calling with newly declared variables with mutable output variables:
+    #   fn(..., Out: ->MyOut; outType)
+    #   MyOut += 4      # `MyOut` available and mutable.
+    # TODO: a nice consistent way to return values from a function the normal way
+    #       and a few specific values, e.g., `Result := fn(..., OneReturnField: ->StashHere: fieldType)`
+    #       `Result` will be all the other fields besides `OneReturnField`.
+    # TODO: figure out how remote server call would work with an impure function.
+    #       this is probably impossible.  no way to keep track of how an impure function
+    #       would have called things (i.e., read a value off the local disk, written it later, etc.)
+    # TODO: maybe rethink how `if` statements can work with block parentheses `$( ... )`
+    # i.e., for MMR-style input -> output variables.
+    # NOTE: use before the function call
+    io(~Name!; ~t): null
+        Output_@Name = t()
+        Input_@Name = Name!
+
+    # moves a field value from `Output` into the passed-in reference.
+    # NOTE: use after the function call; can be used in conjunction with `io`, e.g.,
+    #   Call; call
+    #   Call io(ThisValue: 10)
+    #   whateverFunction(Call!!)
+    #   ThisValue; int
+    #   Call takeOut(ThisValue!!)
+    takeOut(~Name!!: ~t): null
+        Name = Output_@Name!
+}
+```
+
+Now, `call` is very generic, so `Input` and `Output` can be filled with any fields (or none),
+and this logic is encapsulated in the type `object`.  The `object` type can be thought of as
+a collection of nullable fields; if all fields are null, then the object acts like a null.
+If only one field is defined, it is a "single field object", or `sfo` type.  The fields have
+keys that are symbols (they can be identified by letters/words in code, like `Object FieldKey`),
+and values that have any type.
+
+When passing in a `call` instance to actually call a function, the `Input` field will be treated
+as constant/read-only after being cast to the field types specified by the chosen function overload.
+(E.g., if an argument type is `string` but a number is passed in, it will be converted to a string.)
+The `Output` field will be considered "write-only", except for the fact that we'll read what fields
+are defined in `Output` to determine which overload to use.  This allows you to define "default
+values" for the output fields, which won't get overwritten if the function doesn't write to them.
+TODO: fields defined in both input and output might not be read-only inputs, they probably will get
+moved over to output for MMR purposes.  so we probably don't want to guarantee that `Input` is read-only
+
+Let's try an example:
+
+```
+# define some function to call:
+someFunction(X: int): string
+    return "hi" * X
+# this is an ok overload because the return type is different.
+# however, this is not recommended, since the arguments are named the same.
+# note that the earliest overload that matches will be default.
+someFunction(X: string): int
+    return X size()
+
+MyString: string = someFunction(X: 100)     # uses the first overload
+MyInt: int = someFunction(X: "cow")         # uses the second overload
+WhatIsThis := someFunction(X: "asdf")       # WARNING! calls first overload
+
+# TODO: this might be easier to understand if we used @in/@out arguments
+
+# example which will use the default overload:
+Call; call
+Call Input X = 2
+# use `Call` with `!!` so that `Call;;Output` can be updated.
+someFunction(Call!!)
+print(Call Output)  # prints {String: "hihi"}
+
+# define a default value for the Input object's field to get the other overload:
+Call; call
+Call Input X = "hello"
+Call Output Int = -1
+someFunction(Call!!)
+print(Call Output)  # prints {Int: 5}
+
+# dynamically determine the function overload:
+Call; call = if someCondition()
+    {Input: X: 5, Output; String; "?"}
+else
+    {Input: X: "hey", Output; Int; -1}
+
+someFunction(Call!!)
+print(Call Output)  # will print {String: "hihihihihi"} or {Int: 3} depending on `someCondition()`.
+```
+
+Note that `call` is so generic that you can put any fields that won't actually
+be used in the function call.  This can be dangerous, since errors won't be thrown
+if you have more fields defined than needed to call the function.  For example,
+with the above `someFunction` overloads, the first one is default, so it will cast
+a string value of the input field `X` to an integer if both (or neither) output
+fields are defined (`Int` and `String`), like this:
+
+```
+Call ;= call(Input: X: "4", Output: {Int: 0, String: ""})
+someFunction(Call!!)
+print(Call)  # prints {Input: {X: 4}, Output: {Int: 0, String: "hihihihi"}}
+```
+
+If run-time checks and throwing errors are desired, one should use the more specific
+`myFn->call` type, with `myFn` the function you want arguments checked against.
+
+```
+# throws a compile-time error (if input and output are completely specified at the same time)
+# or a run-time error (if input and output are separately defined):
+Call ;= someFunction->call(Input: X: "4", Output: {Int: 0, String: ""})  # error!!
+# the above will throw a compile-time error, since two values for Output are defined.
+
+# this is ok:
+Call2 ;= someFunction->call(Input: X: "4", Output: Int: 0)
+# this is also ok, but will cast X to int right away, and will throw an error when defining `Call3`
+# if `X` is not a integer-like string rather than when calling someFunction (like `call` would).
+Call3 ;= someFunction->call(Input: X: "4", Output: String: "")
+# also ok:
+Call4 ;= someFunction->call(Input: X: 4, Output: String: "")
+```
+
+Note that it's also not allowed to define an overload for the `call` type yourself.
+This will give a compile error, e.g.:
+TODO: explain reasoning here.
+
+```
+# COMPILE ERROR!!  you cannot define an overload for `call`!
+someFunction(Call!!): null
+    print(Call Input X)
+```
+
+TODO: probably can allow defining an overload for a `call` argument that is not default-named,
+i.e., something like `MyCall!!; call` is ok.
+TODO: discuss the `object` type, which allows you to build up function arguments.
+e.g., `Object; object = {Hello: "World"}`.
+TODO: the `object` type is recursive, too.  need to think of a good way to handle weird stuff here,
+or requesting subfields of a field that was not an object.
+
+If you want the output field to be determined in the normal way (by checking what is
+using the function's return value), you can also use `myFn->input` as a way to create
+type-safe `object` for the `Input` field of a `myFn->call`, i.e., the correctly typed
+arguments to any overload of `myFn`.
+
+TODO: `myFn->output` probably doesn't exist in a type-safe way, since the output is
+determined by the input and chosen overload.
+
+```
+myFn(Times: int, String): null
+    for Int: int < Times
+        print(String)
+myFn(Dbl: dbl): dbl
+    return 5 * Dbl
+
+Input; myFn->input = {}
+if SomeCondition
+    Input Dbl = 123.3
+else
+    Input = {Times: 50, String: "Hello"}
+# other fields defined on `Input` would give compiler errors, or mismatched fields,
+# e.g., `Input = {Times: 1, Dbl: 1.4}` would give an error.
+
+Result ?:= myFn(Input)   # Result can be `null|dbl`
+```
+
+TODO: i think it would be best not to throw a run-time error if the arguments
+don't match, e.g., if they are overspecified, especially for these dynamically
+built arguments.
+
+Note: You *can* create your own overload of a function with the `object` type as
+input, but it *cannot* be default-named `Object`.  This is for the same reason that we don't
+allow overloading a function with a `call` argument.  For example:
+
+```
+myFunction(Object):             # COMPILER ERROR, this is not allowed.
+    print(Object DidIDefineThis)
+    print(Object MaybeThisToo)
+
+myFunction(Cool: object):       # OK
+    print(Cool DidIDefineThis)
+    print(Cool MaybeThisToo)
+
+# prints "True" and then "Null" since `Cool MaybeThisToo` is not defined.
+myFunction(Cool: {DidIDefineThis: True, X: 5})
+```
 
 ## references as argument types only: MMR
 
