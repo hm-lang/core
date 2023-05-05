@@ -1202,13 +1202,149 @@ doSomething(X?: int): int
     return 3
 ```
 
-TODO: move this section above the constant vs. mutable arg section, since that fits
-better with the next section, or below the next section.
-
 ### output arguments
+
+Arguments can be declared as input-only, output-only, or both input and output (IO).
+Input-only arguments are guaranteed not to change the value of any backing variable
+in the outside scope.  They are passed essentially by constant reference (e.g., C++
+`const t &`) but will be copied-on-write (COW) if they are modified inside the function.
+Output-only arguments are just the return values of the function, i.e., the fields
+of an output object.
 
 TODO: discussion on `fn(->Whatever)`, `fn(->Whatever: myType)`, renames, etc.
 TODO: discussion on destructuring.
+
+```
+    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):`
+    # Declaration:
+    #   fn(In: inType, InCopiedForModification; inCopyType, Io!! ioType, ->Out: outType)
+    # Calling with pre-existing/already-declared variables:
+    #   In := inType(3)
+    #   InCopiedForModification ;= inCopyType(7)
+    #   Io ;= ioType(5)
+    #   Out; outType
+    #   fn(In, InCopiedForModification, Io!!, ->Out)
+    # Calling with variables we instantiate:
+    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
+    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out: outType)
+    #   print(Out)  # Out is now available outside of the fn scope.
+    # Calling with variables we instantiate, and letting output be mutable
+    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
+    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out; outType)
+    #   Out += 4  # Out is now available outside of the fn scope and can be modified.
+    # Calling with pre-existing variables with different names:
+    #   MyIn := inType(3)
+    #   MyCopied := inCopyType(7)
+    #   MyIo ;= ioType(5)
+    #   MyOut; outType
+    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, Out: ->MyOut)
+    #   MyOut += 4  # note MyOut is still mutable based on definition above.
+    # Calling with newly declared variables with newly declared output variables with different names:
+    #   fn(..., Out: ->MyOut: outType)
+    #   print(MyOut)    # `MyOut` available here, but it's constant from here on out.
+    # Calling with newly declared variables with mutable output variables:
+    #   fn(..., Out: ->MyOut; outType)
+    #   MyOut += 4      # `MyOut` available and mutable.
+    # TODO: a nice consistent way to return values from a function the normal way
+    #       and a few specific values, e.g., `Result := fn(..., OneReturnField: ->StashHere: fieldType)`
+    #       `Result` will be all the other fields besides `OneReturnField`.
+```
+
+### references as argument types only: MMR
+
+To indicate that a variable is being passed as a reference, i.e., so that modifications
+inside the function will be persist on the variable outside the function, you can use
+the `!!` postfix on the variable name when creating the argument list for a function,
+since it has the connotation of two moots, i.e., two moves (one into the function and
+one out of the function).  The `!!` is used in both creating the function and in calling
+the function.
+
+```
+# reference-type function with default-named input:
+modify(MyObjectType!!):     # equivalent to `modify(MyObjectType!!; myObjectType): null`.
+    MyObjectType someMutatingMethod(12345)
+
+SomeInstance ;= myObjectType(...)
+# you must use `!!` when calling the function in order to activate this overload,
+# and to make SomeInstance be mutated by its method `someMutatingMethod`.
+modify(SomeInstance!!)
+
+# example reference-type function with non-default named input:
+modify(ModifyMe!!; myObjectType):
+    ModifyMe someMutationMethod(123)
+
+# TODO: i'm not super happy with this syntax, because it looks like ModifyMe might
+# be non-IO style (e.g., not ModifyMe!!) even though its being passed an IO variable.
+modify(ModifyMe: SomeInstance!!)
+# or maybe
+modify(SomeInstance!! as ModifyMe)
+```
+
+Note that you cannot declare a reference type variable outside of an argument list.
+E.g.,
+
+```
+MyVariable ;= myObjectType(10)
+MyReference!! := MyVariable     # NOT ALLOWED.  COMPILER ERROR.
+```
+
+This is because reference types do not technically exist in hm-lang.  The `!!` postfix
+is just syntactic sugar for passing in a mooted (postfix `!`) variable and getting it returned
+from the function.  So the above valid examples actually define these overloads:
+
+```
+modify(MyObjectType!; myObjectType): myObjectType
+    MyObjectType someMutatingMethod(12345)
+    return MyObjectType!
+
+SomeInstance ;= myObjectType(...)
+SomeInstance = modify(SomeInstance!)
+
+modify(ModifyMe!; myObjectType): {ModifyMe: myObjectType}
+    ModifyMe someMutatingMethod(12345)
+    return {ModifyMe!}
+
+# TODO: figure out syntax that we want here.  could also do
+# {ModifyMe} := modify(ModifyMe: SomeInstance!)
+# SomeInstance = @hide ModifyMe!
+# OR MAYBE:
+# {SomeInstance as ModifyMe} = modify(ModifyMe: SomeInstance!)
+SomeInstance = modify(ModifyMe: SomeInstance!) ModifyMe
+```
+
+This is known as the Move-Modify-Return (MMR) paradigm, and it is useful to think about
+this as how it would work for network requests.  Another computer can't take a reference
+to your variable, but it can take your value for it, modify it, and return it.
+
+Because functions defined with `!!` argument postfixes really just expand to passed-in
+and returned-out variables, it's important to think about how they play nicely with
+other return fields.  E.g.,
+
+```
+ToMatch ;= 100
+# an impure function which relies on `ToMatch`:
+::match(Index!!, Array: int_): bool
+    while Index < Array size()
+        if Array[Index] == ToMatch
+            return True
+        ++Index
+    return False
+```
+
+TODO: discussion here on how this becomes `::match(Index!, Array: int_): {Index, Bool}`
+and how we resolve the overload for something like `if ::match(Index!!, Array) $( doSomething() )`.
+TODO: make return values part of an `object`.  If return is null, then `Output` is Null (empty object). 
+if return is a single variable (e.g., `hello(Int): str), then `Output` populates a default-named field
+with the instance (e.g., `Output Str`).  If the return is multiple variables, `Output` has all those fields.
+But if some of those fields are MMR-style fields (e.g., input and output), they are effectively removed
+from `Output` and cannot be referenced on the output of the function call; e.g.,
+`::match(Index!!, Array) Index` will fail since `Index` was already outputted via `!!`.
+Casting `object` to boolean, e.g., via `if Output $( doSomething() )` will check first to see if `Output` is a
+single-field object (SFO).  If so, then we'll cast that field to boolean.  Otherwise, we'll check
+if `Output` has a boolean field -- e.g., `if Output` => `if Output Bool`.  Otherwise, we'll throw a compile error,
+requesting users to be more specific.
+Don't actually use `object` behind the scenes, except in dynamic programming or cases where it's ambiguous,
+since creating objects will incur overhead, but just for organization.
 
 ### mooted arguments
 
@@ -1295,39 +1431,6 @@ call := {
     # TODO: we probably want a more narrow fix here since we'd only not know the name of
     # a variable in these contexts where we're passing in a `~Name: ~t` style argument.
     # maybe something with ~.  maybe `@~Name`
-    # TODO: `fn(In, Io): (Out, Io)` could become `fn(In, Io!!, ->Out):`
-    # Declaration:
-    #   fn(In: inType, InCopiedForModification; inCopyType, Io!! ioType, ->Out: outType)
-    # Calling with pre-existing/already-declared variables:
-    #   In := inType(3)
-    #   InCopiedForModification ;= inCopyType(7)
-    #   Io ;= ioType(5)
-    #   Out; outType
-    #   fn(In, InCopiedForModification, Io!!, ->Out)
-    # Calling with variables we instantiate:
-    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
-    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out: outType)
-    #   print(Out)  # Out is now available outside of the fn scope.
-    # Calling with variables we instantiate, and letting output be mutable
-    #   MyVariable ;= ioType(5) # io is an exception, cannot be instantiated inline.
-    #   fn(In: 3, InCopiedForModification: 4, Io: MyVariable!!, ->Out; outType)
-    #   Out += 4  # Out is now available outside of the fn scope and can be modified.
-    # Calling with pre-existing variables with different names:
-    #   MyIn := inType(3)
-    #   MyCopied := inCopyType(7)
-    #   MyIo ;= ioType(5)
-    #   MyOut; outType
-    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, Out: ->MyOut)
-    #   MyOut += 4  # note MyOut is still mutable based on definition above.
-    # Calling with newly declared variables with newly declared output variables with different names:
-    #   fn(..., Out: ->MyOut: outType)
-    #   print(MyOut)    # `MyOut` available here, but it's constant from here on out.
-    # Calling with newly declared variables with mutable output variables:
-    #   fn(..., Out: ->MyOut; outType)
-    #   MyOut += 4      # `MyOut` available and mutable.
-    # TODO: a nice consistent way to return values from a function the normal way
-    #       and a few specific values, e.g., `Result := fn(..., OneReturnField: ->StashHere: fieldType)`
-    #       `Result` will be all the other fields besides `OneReturnField`.
     # TODO: figure out how remote server call would work with an impure function.
     #       this is probably impossible.  no way to keep track of how an impure function
     #       would have called things (i.e., read a value off the local disk, written it later, etc.)
@@ -1502,102 +1605,6 @@ myFunction(Cool: object):       # OK
 # prints "True" and then "Null" since `Cool MaybeThisToo` is not defined.
 myFunction(Cool: {DidIDefineThis: True, X: 5})
 ```
-
-## references as argument types only: MMR
-
-To indicate that a variable is being passed as a reference, i.e., so that modifications
-inside the function will be persist on the variable outside the function, you can use
-the `!!` postfix on the variable name when creating the argument list for a function,
-since it has the connotation of two moots, i.e., two moves (one into the function and
-one out of the function).  The `!!` is used in both creating the function and in calling
-the function.
-
-```
-# reference-type function with default-named input:
-modify(MyObjectType!!):     # equivalent to `modify(MyObjectType!!; myObjectType): null`.
-    MyObjectType someMutatingMethod(12345)
-
-SomeInstance ;= myObjectType(...)
-# you must use `!!` when calling the function in order to activate this overload,
-# and to make SomeInstance be mutated by its method `someMutatingMethod`.
-modify(SomeInstance!!)
-
-# example reference-type function with non-default named input:
-modify(ModifyMe!!; myObjectType):
-    ModifyMe someMutationMethod(123)
-
-# TODO: i'm not super happy with this syntax, because it looks like ModifyMe might
-# be non-IO style (e.g., not ModifyMe!!) even though its being passed an IO variable.
-modify(ModifyMe: SomeInstance!!)
-# or maybe
-modify(SomeInstance!! as ModifyMe)
-```
-
-Note that you cannot declare a reference type variable outside of an argument list.
-E.g.,
-
-```
-MyVariable ;= myObjectType(10)
-MyReference!! := MyVariable     # NOT ALLOWED.  COMPILER ERROR.
-```
-
-This is because reference types do not technically exist in hm-lang.  The `!!` postfix
-is just syntactic sugar for passing in a mooted (postfix `!`) variable and getting it returned
-from the function.  So the above valid examples actually define these overloads:
-
-```
-modify(MyObjectType!; myObjectType): myObjectType
-    MyObjectType someMutatingMethod(12345)
-    return MyObjectType!
-
-SomeInstance ;= myObjectType(...)
-SomeInstance = modify(SomeInstance!)
-
-modify(ModifyMe!; myObjectType): {ModifyMe: myObjectType}
-    ModifyMe someMutatingMethod(12345)
-    return {ModifyMe!}
-
-# TODO: figure out syntax that we want here.  could also do
-# {ModifyMe} := modify(ModifyMe: SomeInstance!)
-# SomeInstance = @hide ModifyMe!
-# OR MAYBE:
-# {SomeInstance as ModifyMe} = modify(ModifyMe: SomeInstance!)
-SomeInstance = modify(ModifyMe: SomeInstance!) ModifyMe
-```
-
-This is known as the Move-Modify-Return (MMR) paradigm, and it is useful to think about
-this as how it would work for network requests.  Another computer can't take a reference
-to your variable, but it can take your value for it, modify it, and return it.
-
-Because functions defined with `!!` argument postfixes really just expand to passed-in
-and returned-out variables, it's important to think about how they play nicely with
-other return fields.  E.g.,
-
-```
-ToMatch ;= 100
-# an impure function which relies on `ToMatch`:
-::match(Index!!, Array: int_): bool
-    while Index < Array size()
-        if Array[Index] == ToMatch
-            return True
-        ++Index
-    return False
-```
-
-TODO: discussion here on how this becomes `::match(Index!, Array: int_): {Index, Bool}`
-and how we resolve the overload for something like `if ::match(Index!!, Array) $( doSomething() )`.
-TODO: make return values part of an `object`.  If return is null, then `Output` is Null (empty object). 
-if return is a single variable (e.g., `hello(Int): str), then `Output` populates a default-named field
-with the instance (e.g., `Output Str`).  If the return is multiple variables, `Output` has all those fields.
-But if some of those fields are MMR-style fields (e.g., input and output), they are effectively removed
-from `Output` and cannot be referenced on the output of the function call; e.g.,
-`::match(Index!!, Array) Index` will fail since `Index` was already outputted via `!!`.
-Casting `object` to boolean, e.g., via `if Output $( doSomething() )` will check first to see if `Output` is a
-single-field object (SFO).  If so, then we'll cast that field to boolean.  Otherwise, we'll check
-if `Output` has a boolean field -- e.g., `if Output` => `if Output Bool`.  Otherwise, we'll throw a compile error,
-requesting users to be more specific.
-Don't actually use `object` behind the scenes, except in dynamic programming or cases where it's ambiguous,
-since creating objects will incur overhead, but just for organization.
 
 ## redefining a function
 
