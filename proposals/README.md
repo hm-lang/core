@@ -192,6 +192,7 @@ Other types which have a fixed amount of memory:
 * `u16` : unsigned integer which can hold values from 0 to 65535, inclusive
 * `u32` : unsigned integer which can hold values from 0 to 2^32 - 1, inclusive
 * `u64` : unsigned integer which can hold values from 0 to 2^64 - 1, inclusive
+* `count` : `i64` under the hood, intended to be >= 0 to indicate the amount of something.
 * `index` : signed integer, `i64` under the hood.  for indexing arrays starting at 0.
 * `ordinal` : signed integer, `i64` under the hood.  for indexing arrays starting at 1.
 
@@ -1251,20 +1252,20 @@ Here are some more complicated examples which include IO variables:
 # `RoundDown` and `Io` respectively:
 fraction(In: string, Io: dbl): (Io: dbl, RoundDown: int)
     print(In)
-    RoundDown := Io round(DOWN)
+    RoundDown := Io round(Down)
     return {Io: Io - RoundDown, RoundDown}
 
 # equivalent definition using MMR syntax:
 fraction(In: string, Io!! dbl): (RoundDown: int)
     print(In)
-    RoundDown := Io round(DOWN)
+    RoundDown := Io round(Down)
     Io -= RoundDown
     return {RoundDown}
 
 # equivalent definition using MMR and output argument syntax:
 fraction(In: string, Io!! dbl, ->RoundDown; int):
     print(In)
-    RoundDown = Io round(DOWN)
+    RoundDown = Io round(Down)
     Io -= RoundDown
 # note that we can't have variable shadows, so this would throw a compile error:
 # `fraction(In: str, Io: dbl, ->Io; dbl, ->RoundDown; int)`
@@ -1341,7 +1342,8 @@ the function.
 
 ```
 # reference-type function with default-named input:
-modify(MyObjectType!!):     # equivalent to `modify(MyObjectType!!; myObjectType): null`.
+modify(MyObjectType!!):     # equivalent to `modify(MyObjectType!! myObjectType): null`.
+    # NOTE: MyObjectType is mutable, since `!!` implies we want to modify it in the function.
     MyObjectType someMutatingMethod(12345)
 
 SomeInstance ;= myObjectType(...)
@@ -1350,7 +1352,7 @@ SomeInstance ;= myObjectType(...)
 modify(SomeInstance!!)
 
 # example reference-type function with non-default named input:
-modify(ModifyMe!!; myObjectType):
+modify(ModifyMe!! myObjectType):
     ModifyMe someMutationMethod(123)
 
 # TODO: i'm not super happy with this syntax, because it looks like ModifyMe might
@@ -2971,10 +2973,13 @@ array~t := extend(container~t, container~{Index, T}) {
     # and filled with default values so that a valid reference can be passed into the callback.
     ;;_(Index, fn(T!!): ~u): u
 
-    # getter, which returns a Null if index is out of bounds in the array:
-    ::_(Index, fn(::T?): ~u): u
+    # getter, which returns a Null if index is out of bounds of the array:
+    ::_(Index, fn(T?): ~u): u
+
+    # getter, which never returns Null, but will throw if index is out of bounds of the array:
+    ::_(Index, fn(T): ~u): u
     
-    # nullable modifier, which returns a Null if index is out of bounds in the array.
+    # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`T?!!`) is null, but you switch to
     # something non-null, the array will expand to that size (with default values
     # in between, if necessary).  if you set the reference to Null and it wasn't
@@ -2982,7 +2987,11 @@ array~t := extend(container~t, container~{Index, T}) {
     # will move down one.
     ;;_(Index, fn(T?!!): ~u): u
 
-    ::size(): index
+    # non-nullable modifier, which will increase the size of the array (with default values)
+    # if you are asking for a value at an index out of bounds of the array.
+    ;;_(Index, fn(T!!): ~u): u
+
+    ::size(): count
 
     ;;append(T): null
 
@@ -3001,7 +3010,7 @@ array~t := extend(container~t, container~{Index, T}) {
 
 We declare an array with a fixed number of elements using the notation
 `elementType_FixedSize`, where `FixedSize` is a constant integer expression (e.g., 5)
-or a variable that can be converted to the `index` type.  Fixed-size array elements
+or a variable that can be converted to the `count` type.  Fixed-size array elements
 will be initialized to the default value of the element type, e.g., 0 for number types.
 
 Under the hood, fixed-size arrays *are* standard arrays, but they will throw for any
@@ -3096,7 +3105,7 @@ public:
 template <class t>
 class fixedSizeArrayModifier {
     array<t> *Internal;
-    index InitialSize;
+    count InitialSize;
 public:
     fixedSizeArrayModifier(array<t> *Array)
     :   Internal(Array),
@@ -3234,7 +3243,7 @@ map~(key, value) := extend(container~key, container~{Key, Value}, container~valu
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
     ;:_(Key, fn(;:Value?): ~t): t
 
-    ::size(): index
+    ::size(): count
 
     ;;pop(Key): value
 }
@@ -3339,7 +3348,7 @@ set~t := extend(container~t) {
     # returns true if the passed-in element is present in the set.
     ::_(T): bool
 
-    ::size(): index
+    ::size(): count
 
     # add an element to the set:
     ;;+=(T;): null
@@ -3659,7 +3668,7 @@ bool := enumerate(
 ```
 
 Enums provide a few extra additional properties for free as well, including the number of
-values that are enumerated via the method `count(): index`, the min and max values
+values that are enumerated via the method `size(): count`, the min and max values
 `min(): index`, `max(): index`, and some convenience methods on any instance of the enumeration.
 
 ```
@@ -3672,16 +3681,16 @@ if Test isFalse()
     print "test is false!"
 
 # get the size (number of enumerated values) of the enum:
-print "bool has ${bool->count()} possibilities:"
+print "bool has ${bool->size()} possibilities:"
 # get the lowest and highest values of the enum:
 print "starting at ${bool->min()} and going to ${bool->max()}"
 ```
 
-Because of this, it is a bit confusing to create an enum that has `Count` as an
+Because of this, it is a bit confusing to create an enum that has `Size` as an
 enumerated value name, but it is not illegal, since we can still distinguish between the
-enumerated value (`enumName->Count`) and total number of enumerated values (`enumName->count()`).
+enumerated value (`enumName->Size`) and total number of enumerated values (`enumName->size()`).
 
-Also note that the `count()` method will return the total number of
+Also note that the `size()` method will return the total number of
 enumerations, not the number +1 after the last enum value.  This can be confusing
 in case you use non-standard enumerations (i.e., with values less than 0):
 
@@ -3692,7 +3701,7 @@ sign := enumerate(
     Positive: 1
 )
 
-print "sign has ${sign->count()} values" # 3
+print "sign has ${sign->size()} values" # 3
 print "starting at ${sign->min()} and going to ${sign->max()}"  # -1 and 1
 
 weird := enumerate(
@@ -3702,7 +3711,7 @@ weird := enumerate(
     Q: 9
 )
 
-print(weird->count())   # prints 4
+print(weird->size())    # prints 4
 print(weird->min())     # prints 1
 print(weird->max())     # prints 9
 ```
@@ -3724,7 +3733,7 @@ option := enumerate(
     NowYouWillBeSadForever
 )
 
-print "number of options should be 7:  ${option->count()}"
+print "number of options should be 7:  ${option->size()}"
 
 Option1 := option->ContentWithLife
 
@@ -3779,7 +3788,7 @@ nonMutuallyExclusiveType := mask(
 # since that makes the number of values and how to lay them out harder to reason about
 
 # has all the same static methods as enum, though perhaps they are a bit surprising:
-nonMutuallyExclusiveType->count() == 16
+nonMutuallyExclusiveType->size() == 16
 nonMutuallyExclusiveType->min() == 0
 nonMutuallyExclusiveType->max() == 15   # = X | Y | Z | T
 
