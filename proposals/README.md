@@ -1050,21 +1050,22 @@ cannot modify the external variables at all.
 The implementation in C++ might look something like this:
 
 ```
-// function declaration is the same for both `fn(Str;)` and `fn(Str)`:
-void fn(const string &String);
+// two function overloads are defined for either `fn(Str;)` and `fn(Str)`:
+void fn(const string &String);  // constant reference
+void fn(string &&String);       // temporary
 
-// with the definition, the constant one is not a surprise:
+// with the `fn(Str)` definition, the constant one is not a surprise:
 void fn(const string &String) {
     // do stuff with String from the hm function definition, and it's constant.
 }
-// although we also get a temporary overload as well:
+// although we also get a temporary overload as well, no copy required:
 void fn(string &&_String) {
-    const string &String = _String;
+    const string &String = _String; // constant reference, not a copy
     // do stuff with String from the hm function definition, and it's constant.
     // note that `_String` is hidden from the hm language code.
 }
 
-// with the definition, the mutable one has a copy-on-write wrapper:
+// with the `fn(Str;)` definition, the constant-reference overload has a copy-on-write wrapper:
 void fn(const string &_String) {
     cowWrapper<string> String(_String);
     // do stuff with String from the hm function definition, but it's possibly mutable.
@@ -1074,6 +1075,9 @@ void fn(const string &_String) {
 void fn(string &&String) {
     // do stuff with String from the hm function definition, and it's mutable.
 }
+
+// TODO: can we get 2-for-1 using just `void fn(cowWrapper<string> String)`, with
+// cowWrapper being constructible via `const string &` or `string &&`?
 ```
 
 ### nullable arguments
@@ -2564,7 +2568,7 @@ OtherInstance := genericClass ~(key: dbl, value: string) (Key: 3, Value: 4)
 ```
 
 TODO:
-You can also have generic methods on generic classes, but we may
+You can also have virtual generic methods on generic classes, but we may
 have to think of a clever way to achieve this.  E.g., C++ does not allow this...
 We might have to pass a list of unary and binary (two-operand) operation
 functions into the method which know how to handle the other data.
@@ -3589,8 +3593,8 @@ proceed with a match (if any), we check for string equality.  E.g., some pseudo-
 code:
 
 ```
-switch (ConsideredString.fastHash(Salt)) {
-    case StringCase1.fastHash(Salt): { // precomputed with a stable hash
+switch (ConsideredString.fastHash(CompileTimeSalt)) {
+    case StringCase1.fastHash(CompileTimeSalt): { // precomputed with a stable hash
         if (ConsideredString != StringCase1) {
             goto __Default__;
         }
@@ -4449,7 +4453,6 @@ struct typeInfo {
     overloadMatcher OverloadMatcher;
 };
 ```
-
 
 TODO: storage for dynamic types, can we create wrapper classes with enough memory and
 cast to them (i.e., without allocation)?  need to know the possible memory layouts beforehand,
