@@ -3593,8 +3593,8 @@ proceed with a match (if any), we check for string equality.  E.g., some pseudo-
 code:
 
 ```
-switch (ConsideredString.fastHash(CompileTimeSalt)) {
-    case StringCase1.fastHash(CompileTimeSalt): { // precomputed with a stable hash
+switch (fastHash(ConsideredString, CompileTimeSalt)) {
+    case fastHash(StringCase1, CompileTimeSalt): { // precomputed with a stable hash
         if (ConsideredString != StringCase1) {
             goto __Default__;
         }
@@ -3608,6 +3608,51 @@ switch (ConsideredString.fastHash(CompileTimeSalt)) {
     }
 }
 ```
+
+Similarly, any class that supports a compile-time fast hash with a salt can be
+put into a consider-case statement.  Floating point classes or containers thereof
+(e.g., `dbl` or `flt_`) are not considered *exact* enough to be hashable, but
+hm-lang will support fast hashes for classes like `int`, `i32`, and `u64_`.
+
+```
+myHashableClass := {
+    Id: u64
+    Name; string
+
+    # we allow a generic hash builder so we can do cryptographically secure hashes
+    # or fast hashes in one definition, depending on what is required.
+    # TODO: This should probably already be defined for classes with exact fields!
+    ::hash(Builder!! ~builder):
+        Builder add(Id)
+        Builder add(Name)
+}
+
+# note that defining `hash(~Builder!!)` automatically defines a `fastHash` like this:
+# fastHash(MyHashableClass, Salt: ~salt): salt
+#   Builder := \\hash fast(Salt)
+#   MyHashableClass hash(Builder!!)
+#   return Builder build()
+
+MyHashableClass := myHashableClass(Id: 123, Name: "Whatever")
+
+consider MyHashableClass
+    case myHashableClass(Id: 5, Name: "Ok")
+        print("5 OK")
+    case myHashableClass(Id: 123, Name: "Whatever")
+        print("great!")
+```
+
+Note that if your `fastHash` implementation is terrible (e.g., `fastHash(Salt) := Salt`),
+then the compiler will error out after a certain number of attempts with different salts.
+
+TODO: figure out a way to do a fast hash on a `set` or `map`, maybe need to sort
+the keys first so the insertion order doesn't matter.  or we require that people
+sort their maps/sets first so that insertion order doesn't matter.  maybe make
+it a compile-time error to `consider` a set or map that hasn't been sorted just
+above; give convenience annotations like `Map alreadySorted()` or `Set insertionOrdered()`
+which are allowed inside a consider-case statement.  and, of course `Map;;sort()` is also allowed.
+TODO: discussion on return types, e.g., `map::alreadySorted(): this` technically returns a reference,
+unless the `map` instance is a temporary.
 
 ## for loops
 
