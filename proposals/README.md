@@ -964,46 +964,18 @@ q(anotherTestFunction)  # should print "function returned false!"
 q(;;fn(): bool
     return random() > 0.5
 )   # will print one of the above due to randomness.
+# equivalent to `q(;;() := random() > 0.5)`
 
 # when defining a lambda (not declaring it), you can omit the name:
-# TODO: is this true??
 q(() := True)
 
 # or you can do multiline with a name-omitted lambda:
-# TODO: is this true??
 X; bool
-q(;;():
+q(::():
     return X
 )
-
-# TODO: maybe not a good idea from here to END_TODO
-#       i'm not a big fan of how we'd use impure functions here
-#       but not for things like if statements (e.g., `return if X ${Y} else ${Z}`)
-#       where we're not specifying the pure/impureness of things.
-# unnamed functions are good candiates for using the `$(` ... `)` block operator,
-# although they will require adding `::` or `;;` if they are impure, since
-# we are converting to a function which requires this annotation:
-q $;;{ bool(random() > 0.5) }   # optional: `q $;;( return bool(random() > 0.5) )`
-
-Result; bool = False
-q $::[Result]               # optional: `q $::[ return Result ]`
-
-# if the function is pure, then things look even simpler:
-q$(True)                    # optional: `q$( return True )`.
-
-# also ok:
-q($;;{bool(random() > 0.5)})
-
-# you can also do multiple lines with the "block parentheses" operators:
-q$(
-    print("hello"), print("world")
-    return True
-)
-# TODO: does this actually make sense?  then technically this should also work:
-q
-    return False
-# TODO: maybe use `(> ... )` for a function block.  but this is getting pretty specific...
-# END_TODO
+# equivalent to `q(::() := X)`
+# also equivalent to `q(::(): ${X})`
 ```
 
 ### constant versus mutable arguments
@@ -1878,8 +1850,13 @@ want to support destructuring, e.g., `{Y: str} = calling(InputArgs...)` and usin
 `Y` on subsequent lines as desired.  In this case, the output fields essentially count
 as extra arguments, and we again choose the overload that has the fewest number of additional
 arguments (or output fields).
-TODO: discussion on how `fn(): {Int}` and `fn(): int` might be considered the same overload.
-We probably don't want to distinguish between `Y: str = calling(InputArgs...)` and `{Y: str} = ...`.
+TODO: discussion on how `fn(): {Int}` and `fn(): int` are considered the same overload.
+We don't want to distinguish between `Y: str = calling(InputArgs...)` and `{Y: str} = ...`.
+TODO: discussion on how destructuring looks different than defining a lambda function due
+to the extra `:` after the parentheses.  e.g., `(X: int, Y: str) = someFunction(Z)` is
+destructuring, but `(X: int, Y: str) := someFunction(Z)` is defining a lambda.
+we should throw if users do `X: int := someFunction(Z)` since it looks somewhat ambiguous,
+so make sure to include parentheses if a lambda is desired.
 
 We also allow calling functions with any dynamically generated arguments, so that means
 being able to resolve the overload at run-time.
@@ -2225,7 +2202,7 @@ example := {
     @visibility
     ::x() := X
 
-    # move+reset
+    # move+reset (moot)
     @visibility
     ;;x()!: str
         return X!
@@ -2240,10 +2217,6 @@ example := {
     #           without copying it, using references.
     @visibility
     ;;x(fn(Str!!): ~t) := fn(X!!)
-
-    # note that the getter and modifier can be "templated" const/mutable
-    # via the `;:` template mutability operator.
-    ;:x(fn(;:Str): ~t) := fn(;:X)
 }
 W = example()
 W x(fn(Str!!)
@@ -3626,8 +3599,8 @@ myHashableClass := {
     # or fast hashes in one definition, depending on what is required.
     # TODO: This should probably already be defined for classes with exact fields!
     ::hash(Builder!! ~builder):
-        Builder add(Id)
-        Builder add(Name)
+        Id hash(Builder!!)
+        Name hash(Builder!!)
 }
 
 # note that defining `hash(~Builder!!)` automatically defines a `fastHash` like this:
