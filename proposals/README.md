@@ -2777,6 +2777,9 @@ MyClass myDeprecatedMethod(DeltaX: 3)   # converts to `MyClass X += 3` on next f
 
 While it is possible, it is not recommended to use aliases to inline code.
 
+TODO: we probably want to allow `alias`es to stick around, e.g., for extra names
+with options.  maybe use `rewrite` or `inline` instead of `alias`.
+
 # modules
 
 Every file in hm-lang is its own module, and we make it easy to reference
@@ -4304,7 +4307,7 @@ Grammar := singleton() {
         )
     ]
 
-    match(Index!!, Array: token_, GrammarMatcher): bool
+    ::match(Index!!, Array: token_, GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
         Matched := consider GrammarMatcher Is
@@ -4321,9 +4324,11 @@ Grammar := singleton() {
 
 # TODO: actually compiling code will require going through the TokenMatchers
 # in a specific order to avoid running through all options to see what fits.
-
+# OR, maybe we can parse a statement into tokens, and then do a `consider Statement`
+# with `case RhsStatement` etc., where the hash only takes into account the sequence
+# of tokens but not the actual token content.  we'd also need to ignore repeated fields,
+# i.e., only count them once.
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
-
 
 # a list encompasses things like (), (GrammarMatcher), (GrammarMatcher, GrammarMatcher), etc.,
 # but also lists with newlines if properly tabbed.
