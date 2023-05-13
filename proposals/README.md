@@ -3351,6 +3351,25 @@ even if the set variable is mutable.
 
 TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
 
+TODO: there should be a fast way to define a set that doesn't get mistaken for a map
+or an array.  e.g., `{"hello", "world"}` and even `{X, Y}` for predefined `X, Y`.
+maybe `_{X, Y}` but that could get overloaded with something before it.
+
+TODO: make it easy to pass in a set as an argument and return a map with e.g. those keys.
+  maybe this isn't as important as it would be if we had a dedicated object type.
+```
+fn(PickFrom: ~t_str, Fields: _str): t_str
+    return Fields map(::(Field: str) := mapElement(Field, PickFrom_Field))
+
+fn~{o, k from keys(o)}(PickFrom: o, Keys: k): pick(o, k)
+    return pick(PickFrom, Keys)
+```
+
+TODO: dedicated object type and convenience methods.  e.g., `keys(O)` and `keys(o)`,
+`pick(o, k)` and `pick(O, K)`, as well as `addMethod`, `addField`, etc.
+TODO: discuss how `in` sounds like just one key from the set of keys (e.g., `k in keys(o)`)
+and `from` selects multiple (or no) keys from the set (`k from keys(o)`).
+
 ## iterator
 
 ```
