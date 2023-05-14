@@ -115,8 +115,6 @@ You can use `$(` ... `)` to define a block inline, or similarly with the other p
 the same as a standard block, i.e., going to a new line and indenting to +1.
 This is useful for short `if` statements, e.g., `if SomeCondition $(doSomething())`.
 
-TODO: i think we should use `$(` instead.
-
 Similarly, note that commas are essentially equivalent to a new line and tabbing to the
 same indent (indent +0).  This allows you to have multiple statements on one line, in any block,
 by using commas.  E.g.,
@@ -145,7 +143,7 @@ TODO: probably want a compile error if there's content after `$(` on a multiline
 since it looks cleaner.
 
 ```
-# multiline block parentheses
+# multiline block parentheses via `$(`, though this is not required.
 if SomeCondition $(
     print("toggling shutdown")
     print("waiting one more tick")
@@ -732,13 +730,13 @@ Vector = (X: 1, Y: 7.2)
 # note, missing fields will be default-initialized.
 Vector Z == 0   # should be True.
 
-# to make an object variable non-reassignable, use := when defining:
+# to make an object variable immutable, use := when defining:
 Vector2 := (X: 3.75, Y: 3.25)
 # or you can use `:` with an explicit type specifier and then `=`:
 Vector2: (X: dbl, Y: dbl) = (X: 3.75, Y: 3.25)
 # then these operations are invalid:
-Vector2 X += 3          # COMPILER ERROR, object is immutable
-Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is non-reassignable
+Vector2 X += 3          # COMPILER ERROR, variable is immutable, field cannot be modified
+Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is immutable, cannot be reassigned
 ```
 
 You can define a type/interface for objects you use multiple times.
@@ -758,20 +756,22 @@ can reassign the variable or modify the mutable fields.  But if you define the
 variable with `:`, the object is deeply constant, regardless of the field definitions.
 
 ```
-# vector2 has two reassignable fields, X and Y:
-vector2 := (X; dbl, Y; dbl)
+# mixMatch has one mutable field and one immutable field:
+mixMatch := (Mut; dbl, Imm: dbl)
 
 # when defined with `;`, the object is mutable and reassignable.
-MutableVec2; vector2 = (X: 3, Y: 4)
-MutableVec2 = vector2(X: 6, Y: 3)   # OK
-MutableVec2 X += 4                  # OK
-MutableVec2 Y -= 1                  # OK
+MutableMix; mixMatch = (Mut: 3, Imm: 4)
+MutableMix = mixMatch(X: 6, Y: 3)   # OK, MutableMix is mutable and thus reassignable
+MutableMix Mut += 4                 # OK, MutableMix is mutable and this field is mutable
+MutableMix Imm -= 1                 # COMPILE ERROR, MutableMix is mutable but this field is immutable
+                                    # if you want to modify the `Imm` field, you need to reassign
+                                    # the variable completely.
 
 # when defined with `:`, the object is deeply constant, so its fields cannot be changed:
-ImmutableVec2: vector2 = (X; 5, Y; 3)    # note you can use ; when initializing.
-ImmutableVec2 = vector2(X: 6, Y: 3)  # COMPILE ERROR, ImmutableVec2 is non-reassignable
-ImmutableVec2 X += 4                 # COMPILE ERROR, ImmutableVec2 is deeply constant
-ImmutableVec2 Y -= 1                 # COMPILE ERROR, ImmutableVec2 is deeply constant
+ImmutableMix: mixMatch = (X; 5, Y; 3)    # note you can use ; when initializing.
+ImmutableMix = mixMatch(X: 6, Y: 3) # COMPILE ERROR, ImmutableMix is immutable, thus non-reassignable
+ImmutableMix Mut += 4               # COMPILE ERROR, ImmutableMix is immutable, thus deeply constant
+ImmutableMix Imm -= 1               # COMPILE ERROR, ImmutableMix and this field are immutable
 ```
 
 ## temporarily locking mutable variables
