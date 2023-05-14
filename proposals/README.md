@@ -778,6 +778,7 @@ ImmutableMix Imm -= 1               # COMPILE ERROR, ImmutableMix and this field
 
 You can also make a variable non-reassignable and deeply constant
 for the remainder of the current block by using `@lock` before the variable name.
+Note that you can modify it one last time with the `@lock` annotation, if desired.
 
 ```
 X; int = 4  # defined as mutable and reassignable
@@ -796,9 +797,22 @@ X += 5      # can modify X back in this block; there are no constraints here.
 
 ## hiding variables for the remainder of the block
 
-TODO: @hide annotation, doesn't descope the variable, just hides it from being used
-by new statements/functions.  You can use it one last time with the annotation, however,
-e.g., `Date := date(@hide DateString)`.
+We can hide a variable from the current block by using `@hide` before the variable name.
+This doesn't descope the variable, but it does prevent the variable from being used by
+new statements/functions.  `@hide` has similar behavior to the `@lock` annotation, in that
+you can use the variable one last time with the annotation, if desired.
+
+```
+DateString; str = "2023-01-01"
+
+# after this line, `DateString` can't be accessed anymore.
+Date := date(@hide DateString)
+
+# note in some circumstances you may also want to include `!` to avoid copying the variable,
+# if the underlying class makes use of that same type variable internally, e.g.:
+Date := date(@hide DateString!)
+# see discussion on `moot` for more information.
+```
 
 # functions
 
