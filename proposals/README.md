@@ -759,6 +759,16 @@ ImmutableMix Mut += 4               # COMPILE ERROR, ImmutableMix is immutable, 
 ImmutableMix Imm -= 1               # COMPILE ERROR, ImmutableMix and this field are immutable
 ```
 
+### automatic deep nesting
+
+We can create deeply nested objects by adding valid identifiers with consecutive `:`.  E.g.,
+`(X: Y: 3)` is the same as `{X: {Y: 3}}`.
+
+TODO: this might make overloads more complicated; how do we choose the overload if we are calling
+with e.g., `{X: {Y: 3}` vs. `{X: {Y: 3, Z: 4}}`.
+TODO: how do we want to do renamed output arguments `(Out: MyOut: type) = fn(Whatever)`?
+we could do `(MyOut as Out: type) = fn(Whatever)`.
+
 ## temporarily locking mutable variables
 
 You can also make a variable non-reassignable and deeply constant
@@ -1264,6 +1274,7 @@ fraction(In: "hello!", Io!!, ->RoundDown; int)
 Greeting := "hello!"
 InputOutput ;= 1.234     # note `;` so it's mutable.
 # TODO: this kinda looks bad for output argument renaming, maybe require doing something below:
+#       this looks wrong because we want something like {X: Y: Z} to expand to {X: {Y: Z}}
 {RoundDown: IntegerPart; int} = fraction(In: Greeting, Io: InputOutput!!)
 
 # with pre-existing variables, using MMR and output argument syntax:
