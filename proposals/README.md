@@ -617,8 +617,8 @@ Y: int = 5
 # using the variable:
 print(Y * 30)
 
-Y = 123     # COMPILER ERROR, Y is non-reassignable.
-Y += 3      # COMPILER ERROR, Y is deeply constant.
+Y = 123     # COMPILER ERROR, Y is immutable and thus non-reassignable.
+Y += 3      # COMPILER ERROR, Y is immutable and thus deeply constant.
 ```
 
 Mutable/reassignable/non-constant variables can use `VariableName = Expression`
@@ -1106,7 +1106,7 @@ calling the overload that defined the missing argument case.  I.e.:
 Y?; int = ... # Y is maybe null, maybe non-null
 
 # the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
-Z := overloaded(Y?)  
+Z := overloaded(Y?) # also OK, but not idiomatic: `Z := overloaded(Y?: Y)`
 # Z has type `dbl|string` due to the different return types of the overloads.
 ```
 
@@ -1132,7 +1132,6 @@ someFunction(X?: 100)   # ERROR! expression for X is definitely not null
 
 # when argument is an existing variable:
 X ?;= Null
-# TODO: do we really want to require a ? here?  if so, we probably need it in a bunch of other locations.
 print(someFunction(X?))  # can do `X?: X`, but that's not idiomatic.
 
 # when argument is a new nullable expression:
@@ -1150,10 +1149,7 @@ where we actually don't want to call an overload of the function if the argument
 ```
 # in other languages, you might check for null before calling a function on a value.
 # this is also valid hm-lang but it's not idiomatic:
-X ?:= if Y != Null
-    overloaded(Y)
-else
-    Null
+X ?:= if Y != Null ${overloaded(Y)} else ${Null}
 
 # instead, you should use the more idiomatic hm-lang version.
 # putting a ? before the argument name will check that argument;
@@ -1170,7 +1166,6 @@ This can also be used with the `return` function to only return if the value is 
 
 ```
 doSomething(X?: int): int
-    # TODO: X * 3 should maybe not require prefix ? to do exactly what's expected below:
     Y ?:= ?X * 3    # Y is Null or X*3 if X is not Null.
     return ?Y       # only returns if Y is not Null
     #[ do some other stuff ]#
