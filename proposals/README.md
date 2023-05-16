@@ -1254,6 +1254,9 @@ fraction(In: string, Io!! dbl, ->RoundDown; int):
 # we can call with variables that get defined inline like this.
 {Io: dbl, RoundDown: int} = fraction(In: "hello!", Io: 1.234)
 # note `Io` and `RoundDown` are both immutable outside the function scope.
+# you could make `Io` and `RoundDown` mutable via the following:
+{Io; dbl, RoundDown; int} = fraction(In: "hello!", Io: 1.234)
+RoundDown += 3  # OK, `RoundDown` is mutable.
 
 # we can call with pre-existing variables, using MMR, like this:
 In := "hello!"
@@ -1286,30 +1289,38 @@ fraction(In: Greeting, Io: InputOutput!!, RoundDown: ->IntegerPart)
 # we can call with variables that get defined inline like this, besides `Io`, which is MMR.
 InputOutput ;= 1.234     # note `;` so it's mutable.
 fraction(In: "hello!", Io: InputOutput!!, RoundDown: ->IntegerPart: int)
-```
 
+# destructuring
+Io ;= 1.234
+{RoundDown:} = fn(In: "hello", Io!!)
 
-TODO: discussion on destructuring.
-      this is ok `{Str:} = fn(Input: 3)` but `Str := fn(Input: 3)` works if fn output is a SFO.
-      also discuss `{A:, B:, C;} = whatever(X)` for defining mutability/constancy individually.
+# automatic de-nesting or automatic destructuring
+# when there is a single-field object (SFO) with the correct name, we can do automatic de-nesting,
+# which is equivalent to the `{RoundDown:} = ...` syntax above:
+Io ;= 1.234
+RoundDown := fn(In: "hello", Io!!)
 
-```
-    # Calling with pre-existing variables with different names:
-    #   MyIn := inType(3)
-    #   MyCopied := inCopyType(7)
-    #   MyIo ;= ioType(5)
-    #   MyOut; outType
-    #   fn(In: MyIn, InCopiedForModification: MyCopied, Io: MyIo!!, Out: ->MyOut)
-    #   MyOut += 4  # note MyOut is still mutable based on definition above.
-    # Calling with newly declared variables with newly declared output variables with different names:
-    #   fn(..., Out: ->MyOut: outType)
-    #   print(MyOut)    # `MyOut` available here, but it's constant from here on out.
-    # Calling with newly declared variables with mutable output variables:
-    #   fn(..., Out: ->MyOut; outType)
-    #   MyOut += 4      # `MyOut` available and mutable.
-    # TODO: a nice consistent way to return values from a function the normal way
-    #       and a few specific values, e.g., `Result := fn(..., OneReturnField: ->StashHere: fieldType)`
-    #       `Result` will be all the other fields besides `OneReturnField`.
+# if the field name doesn't match, we won't do automatic de-nesting:
+Io ;= 1.234
+Result := fn(In: "hello", Io!!)
+# `Result` is an object because the output variables were named, so we'll get `RoundDown` here.
+# note that `Io` will not be a field on `Result` because we got it via the `!!` operator:
+print(Result RoundDown)
+
+# note that when there is no match in names, we'll get the full return object:
+Result := fn(In: "hello", Io: 1.234)
+# `Result` has nested fields based on the function's outputs:
+print(Result Io)
+print(Result RoundDown)
+
+# here there's no match in names, so we'll return an object,
+# and using `->` will reduce the number of fields in the return object.
+Result := fn(In: "Hello", Io: 1.234, ->RoundDown: int)
+# `RoundDown` is taken out of the `Result` object here, so there's only `Io` left:
+print(Result Io)
+
+# TODO: think about what overload matching means with SFOs, or with return variables whose names
+# don't match any return fields.
 ```
 
 ### references as argument types only: MMR
