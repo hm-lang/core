@@ -1279,6 +1279,7 @@ InputOutput ;= 1.234     # note `;` so it's mutable.
 # TODO: this kinda looks bad for output argument renaming, maybe require doing something below:
 #       this looks wrong because we want something like {X: Y: Z} to expand to {X: {Y: Z}}
 {RoundDown: IntegerPart; int} = fraction(In: Greeting, Io: InputOutput!!)
+# TODO: maybe use `{IntegerPart; RoundDown}` since `RoundDown` is kinda like the type.
 
 # with pre-existing variables, using MMR and output argument syntax:
 Greeting := "hello!"
@@ -1289,6 +1290,7 @@ fraction(In: Greeting, Io: InputOutput!!, RoundDown: ->IntegerPart)
 # we can call with variables that get defined inline like this, besides `Io`, which is MMR.
 InputOutput ;= 1.234     # note `;` so it's mutable.
 fraction(In: "hello!", Io: InputOutput!!, RoundDown: ->IntegerPart: int)
+# TODO: maybe use `->IntegerPart: RoundDown` since `RoundDown` is kinda like the type for output.
 
 # destructuring
 Io ;= 1.234
@@ -1367,22 +1369,20 @@ is just syntactic sugar for passing in a mooted (postfix `!`) variable and getti
 from the function.  So the above valid examples actually define these overloads:
 
 ```
-modify(MyObjectType!; myObjectType): myObjectType
+modify(MyObjectType; myObjectType): myObjectType
     MyObjectType someMutatingMethod(12345)
     return MyObjectType!
 
 SomeInstance ;= myObjectType(...)
 SomeInstance = modify(SomeInstance!)
 
-modify(ModifyMe!; myObjectType): {ModifyMe: myObjectType}
+modify(ModifyMe; myObjectType): {ModifyMe: myObjectType}
     ModifyMe someMutatingMethod(12345)
     return {ModifyMe!}
 
-# TODO: figure out syntax that we want here.  could also do
-# {ModifyMe} := modify(ModifyMe: SomeInstance!)
-# SomeInstance = @hide ModifyMe!
-# OR MAYBE:
-# {SomeInstance as ModifyMe} = modify(ModifyMe: SomeInstance!)
+modify(ModifyMe: SomeInstance!!)
+# other equivalents that aren't as idiomatic:
+{ModifyMe: SomeInstance} = modify(ModifyMe: SomeInstance!)
 SomeInstance = modify(ModifyMe: SomeInstance!) ModifyMe
 ```
 
