@@ -388,7 +388,7 @@ Output := myFunction(Input: 301)  # Output = "301"
 myFunction(Input: 301, ->Output: str)
 
 # argument renaming is also possible; this defines `MyOutput` in this scope:
-myFunction(Input: 445, Output: ->MyOutput: str)
+myFunction(Input: 445, ->MyOutput: str as Output)
 ```
 
 Examples of (2):
@@ -1276,21 +1276,21 @@ fraction(In: "hello!", Io!!, ->RoundDown; int)
 # with pre-existing variables, using MMR syntax:
 Greeting := "hello!"
 InputOutput ;= 1.234     # note `;` so it's mutable.
-# TODO: this kinda looks bad for output argument renaming, maybe require doing something below:
-#       this looks wrong because we want something like {X: Y: Z} to expand to {X: {Y: Z}}
-{RoundDown: IntegerPart; int} = fraction(In: Greeting, Io: InputOutput!!)
-# TODO: maybe use `{IntegerPart; RoundDown}` since `RoundDown` is kinda like the type.
+# just like when we define an argument for a function, the newly scoped variable goes on the left,
+# so too for destructuring return arguments.
+# TODO: we still should consider doing `IntegerPart; RoundDown` or `RoundDown as IntegerPart`
+{IntegerPart; int as RoundDown} = fraction(In: Greeting, Io: InputOutput!!)
 
 # with pre-existing variables, using MMR and output argument syntax:
 Greeting := "hello!"
 InputOutput ;= 1.234     # note `;` so it's mutable.
 IntegerPart; int
-fraction(In: Greeting, Io: InputOutput!!, RoundDown: ->IntegerPart)
+# TODO: we still should consider doing `fraction(... ->RoundDown as IntegerPart)`
+fraction(In: Greeting, Io: InputOutput!!, ->IntegerPart as RoundDown)
 
 # we can call with variables that get defined inline like this, besides `Io`, which is MMR.
 InputOutput ;= 1.234     # note `;` so it's mutable.
-fraction(In: "hello!", Io: InputOutput!!, RoundDown: ->IntegerPart: int)
-# TODO: maybe use `->IntegerPart: RoundDown` since `RoundDown` is kinda like the type for output.
+fraction(In: "hello!", Io: InputOutput!!, ->IntegerPart: int as RoundDown)
 
 # destructuring
 Io ;= 1.234
@@ -1324,6 +1324,37 @@ print(Result Io)
 # TODO: think about what overload matching means with SFOs, or with return variables whose names
 # don't match any return fields.
 ```
+
+For nested object return types, there is some syntactic sugar for dealing with them.
+
+```
+nest(X: int, Y: str): (W: (Z: (A: int), B: str, C: str))
+    return (W: (Z: (A: X), B: Y, C: Y * X))
+
+# defines `A`, `B`, and `C` in the outside scope:
+(W: Z: A:, W: B:, W: C:) = nest(X: 5, Y: "hi")
+print(A)    # 5
+print(B)    # "hi"
+
+# equivalently:
+(W: (Z: A:, B:, C:)) = nest(X: 5, Y: "hi")
+
+# for renaming the variables, you can do something like this:
+Q; int
+R; str
+S: str
+(Q as W: Z: A, R as W: B, S as W: C) = nest(X: 3, Y: "whoa")
+
+# or, inline:
+(Q; int as W: Z: A, R; str as W: B, S: str as W: C) = nest(X: 3, Y: "whoa")
+# equivalently, spread out a bit to aid in reading:
+(
+    Q; int as W: Z: A
+    R; str as W: B
+    S: str as W: C
+) = nest(X: 3, Y: "whoa")
+```
+
 
 ### references as argument types only: MMR
 
@@ -1382,7 +1413,7 @@ modify(ModifyMe; myObjectType): {ModifyMe: myObjectType}
 
 modify(ModifyMe: SomeInstance!!)
 # other equivalents that aren't as idiomatic:
-{ModifyMe: SomeInstance} = modify(ModifyMe: SomeInstance!)
+{SomeInstance as ModifyMe} = modify(ModifyMe: SomeInstance!)
 SomeInstance = modify(ModifyMe: SomeInstance!) ModifyMe
 ```
 
