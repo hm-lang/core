@@ -535,21 +535,6 @@ allowing you to cast a value, e.g., `A`, to its positive boolean form `!!A`, pro
 "not not A."  Note, you cannot define both `!` and `!!` overloads for a class, since
 that would make things like `!!!` ambiguous.
 
-For one final use case, you can have a postfix `!` on an argument name to indicate
-that you should pass in a mooted value for that argument, e.g.,
-```
-# function declaration:
-myFunction(Mooted!; someType): null
-
-# calling the function:
-MyValue; someType   # variable needs to be mutable to be mooted
-myFunction(Mooted: MyValue!)
-```
-Note that you cannot moot a temporary value; e.g., `(SomeValue + 4)!` doesn't make sense.
-You can only moot an existing variable, e.g., `SomeValue!`.
-
-See section on mooted arguments for more information.
-
 ## superscripts/exponentiation
 
 Note that exponentiation -- `^` and `**` which are equivalent --
@@ -1417,70 +1402,6 @@ if `Output` has a boolean field -- e.g., `if Output` => `if Output Bool`.  Other
 requesting users to be more specific.
 Don't actually use `object` behind the scenes, except in dynamic programming or cases where it's ambiguous,
 since creating objects will incur overhead, but just for organization.
-
-### mooted arguments
-
-You can define an overload for a mooted argument.  A mooted argument is by default
-a mutable variable (e.g., `String!` is the same as `String!; string`).  A mooted
-argument is similar to a temporary in C++.  See the section on MMR for more details.
-
-TODO: we probably could get away with disallowing a mooted overload along with a
-mutable or immutable overload.  We already disallow mutable+immutable overloads;
-the real thing we want to make different is the mooted + return value for MMR.
-We probably can get of this and explain that only double mooted arguments can be
-overloaded, which implies that a variable was moved in and then moved out, i.e.,
-we performed an update on the variable.
-
-```
-example := {
-    SearchValue; string
-
-    # mooted argument:
-    ;;doStuff(String!):
-        SearchValue = String!   # remember to use `!` if you want to move it again.
-
-    #   // defines in C++:
-    #   void hm(doStuff)(hm(mooted)<hm(string)> String) {
-    #       hm(SearchValue) = hm(moot)(String); // probably could infer std::move() here.
-    #   }
-
-    # immutable argument:
-    ;;doStuff(String):
-        SearchValue = String    # requires a copy here unless String was a temporary at the callsite.
-
-    #   // defines in C++:
-    #   void hm(doStuff)(const hm(string) &String) {
-    #       hm(SearchValue) = String;   // this makes a copy
-    #   }
-    #   void hm(doStuff)(hm(string) &&String) {
-    #       hm(SearchValue) = String;   // probably could infer std::move(String) here.
-    #   }
-
-    # mutable argument:
-    # REMINDER! only one mutable/immutable overload can be declared,
-    # since they define the same underlying C++ methods in both cases.
-    ;;doStuff(String;):
-        SearchValue = String!   # no-copy, just move if String was a temporary at the callsite.
-
-    #   // defines in C++:
-    #   void hm(doStuff)(hm(string) &&String) {
-    #       hm(SearchValue) = std::move(String);
-    #   }
-    #   void hm(doStuff)(const hm(string) &ImmutableString) {
-    #       hm(string) String = ImmutableString;
-    #       hm(SearchValue) = hm(moot)(String); // probably could infer std::move(String) here.
-    #   }
-}
-```
-
-When calling a function in hm-lang with a mooted argument, i.e., `doStuff(X!)`, hm-lang will
-first try to use the overload for the moot argument.  If none is defined, hm-lang will switch
-to the overload with a temporary argument.
-
-Temporaries (C++ rvalues) come from some expression like `X * 3` or `4 + Somevalue`, and
-can only be used on the right-hand side (RHS) of equations.  References (C++ lvalues), e.g.,
-`X` or `SomeValue`, can be used on both left hand sides (LHS) and RHS of equations.
-Temporaries cannot be mooted, only references can.
 
 ### dynamically determining arguments for a function
 
