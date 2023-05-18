@@ -615,12 +615,16 @@ Otherwise, if `X` evaluates to falsy (i.e., `!!X == False`), then the return val
 of `X || Y` will be `Y`.  This allows for JavaScript syntax like `(X || Y) toString()`.
 Note in a conditional, e.g., `if X || Y`, we'll always cast to boolean implicitly
 (i.e., `if bool(X || Y)` explicitly).
+TODO: consider doing `X is | Y is | null` and checking if `Y` is truthy before returning it.
+this might be less suprising than the javascript behavior.
 
 Similarly, the `and` operation `X && Y` has type `X is | Y is`.  If `X` evaluates to
 truthy (i.e., `!!X == True`), then the return value of `X && Y` will be `Y`.
 Otherwise, if `X` evaluates to falsy (i.e., `!!X == False`), then the return value
 of `X && Y` will be `X`.  Again, in a conditional, we'll cast `X && Y` to a boolean,
 which will be truthy if and only if `!!(X && Y)`.
+TODO: consider doing `X is | Y is | null` and checking if `Y` is truthy before returning `X`.
+this might be less suprising than the javascript behavior.
 
 The `xor` operation `X >< Y` has type `X is | Y is | null`, and will return `Null`
 if both `X` and `Y` are truthy or if they are both falsy.  If just one of the operands
@@ -806,9 +810,7 @@ We can create deeply nested objects by adding valid identifiers with consecutive
 `(X: Y: 3)` is the same as `{X: {Y: 3}}`.
 
 TODO: this might make overloads more complicated; how do we choose the overload if we are calling
-with e.g., `{X: {Y: 3}` vs. `{X: {Y: 3, Z: 4}}`.
-TODO: how do we want to do renamed output arguments `(Out: MyOut: type) = fn(Whatever)`?
-we could do `(MyOut as Out: type) = fn(Whatever)`.
+with e.g., `{X: {Y: 3}}` vs. `{X: {Y: 3, Z: 4}}`.
 
 ## temporarily locking mutable variables
 
@@ -853,7 +855,6 @@ Date := date(@hide DateString!)
 # functions
 
 Functions are named using `lowerCamelCase` identifiers.
-TODO: maybe switch to new @in/@out stuff.
  ```
 # declaring a function with no arguments that returns a big integer
 v(): int
@@ -868,6 +869,9 @@ v() := 600
 # inline, but with explicit type
 v(): int = 600
 
+# inline with explicit type on the return value
+v() := int(600)
+
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
     print("X = ${X}, Y = ${Y}, atan(Y, X) = ${\\math atan(X, Y)}")
@@ -879,7 +883,12 @@ v(X: dbl, Y: dbl): null
 # Note that it is also ok to use parentheses around a function definition,
 # but you should use the block parentheses notation `$(`.
 # TODO: see if we need to use `$(` or can get away with `(`.
-
+#       this looks a bit like `str[...]` which is ok if we can determine that `...`
+#       is a block to be executed sequentially.  but then we'd need `:= str[...]`
+#           excite(Times: int): str {
+#               return "hi!" * Times
+#           }
+#       maybe we allow it because we have classes defined without `${`.
 excite(Times: int): str ${
     return "hi!" * Times
 }
@@ -2987,6 +2996,10 @@ array~t := extend(container~t, container~{Index, T}) {
 
     # getter, which never returns Null, but will throw if index is out of bounds of the array:
     ::_(Index, fn(T): ~u): u
+
+    # TODO: it'd be nice to be able to use the `;:` const template for the access.
+    # not necessarily for this class, but for a class that wraps array.
+    # e.g., `myArray~t := extend(array~t) ${ ;:_(Index, fn(T!:): ~u) := array;:(Index, fn) }`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`T?!!`) is null, but you switch to
