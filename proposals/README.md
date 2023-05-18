@@ -275,6 +275,9 @@ TODO: types of functions, shouldn't really have `new`.
 Operator priority.
 
 TODO: add : , ; ?? postfix/prefix ?
+TODO: add `as`.  `X as Y` is equivalent to `Y: X` but `as` binds less strongly than the type `:`/`;`
+declaration, so that we can do things like `X: int as Y` for output destructuring which will declare
+`X` as an `int` variable and then be used for the return value of `Y` from the function.
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
@@ -329,6 +332,7 @@ TODO: add : , ; ?? postfix/prefix ?
 |   11      |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
+|   12      |   `,`     | comma                     | binary/postfix    | LTR           |
 
 
 TODO: discussion on and/not/or.  those should all be keywords/overloads for `&&/prefix !/||`.
@@ -1279,18 +1283,22 @@ InputOutput ;= 1.234     # note `;` so it's mutable.
 # just like when we define an argument for a function, the newly scoped variable goes on the left,
 # so too for destructuring return arguments.
 # TODO: we still should consider doing `IntegerPart; RoundDown` or `RoundDown as IntegerPart`
+#       maybe `IntegerPart; as RoundDown` and `RoundDown; IntegerPart;`
 {IntegerPart; int as RoundDown} = fraction(In: Greeting, Io: InputOutput!!)
 
 # with pre-existing variables, using MMR and output argument syntax:
 Greeting := "hello!"
 InputOutput ;= 1.234     # note `;` so it's mutable.
 IntegerPart; int
-# TODO: we still should consider doing `fraction(... ->RoundDown as IntegerPart)`
 fraction(In: Greeting, Io: InputOutput!!, ->IntegerPart as RoundDown)
+# equivalent:
+fraction(In: Greeting, Io: InputOutput!!, RoundDown: ->IntegerPart)
 
 # we can call with variables that get defined inline like this, besides `Io`, which is MMR.
 InputOutput ;= 1.234     # note `;` so it's mutable.
 fraction(In: "hello!", Io: InputOutput!!, ->IntegerPart: int as RoundDown)
+# TODO: equivalent?
+fraction(In: "hello!", Io: InputOutput!!, RoundDown: ->IntegerPart: int)
 
 # destructuring
 Io ;= 1.234
