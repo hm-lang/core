@@ -234,6 +234,8 @@ else if X is(dbl)
     print("X is a double")
 ```
 
+TODO: maybe we don't want `X Is` syntax since it looks like not-a-function, when
+`X is` does, and it is.
 This reads a little better than something like `if X Is == int`, but the latter also is
 valid hm-lang (and does what you expect).  Some more examples:
 
@@ -261,10 +263,10 @@ AnotherVector3 := VectorIs new(X: 5, Y: 6, Z: -7)
 
 TODO: flesh out `is` class a bit more.
 ```
-is := {
+is~t := {
     # Type instances have a `new` method which allows you to construct an
     # instance of the class.
-    ::new(...Args): ~t
+    ::new(...Args): t
 }
 ```
 
@@ -600,6 +602,41 @@ differs from the modulus, `%`, when the operands have opposing signs.
 |  56   |  -7   |     -8        |     0     |    -8     |     0     |
 |  6.78 |   1   |      6.0      |    0.78   |     6.0   |    0.78   |
 | -6.78 |   1   |     -7.0      |    0.22   |    -6.0   |   -0.78   |
+
+## less-than/greater-than operators
+
+TODO: `3 < X < 5` should work as desired (true iff `X > 3` AND `X < 5`).
+
+## and/or/xor operators
+
+The `or` operation `X || Y` technically has type `X is | Y is`.  If `X` evalutes to
+truthy (i.e., `!!X == True`), then the return value of `X || Y` will be `X`.
+Otherwise, if `X` evaluates to falsy (i.e., `!!X == False`), then the return value
+of `X || Y` will be `Y`.  This allows for JavaScript syntax like `(X || Y) toString()`.
+Note in a conditional, e.g., `if X || Y`, we'll always cast to boolean implicitly
+(i.e., `if bool(X || Y)` explicitly).
+
+Similarly, the `and` operation `X && Y` has type `X is | Y is`.  If `X` evaluates to
+truthy (i.e., `!!X == True`), then the return value of `X && Y` will be `Y`.
+Otherwise, if `X` evaluates to falsy (i.e., `!!X == False`), then the return value
+of `X && Y` will be `X`.  Again, in a conditional, we'll cast `X && Y` to a boolean,
+which will be truthy if and only if `!!(X && Y)`.
+
+The `xor` operation `X >< Y` has type `X is | Y is | null`, and will return `Null`
+if both `X` and `Y` are truthy or if they are both falsy.  If just one of the operands
+is truthy, the result will be the truthy operand.  An example implementation:
+
+```
+xor(X: ~x, Y: ~y): x|y|null
+    XIsTrue := bool(X)
+    YIsTrue := bool(Y)
+    if (XIsTrue && YIsTrue) || (!XIsTrue && !YIsTrue)
+        return Null
+    if XIsTrue
+        return X
+    else
+        return Y
+```
 
 ## assignment operators
 
@@ -2595,6 +2632,7 @@ All classes have a few compiler-provided methods which cannot be overridden.
     should be faster than copy for types bigger than the processor's word size.
 * `::Is: is` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
+    TODO: we should probably make this `is` instead of `Is`
     TODO: discuss how `consider`'s `case` statements cast their arguments
     to the same type as the type of the `consider` statement.
     ```
