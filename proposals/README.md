@@ -1334,9 +1334,14 @@ fraction(In: "hello!", Io!!, ->RoundDown; int)
 Greeting := "hello!"
 InputOutput ;= 1.234     # note `;` so it's mutable.
 # just like when we define an argument for a function, the newly scoped variable goes on the left,
-# so too for destructuring return arguments.
-# TODO: we should switch to `IntegerPart; RoundDown` or `RoundDown as IntegerPart`
-{IntegerPart; int as RoundDown} = fraction(In: Greeting, Io: InputOutput!!)
+# so too for destructuring return arguments.  this one uses the default type of `RoundDown`:
+{IntegerPart; RoundDown} = fraction(In: Greeting, Io: InputOutput!!)
+# or if you want to put it on the right, you use the following TypeScript-friendly syntax:
+{RoundDown as IntegerPart;} = fraction(In: Greeting, Io: InputOutput!!)
+# you can specify the return type of the renamed variable like this:
+{RoundDown as IntegerPart; int} = fraction(In: Greeting, Io: InputOutput!!)
+# or like this: TODO: does this work ok or is it breaking some type syntax here?
+{IntegerPart; int(RoundDown)} = fraction(In: Greeting, Io: InputOutput!!)
 
 # with pre-existing variables, using MMR and output argument syntax:
 Greeting := "hello!"
