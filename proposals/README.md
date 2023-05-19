@@ -497,6 +497,13 @@ getMedianSlow(Array: array~int): int
 
 # sorts the array and returns the median.
 # NOTE: the `!!` postfix on the `Array` variable roughly means it is passed as a reference.
+# TODO: do we want to switch reference types to `;`?
+#       e.g., `fn(Array: MyArray)` passes as const and `fn(Array; MyArray)` as ref?
+#       will this work with inline output definitions? `fn(->NewArray; array~int)`, should be ok.
+#       does this make sense postfix `;`? `MyArray; array~int, fn(MyArray;)` i think is ok.
+#       if so, we'd get rid of MMR, and `call` types would be a bit more complicated.
+#       we'd also change `fn(X:):` and `fn(X;):` to be different declarations.
+#       this would prevent implicit and possibly undesired copies.
 getMedianSlow(Array!! array~int): int
     if Array size() == 0
         throw "no elements in array, can't get median."
