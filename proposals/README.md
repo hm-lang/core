@@ -1335,8 +1335,7 @@ Greeting := "hello!"
 InputOutput ;= 1.234     # note `;` so it's mutable.
 # just like when we define an argument for a function, the newly scoped variable goes on the left,
 # so too for destructuring return arguments.
-# TODO: we still should consider doing `IntegerPart; RoundDown` or `RoundDown as IntegerPart`
-#       maybe `IntegerPart; as RoundDown` and `RoundDown; IntegerPart;`
+# TODO: we should switch to `IntegerPart; RoundDown` or `RoundDown as IntegerPart`
 {IntegerPart; int as RoundDown} = fraction(In: Greeting, Io: InputOutput!!)
 
 # with pre-existing variables, using MMR and output argument syntax:
@@ -1521,6 +1520,11 @@ encountered when calling the function.  These fields are named to imply that the
 call can do just about anything (including fetching data from a remote server).
 
 ```
+# TODO: split into `arguments` and `returns` if we modify MMR with `!!` -> `;`.
+# i.e., `fn(Arguments): returns`.  `arguments` include the output field names in a set.
+# `arguments~(output limits str|symbol) := { Input; any_str, Output; _output }` and
+# `returns~(output limits str|symbol) := any_output`
+# TODO: discussion of `limits` and `extends` for template types.
 call := {
     Input; any_str
     Output; any_str
