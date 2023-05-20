@@ -799,10 +799,17 @@ MutableMix Imm -= 1                 # COMPILE ERROR, MutableMix is mutable but t
                                     # the variable completely.
 
 # when defined with `:`, the object is deeply constant, so its fields cannot be changed:
-ImmutableMix: mixMatch = (X; 5, Y; 3)    # note you can use ; when initializing.
+ImmutableMix: mixMatch = (X: 5, Y: 3)
 ImmutableMix = mixMatch(X: 6, Y: 3) # COMPILE ERROR, ImmutableMix is immutable, thus non-reassignable
 ImmutableMix Mut += 4               # COMPILE ERROR, ImmutableMix is immutable, thus deeply constant
 ImmutableMix Imm -= 1               # COMPILE ERROR, ImmutableMix and this field are immutable
+
+# NOTE that in general, calling a function with variables defining by `;` is a different
+# overload than calling with `:`.  Mutable argument variables imply that the arguments are
+# being passed by reference and will be mutated inside the function.  Data classes do not have
+# these overloads, so they will throw compile errors:
+MyMixMatch := mixMatch(X; 5, Y; 3)  # COMPILE ERROR: mixMatch has no overloads for `(X;, Y;)`
+# see section on mutable/immutable arguments for more information.
 ```
 
 ### automatic deep nesting
@@ -1040,17 +1047,17 @@ q(::():
 
 ### constant versus mutable arguments
 
-Functions can be defined with mutable or immutable arguments, but that does
-not change the function signature (cf. section on function overloads).
-The important difference is that arguments defined with `;` must be copied
-in from the outside (unless the external variable is already a temporary),
-whereas arguments defined with `:` can be referenced without a copy.  This
-is because arguments defined with `;` can be modified inside the function,
-but they should not modify any variables outside of the function, even if
-they are passed in.  Examples:
+Functions can be defined with mutable or immutable arguments, e.g., via
+`MutableArgument; mutableType` and `ImmutableArgument: immutableType` in the
+arguments list.  This choice has two important effects: (1) you can modify
+mutable argument variables inside the function definition and (2) any
+modifications to a mutable argument variable inside the function block persist
+in the outer scope.  In C++ language, arguments declared as `:` are passed as
+constant reference, while arguments declared as `;` are passed as reference.
+Overloads can be defined for both, since it is clear which is desired based
+on the caller using `:` or `;`.  Some examples:
 
 ```
-# this function makes a copy of whatever string is passed in:
 copiedArgumentFunction(CopyMe; string): string
     CopyMe += "!!??"    # OK since CopyMe is defined as mutable via `;`.
     print(CopyMe)
@@ -1074,42 +1081,77 @@ reffedArgumentFunction(Ref: Mutable)    # prints "mutable??!!"
 print(Mutable)                          # prints "mutable"
 ```
 
-The reason that the `;` or `:` argument definition doesn't change the function
-signature is because in either case, the variables passed in from the outside
-are not affected by the internal parts of the function.  That is, the function
-cannot modify the external variables at all.
+Note that if you try to call a function with an immutable variable argument,
+but there is no overload defined for it, this will be an error.  Similarly
+for mutable variable arguments.
+
+```
+onlyImmutable(A: int): str
+    return str(A) * A
+
+MyA ;= 10
+onlyImmutable(A; MyA)  # COMPILE ERROR, no mutable overload for `onlyImmutable(A;)`
+
+print(onlyImmutable(A: 3))      # OK, prints "333"
+print(onlyImmutable(A: MyA))    # OK, prints "10101010101010101010"
+
+onlyMutable(B; int): str
+    Result := str(B) * B
+    B /= 2
+    return Result
+
+MyB ;= 10
+onlyMutable(B: MyB)             # COMPILE ERROR, no immutable overload for `onlyMutable(B:)`
+# same for something like `onlyMutable(B: 10)`.
+
+print(onlyMutable(B; MyB))      # OK, prints "10101010101010101010"
+print(onlyMutable(B; MyB))      # OK, prints "55555"
+```
+
+Note there is an important distinction between variables defined as mutable inside a block
+versus inside a function argument list.  Mutable block variables are never reference types.
+E.g., `B ;= A` is always a copy of `A`, so `B` is never a reference to the variable at `A`.
+For a full example:
+
+```
+referenceThis(A; int): int
+    B ;= A  # B is a copy of A
+    A *= 2
+    B *= 3
+    return B
+
+A ;= 10
+print(referenceThis(A;))    # prints 30, not 60.
+print(A)                    # A is now 20, not 60.
+```
+
+The practical implication is that mutable arguments can never have a default
+parameter.    You can have an optional mutable argument, however.
+
+```
+fn(B ;= int(3)): int ${ B += 3, return B } # COMPILE ERROR, no defaults allowed for mutable arguments
+
+# This definition would have the same return value as the previous non-compilable function:
+fn(B?: int): int
+    if B != Null 
+        B += 3
+        return B    # note that this will make a copy.
+    else
+        return 6
+
+# and can be called with or without an argument:
+print(fn())         # returns 6
+MyB ;= 10
+print(fn(B; MyB))   # returns 13
+print(B)            # B is now 13 as well.
+```
 
 The implementation in C++ might look something like this:
 
 ```
-// two function overloads are defined for either `fn(Str;)` and `fn(Str)`:
-void fn(const string &String);  // constant reference
-void fn(string &&String);       // temporary
-
-// with the `fn(Str)` definition, the constant one is not a surprise:
-void fn(const string &String) {
-    // do stuff with String from the hm function definition, and it's constant.
-}
-// although we also get a temporary overload as well, no copy required:
-void fn(string &&_String) {
-    const string &String = _String; // constant reference, not a copy
-    // do stuff with String from the hm function definition, and it's constant.
-    // note that `_String` is hidden from the hm language code.
-}
-
-// with the `fn(Str;)` definition, the constant-reference overload has a copy-on-write wrapper:
-void fn(const string &_String) {
-    cowWrapper<string> String(_String);
-    // do stuff with String from the hm function definition, but it's possibly mutable.
-    // note that `_String` is hidden from the hm language code.
-}
-// but the temporary overload also works as expected
-void fn(string &&String) {
-    // do stuff with String from the hm function definition, and it's mutable.
-}
-
-// TODO: can we get 2-for-1 using just `void fn(cowWrapper<string> String)`, with
-// cowWrapper being constructible via `const string &` or `string &&`?
+// these function overloads are defined for `fn(Str;)` and `fn(Str)`, respectively:
+void fn(string &String);        // reference `fn(Str;)`
+void fn(const string &String);  // constant reference `fn(Str:)`
 ```
 
 ### nullable arguments
@@ -1142,10 +1184,10 @@ someFunction(Y?: int): string
 # default argument (case 4):
 someFunction(Y := 3): i64
     return i64(Y)
-
-# and due to overloads not caring about variable mutability,
-# `someFunction(Y ;= 3): i64` would qualify as case 4 as well.
 ```
+
+Note that mutable arguments `;` are distinct overloads, but they cannot have a default
+argument, so Case (4) is a compile-time error.
 
 TODO: check if this breaks class instantiation assumptions.
 
@@ -1750,6 +1792,8 @@ greetings("World")
 greetings(To: "you", Say: "Hi")
 greetings(Times: 5, Say: "Hey", To: "Sam")
 ```
+
+TODO: clean this up, we can define different overloads for `;` and `:`
 
 Note that you can define the function arguments as mutable (with `;`) or
 immutable (with `:`) but that does **not** change the type/signature of the function.
