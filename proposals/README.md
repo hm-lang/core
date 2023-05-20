@@ -804,7 +804,7 @@ ImmutableMix = mixMatch(X: 6, Y: 3) # COMPILE ERROR, ImmutableMix is immutable, 
 ImmutableMix Mut += 4               # COMPILE ERROR, ImmutableMix is immutable, thus deeply constant
 ImmutableMix Imm -= 1               # COMPILE ERROR, ImmutableMix and this field are immutable
 
-# NOTE that in general, calling a function with variables defining by `;` is a different
+# NOTE that in general, calling a function with variables defined by `;` is a different
 # overload than calling with `:`.  Mutable argument variables imply that the arguments are
 # being passed by reference and will be mutated inside the function.  Data classes do not have
 # these overloads, so they will throw compile errors:
@@ -1774,7 +1774,8 @@ Child optionalMethod(1.45)  # returns Null
 
 Functions can do different things based on which arguments are passed in.
 For one function to be an overload of another function, it must be defined in the same file,
-and it must have different arguments or return values.
+and it must have different argument names or return values.  You can also have different
+argument modifiers (i.e., `;` and `:` are different overloads, as are nullable types, `?`).
 
 ```
 greetings(String): null
@@ -1791,30 +1792,19 @@ greetings(Say: string, To: string, Times: int): null
 greetings("World")
 greetings(To: "you", Say: "Hi")
 greetings(Times: 5, Say: "Hey", To: "Sam")
-```
 
-TODO: clean this up, we can define different overloads for `;` and `:`
-
-Note that you can define the function arguments as mutable (with `;`) or
-immutable (with `:`) but that does **not** change the type/signature of the function.
-Whether the variables can be mutated inside the function does not matter
-to the interface between function and caller.
-
-```
-# Note, these are not real overloads, and defining both would throw a COMPILE ERROR
-
-greetings(Say: string): null
-    print "${Say}, world!"
-
+# note this is a different overload, since it must be called with `Say;`
 greetings(Say; string): null
     Say += " wow"
     print "${Say}, world..."
 
-# COMPILE ERROR, function overloads of `greetings` only differ in mutability of arguments;
-# argument names must be unique in this case.
+MySay ;= "hello"
+greetings(Say; MySay)   # prints "hello wow, world..."
+print(MySay)            # prints "hello wow" since MySay was modified
 ```
 
 Note also, overloads must be distinguishable based on argument **names**, not types.
+Name modifiers (i.e., `;`, `:`, and `?`) also count as different overloads.
 
 ```
 fibonacci(Times: int): int
@@ -1826,16 +1816,21 @@ fibonacci(Times: int): int
         Previous = NextPrevious
     return Current
 
-fibonacci(Times: dbl): dbl
+fibonacci(Times: dbl): int
     GoldenRatio: dbl = (1.0 + \\math sqrt(5)) * 0.5
     OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
-    return (GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)
-
-# TODO: this might be contradictory with the fact that they return something different;
-# the "default names" for the return values are "Int" and "Dbl", so those are technically different:
-# just return null and print the result.
+    return int{Round: (GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)}
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
+
+# NOTE: if the second function returned a `dbl`, then we actually could distinguish between
+# the two overloads.  This is because default names for each return would be `Int` and `Dbl`,
+# respectively, and that would be enough to distinguish the two functions.  The first overload
+# would still be default in the case of a non-matching name (e.g., `Result := fibonnaci(Times: 3)`),
+# but we could determine `Int := fibonacci(Times: 3)` to definitely be the first overload and
+# `Dbl := fibonacci(Times: 7.3)` to be the second overload.
 ```
+
+TODO: clean up, return overloads are filtered by name, not type:
 
 There is the matter of how to determine which overload to call.  We consider
 only overloads that possess the specified input arguments.  If there is an explicit type
