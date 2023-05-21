@@ -1830,15 +1830,37 @@ fibonacci(Times: dbl): int
 # `Dbl := fibonacci(Times: 7.3)` to be the second overload.
 ```
 
-TODO: clean up, return overloads are filtered by name, not type:
-
 There is the matter of how to determine which overload to call.  We consider
-only overloads that possess the specified input arguments.  If there is an explicit type
-for the output (return) value, e.g., `X: dbl = calling(InputArgs...)`, then we also filter
-by overloads which have that output type, e.g., `dbl` in this case.  We choose the overload
-that has the fewest number of additional arguments (or zero), breaking ties with the overload
-that was defined first in the file.
+only overloads that possess all the specified input argument names.  If there are some
+unknown names in the call, we'll check for matching types.  E.g., an unnamed `4.5`, 
+as in `fn(4.5)` or `fn(X, 4.5)`, will be checked for a default-named `Dbl` since `4.5`
+is of type `dbl`.  Similarly, if a named variable, e.g., `Q` doesn't match in `fn(Q)`
+or `fn(X, Q)`, we'll check if there is an overload of `fn` with a default-named type
+of `Q`; e.g., if `Q` is of type `animal`, then we'll look for the `fn(Animal):` overload.
 
+NOTE: we cannot match a function overload that has more arguments than we supplied in
+a function call.  If we want to allow missing arguments in the function call, the declaration
+should be explicit about that; e.g., `fn(X?: int) := ...` or `fn(X := 0) := ...`.
+Similarly, we cannot match an overload that has fewer arguments than we supplied in the call.
+
+Output arguments are similar, and are also matched by name.  This is pretty obvious with
+something like `X := calling(InputArgs...)`, which will first look for an `X` output name
+to match.  If there is no `X` output name, then the first non-null, default-named output
+overload will be used.  E.g., if `calling(InputArgs...): dbl` was defined before
+`calling(InputArgs...): str`, then `dbl` will win.  For an output variable with an explicit
+type, e.g., `X: dbl = calling(InputArgs...)`, this will look for an overload with output
+name `X` first, *then* look for the overload with a default-named `Dbl: dbl` type.
+This might be surprising, but we want to enable easy conversions between types which can
+implicitly convert to each other, so that we don't always need to be explicit about converting
+iterators to containers, etc.  If there is no default-named `Dbl: dbl` output type, we'll look
+for the first non-null, default-named output overload.  For function calls like
+`X := dbl(calling(InputArgs...))`, we will lose all `X` output name information because
+`dbl(...)` will hide the `X` name.  In this case, we'll look for an overload with a
+default-named `Dbl: dbl` type output, then any non-null, default-named output overload.
+For calls like`X := calling(InputArgs...) Dbl`, we will explicitly pick a default-named
+`Dbl: dbl` output overload or throw a compiler error if none exists.
+
+TODO: we probably need an `{@hide X:, Y: str}` here to ensure we match the correct overload.
 Note that if the output type is a data class, e.g., `{X: dbl, Y: str}`, then we
 want to support destructuring, e.g., `{Y: str} = calling(InputArgs...)` and using
 `Y` on subsequent lines as desired.  In this case, the output fields essentially count
