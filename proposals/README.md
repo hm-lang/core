@@ -1174,6 +1174,11 @@ print(Load)                 # Load = 0 because it was mooted
 Load = 100
 print(over(Load; Load!))    # calls `fn(Load;)` with a temporary, prints 101
 print(Load)                 # Load = 0 because it was mooted
+
+# for reference, without mooting:
+Load = 100
+print(over(Load;))          # calls `fn(Load;)` with the reference, prints 101
+print(Load)                 # Load = 101 because it was passed by reference
 ```
 
 The implementation in C++ might look something like this:
@@ -1194,8 +1199,12 @@ myClass~t := {
 
     ;;take(Other->X; t):
         X = Other->X!
-    ::take(Other->X: t):
+    ;;take(Other->X: t):
         X = Other->X
+
+    # maybe something like this?
+    ;;take(Other->X;: t):
+        X = @mootOrCopy Other->X
 }
 ```
 probably can just rely on boilerplate that the language will add for us, e.g.,
@@ -1207,6 +1216,7 @@ myClass~t := {
     x(T; t): ${ X<->T }
     x(T: t): ${ X = T }
 }
+```
 
 ### nullable arguments
 
