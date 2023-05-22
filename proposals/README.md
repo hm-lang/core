@@ -707,6 +707,12 @@ if a declared variable is nullable but `?` is not used, since we want the progra
 aware of the fact that the variable could be null, even though the program will take care
 of null checks automatically and safely.
 
+TODO: discussion here.
+Note that different overloads may be used for `X ?:= myFunction(...)` vs. `X := myFunction(...)`,
+but it might be nice to not write boiler-plate code (e.g., `if X == Null ${throw error("...")}`)
+everywhere.  would we allow `X := myFunction` but throw a run-time error if X is null?
+maybe we need an explicit run-time check, `X := myFunction(...) ?? throw`.
+
 TODO: double check all nullable variable boolean operations.  we maybe should ensure
 checking against `X != Null` first, then any subsequent checks, e.g., `X != 0`.
 
@@ -1053,32 +1059,27 @@ arguments list.  This choice has two important effects: (1) you can modify
 mutable argument variables inside the function definition and (2) any
 modifications to a mutable argument variable inside the function block persist
 in the outer scope.  In C++ language, arguments declared as `:` are passed as
-constant reference, while arguments declared as `;` are passed as reference.
-Overloads can be defined for both, since it is clear which is desired based
-on the caller using `:` or `;`.  Some examples:
+constant reference, while arguments declared as `;` are passed as reference
+(or as temporaries).  Overloads can be defined for both, since it is clear which
+is desired based on the caller using `:` or `;`.  Some examples:
 
 ```
-copiedArgumentFunction(CopyMe; string): string
-    CopyMe += "!!??"    # OK since CopyMe is defined as mutable via `;`.
-    print(CopyMe)
-    return CopyMe
+# this function passes by reference and will modify the external variable
+check(Arg123; string): string
+    Arg123 += "!!??"    # OK since Arg123 is defined as mutable via `;`.
+    print(Arg123)
+    return Arg123
 
-# this function just references whatever string is passed in (no copy):
-reffedArgumentFunction(Ref: string): string
-    print(Ref)
-    return Ref + "??!!"
+# this function passes by constant reference and won't allow modifications
+check(Arg123: string): string
+    print(Arg123)
+    return Arg123 + "??!!"
 
-MyValue: string = "immutable"
-copiedArgumentFunction(CopyMe: MyValue) # prints "immutable!!??"
-print(MyValue)                          # prints "immutable"
-reffedArgumentFunction(Ref: MyValue)    # prints "immutable??!!"
-print(MyValue)                          # prints "immutable"
-
-Mutable; string = "mutable"
-copiedArgumentFunction(CopyMe: Mutable) # prints "mutable!!??"
-print(Mutable)                          # prints "mutable"
-reffedArgumentFunction(Ref: Mutable)    # prints "mutable??!!"
-print(Mutable)                          # prints "mutable"
+MyValue; string = "immutable"
+check(Arg123: MyValue)  # prints "immutable!!??"
+print(MyValue)          # prints "immutable"
+check(Arg123; MyValue)  # prints "immutable??!!"
+print(MyValue)          # prints "immutable??!!"
 ```
 
 Note that if you try to call a function with an immutable variable argument,
@@ -1125,13 +1126,17 @@ print(referenceThis(A;))    # prints 30, not 60.
 print(A)                    # A is now 20, not 60.
 ```
 
-The practical implication is that mutable arguments can never have a default
-parameter.    You can have an optional mutable argument, however.
+You are allowed to have default parameters for mutable arguments, and a suitable temporary
+will be created for each function call so that a reference type is suitable.  In the same
+way, you can call the mutable overload for a function with a temporary, e.g., via `B; 17`,
+and the temporary variable will be discarded after the function call.
 
 ```
-fn(B ;= int(3)): int ${ B += 3, return B } # COMPILE ERROR, no defaults allowed for mutable arguments
+fn(B ;= int(3)): int
+    B += 3
+    return B
 
-# This definition would have the same return value as the previous non-compilable function:
+# This definition would have the same return value as the previous function:
 fn(B?: int): int
     if B != Null 
         B += 3
@@ -1143,16 +1148,65 @@ fn(B?: int): int
 print(fn())         # returns 6
 MyB ;= 10
 print(fn(B; MyB))   # returns 13
-print(B)            # B is now 13 as well.
+print(MyB)          # MyB is now 13 as well.
+print(fn(B; 17))    # MyB is unchanged, prints 20
+```
+
+Note that a mooted variable will automatically be considered a mutable argument
+unless otherwise specified.  However, this will create a temporary and not modify
+the variable in the external scope.
+
+```
+over(Load: int): str
+    return str(Load)
+
+over(Load; int): str
+    return str(++Load)
+
+Load ;= 100
+print(over(Load!))  # calls `fn(Load; Load!)` with a temporary, prints 101
+print(Load)         # Load = 0 because it was mooted, and was not modified inside the function
+
+Load = 100
+print(over(Load: Load!))    # calls `fn(Load)` with a const temporary, prints 100
+print(Load)                 # Load = 0 because it was mooted
+
+Load = 100
+print(over(Load; Load!))    # calls `fn(Load;)` with a temporary, prints 101
+print(Load)                 # Load = 0 because it was mooted
 ```
 
 The implementation in C++ might look something like this:
 
 ```
-// these function overloads are defined for `fn(Str;)` and `fn(Str)`, respectively:
-void fn(string &String);        // reference `fn(Str;)`
-void fn(const string &String);  // constant reference `fn(Str:)`
+// these function overloads are defined for `fn(Str;)` and `fn(Str)`:
+void fn(string &String);        // reference overload for `fn(Str;)`
+void fn(string &&String);       // temporary overload for `fn(Str;)`
+void fn(const string &String);  // constant reference just for `fn(Str:)`
 ```
+
+TODO: nice way to define `;:` functions so that we can use `!` to moot in a variable
+onto a class instance.  i.e., we should be able to avoid the following boiler plate somehow,
+or reduce it into one (templated) method.
+```
+myClass~t := {
+    X; t
+
+    ;;take(Other->X; t):
+        X = Other->X!
+    ::take(Other->X: t):
+        X = Other->X
+}
+```
+probably can just rely on boilerplate that the language will add for us, e.g.,
+```
+myClass~t := {
+    X; t
+
+    # these are added automatically by compiler since `X; t` is defined.
+    x(T; t): ${ X<->T }
+    x(T: t): ${ X = T }
+}
 
 ### nullable arguments
 
