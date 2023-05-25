@@ -1058,7 +1058,7 @@ Functions can be defined with mutable or immutable arguments, e.g., via
 arguments list.  This choice has two important effects: (1) you can modify
 mutable argument variables inside the function definition and (2) any
 modifications to a mutable argument variable inside the function block persist
-in the outer scope.  In C++ language, arguments declared as `:` are passed as
+in the outer scope.  In C++ terms, arguments declared as `:` are passed as
 constant reference, while arguments declared as `;` are passed as reference
 (or as temporaries).  Overloads can be defined for both, since it is clear which
 is desired based on the caller using `:` or `;`.  Some examples:
@@ -1195,6 +1195,11 @@ is that the calling syntax would be confusing.  You might declare the function l
 `over(Load! int): str`, but then calling `over(Load: ALoad!)` or `over(Load; BLoad!)`
 would look like you're trying to call `over(Load:;)` respectively.  When you're not
 trying to rename, `over(Load!)` looks fine, but `over(Load! ALoad!)` looks busy.
+Instead, documentation should make it clear what the mutable argument is being mutated for;
+is it (1) being modified for use outside the function, (2) being taken by the internal scope
+(and thus mooted in the outside scope), or (3) being swapped with some other value in the
+internal scope.  Cases (2) and (3) make more sense for class methods than standard functions,
+as there is likely an instance variable that could be reset (case 2) or swapped out (case 3).
 
 If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
@@ -1265,8 +1270,10 @@ someFunction(Y := 3): i64
     return i64(Y)
 ```
 
-Note that mutable arguments `;` are distinct overloads, but they cannot have a default
-argument, so Case (4) is a compile-time error.
+Note that mutable arguments `;` are distinct overloads, which indicate either mutating
+the external variable, taking it, or swapping it with some other value, depending on
+the behavior of the function.  Temporaries are also allowed, so defaults can be defined
+for mutable arguments.
 
 TODO: check if this breaks class instantiation assumptions.
 
