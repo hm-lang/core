@@ -202,17 +202,32 @@ and similarly for `i8` to `i512`, using two's complement.  For example,
 
 ## casting between types
 
-The default rounding behavior for `dbl` (or `flt`) to `int` is to use stochastic rounding.
-This rounds 0.7 to 1 with probability 70% and to 0 with probability 30%, and similarly
-for other values (using the fractional part to determine the probability weights).
+For the most type, hm-lang attempts to make casting between types simple and safe.
+However, there are times where it's better to be explicit about the program's intention.
+For example, if you are converting between two numbers, but the number is *not*
+representable in the other type, the run-time will throw an error.  Therefore you'll
+need to be explicit about rounding when casting floating point numbers to integers,
+unless you are sure that the floating point number is an integer.  Even if the float
+is an integer, the maximum floating point integer is larger than most fixed-width integer
+types (e.g., `u32` or `i64`), so errors can be thrown in that case.  The big-integer type
+`int` will not have this latter issue, but may throw depending on memory constraints.
 
 ```
+# Going from a floating point number to an integer should be done carefully...
 X: dbl = 5.43
-Y: int = X      # Y = 5 with probability 57%, or 6 with probability 43%.
-```
+Q: int = X                      # RUN-TIME ERROR, throws since `X` is not representable as an integer
+Y: int = X round Down           # Y = 5.  equivalent to `X floor()`
+Z: int = X round Up             # Z = 6.  equivalent to `X ceil()`.
+W: int = X round Stochastically # W = 5 with probability 57%, or 6 with probability 43%.
+R: int = X round()              # R = 5.  rounds to closest integer, breaking ties at half
+                                #         to the integer larger in magnitude.
 
-TODO: we probably actually want people to explicitly specify the type of rounding they want.
-e.g., `Y: int = X floor()` is OK, or `X ceil()`, or `X round()`, or `X round Stochastically`
+# Note, representable issues arise for conversions even between different integer types.
+A: u32 = 1234
+Q: u8 = A               # RUN-TIME ERROR, `A` is not representable as a `u8`.
+B: u8 = A & 255         # OK, communicates intent and puts `A` into the correct range for a `u8`.
+C: u8 = A clamp(0, 255) # OK, also communicates intent
+```
 
 TODO: casting to a complex type, e.g., `(int|str)(SomeValue)` will pass through `SomeValue`
 if it is an `int` or a `str`, otherwise try `int(SomeValue)` if that is allowed, and finally
