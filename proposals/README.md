@@ -1190,31 +1190,16 @@ void fn(string &&String);       // temporary overload for `fn(Str;)`
 void fn(const string &String);  // constant reference just for `fn(Str:)`
 ```
 
-TODO: do we want to define a "weak" overload for `fn(Str;)` if `fn(Str)` is defined?
-we could check for the last place that `Str` is assigned in the function and moot it.
-but if `Str` is never assigned, then do we really want a temporary overload?  probably
-not, and we don't know this at declaration time (which is important for interfaces).
-maybe we define both if we declare `fn(Str)`, and only one if we do `fn(Str;)` or `fn(Str:)`.
-but i think it's better to default to immutable and require people to add `fn(Str;:)`
-when declaring/defining their functions.
-
 The reason why we don't want to enable a third overload option for temporaries (i.e., `t &&T`)
 is that the calling syntax would be confusing.  You might declare the function like this,
 `over(Load! int): str`, but then calling `over(Load: ALoad!)` or `over(Load; BLoad!)`
 would look like you're trying to call `over(Load:;)` respectively.  When you're not
 trying to rename, `over(Load!)` looks fine, but `over(Load! ALoad!)` looks busy.
-TODO:
-Maybe if we had a "neutral" argument syntax, e.g., `over(Load. ALoad)` which calls
-`over(Load;)` if `ALoad` is mutable and `over(Load:)` if `ALoad` is immutable.  then
-`over(Load. ALoad!)` would call the temporary.  if we changed to this, then we'd probably
-want `over(ALoad)` to follow the neutral argument call, i.e., `over(Load;:)` depending
-on if `ALoad` is mutable/immutable.  but i think we want to be explicit about things
-being mutable inside a function, so i'd prefer requiring `over(Load; ALoad)` even if
-`ALoad` is mutable.
 
-TODO: nice way to define `;:` functions so that we can use `!` to moot in a variable
-onto a class instance.  i.e., we should be able to avoid the following boiler plate somehow,
-or reduce it into one (templated) method.
+If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
+syntax.  There will be some annotation/macros which can be used while before compiling,
+e.g., `@mutable`/`@immutable` to determine if the variable is mutable or not.
+
 ```
 myClass~t := {
     X; t
@@ -1231,14 +1216,20 @@ myClass~t := {
         # or maybe we can do something like `X = Other->X!:`
 }
 ```
-probably can just rely on boilerplate that the language will add for us, e.g.,
+
+Alternatively, we can rely on some boilerplate that the language will add for us, e.g.,
+
 ```
 myClass~t := {
     X; t
 
-    # these are added automatically by compiler since `X; t` is defined.
+    # these are added automatically by the compiler since `X; t` is defined.
     ;;x(T; t): ${ X<->T }
     ;;x(T: t): ${ X = T }
+
+    # so `take` would become:
+    ;;take(Other->X;: t):
+        x(Other->X;:)
 }
 ```
 
