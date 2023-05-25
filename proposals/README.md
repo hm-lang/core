@@ -190,14 +190,15 @@ Other types which have a fixed amount of memory:
 * `u16` : unsigned integer which can hold values from 0 to 65535, inclusive
 * `u32` : unsigned integer which can hold values from 0 to 2^32 - 1, inclusive
 * `u64` : unsigned integer which can hold values from 0 to 2^64 - 1, inclusive
+* `u128` : unsigned integer which can hold values from 0 to 2^128 - 1, inclusive
+* `u256` : unsigned integer which can hold values from 0 to 2^256 - 1, inclusive
+* `u512` : unsigned integer which can hold values from 0 to 2^512 - 1, inclusive
 * `count` : `i64` under the hood, intended to be >= 0 to indicate the amount of something.
 * `index` : signed integer, `i64` under the hood.  for indexing arrays starting at 0.
 * `ordinal` : signed integer, `i64` under the hood.  for indexing arrays starting at 1.
 
-and similarly for `i8` to `i64`, using two's complement.  For example,
+and similarly for `i8` to `i512`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
-
-TODO: support for `u128` to `u512`, as well as `i128` to `i512`
 
 ## casting between types
 
@@ -1200,6 +1201,8 @@ is it (1) being modified for use outside the function, (2) being taken by the in
 (and thus mooted in the outside scope), or (3) being swapped with some other value in the
 internal scope.  Cases (2) and (3) make more sense for class methods than standard functions,
 as there is likely an instance variable that could be reset (case 2) or swapped out (case 3).
+We could document the behavior using annotations, e.g., `@modifying`, `@taking`, or `@swapping`,
+e.g., `over(@modifying Load; int)` in the above example.
 
 If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
@@ -1217,6 +1220,7 @@ myClass~t := {
     # maybe something like this?
     ;;take(Other->X;: t):
         X = @mootOrCopy Other->X
+        # TODO: how complicated should the preprocessor be?  maybe `@if(@mutable Z, Z!, Z)` might be better.
         # `@mootOrCopy Z` can expand to `@if @mutable Z ${Z!} @else ${Z}`
         # or maybe we can do something like `X = Other->X!:`
 }
