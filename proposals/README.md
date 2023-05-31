@@ -511,8 +511,6 @@ getMedianSlow(Array: array~int): int
     return Sorted->Array[Sorted->Array size() // 2]
 
 # sorts the array and returns the median.
-# TODO: we'd also change `fn(X:):` and `fn(X;):` to be different declarations.
-#       this would prevent implicit and possibly undesired copies.
 getMedianSlow(Array; array~int): int
     if Array size() == 0
         throw "no elements in array, can't get median."
@@ -621,7 +619,17 @@ differs from the modulus, `%`, when the operands have opposing signs.
 
 ## less-than/greater-than operators
 
-TODO: `3 < X < 5` should work as desired (true iff `X > 3` AND `X < 5`).
+The less-than, less-than-or-equal-to, greater-than, and greater-than-or-equal-to
+binary operators `<`, `<=`, `>`, and `>=` (respectively) have special return types.
+This allows chaining like `W >= X < Y <= Z`, which will evaluate as truthy iff
+`W >= X`, `X < Y`, and `Y <= Z`.  Note that these expressions are evaluated
+left-to-right and the first inequality to fail will stop any further evaluations
+or expressions from executing.
+
+Internally, `X < Y` becomes a class which holds onto a value or reference of `Y`,
+so that it can be chained.  Any future right operands take over the spot of `Y`.
+Note, hm-lang doesn't have access to this class due to not holding onto references,
+so `Q := X < Y > Z` instantiates `Q` as a boolean, not as this internal class.
 
 ## and/or/xor operators
 
