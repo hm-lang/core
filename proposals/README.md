@@ -265,9 +265,8 @@ print(vector3->Is == Vector3::Is)       # this prints true
 
 VectorIs: is = Vector3::Is
 
-# TODO: double check that we wouldn't need type of a type to be some nested monstrosity
-# for some reasonable code.
-print(VectorIs::Is)         # type of a type, still resolves to `is->vector3`.
+# things can get recursive:
+print(VectorIs::Is)         # type of a type, resolves to `is->is->vector3`.
 
 # creates a dynamical instance of vector3; the compiler doesn't know it's a vector3.
 # even though we know it comes from a vector3, `VectorIs` is generically an `is`.
