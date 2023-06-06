@@ -250,8 +250,7 @@ else if X is(dbl)
     print("X is a double")
 ```
 
-TODO: maybe we don't want `X Is` syntax since it looks like not-a-function, when
-`X is` does, and it is.
+For single-argument calls you can also omit the parentheses, e.g., `X is int`.
 This reads a little better than something like `if X Is == int`, but the latter also is
 valid hm-lang (and does what you expect).  Some more examples:
 
@@ -260,23 +259,22 @@ vector3 := {X; dbl, Y; dbl, Z; dbl}
 
 Vector3 := vector3(X: 1.2, Y: -1.4, Z: 1.6)
 
-print(Vector3::Is)                      # prints `is->vector3`
+print(Vector3::Is)                      # prints `is~vector3`
 print(vector3->Is == Vector3::Is)       # this prints true
 
-VectorIs: is = Vector3::Is
+SomeIs: is~any = Vector3::Is
 
 # things can get recursive:
-print(VectorIs::Is)         # type of a type, resolves to `is->is->vector3`.
+print(SomeIs::Is)           # type of a type, resolves to `is~is~vector3`.
 
 # creates a dynamical instance of vector3; the compiler doesn't know it's a vector3.
-# even though we know it comes from a vector3, `VectorIs` is generically an `is`.
-# TODO: probably can make the compiler a little bit smart about this, based on the
-# assignments that could be possibly made to VectorIs.  in this case, it's const,
-# with no other assignment options besides Vector3::Is, so it must be a vector3 type.
-AnotherVector3 := VectorIs new(X: 5, Y: 6, Z: -7)
+# even though we know it comes from a vector3, `SomeIs` is a generic `is~any`.
+SomeThing := SomeIs new(X: 5, Y: 6, Z: -7)
 ```
 
-TODO: flesh out `is` class a bit more.
+The `is` class is pretty simple, though under the hood it has 64 bits effectively
+pointing to the vtable for the class.
+
 ```
 is~t := {
     # Type instances have a `new` method which allows you to construct an
