@@ -229,6 +229,11 @@ B: u8 = A & 255         # OK, communicates intent and puts `A` into the correct 
 C: u8 = A clamp(0, 255) # OK, also communicates intent
 ```
 
+In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
+is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
+Numbers are truthy only if they are non-zero, so `bool(0)` is `False` but `bool(100)` or `bool(0.5)`
+is `True`.
+
 TODO: casting to a complex type, e.g., `(int|str)(SomeValue)` will pass through `SomeValue`
 if it is an `int` or a `str`, otherwise try `int(SomeValue)` if that is allowed, and finally
 `str(SomeValue)` if that is allowed.  If none of the above are allowed, the compiler will
@@ -730,9 +735,7 @@ Note that different overloads may be used for `X ?:= myFunction(...)` vs. `X := 
 but it might be nice to not write boiler-plate code (e.g., `if X == Null ${throw error("...")}`)
 everywhere.  would we allow `X := myFunction` but throw a run-time error if X is null?
 maybe we need an explicit run-time check, `X := myFunction(...) ?? throw`.
-
-TODO: double check all nullable variable boolean operations.  we maybe should ensure
-checking against `X != Null` first, then any subsequent checks, e.g., `X != 0`.
+or perhaps `X := assertNotNull(myFunction(...))`
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The executable will automatically
