@@ -661,8 +661,6 @@ xor(X: ~x, Y: ~y): x|y|null
         return Y
 ```
 
-TODO: distinguish between bitwise xor vs. logical xor for numbers.
-
 ## assignment operators
 
 TODO: `??=`.
