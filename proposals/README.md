@@ -74,7 +74,7 @@ Note that the close parenthesis must be at the same indent as the line of the op
 The starting indent of the line is what matters, so a close parenthesis can be on the same
 line as an open parenthesis.
 
-If an operator (e.g., `*`, `&&`, `+`, `/=`, etc.) begins the line with +Y indent, with Y >= 1,
+If an operator (e.g., `*`, `&`, `+`, `/=`, etc.) begins the line with +Y indent, with Y >= 1,
 and the identifier which follows the operator is at +X indent (where X is greater than Y),
 then the line's indent will be counted from that identifier, i.e., at +X indent, not the
 operator's indent (+Y).  Here we have some +2 indent examples:
@@ -336,11 +336,12 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           |   `&`     | bitwise AND               | binary: `A&B`     |               |
 |           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
 |           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
+|           |   `??`    | nullish OR                | binary: `A??B`    |               |
 |   8       |   `==`    | equality                  | binary: `A==B`    | LTR           |
 |           |   `!=`    | inequality                | binary: `A!=B`    |               |
-|   9       |   `&&`    | logical AND               | binary: `A&&B`    | LTR           |
-|           |  `\|\|`   | logical OR                | binary: `A\|\|B`  |               |
-|           |   `??`    | nullish OR                | binary: `A??B`    |               |
+|   9       |  `and`    | logical AND               | binary: `A and B` | LTR           |
+|           |   `or`    | logical OR                | binary: `A or B`  |               |
+|           |  `xor`    | logical XOR               | binary: `A xor B` |               |
 |   10      | `$(   )`  | block parentheses         | grouping: `$(A)`  | ??            |
 |           | `$[   ]`  | block parentheses         | grouping: `$[A]`  |               |
 |           | `${   }`  | block parentheses         | grouping: `${A}`  |               |
@@ -350,7 +351,7 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |   12      |   `,`     | comma                     | binary/postfix    | LTR           |
 
 
-TODO: discussion on and/not/or.  those should all be keywords/overloads for `&&/prefix !/||`.
+TODO: discussion on not.  this should be keyword/overload for `prefix !`.
 TODO: discussion on `~`
 needs to be RTL for `array~array~int` processing as `array~(array~int)`, etc.
 
@@ -631,24 +632,20 @@ so `Q := X < Y > Z` instantiates `Q` as a boolean, not as this internal class.
 
 ## and/or/xor operators
 
-The `or` operation `X || Y` technically has type `X is | Y is`.  If `X` evalutes to
-truthy (i.e., `!!X == True`), then the return value of `X || Y` will be `X`.
-Otherwise, if `X` evaluates to falsy (i.e., `!!X == False`), then the return value
-of `X || Y` will be `Y`.  This allows for JavaScript syntax like `(X || Y) toString()`.
-Note in a conditional, e.g., `if X || Y`, we'll always cast to boolean implicitly
-(i.e., `if bool(X || Y)` explicitly).
-TODO: consider doing `X is | Y is | null` and checking if `Y` is truthy before returning it.
-this might be less suprising than the javascript behavior.
+The `or` operation `X or Y` technically has type `x | y | null` (for `X: x` and `Y: y`).
+If `X` evaluates to truthy (i.e., `!!X == True`), then the return value of `X or Y` will be `X`.
+Otherwise, if `Y` evaluates to truthy (i.e., `!!Y == True`), then the return value will be `Y`.
+Otherwise, the return will be `Null`.  Note in a conditional, e.g., `if X or Y`, we'll always
+cast to boolean implicitly (i.e., `if bool(X or Y)` explicitly).
 
-Similarly, the `and` operation `X && Y` has type `X is | Y is`.  If `X` evaluates to
-truthy (i.e., `!!X == True`), then the return value of `X && Y` will be `Y`.
-Otherwise, if `X` evaluates to falsy (i.e., `!!X == False`), then the return value
-of `X && Y` will be `X`.  Again, in a conditional, we'll cast `X && Y` to a boolean,
-which will be truthy if and only if `!!(X && Y)`.
-TODO: consider doing `X is | Y is | null` and checking if `Y` is truthy before returning `X`.
-this might be less suprising than the javascript behavior.
+Similarly, the `and` operation `X and Y` also has type `x | y | null`.  If `X` or `Y` is falsey,
+then the return value will be `Null`.  If both are truthy, the return value will be `Y`.
+Again, in a conditional, we'll cast `X and Y` to a boolean.
 
-The `xor` operation `X >< Y` has type `X is | Y is | null`, and will return `Null`
+This is a bit different than the JavaScript `||` and `&&`, which don't return `Null` unless
+one of `X` or `Y` is null, but the null choice makes the language consistent for `xor`.
+
+The `xor` operation `X >< Y` has type `x | y | null`, and will return `Null`
 if both `X` and `Y` are truthy or if they are both falsy.  If just one of the operands
 is truthy, the result will be the truthy operand.  An example implementation:
 
@@ -656,13 +653,15 @@ is truthy, the result will be the truthy operand.  An example implementation:
 xor(X: ~x, Y: ~y): x|y|null
     XIsTrue := bool(X)
     YIsTrue := bool(Y)
-    if (XIsTrue && YIsTrue) || (!XIsTrue && !YIsTrue)
+    if (XIsTrue and YIsTrue) or (!XIsTrue and !YIsTrue)
         return Null
     if XIsTrue
         return X
     else
         return Y
 ```
+
+TODO: distinguish between bitwise xor vs. logical xor for numbers.
 
 ## assignment operators
 
@@ -3421,7 +3420,7 @@ insertionOrderedMap~(key, value) := extend(map) {
     # modifier for a keyed value not yet in the map, need to insert a default first:
     @private
     ;;needToInsertThenModify(Key, fn(Value;): ~t): t
-        NewIndex := AvailableIndex++ || reshuffle()
+        NewIndex := AvailableIndex++ or reshuffle()
         KeyIndices_Key = NewIndex
         PreviouslyLastIndex := IndexedValues_0 PreviousIndex
         IndexedValues_0 PreviousIndex = NewIndex
@@ -4438,7 +4437,7 @@ Grammar := singleton() {
             case grammarElement
                 Elements_GrammarMatcher match(Index;, Array)
             case token
-                Index < Array size() && Array _ Index++ == Grammar Matcher
+                Index < Array size() and Array _ Index++ == Grammar Matcher
         if not Matched
             Index = Snapshot
         return Matched
