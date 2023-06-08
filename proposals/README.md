@@ -730,13 +730,6 @@ if a declared variable is nullable but `?` is not used, since we want the progra
 aware of the fact that the variable could be null, even though the program will take care
 of null checks automatically and safely.
 
-TODO: discussion here.
-Note that different overloads may be used for `X ?:= myFunction(...)` vs. `X := myFunction(...)`,
-but it might be nice to not write boiler-plate code (e.g., `if X == Null ${throw error("...")}`)
-everywhere.  would we allow `X := myFunction` but throw a run-time error if X is null?
-maybe we need an explicit run-time check, `X := myFunction(...) ?? throw`.
-or perhaps `X := assertNotNull(myFunction(...))`
-
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The executable will automatically
 check for null on variables that can be null.  If a function can be null, the executable
@@ -1994,6 +1987,42 @@ default-named `Dbl: dbl` type output, then any non-null, default-named output ov
 For calls like`X := calling(InputArgs...) Dbl`, we will explicitly pick a default-named
 `Dbl: dbl` output overload or throw a compiler error if none exists.
 
+We also support function overloads for outputs that are nullable.  Just like with overloads
+for nullable input arguments, there are some restrictions on defining overloads with (1) a
+missing output, (2) a present output, and (3) a nullable output.  The restriction is a bit
+different here, in that we cannot define (1) and (3) simultaneously for nullable outputs.
+This enables us to distinguish between, e.g., `X ?:= myOverload(Y)` and `X := myOverload(Y)`,
+which defines a nullable `X` or a non-null `X`.
+
+```
+# case 1, missing output (not compatible with case 3):
+myOverload(Y: str): null
+    print(Y)
+
+# case 2, present output:
+myOverload(Y: str): {X: int}
+    # note, this will throw if `Y` is not convertible to an `int`.
+    return {X: int(Y)}
+
+# case 3, nullable output (not compatible with case 1):
+myOverload(Y: str): {X?: int}
+    try
+        # TODO: do we want to allow `?fn` to automatically catch errors in `fn` and return null?
+        X := int(Y)
+        return {X}
+    catch
+        return {}
+
+
+X := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
+X ?:= myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
+
+# TODO: if only case 3 is defined, but we want a non-null value for X, we want some
+# notation that gives throws a run-time error if X is null.  it also has to play nice
+# with multiple return values.  e.g., `(X?: int, W: whatever) = myOverload(Y)` for a case 3.
+# maybe something like `(X: assert~int, W: whatever) = myOverload(Y)`
+```
+
 TODO: we probably need an `{@hide X:, Y: str}` here to ensure we match the correct overload.
 Note that if the output type is a data class, e.g., `{X: dbl, Y: str}`, then we
 want to support destructuring, e.g., `{Y: str} = calling(InputArgs...)` and using
@@ -2317,7 +2346,6 @@ and read (but not modify) private variables.  Overriding a parent class method
 counts as modifying the method, which is therefore possible for public and protected
 methods, but not private methods.
 
-
 ## getters and setters on class instance variables
 
 Note that all variables defined on a class are given methods to access/set
@@ -2618,6 +2646,10 @@ on the type.  E.g., `SomeVariable: @only someType` will ensure that `SomeVariabl
 stack allocated (non-dynamically).  If defined with `;`, the instance can still be modified,
 but it will be sliced if some child instance is copied to it.  To prevent confusion, we
 enforce that upcasting (going from child to parent) must be done *explicitly*.  For example:
+
+TODO: classes should probably be allowed to be marked final.  e.g., `i64` and similar
+fixed-width integers should be `final` so that we don't need to worry about vtables,
+or specifying `@only i64`.  classes that are `final` would not need to be marked `@only`.
 
 ```
 mythologicalCat := extend(cat) {
