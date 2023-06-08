@@ -1540,6 +1540,30 @@ print(Result Io)
 # don't match any return fields.
 ```
 
+TODO: does having output arguments obviate the need for the spread operator in JS, e.g.,
+`const {field, ...otherFields} = doStuff();` since we can do `OtherFields := doStuff(->Field: field)`?
+the `...` notation seems a bit more clear what's happening, though.
+maybe we get rid of output arguments and do `{...OtherFields:, Field:} := doStuff()`
+TODO: double check if we even have a legitimate need for doing things in multiple ways,
+that can be confusing as a new developer -- which way is better, etc.
+
+Note, you can also have nullable output arguments.  These will be discussed
+more in the function overload section, but here are some examples.
+
+```
+# standard definition:
+wow(Lives: int)?: cat
+    return if Lives == 9
+        cat()
+    else
+        Null
+
+# alternative output argument definition
+wow(Lives: int, ->Cat?: cat):
+    if Lives == 9
+        Cat = cat()
+```
+
 For nested object return types, there is some syntactic sugar for dealing with them.
 
 ```
@@ -1588,7 +1612,7 @@ encountered when calling the function.  These fields are named to imply that the
 call can do just about anything (including fetching data from a remote server).
 
 ```
-# TODO: split into `arguments` and `returns` if we modify MMR with `!!` -> `;`.
+# TODO: split into `arguments` and `returns` since we switched to `;` being temp/mutable refs.
 # i.e., `fn(Arguments): returns`.  `arguments` include the output field names in a set.
 # `arguments~(output limits str|symbol) := { Input; any_str, Output; _output }` and
 # `returns~(output limits str|symbol) := any_output`
