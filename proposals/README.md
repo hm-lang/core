@@ -766,6 +766,10 @@ TODO: how do we declare a function of multiple types?  e.g.,
 `someFunction: ((Dbl): string) | ((Dbl, Name: string): int)`.
 This might have some usage for function overloads.  Maybe we disallow these and require
 declare the overloads individually.
+The `|` operator probably doesn't make sense unless we can determine what type it is before calling.
+Maybe we should require `&` when passing in a function with multiple overloads, so that we can
+call it either way.
+TODO: see if it's consistent to use `|` and `&` here, or maybe use `or` and `and` for the types.
 
 ## nested/object types
 
@@ -2021,6 +2025,7 @@ X ?:= myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's
 # notation that gives throws a run-time error if X is null.  it also has to play nice
 # with multiple return values.  e.g., `(X?: int, W: whatever) = myOverload(Y)` for a case 3.
 # maybe something like `(X: assert~int, W: whatever) = myOverload(Y)`
+# or `(X: assert~not~null, W: whatever) = myOverload(Y)`
 ```
 
 TODO: we probably need an `{@hide X:, Y: str}` here to ensure we match the correct overload.
