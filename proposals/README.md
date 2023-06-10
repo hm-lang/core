@@ -2020,12 +2020,20 @@ myOverload(Y: str): {X?: int}
 
 X := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
 X ?:= myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
+```
 
-# TODO: if only case 3 is defined, but we want a non-null value for X, we want some
-# notation that gives throws a run-time error if X is null.  it also has to play nice
-# with multiple return values.  e.g., `(X?: int, W: whatever) = myOverload(Y)` for a case 3.
-# maybe something like `(X: assert~int, W: whatever) = myOverload(Y)`
-# or `(X: assert~not~null, W: whatever) = myOverload(Y)`
+Note that if only Case 3 is defined, we can use a special notation to ensure that the return
+value is not null, e.g., `{X: not~null} = ...`.  This will throw a run-time error if the return
+value for `X` is null.  Note that this syntax is invalid if Case 2 is defined, since there is
+no need to assert a non-null return value in that case.
+
+```
+# normal call for case 3, defines an X which may be null:
+{X?:} = myOverload(Y: "123")
+
+# special call for case 3; if X is null, this will throw a run-time error,
+# otherwise will define a non-null X:
+{X: not~null} = myOverload(Y: "123")
 ```
 
 TODO: we probably need an `{@hide X:, Y: str}` here to ensure we match the correct overload.
