@@ -1537,6 +1537,13 @@ print(Result Io)
 # don't match any return fields.
 ```
 
+Note that destructuring looks different than defining a lambda function due
+to the extra `:` after the parentheses.  e.g., `(X: int, Y: str) = someFunction(Z)` is
+destructuring, but `(X: int, Y: str) := someFunction(Z)` is defining a lambda.
+It is a compiler error to do something like `X: int := someFunction(Z)`, since it
+looks somewhat ambiguous -- is it a lambda or a declaration?  So make sure to include
+parentheses if a lambda is desired.
+
 TODO: does having output arguments obviate the need for the spread operator in JS, e.g.,
 `const {field, ...otherFields} = doStuff();` since we can do `OtherFields := doStuff(->Field: field)`?
 the `...` notation seems a bit more clear what's happening, though.
@@ -2033,22 +2040,21 @@ no need to assert a non-null return value in that case.
 
 # special call for case 3; if X is null, this will throw a run-time error,
 # otherwise will define a non-null X:
-{X: not~null} = myOverload(Y: "123")
+{X: assert~not~null} = myOverload(Y: "123")
 ```
 
-TODO: we probably need an `{@hide X:, Y: str}` here to ensure we match the correct overload.
-Note that if the output type is a data class, e.g., `{X: dbl, Y: str}`, then we
-want to support destructuring, e.g., `{Y: str} = calling(InputArgs...)` and using
-`Y` on subsequent lines as desired.  In this case, the output fields essentially count
-as extra arguments, and we again choose the overload that has the fewest number of additional
-arguments (or output fields).
-TODO: discussion on how `fn(): {Int}` and `fn(): int` are considered the same overload.
-We don't want to distinguish between `Y: str = calling(InputArgs...)` and `{Y: str} = ...`.
-TODO: discussion on how destructuring looks different than defining a lambda function due
-to the extra `:` after the parentheses.  e.g., `(X: int, Y: str) = someFunction(Z)` is
-destructuring, but `(X: int, Y: str) := someFunction(Z)` is defining a lambda.
-we should throw if users do `X: int := someFunction(Z)` since it looks somewhat ambiguous,
-so make sure to include parentheses if a lambda is desired.
+If there are multiple return arguments, i.e., via an output type data class,
+e.g., `{X: dbl, Y: str}`, then we support destructuring to help nail down
+which overload should be used.  E.g., `A := myOverload()` will first look
+for an overload with an output named `A`, and `{X:, Y:} = myOverload()` will
+look for an overload with outputs named `X` and `Y`.  Note that for hm-lang,
+`A := myOverload()` is equivalent to `{A:} = myOverload()`.  Thus the declarations
+`fn(): {Int}` and `fn(): int` are the same overload.
+
+When matching outputs, the fields count as additional arguments, which must
+be matched.  If you want to call an overload with multiple output arguments,
+but you don't need one of the outputs, you can use the `@hide` annotation to
+ensure it's not used afterwards.  E.g., `{@hide X:, Y: str} = myOverload()`.
 
 We also allow calling functions with any dynamically generated arguments, so that means
 being able to resolve the overload at run-time.
