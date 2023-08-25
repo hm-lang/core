@@ -6,7 +6,7 @@ Identifiers in hm-lang are very important.  The capitalization (or lack thereof)
 of the first letter indicates whether the identifier is a variable or a function.
 Since we think of functions as verb-like, they are `lowerCamelCase` identifiers, e.g.,
 `makeToast` or `runMarathon`.  On the other hand, variables are names, and we think
-of them as proper nouns (like names), e.g., `Sam` or `MaxArraySize`, so they are
+of them as proper nouns (like names), e.g., `Sam` or `MaxArrayCount`, so they are
 `UpperCamelCase` identifiers.  Class names are `lowerCamelCase`, since they
 act more functions than variables; e.g., you can convert one class instance into
 another class's instance, like `int(MyNumberString)` which converts `MyNumberString`
@@ -198,6 +198,8 @@ Other types which have a fixed amount of memory:
 
 and similarly for `i8` to `i512`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
+
+TODO: can we remove `ordinal` in favor of `count`?
 
 ## casting between types
 
@@ -505,20 +507,20 @@ does not change the instance but returns a sorted copy of the array (`::sort(): 
 ```
 # there are better ways to get a median, but just to showcase member access:
 getMedianSlow(Array: array~int): int
-    if Array size() == 0
+    if Array count() == 0
         throw "no elements in array, can't get median."
     # make a copy of the array, but no longer allow access to it (via `@hide`):
     Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is immutable.
     # note that we need parentheses here around the desired array index
     # since `//` binds less strongly than `_`:
-    return Sorted->Array[Sorted->Array size() // 2]
+    return Sorted->Array[Sorted->Array count() // 2]
 
 # sorts the array and returns the median.
 getMedianSlow(Array; array~int): int
-    if Array size() == 0
+    if Array count() == 0
         throw "no elements in array, can't get median."
     Array sort()    # same as `Array;;sort()` since `Array` is mutable.
-    return Array _ (Array size() // 2)
+    return Array _ (Array count() // 2)
 ```
 
 Note that if the LHS is immutable, you will not be able to use a `;;` method.
@@ -1323,8 +1325,8 @@ The reason behind this behavior is that in hm-lang, an argument list is conceptu
 with various fields, since an argument has a name (the field name) as well as a value (the field value).
 An object with a field that is `Null` should not be distinguishable from an object that
 does not have the field, since `Null` is the absence of a value.  Thus, if we count up
-the number of fields in an object using `size()`, we'll get results like this:
-`object()::size() == 0`, `{Y: Null}::size() == 0`, and `{Y: 5}::size() == 1`.
+the number of fields in an object using `count()`, we'll get results like this:
+`object()::count() == 0`, `{Y: Null}::count() == 0`, and `{Y: 5}::count() == 1`.
 
 Note that when calling a function with a nullable variable/expression, we need to
 indicate that the field is nullable if the expression itself is null (or nullable). 
@@ -1670,7 +1672,7 @@ someFunction(X: int): string
 # however, this is not recommended, since the arguments are named the same.
 # note that the earliest overload that matches will be default.
 someFunction(X: string): int
-    return X size()
+    return X countBytes()
 
 MyString: string = someFunction(X: 100)     # uses the first overload
 MyInt: int = someFunction(X: "cow")         # uses the second overload
@@ -3094,7 +3096,7 @@ container~t := {
 
     ::contains(T): bool
 
-    ::size(): index
+    ::count(): count
 }
 ```
 
@@ -3146,11 +3148,11 @@ array~t := extend(container~t, container~{Index, T}) {
     ;;_(Index, T?;): null
 
     ::!!This: bool
-        return size() > 0
+        return count() > 0
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the index into the passed-in function by reference (`;`).
-    # if Index >= the current size(), then the array size is increased (to Index + 1)
+    # if Index >= the current count(), then the array count is increased (to Index + 1)
     # and filled with default values so that a valid reference can be passed into the callback.
     ;;_(Index, fn(T;): ~u): u
 
@@ -3165,17 +3167,22 @@ array~t := extend(container~t, container~{Index, T}) {
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`T?;`) is null, but you switch to
-    # something non-null, the array will expand to that size (with default values
+    # something non-null, the array will expand to that count (with default values
     # in between, if necessary).  if you set the reference to Null and it wasn't
     # Null before, then the array will shrink by one, and all later index values
     # will move down one.
     ;;_(Index, fn(T?;): ~u): u
 
-    # non-nullable modifier, which will increase the size of the array (with default values)
+    # non-nullable modifier, which will increase the count of the array (with default values)
     # if you are asking for a value at an index out of bounds of the array.
     ;;_(Index, fn(T;): ~u): u
 
-    ::size(): count
+    # TODO: we need to come up with a good solution to the variable shadow issue here.
+    # when referencing `count()` inside Array method blocks, are we referring to
+    # the general `count` type or this `count()` method?  the cleanest solution
+    # would require prefixing method calls with `This`, e.g., `This count()` to get
+    # the size of the array and `count()` to create a default `count` i64 variable.
+    ::count(): count
 
     ;;append(T): null
 
@@ -3190,28 +3197,28 @@ array~t := extend(container~t, container~{Index, T}) {
 }
 ```
 
-### fixed-size arrays
+### fixed-count arrays
 
 We declare an array with a fixed number of elements using the notation
-`elementType_FixedSize`, where `FixedSize` is a constant integer expression (e.g., 5)
-or a variable that can be converted to the `count` type.  Fixed-size array elements
+`elementType_FixedCount`, where `FixedCount` is a constant integer expression (e.g., 5)
+or a variable that can be converted to the `count` type.  Fixed-count array elements
 will be initialized to the default value of the element type, e.g., 0 for number types.
 
-Under the hood, fixed-size arrays *are* standard arrays, but they will throw for any
-operation that changes the array size.  hm-lang attempts to throw compiler errors where
+Under the hood, fixed-count arrays *are* standard arrays, but they will throw for any
+operation that changes the array count.  hm-lang attempts to throw compiler errors where
 possible (i.e., by deleting methods like `pop` or `append`), but there may be runtime
 errors (e.g., `Array[X] = 3` where `X` is unknown by the compiler).  Like regular arrays,
-fixed-size arrays are zero-indexed, so the first element in a fixed-size array
+fixed-count arrays are zero-indexed, so the first element in a fixed-count array
 `Array` is `Array_0`.
 
-Fixed-size arrays can be passed in without a copy to functions taking
+Fixed-count arrays can be passed in without a copy to functions taking
 an array as an immutable argument, but will be of course copied into a 
 resizable array if the argument is mutable.  Some examples:
 
 ```
-# immutable array of size 4
+# immutable array of count 4
 Int4: int_4 = [-1, 5, 200, 3450]
-# mutable array of fixed-size 3:
+# mutable array of fixed-count 3:
 Vector3; dbl_3 = [1.5, 2.4, 3.1]
 print("Vector3 is {${Vector3_0}, ${Vector3_1}, ${Vector3_2}}")
 
@@ -3232,16 +3239,16 @@ print(doSomething(CopiedArray: Vector3))    # prints [3.1, 2.4]
 print(doSomething(ConstArray: Vector3))     # prints [3.1, 2.4]
 ```
 
-There may be optimizations if the fixed-array size is known at compile-time,
+There may be optimizations if the fixed-array count is known at compile-time,
 i.e., being defined on the stack rather than the heap.  But when the fixed
-size is unknown at compile time, the fixed-size array will be defined on the heap:
+count is unknown at compile time, the fixed-count array will be defined on the heap:
 
 ```
 # note you can use an input argument to define the return type's
-# fixed-array size, which is something like a generic:
+# fixed-array count, which is something like a generic:
 range(Int): int_Int
     assert Int >= 0
-        "can't have a fixed negative-size array"
+        "can't have a fixed negative-count array"
     Result; int_Int
     for I: int < Int
         Result_I = I
@@ -3255,7 +3262,7 @@ print(range(10))    # prints [0,1,2,3,4,5,6,7,8,9]
 In hm-lang:
 
 ```
-fixedSizeArray~t := extend(array~t) {
+fixedCountArray~t := extend(array~t) {
     @hide pop
     @hide insert
     @hide erase
@@ -3265,9 +3272,9 @@ fixedSizeArray~t := extend(array~t) {
     @for (Array;;method) in array~t
         # TODO: update `Call` stuff
         ;;method(Call; method->call): null
-            SizeBefore := size()
+            CountBefore := count()
             Array;;method(Call)
-            assert size() != SizeBefore
+            assert count() == CountBefore
 }
 ```
 
@@ -3275,38 +3282,38 @@ In C++, we might do something like this:
 
 ```
 template <class t>
-class fixedSizeArray {
+class fixedCountArray {
     array<t> Internal;
 public:
     const array<t> *operator -> () const {
         return &Internal;
     }
-    fixedSizeArrayModifier<t> modify() {
-        return fixedSizeArrayModifier<t>(&Internal);
+    fixedCountArrayModifier<t> modify() {
+        return fixedCountArrayModifier<t>(&Internal);
     }
 };
 
 template <class t>
-class fixedSizeArrayModifier {
+class fixedCountArrayModifier {
     array<t> *Internal;
-    count InitialSize;
+    count InitialCount;
 public:
-    fixedSizeArrayModifier(array<t> *Array)
+    fixedCountArrayModifier(array<t> *Array)
     :   Internal(Array),
-        InitialSize(Array->size())
+        InitialCount(Array->count())
     {}
 
-    NO_COPY(fixedSizeArrayModifier)
-    NO_MOVE(fixedSizeArrayModifier)
+    NO_COPY(fixedCountArrayModifier)
+    NO_MOVE(fixedCountArrayModifier)
 
-    ~fixedSizeArrayModifier() {
-        if (Internal->size() != InitialSize) {
-            throw fixedSizeArrayError("Fixed-size array was modified");
+    ~fixedCountArrayModifier() {
+        if (Internal->count() != InitialCount) {
+            throw fixedCountArrayError("Fixed-count array was modified");
         }
     }
 
     array<t> *operator -> () {
-        return &Internal;
+        return Internal;
     }
 };
 ```
@@ -3427,7 +3434,7 @@ map~(key, value) := extend(container~key, container~{Key, Value}, container~valu
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
     ;:_(Key, fn(;:Value?): ~t): t
 
-    ::size(): count
+    ::count(): count
 
     ;;pop(Key): value
 }
@@ -3532,7 +3539,7 @@ set~t := extend(container~t) {
     # returns true if the passed-in element is present in the set.
     ::_(T): bool
 
-    ::size(): count
+    ::count(): count
 
     # add an element to the set:
     ;;+=(T;): null
@@ -3668,7 +3675,7 @@ Or should we define iterators on the container itself?  E.g.,
 array~t := {
     # const iteration, with no-copy if possible:
     ::forEach(fn(T): forLoop): null
-        for Index: index < size()
+        for Index: index < count()
             # use the no-copy getter, here:
             # explicit:
             ForLoop := This_(Index, fn)
@@ -3679,7 +3686,7 @@ array~t := {
 
     # no-copy iteration, but can mutate the array.
     ;;forEach(fn(T;): forLoop): null
-        for Index: index < size()
+        for Index: index < count()
             # do a swap on the value based on the passed in function:
             # explicit:
             ForLoop := This_(Index, fn)
@@ -3690,7 +3697,7 @@ array~t := {
 
     # mutability template for both of the above:
     ;:forEach(fn(;:T): forLoop): bool
-        for Index: index < size()
+        for Index: index < count()
             if fn(;:This_Index) isBreak()
                 return True
         return False
@@ -3916,7 +3923,7 @@ bool := enumerate(
 ```
 
 Enums provide a few extra additional properties for free as well, including the number of
-values that are enumerated via the method `size(): count`, the min and max values
+values that are enumerated via the method `count(): count`, the min and max values
 `min(): index`, `max(): index`, and some convenience methods on any instance of the enumeration.
 
 ```
@@ -3928,17 +3935,17 @@ if Test isTrue()
 if Test isFalse()
     print "test is false!"
 
-# get the size (number of enumerated values) of the enum:
-print "bool has ${bool->size()} possibilities:"
+# get the count (number of enumerated values) of the enum:
+print "bool has ${bool->count()} possibilities:"
 # get the lowest and highest values of the enum:
 print "starting at ${bool->min()} and going to ${bool->max()}"
 ```
 
-Because of this, it is a bit confusing to create an enum that has `Size` as an
+Because of this, it is a bit confusing to create an enum that has `Count` as an
 enumerated value name, but it is not illegal, since we can still distinguish between the
-enumerated value (`enumName->Size`) and total number of enumerated values (`enumName->size()`).
+enumerated value (`enumName->Count`) and total number of enumerated values (`enumName->count()`).
 
-Also note that the `size()` method will return the total number of
+Also note that the `count()` method will return the total number of
 enumerations, not the number +1 after the last enum value.  This can be confusing
 in case you use non-standard enumerations (i.e., with values less than 0):
 
@@ -3949,7 +3956,7 @@ sign := enumerate(
     Positive: 1
 )
 
-print "sign has ${sign->size()} values" # 3
+print "sign has ${sign->count()} values" # 3
 print "starting at ${sign->min()} and going to ${sign->max()}"  # -1 and 1
 
 weird := enumerate(
@@ -3959,7 +3966,7 @@ weird := enumerate(
     Q: 9
 )
 
-print(weird->size())    # prints 4
+print(weird->count())   # prints 4
 print(weird->min())     # prints 1
 print(weird->max())     # prints 9
 ```
@@ -3981,7 +3988,7 @@ option := enumerate(
     NowYouWillBeSadForever
 )
 
-print "number of options should be 7:  ${option->size()}"
+print "number of options should be 7:  ${option->count()}"
 
 Option1 := option->ContentWithLife
 
@@ -4036,7 +4043,7 @@ nonMutuallyExclusiveType := mask(
 # since that makes the number of values and how to lay them out harder to reason about
 
 # has all the same static methods as enum, though perhaps they are a bit surprising:
-nonMutuallyExclusiveType->size() == 16
+nonMutuallyExclusiveType->count() == 16
 nonMutuallyExclusiveType->min() == 0
 nonMutuallyExclusiveType->max() == 15   # = X | Y | Z | T
 
@@ -4126,13 +4133,13 @@ Let's illustrate the problem with an example:
 ```
 # define a re-definable function.  we also allow it to be impure:
 ;;liveItUp(String); index
-    return String size()
+    return String countBytes()
 
 if SomeCondition
     SomeIndex; index = 9
     # redefine:
     ;;liveItUp(String); index
-        return String size() + ++SomeIndex
+        return String countBytes() + ++SomeIndex
 
     print liveItUp("hi")    # this should print 12
     print liveItUp("ok")    # this should print 13
@@ -4153,7 +4160,16 @@ closures (popular in garbage-collected languages) and let them know this is
 not allowed.
 TODO: maybe we want to allow an impure function to "take" a variable into its own
 private scope so that we could return liveItUp here, but that would require some
-new syntax.
+new syntax.  We still wouldn't allow references, however, they'd have to be new
+variables scoped into the function block.  We probably could do something like this:
+```
+if SomeCondition
+    ;;liveItUp(String); index
+        # "@dynamic" means declare once and let changes persist across function invocations.
+        # Note that this functionality cannot be used to store references.
+        @dynamic X; int = 12345
+        return String countBytes() + ++X
+```
 
 You can define variables and use them inside impure functions (either `;;` or `::`),
 but they must be defined *before* the impure function is first declared.  So this
@@ -4162,12 +4178,12 @@ would be allowed:
 ```
 SomeIndex; index = 9
 ;;liveItUp(String); index
-    return String size()
+    return String countBytes()
 
 if SomeCondition
     # redefine:
     ;;liveItUp(String); index
-        return String size() + ++SomeIndex
+        return String countBytes() + ++SomeIndex
 
     print liveItUp("hi")    # this should print 12
     print liveItUp("ok")    # this should print 13
@@ -4202,7 +4218,7 @@ wow(Input->fn(): string): ::(): int
     # otherFn := wow(someFn)
     # print(otherFn()) # 3
     return (): int
-        return Input->fn() size()
+        return Input->fn() countBytes()
 ```
 
 ## the "no pointers" rule
@@ -4260,12 +4276,12 @@ audioCallee := extend(callee~(sample_;)) {
     Frequency; flt = 440
     Phase; flt = 0
 
-    # TODO: find a way to make it clear this is a fixed-size array
-    # but that it doesn't matter what size it is.  in C++, this would
+    # TODO: find a way to make it clear this is a fixed-count array
+    # but that it doesn't matter what count it is.  in C++, this would
     # be a template type, e.g., `sample_~N`, but we don't actually
     # want a templated method here.
     ;;call(Array; sample_): null
-        for Index: index < Array size()
+        for Index: index < Array count()
             # TODO: maybe implicitly use `\\math Pi` inside the `\\math sin` function,
             # but only if `Pi` is not defined elsewhere.  i.e., `\\math` becomes a scope
             # which everything is looked up within.
@@ -4499,7 +4515,7 @@ Grammar := singleton() {
             parentheses(Block)
         ])
         EndOfInput: tokenMatcher(
-            match(Index;, Array: token_) := Index >= Array size()
+            match(Index;, Array: token_) := Index >= Array count()
         )
     ]
 
@@ -4512,7 +4528,7 @@ Grammar := singleton() {
             case grammarElement
                 Elements_GrammarMatcher match(Index;, Array)
             case token
-                Index < Array size() and Array _ Index++ == Grammar Matcher
+                Index < Array count() and Array _ Index++ == Grammar Matcher
         if not Matched
             Index = Snapshot
         return Matched
@@ -4565,7 +4581,7 @@ parentheses := extend(tokenMatcher) {
             return False
 
         # need to ensure that the full content was matched inside the parentheses:
-        if InternalIndex < CurrentToken InternalTokens size()
+        if InternalIndex < CurrentToken InternalTokens count()
             return False
         
         ++Index
@@ -4586,7 +4602,7 @@ repeat := extend(tokenMatcher) {
         tokenMatcher;;reset(Name)
 
     ::match(Index;, Array: token_): bool
-        if Index >= Array size()
+        if Index >= Array count()
             return False
 
         while True
