@@ -42,12 +42,14 @@ the end of the line, and the next lines are only at +1 indent, then we assume an
 is being constructed.  If any `:` or `;` are encountered in what otherwise might be a
 line-continued array, we assume we're creating an object/map.  If the line after an open
 parenthesis is at +2 indent, then we assume we are just continuing the line and not creating
-an array.
+an array.  Note that operators besides parentheses *are ignored* for determining the indent,
+so typical practice is to tab to the operator then tab to the number/symbol you need for
+continuing a line.
 
 ```
 SomeVariable := someVeryLongFunctionNameBecauseItIsGoodToBeSpecific(10)
-        + 3             # indent at +2 ensures that 3 is added into SomeVariable.
-        - OtherVariable # don't keep indenting +2, keep at +2 from original.
+    +   3             # indent at +2 ensures that 3 is added into SomeVariable.
+    -   OtherVariable # don't keep adding more indents, keep at +2 from original.
 
 ArrayVariable := [
     # Array elements are at indent +1 from an open parenthesis, trailing commas optional:
@@ -55,6 +57,7 @@ ArrayVariable := [
     2
     3
     4
+    5
 ]
 
 ObjectVariable := {
@@ -63,7 +66,8 @@ ObjectVariable := {
 }
 
 NotAnArray := (
-        Continuing + The + Line + AtPlus2Indent - (
+        (20 + 45)
+    *   Continuing + The + Line + AtPlus2Indent - (
                 Nested * Parentheses / Are + Ok
                 - Too
         )
@@ -73,11 +77,6 @@ NotAnArray := (
 Note that the close parenthesis must be at the same indent as the line of the open parenthesis.
 The starting indent of the line is what matters, so a close parenthesis can be on the same
 line as an open parenthesis.
-
-If an operator (e.g., `*`, `&`, `+`, `/=`, etc.) begins the line with +Y indent, with Y >= 1,
-and the identifier which follows the operator is at +X indent (where X is greater than Y),
-then the line's indent will be counted from that identifier, i.e., at +X indent, not the
-operator's indent (+Y).  Here we have some +2 indent examples:
 
 ```
 SomeLineContinuationExampleVariable :=
