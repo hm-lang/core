@@ -3361,6 +3361,10 @@ EmployeeIds: int_string = [
 # `EmployeeIds := map~(key: string, value: int) [`
 ```
 
+TODO: can we make this super nice with shorthand?  e.g., `EmployeeIds := int_str $( "Jane": 123 )`,
+or do we need `(int_str)("Jane": 123)`?  similarly for arrays `int_ $[1, 2, 3]` or `(int_)(1, 2, 3)`
+and sets `_int $(10, 20, 30)` or `(_int)(10, 20, 30)`
+
 Maps require a key type whose instances can hash to an integer or string-like value.
 E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array ~dbl`).
 
