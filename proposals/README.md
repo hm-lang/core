@@ -203,7 +203,7 @@ TODO: can we remove `ordinal` in favor of `count`?
 
 ## casting between types
 
-For the most type, hm-lang attempts to make casting between types simple and safe.
+hm-lang attempts to make casting between types convenient and simple.
 However, there are times where it's better to be explicit about the program's intention.
 For example, if you are converting between two numbers, but the number is *not*
 representable in the other type, the run-time will throw an error.  Therefore you'll
@@ -1564,6 +1564,7 @@ wow(Lives: int)?: cat
         Null
 
 # alternative output argument definition
+# TODO: have we gotten rid of -> as an output??
 wow(Lives: int, ->Cat?: cat):
     if Lives == 9
         Cat = cat()
@@ -2191,6 +2192,11 @@ SomeClass;;someMutatingMethod() # also ok
 Note that you can overload a class method with both constant `::` and mutable `;;` versions;
 in that case it's recommended to be explicit and use `::` or `;;` instead of ` ` (member access).
 See the section on member access operators for how resolution of ` ` works in this case.
+TODO: should the following be added or not??
+You can also call a class method via an inverted syntax, e.g., `someMethod(SomeClass)` and
+`someMutatingMethod(SomeClass;)`, with any other arguments to the method added as well.
+This is useful to overload e.g., the printing of your class instance, via defining
+`::print()` as a method, so that `print(SomeClass)` will then call `SomeClass::print()`.
 
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
@@ -3192,6 +3198,8 @@ array~t := extend(container~t, container~{Index, T}) {
     ::sort(): this
 
     # sorts this array in place:
+    # TODO: a nice way to chain, e.g., `Array; int_, ..., X := Array;;sort() chain [0]`
+    # TODO: maybe use `then` instead of `chain`, or some symbols.  `Y := Array;;sort() then [0]`
     ;;sort(): null
     ...
 }
@@ -3367,8 +3375,8 @@ However, we allow casting from these prohibited types to allowed key types.  For
 NameDatabase; string_int
 NameDatabase_123 = "John"
 NameDatabase_124 = "Jane"
-# TODO: probably want to make rounding behavior explicit, e.g., `123.4::round(Stochastically)`:
-print(NameDatabase_123.4)   # prints "John" with 60% probability, "Jane" with 40%.
+print(NameDatabase_123.4)   # RUNTIME ERROR, 123.4 is not representable as an `int`.
+print(NameDatabase_123.4 round(Stochastically))     # prints "John" with 60% probability, "Jane" with 40%.
 
 # note that the definition of the key is an immutable array:
 StackDatabase; string_(int_)    # parentheses are grammatically unnecessary,
@@ -3376,12 +3384,11 @@ StackDatabase; string_(int_)    # parentheses are grammatically unnecessary,
                                 # i.e., `StackDatabase; string_int_` would be ok too.
 StackDatabase_[1,2,3] = "stack123"
 StackDatabase_[1,2,4] = "stack124"
-# TODO: probably need to do something like `[1.0, 2.0, 3.1];;;round(Stochastically)` here,
-# where `;;;` means to loop over elements of array and apply the method on the RHS.
-print(StackDatabase_[1.0, 2.0, 3.1])    # prints "stack123" with 90% probability, "stack124" with 10%
+# prints "stack123" with 90% probability, "stack124" with 10%:
+print(StackDatabase_[1.0, 2.0, 3.1] map($Dbl round(Stochastically))
 # things get more complicated, of course, if all array elements are non-integer.
 # the array is cast to the key type (integer array) first.
-StackDatabase_[2.2, 3.5, 4.8] = "odd"
+StackDatabase_[2.2, 3.5, 4.8] map($Dbl round(Stochastically)) = "odd"
 # result could be stored in [2, 3, 4], [2, 3, 5], [2, 4, 4], [2, 4, 5],
 #                           [3, 3, 4], [3, 3, 5], [3, 4, 4], [3, 4, 5]
 # but the key is decided first, then the map is added to.
