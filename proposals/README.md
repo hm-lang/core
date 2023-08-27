@@ -243,9 +243,9 @@ throw an error.
 ## types of types
 
 Every variable has a reflexive type which describes the object/primitive that is held
-in the variable.  This can be accessed via the `::Is` field on instances, and the `->Is`
+in the variable.  This can be accessed via the `Is` field on instances, and the `->Is`
 field on functions/classes.  If comparing against a known type, i.e., to check if some
-variable is an integer, it is highly recommended to use the `::is` method, e.g., 
+variable is an integer, it is highly recommended to use the `is` method, e.g., 
 
 ```
 X; dbl|int = 4
@@ -285,7 +285,7 @@ pointing to the vtable for the class.
 is~t := {
     # Type instances have a `new` method which allows you to construct an
     # instance of the class.
-    ::new(...Args): t
+    new(This, ...Args): t
 }
 ```
 
@@ -307,15 +307,9 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           |   `{}`    | parentheses               | grouping: `{A}`   |               |
 |           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
-|           |   `::`    | const prefix              | unary:  `::A`     |               |
-|           |   `;;`    | mutable prefix            | unary:  `;;A`     |               |
-|           |   `;:`    | mutability template       | unary:  `;:A`     |               |
 |   1       |   ` `     | function call             | on fn: `a B`      | RTL           |
 |   2       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
-|           |   `:>`    | read-only class variable  | binary: `A:>B`    |               |
-|           |   `;>`    | writeable class variable  | binary: `A;>B`    |               |
-|           |   `->`    | new output argument name  | unary:  `->A`     |               |
 |           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
@@ -395,13 +389,14 @@ no field value (i.e, a null field value).  In addition, `X_someFunction 3` would
 `(X_someFunction)[3]`, which is almost certainly not what is desired, unless `X` is a map with
 *function* keys.
 
-## new-namespace `->` or class-scope operators `->`, `:>`, and `;>`
+## new-namespace or class-scope operator `->`
 
 The operator `->` can be used in three ways: (1) as a unary operator for an output-only argument
 name in a function declaration or function call, (2) for creating default-named variables in a
 new/existing namespace, and (3) as an indicator for class scoping for static/class functions.
 
 We'll discuss more in the function-call section, but here are some examples of (1):
+TODO: do we want to keep this?
 
 ```
 # function declaration + definition, uses `Output` as an output variable via `->Output`.
@@ -443,9 +438,8 @@ as long as the variable names don't overlap.  You can also use the namespace ope
 of functions to declare new variables, but its utility is mostly to avoid argument renaming.
 Like the member access operators below, the namespace operator binds left to right.
 
-For the final way (3), we use `->` for class functions, and `:>` and `;>` work here as well but for
-impure class functions.  Class functions are like "static" class methods in C++, and here
-are some examples:
+For the final way (3), we use `->` for class functions.  Class functions are like "static"
+class methods in C++, and here are some examples:
 
 ```
 exampleClass := {
@@ -455,14 +449,14 @@ exampleClass := {
         return Y!
 
     # this function does not require an instance, and cannot use instance variables,
-    # but it can read (but not write) global variables (or other files) due to `:>`:
-    :>someStaticImpureFunction(): int
+    # but it can read (but not write) global variables (or other files):
+    ->someStaticImpureFunction(): int
         YString := read(File: "Y")
         return int(?YString) ?? 7
 
     # this function does not require an instance, and cannot use instance variables,
-    # but it can read/write global variables (or other files) due to `;>`:
-    ;>someStaticImpureFunctionWithSideEffects(Y: int): null
+    # but it can read/write global variables (or other files):
+    ->someStaticImpureFunctionWithSideEffects(Y: int): null
         write(Y, File: "Y")
 }
 ```
@@ -500,9 +494,11 @@ SomeClass;;I[7] = "no problem"
 
 For class methods, `;;` (`::`) selects the overload that mutates (keeps constant) the class
 instance, respectively.  For example, the `array` class has overloads for sorting, (1) which
-does not change the instance but returns a sorted copy of the array (`::sort(): this`), and
-(2) one which sorts in place (`;;sort(): null`).  The ` ` (member access) operator will use
-`::` if the LHS is an immutable variable or `;;` if the LHS is mutable.  Some examples in code:
+does not change the instance but returns a sorted copy of the array (`sort(This): this`), and
+(2) one which sorts in place (`sort(This;): null`).  The ` ` (member access) operator will use
+`This:` if the LHS is an immutable variable or `This;` if the LHS is mutable.  Some examples in code:
+TODO: consider switching to `Me: me` from `This` for brevity.  `I` is too short and conflicts
+with common range usage (`for I: int < 3`).
 
 ```
 # there are better ways to get a median, but just to showcase member access:
@@ -546,7 +542,7 @@ since it has higher priority.  E.g., `Array_someFunction 3` becomes `Array_(some
 The operator `!` is always unary (except when combined with equals for not equals,
 e.g., `!=`).  It can act as a prefix operator "not", e.g., `!A`, pronounced "not A",
 or a postfix operator on a variable, e.g., `Z!`, pronounced "Z mooted".  In the first
-example, prefix `!` calls the `::!This: bool` method defined on `A`, which creates a
+example, prefix `!` calls the `!This: bool` method defined on `A`, which creates a
 temporary value of the boolean opposite of `A` without modifying `A`.  In the second
 case, it calls a built-in method on `Z`, which moves the current data out of `Z` into
 a temporary instance of whatever type `Z` is, and resets `Z` to a blank/default state.
@@ -555,7 +551,7 @@ should follow the rule that, after e.g., `Z!`, checking whether `Z` evaluates to
 i.e., by `!Z`, should return true.
 
 Note, it's easier to think about positive boolean actions sometimes than negatives,
-so we allow defining either `::!!This: bool` or `::!This: bool` on a class, the former
+so we allow defining either `!!This: bool` or `!This: bool` on a class, the former
 allowing you to cast a value, e.g., `A`, to its positive boolean form `!!A`, pronounced
 "not not A."  Note, you cannot define both `!` and `!!` overloads for a class, since
 that would make things like `!!!` ambiguous.
@@ -741,7 +737,7 @@ returned instead (and the method will not be called).
 
 ```
 # define a class with a method called `someMethod`:
-someClass := { ::someMethod(): int }
+someClass := { someMethod(This): int }
 
 Nullable?; someClass = Null
 
@@ -1063,11 +1059,11 @@ q(() := True)
 
 # or you can do multiline with a name-omitted lambda:
 X; bool
-q(::():
+q(():
     return X
 )
-# equivalent to `q(::() := X)`
-# also equivalent to `q(::(): ${X})`
+# equivalent to `q(() := X)`
+# also equivalent to `q((): ${X})`
 ```
 
 ### constant versus mutable arguments
@@ -1230,13 +1226,13 @@ e.g., `@mutable`/`@immutable` to determine if the variable is mutable or not.
 myClass~t := {
     X; t
 
-    ;;take(X; t):
+    take(This;, X; t):
         This X = X!
-    ;;take(X: t):
+    take(This;, X: t):
         This X = X
 
     # maybe something like this?
-    ;;take(X;: t):
+    take(This;:, X;: t):
         This X = @mootOrCopy X
         # TODO: how complicated should the preprocessor be?  maybe `@if(@mutable Z, Z!, Z)` might be better.
         # `@mootOrCopy Z` can expand to `@if @mutable Z ${Z!} @else ${Z}`
@@ -1251,11 +1247,11 @@ myClass~t := {
     X; t
 
     # these are added automatically by the compiler since `X; t` is defined.
-    ;;x(T; t): ${ This X<->T }
-    ;;x(T: t): ${ This X = T }
+    x(This;, T; t): ${ This X<->T }
+    x(This;, T: t): ${ This X = T }
 
     # so `take` would become:
-    ;;take(X;: t):
+    take(This;:, X;: t):
         x(This->X;:)
 }
 ```
@@ -1350,7 +1346,7 @@ someFunction(X?: someNullishFunction())  # REQUIRED since someNullishFunction ca
 someFunction(X: someNullishFunction())   # ERROR! someNullishFunction is nullable, need `X?:`.
 
 # where someNullishFunction might look like this:
-::someNullishFunction()?: int
+someNullishFunction()?: int
     return if SomeCondition $( Null ) else $( 100 )
 ```
 
@@ -1641,7 +1637,7 @@ call := {
     # TODO: maybe rethink how `if` statements can work with block parentheses `$( ... )`
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
-    ;;io(~Name!; ~t): null
+    io(This;, ~Name!; ~t): null
         This Output_@Name = t()
         This Input_@Name = Name!
 }
@@ -1865,15 +1861,15 @@ Some examples:
 ```
 # creating an optional method in a class:
 parent := {
-    ;;reset(This X: dbl, This Y: dbl) := Null
+    reset(This;, This X: dbl, This Y: dbl) := Null
 
-    ::optionalMethod?(Z: dbl); int
+    optionalMethod?(This, Z: dbl); int
 }
 
 Example ;= parent(X: 5, Y: 1)
 
 # define your own function for optionalMethod:
-Example optionalMethod(Z: dbl); int
+Example optionalMethod(This, Z: dbl); int
     return floor(Z * This X)
 
 Example optionalMethod(2.15)    # returns 10
@@ -1885,7 +1881,7 @@ Example optionalMethod(3.21)    # returns Null
 
 # child classes can define a "method" that overrides the parent's optional function:
 child := extend(parent) {
-    ::optionalMethod(Z: dbl); int
+    optionalMethod(This, Z: dbl); int
         return ceil(This X * This Y * exp(-Z))
 }
 
@@ -2099,19 +2095,15 @@ Functions that are completely deterministic based on their inputs are called pur
 whereas functions with side effects, i.e., relying on memory in other locations to determine
 the result, or modifying some memory elsewhere when executed, are not pure.  (External memory
 in this situation means memory corresponding to variables not passed in to the function,
-or memory in other locations, e.g., on the hard disk.)  Pure functions are defined with the
-syntax `functionName(...Args): returnType`, whereas impure functions *must be defined* with a
-preceding `;;` if they modify memory outside themselves or `::` if they access memory for
-reading but not writing.  Of course, `;;` functions can also read external memory as well.
+or memory in other locations, e.g., on the hard disk.)  Earlier proposals of hm-lang distinguished
+between these types of functions notationally, but this is no longer required.
 
 For examples of pure functions: `fn(X: dbl) := X^2` is pure, as well as most mathematical
 functions (`sin`, `cos`, `atan`, etc.).
 
 Examples of impure functions include reading data from a file, which is non-deterministic,
-since another program or thread could have modified the file in between reads.  Such a function
-would be preceded with `::` since it does not modify the file data, e.g., 
-`::read(File): string`, whereas a function that writes data to a file could be
-`;;write(File, String): null` to indicate the function can modify memory outside itself.
+since another program or thread could have modified the file in between reads, e.g., `read(File): string`.
+A function which writes data to a file could be `write(File, String): null`
 Random functions are of course impure as well.  Class methods are considered impure,
 since they use data within the class instance to determine the result of the function call.
 
@@ -2129,7 +2121,7 @@ check(fn(Int): bool, Int): int
 exampleClass := {
     CheckTimes: int
 
-    ;;someMethod(Int): bool
+    someMethod(This;, Int): bool
         ++This CheckTimes
         return (This CheckTimes % 2) >< (Int % 2)
 }
@@ -2173,13 +2165,14 @@ variables, and functions defined within the class body can have three types:
 methods in C++), and (3) instance functions.
 
 Class methods (1) can access instance variables and call other class methods,
-and must be defined with a `::` or `;;` prefixed on the function name.
+and require a `This: this` or `This; this` argument to indicate that it's an instance method.
 Mutating methods -- i.e., that modify the class instance, `This`, i.e., by modifying
-its values/variables -- must be defined with a `;;` before the method name.
-Non-mutating methods must be defined with `::` and can access variables but not modify them.
-We'll use the notation `someClass;;someMutatingMethod()` to refer to mutating methods
-and `someClass::someMethod()` to refer to non-mutating methods.  Calling a class
-method does not require the `;;` or `::` prefix, but it is allowed, e.g.,
+its values/variables -- must be defined with `This;` in the arguments.
+Non-mutating methods must be defined with `This:` and can access variables but not modify them.
+We'll use the notation `SomeClass;;someMutatingMethod()` to refer to mutating methods
+and `SomeClass::someMethod()` to refer to non-mutating methods, with an implicit `This` due
+to the class instance `SomeClass` being present.  Calling a class method does not require
+the `;;` or `::` prefix, but it is allowed, e.g.,
 
 ```
 SomeClass ;= someClass("hello!")
@@ -2195,8 +2188,8 @@ See the section on member access operators for how resolution of ` ` works in th
 You can also call a class method via an inverted syntax, e.g., `someMethod(SomeClass)` and
 `someMutatingMethod(SomeClass;)`, with any other arguments to the method added as well.
 This is useful to overload e.g., the printing of your class instance, via defining
-`::print()` as a method, so that `print(SomeClass)` will then call `SomeClass::print()`.
-Similarly, you can do `count(SomeClass)` if `SomeClass` has a `::count()` method, which
+`print(This)` as a method, so that `print(SomeClass)` will then call `SomeClass::print()`.
+Similarly, you can do `count(SomeClass)` if `SomeClass` has a `count(This)` method, which
 all container classes have.  This also should work for multiple argument methods, since
 `Array swap(Index1, Index2)` can easily become `swap(Array, Index1, Index2)`.
 TODO: Double check that the above is ok, but it seems helpful.  Need to check for if
@@ -2206,40 +2199,36 @@ e.g., add an `@noOrder` annotation.
 
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
-TODO: maybe switch class functions to `_`, `_::` and `_;;` so we allow `->` for output variables.
+Class functions (2) can't depend on the instance, i.e., `This`, and are declared using
+the operator `->`.  They are called with the syntax `someClass->someClassFunction(...Args)`.
 
-Class functions (2) can't depend on any instance variables, and are declared using one
-of the operators `->`, `:>`, or `;>`, depending on whether the function is pure, impure (read only),
-or impure (read/write).  They are called with the syntax `someClass->somePureStaticFunction(...Args)`,
-`someClass:>someReadOnlyImpureStaticFunction(...Args)`, and similarly for `;>` (impure read/write).
-Like with pure/impure functions and methods, accessing global-scoped variables for reading requires
-being declared with `:>`, or ';>` if global variables need to be read/write.
-TODO: we probably can allow calling using `->` at all times, but it might be good to be specific
-with `:>` and `;>`.
-
-Instance functions (3) must be pure functions; they can't depend on any instance variables,
-but they can be different from instance to instance.  They are defined without `;;`, `::`,
-`->`, `:>`, or `;>`, and they cannot be overridden by child classes but they can be overwritten.  I.e.,
+TODO: do we want to get rid of these?  or can we make the class-function/instance-function more distinct?
+```
+# TODO, WIP
+someClass := { instanceFunction(#( no This )#): r1, method(This, ...Args): r2 }
+someClass->someStaticFunction(): null
+someClass->otherMethod(This, ...Args): r3
+```
+Instance functions (3) must be pure functions so that they can be copied freely;
+they can't depend on any instance variables, but they can be different from instance to instance.
+They cannot be overridden by child classes but they can be overwritten.  I.e.,
 if a child class defines the instance function of a parent class, it overwrites the parent's
 instance function; calling one calls the other.
 
-Class constructors are methods (1) which are defined using `;;reset(Args...)`,
+Class constructors are methods (1) which are defined using `reset(This;, Args...)`,
 which also allow you to reset the class instance as long as the variable is mutable.
-The first `;;reset` method defined in the class is also the default constructor,
+The first `reset` method defined in the class is also the default constructor,
 which will be called with default-constructed arguments (if any) if a default
-instance of the class is needed.  It is a compiler error if a `;;reset()` method
-(with no arguments) is defined after other `;;reset` methods (with arguments).
+instance of the class is needed.  It is a compiler error if a `reset(This;)` method
+(with no arguments besides `This;`) is defined after other `reset` methods (with arguments).
 
 When defining methods or functions of all kinds, note that you can use `this`
-to refer to the current class instance type.  Because `MyClass::print()` is equivalent
-to `print(MyClass)`, we also don't allow a default-named `this` variable inside of any
-class methods, since that is already assumed present.  E.g.,
+to refer to the current class instance type.  E.g.,
 
 ```
 myClass := {
-    ::myMethod(This: this): int # ERROR! method already uses `This` internally.
-    
-    ::copy(): this  # OK
+    copy(This): this  # OK
+        return this(This)   # or fancier copy logic
 }
 ```
 
@@ -2247,8 +2236,6 @@ Inside a class method, you must use `This` to refer to any other instance variab
 e.g., `This X` or `This someMethod()`, so that we can disambiguate calling a global function
 that might have the same name as our class instance method, or using a global variable that
 might have the same name as a class instance variable.
-TODO: should we switch to pythonic `::someMethod(This, ...)` so that we can get rid of the weird
-static/class function definitions `;>`, `:>`, and `->` ??
 
 TODO: do we need "block parentheses" notation here, e.g., `${`?  i don't think so, because
 `${` should only be required for places where a parentheses can mean something else.
@@ -2263,18 +2250,18 @@ exampleClass := {
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `reset` function.  this is true even
     # if the class instance variables are defined as immutable.
-    ;;reset(X; int): null
+    reset(This;, X; int): null
         This X = X!
-    # or short-hand: `;;reset(This X; int) := Null`
+    # or short-hand: `reset(This;, This X; int) := Null`
     # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
 
     # class methods can be defined as well.
     # this one does not change the underlying instance:
-    ::doSomething(Int): int
+    doSomething(This, Int): int
         return This X + Int
 
     # this method mutates the class instance, so it is prefaced with `;;`:
-    ;;addSomething(Int): null
+    addSomething(This;, Int): null
         This X += Int
 
     # this pure function does not require an instance, and cannot use instance variables:
@@ -2283,19 +2270,19 @@ exampleClass := {
         return Y!
 
     # this function does not require an instance, and cannot use instance variables,
-    # but it can read/write global variables (or other files) due to `;>`:
-    ;>someStaticImpureFunctionWithSideEffects(Y: int): null
+    # but it can read/write global variables (or other files):
+    ->someStaticImpureFunctionWithSideEffects(Y: int): null
         write(Y, File: "Y")
 
     # this function does not require an instance, and cannot use instance variables,
-    # but it can read (but not write) global variables (or other files) due to `:>`:
-    :>someStaticImpureFunction(): int
+    # but it can read (but not write) global variables (or other files):
+    ->someStaticImpureFunction(): int
         YString := read(File: "Y")
         return int(?YString) ?? 7
 
     # class instance functions can be defined here; this is a *pure function*
     # that cannot depend on instance variables, however.  it can be set 
-    # individually for each class instance, unlike a static class function (`->`, `:>`, and `;>`).
+    # individually for each class instance, unlike a static class function.
     somePureFunction(): null
         print("hello!")
 }
@@ -2317,7 +2304,7 @@ class functions to create new instances of the class.  This is because named fie
 are self descriptive and don't require named static functions for readability.
 E.g., instead of `MyDate := dateClass->fromIsoString("2020-05-04")`, just use
 `MyDate := dateClass(IsoString: "2020-05-04")` and define the
-`;;reset(IsoString: string)` method accordingly.
+`reset(This;, IsoString: string)` method accordingly.
 
 
 ## unicode/localization support
@@ -2368,8 +2355,8 @@ file as the class definition*.  Non-friends are not able to access or modify pri
 The privacy for methods on a class follows the same table.
 Using the method depends on visibility as well
 as if the method modifies the class or not, i.e., whether the method was
-defined as `This;;mutatingMethod(): returnType`
-or `This::nonMutatingMethod(): returnType`.  Mutating methods follow the "mutate"
+defined as `mutatingMethod(This;): returnType`
+or `nonMutatingMethod(This): returnType`.  Mutating methods follow the "mutate"
 visibility in the table above, and non-mutating methods follow
 the "access" visibility in the table above.
 
@@ -2381,7 +2368,7 @@ modify the class instance can only be called by module functions, and
 constant methods can be called by friends.
 
 Note that reassignable methods, e.g., those defined with
-`::someConstantMethod(...Args); returnType` or `;;someMutatingMethod(...Args); returnType`
+`someConstantMethod(This, ...Args); returnType` or `someMutatingMethod(This;, ...Args); returnType`
 can only be reassigned based on their visibility as if they were variables.
 I.e., public reassignable methods can be reassigned by anyone,
 protected reassignable methods can be reassigned by friends or module,
@@ -2422,28 +2409,28 @@ example := {
     # getter: calls an external function with X, which can
     #         avoid a copy if the function argument is immutable.
     @visibility
-    ::x(fn(Str): ~t) := fn(This X)
+    x(This, fn(Str): ~t) := fn(This X)
 
     # copy.  returns a copied value of `X`.  this method
     # has lower priority than the no-copy getter above.
     @visibility
-    ::x() := This X
+    x(This) := This X
 
     # move+reset (moot)
     @visibility
-    ;;x()!: str
+    x(This;)!: str
         return This X!
 
     # swapper: swaps the value of X with whatever is passed in
     #          returns the old value of X.
     @visibility
-    ;;x(Str;):
+    x(This;, Str;):
         This X <-> Str
 
     # modifier: allows the user to modify the value of X
     #           without copying it, using references.
     @visibility
-    ;;x(fn(Str;): ~t) := fn(This X;)
+    x(This;, fn(Str;): ~t) := fn(This X;)
 }
 W = example()
 W x(fn(Str;)
@@ -2463,12 +2450,12 @@ and modifier classes.
 ```
 # a class with a copy method gets a getter method automatically:
 justCopyable := {
-    ::someVar(): int
+    someVar(This): int
         return 1000
 
     #{#
     # the following becomes automatically defined:
-    ::someVar(fn(Int): ~t): t
+    someVar(This, fn(Int): ~t): t
         SomeVar := This someVar()
         return fn(SomeVar)
     #}#
@@ -2479,11 +2466,11 @@ justGettable := {
     @invisible
     SomeVar; int
 
-    ::someVar(fn(Int): ~t) := fn(This SomeVar)
+    someVar(This, fn(Int): ~t) := fn(This SomeVar)
 
     #{#
     # the following becomes automatically defined:
-    ::someVar(): int
+    someVar(This): int
         return This someVar(fn(Int) := Int)
     #}#
 }
@@ -2494,7 +2481,7 @@ justSwappable := {
     SomeVar; int
 
     @visibility
-    ;;someVar(Int;): null
+    someVar(This;, Int;): null
         This SomeVar <-> Int
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers.  a default-constructed
@@ -2505,7 +2492,7 @@ justSwappable := {
 
     #(#
     # the following modifier becomes automatically defined:
-    ;;someVar(fn(Int;): ~t): t
+    someVar(This;, fn(Int;): ~t): t
         Temporary; int
         # swap SomeVar into Temporary:
         This someVar(Temporary;)    # could also write `This SomeVar <-> Temporary`
@@ -2515,7 +2502,7 @@ justSwappable := {
         return T!
 
     # and the following move+reset method becomes automatically defined:
-    ;;someVar()!: t
+    someVar(This;)!: t
         Temporary; int
         # swap SomeVar into Temporary:
         This someVar(Temporary;)    # could also write `This SomeVar <-> Temporary`
@@ -2528,7 +2515,7 @@ justModdable := {
     @invisible
     SomeVar; int
 
-    ;;someVar(fn(Int;): ~t): t
+    someVar(This;, fn(Int;): ~t): t
         T := fn(This SomeVar;)
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers
@@ -2536,15 +2523,15 @@ justModdable := {
 
     #(#
     # the following swapper becomes automatically defined:
-    ;;someVar(Int;): null
-        This someVar(;;(Old->Int;): null
+    someVar(This;, Int;): null
+        This someVar((Old->Int;): null
             Int <-> Old->Int
         )
 
     # and the following move+reset method becomes automatically defined:
-    ;;someVar()!: t
+    someVar(This;)!: t
         Result; int
-        This someVar(;;(Int;): null
+        This someVar((Int;): null
              Result <-> Int
         )
         return Result!
@@ -2571,30 +2558,30 @@ is a child class.  E.g., a parent class method can return a `this` type instance
 and using the method on a subclass instance will return an instance of the subclass.
 
 We can access member variables or functions that belong to that the parent type,
-i.e., without subclass overloads, using the syntax `parentClassName::Variable` or
-`parentClassName::someMethod()`.  Use `;;` to access variables or methods that will
-mutate the underlying class instance, e.g., `parentClassName;;Variable = 3`.
+i.e., without subclass overloads, using the syntax `parentClassName->variable(This)` or
+`parentClassName->someMethod(This)`.  Use `This;` to access variables or methods that will
+mutate the underlying class instance, e.g., `parentClassName->variable(This;, 3)`.
 
 Some examples:
 
 ```
 animal := {
-    ;;reset(This Name: string): null
+    reset(This;, This Name: string): null
 
     # define two methods on `animal`: `speak` and `go`.
     # these are "abstract" methods, i.e., not implemented by this base class.
-    ::speak(): null
-    ::goes(): string
+    speak(This): null
+    goes(This): string
 
     # this method is defined, so it's implemented by the base class.
     # derived classes can still change it, though.
-    ::escape(): null
+    escape(This): null
         print "${This Name} ${This goes()} away!!"
 
     # a method that returns an instance of whatever the class instance
     # type is known to be.  e.g., an animal returns an animal instance,
     # while a subclass would return a subclass instance:
-    ::clone(): this
+    clone(This): this
         return this(This Name)
 }
 
@@ -2602,9 +2589,9 @@ snake := extend(animal) {
     # if no `reset` functions are defined,
     # child classes will inherit their parent `reset()` methods.
 
-    ::speak(): null
+    speak(This): null
         print "hisss!"
-    ::goes(): string
+    goes(This): string
         return "slithers"
 
     # no need to override `clone`, since we can create a snake using a name.
@@ -2616,20 +2603,20 @@ Snake escape()  # prints "Fred slithers away!!"
 cat := extend(animal) {
     # here we define a `reset` method, so the parent `reset` methods
     # become hidden to users of this child class:
-    ;;reset(): null
+    reset(This;): null
         # can refer to parent methods using class name:
-        animal;;reset(Name: "Cat-don't-care-what-you-name-it")
+        animal->reset(This;, Name: "Cat-don't-care-what-you-name-it")
 
-    ::speak(): null
+    speak(This): null
         print "hisss!"
-    ::goes(): string
+    goes(This): string
         return "saunters"
 
-    ::escape(): null
+    escape(This): null
         print "CAT ESCAPES DARINGLY!"
 
     # the parent `clone()` method won't work, so override:
-    ::clone(): this
+    clone(This): this
         # cats are essentially singletons, that cannot have their own name;
         return this()
 }
@@ -2646,24 +2633,22 @@ All abstract methods must be defined for the instance to be created, and if a
 ```
 WeirdAnimal := animal(
     Name: "Waberoo"
-    ::speak(): null
+    speak(This): null
         print "Meorooo"
-    ::goes() := "meanders"
-    ::escape(): null
+    goes(This) := "meanders"
+    escape(This): null
         # to call the parent method `escape()` in here, we can use this:
-        animal::escape()
+        # TODO: can we switch to `animal.escape` here?
+        # or even `animal escape` and always require functions to use parentheses to be considered called?
+        # TODO: we could make static functions simpler, too, not requiring `->`
+        animal->escape(This)
         print "${Name} ${goes()} back..."
         # or we can use this:
-        animal::escape()
+        animal->escape(This)
 )
 
 WeirdAnimal escape()    # prints "Waberoo ... meanders ... meanders back ... meanders away!!"
 ```
-
-TODO: explain that lambda functions that are defined as methods on the class
-can use the `This` of the class, but they must be declared as `;;someLambdaMethod(...Args); returnType`
-if they want to call any modifying methods of the class or change any instance variables
-and `::someLambdaMethod(...Args); returnType` to use other const methods or const variables.
 
 ## inheritance and dynamic allocation
 
@@ -2731,9 +2716,9 @@ You can define methods on your class that work for a variety of types.
 ```
 someExample := {
     Value: int
-    ;;reset(Int): null
+    reset(This;, Int): null
         This Value = Int
-    ::to(): ~t
+    to(This): ~t
         return t(This Value)
 }
 
@@ -2758,7 +2743,7 @@ from a parent which is a generic/template class.
 ```
 # create a class with two generic types, `key` and `value`:
 genericClass~(key, value) := {
-    ;;reset(This Key: key, This Value: value): null
+    reset(This;, This Key: key, This Value: value): null
 }
 # also equivalent:
 # genericClass := (This Key: ~key, This Value: ~value)
@@ -2780,7 +2765,7 @@ functions into the method which know how to handle the other data.
 generic~t := {
     Value; t
 
-    ::method(U: ~u): u
+    method(This, U: ~u): u
         OtherT: t = This Value * (U + 5)
         return U + OtherT
 }
@@ -2829,11 +2814,11 @@ public:
 
 All classes have a few compiler-provided methods which cannot be overridden.
 
-* `;;!: this` creates a temporary with the current instance's values, while
+* `This;!: this` creates a temporary with the current instance's values, while
     resetting the current instance to a default instance -- i.e., calling `reset()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
-* `::Is: is` provides the class type.  This makes it easy to determine
+* `Is: is` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
     TODO: we should probably make this `is` instead of `Is`
     TODO: discuss how `consider`'s `case` statements cast their arguments
@@ -2860,16 +2845,16 @@ All classes have a few compiler-provided methods which cannot be overridden.
 ## adding methods to existing classes
 
 You can declare and define methods in classes with the standard syntax,
-e.g., `someClass := {::someMethod(Int): string}`.  But you can also define
+e.g., `someClass := {someMethod(This, Int): string}`.  But you can also define
 new methods on a class outside of the class definition, even in a different file.
 For example:
 
 ```
 #=== some-class.hm ===
 someClass := {
-    ;;reset(@private This Str: str): null
+    reset(This;, @private This Str: str): null
 
-    ::someMethod(Int): string
+    someMethod(This, Int): string
         return This Str * Int
 }
 
@@ -2877,9 +2862,9 @@ someClass := {
 {someClass} := \/some-class
 
 # define a new method on `someClass` from some-class.hm
-someClass::newMethod(String): int
+someClass->newMethod(This, String): int
     for Int: int < 100
-        if someClass::existingMethod(Int) == String
+        if someClass->existingMethod(This, Int) == String
             return Int
     return -1
 
@@ -2908,7 +2893,7 @@ singletons use `UpperCamelCase` since they are defining the variable and what it
 ```
 AwesomeService := singleton(parentClass1, parentClass2, #[etc.]#) {
     UrlBase := "http://my/website/address.bazinga"
-    ::get(Id: string): awesomeData 
+    get(This, Id: string): awesomeData 
         Json := Http get("${This UrlBase}/awesome/${Id}") 
         return awesomeData(Json)
 }
@@ -2921,16 +2906,16 @@ the parent class reference.
 ```
 ### screen.hm ###
 screen := singleton() {
-    ;;draw(Image, Vector2): null
-    ;;clear(Color := color->Black)
+    draw(This;, Image, Vector2): null
+    clear(This;, Color := color->Black)
 }
 ### implementation/sdl-screen.hm ###
 SdlScreen := singleton(\/../screen screen) {
-    ;;draw(Image, Vector2): null
+    draw(This;, Image, Vector2): null
         # actual implementation code:
         This SdlSurface draw(Image, Vector2)
 
-    ;;clear(Color := color->Black)
+    clear(This;, Color := color->Black)
         This SdlSurface clear(Color)
 }
 ### some-other-file.hm ###
@@ -2965,14 +2950,14 @@ Aliases can also be used for more complicated logic and even deprecating code.
 
 ```
 myClass := {
-    ;;reset(This X; int) := null
+    reset(This;, This X; int) := null
 
     # This was here before...
-    # ;;myDeprecatedMethod(DeltaX: int): null
+    # myDeprecatedMethod(This;, DeltaX: int): null
     #     This X += DeltaX
 
     # But we're preferring direct access now:
-    @alias ;;myDeprecatedMethod(DeltaX: int): null
+    @alias myDeprecatedMethod(This;, DeltaX: int): null
         This X += DeltaX
 }
 
@@ -3007,10 +2992,10 @@ to invoke logic from these external files.
 ```
 # vector2.hm
 vector2 := {
-    ;;reset(This X: dbl, This Y: dbl): null
+    reset(This;, This X: dbl, This Y: dbl): null
 
     @noOrder
-    ::dot(Vector2: vector2) := This X * Vector2 X + This Y * Vector2 Y
+    dot(This, Vector2: vector2) := This X * Vector2 X + This Y * Vector2 Y
 }
 
 # main.hm
@@ -3054,7 +3039,6 @@ correctly becomes like `File someFunction(Q)` for `File := \/relative/import/fil
 ## file access / file system
 
 TODO: how does file access work with the reference pattern
-E.g., we need to make sure that functions which access the file system are declared with `;;` or `::`.
 
 # errors and asserts
 
@@ -3119,14 +3103,14 @@ TODO: try/catch/finally
 
 ```
 container~t := {
-    ;;insert(T): null
+    insert(This;, T): null
 
     # returns true iff the element was present in the container before being removed:
-    ;;remove(T): bool
+    remove(This;, T): bool
 
-    ::contains(T): bool
+    contains(This, T): bool
 
-    ::count(): count
+    count(This): count
 }
 ```
 
@@ -3175,25 +3159,28 @@ array~t := extend(container~t, container~{Index, T}) {
     # swapper, sets the value at the index, returning the old value in the reference.
     # if the swapped in value is Null but the array value wasn't Null, the array
     # will shrink by one, and all later indexed values will move down one index.
-    ;;_(Index, T?;): null
+    _(This;, Index, T?;): null
 
-    ::!!This: bool
+    # TODO: make sure the notation works well here and for moot
+    !!(This): bool
         return This count() > 0
+
+    (This;)!: bool
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the index into the passed-in function by reference (`;`).
     # if Index >= the current count(), then the array count is increased (to Index + 1)
     # and filled with default values so that a valid reference can be passed into the callback.
-    ;;_(Index, fn(T;): ~u): u
+    _(This;, Index, fn(T;): ~u): u
 
     # getter, which returns a Null if index is out of bounds of the array:
-    ::_(Index, fn(T?): ~u): u
+    _(This, Index, fn(T?): ~u): u
 
     # getter, which never returns Null, but will throw if index is out of bounds of the array:
-    ::_(Index, fn(T): ~u): u
+    _(This, Index, fn(T): ~u): u
 
     # Note: You can use the `;:` const template for function arguments.
-    # e.g., `myArray~t := extend(array~t) ${ ;:_(Index, fn(T;:): ~u) := array;:(Index, fn) }`
+    # e.g., `myArray~t := extend(array~t) ${ _(This;:, Index, fn(T;:): ~u) := array->(This;:, Index, fn) }`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`T?;`) is null, but you switch to
@@ -3201,27 +3188,27 @@ array~t := extend(container~t, container~{Index, T}) {
     # in between, if necessary).  if you set the reference to Null and it wasn't
     # Null before, then the array will shrink by one, and all later index values
     # will move down one.
-    ;;_(Index, fn(T?;): ~u): u
+    _(This;, Index, fn(T?;): ~u): u
 
     # non-nullable modifier, which will increase the count of the array (with default values)
     # if you are asking for a value at an index out of bounds of the array.
-    ;;_(Index, fn(T;): ~u): u
+    _(This;, Index, fn(T;): ~u): u
 
-    ::count(): count
+    count(This): count
 
-    ;;append(T): null
+    append(This;, T): null
 
-    ;;pop(Index: index = -1): t
+    pop(This;, Index: index = -1): t
 
     # returns a copy of this array, but sorted:
-    ::sort(): this
+    sort(This): this
 
     # sorts this array in place:
     # TODO: a nice way to chain, e.g., `Array; int_, ..., X := Array;;sort() chain [0]`
     # TODO: maybe use `then` instead of `chain`, or some symbols.  `Y := Array;;sort() then [0]`
     #       or maybe use `self` as the return type, e.g., `;sort(): self` and hm-lang will
     #       automatically add the `return This` as a reference type.
-    ;;sort(): null
+    sort(This;): null
     ...
 }
 ```
@@ -3298,11 +3285,11 @@ fixedCountArray~t := extend(array~t) {
     @hide append
     @hide shift
     # TODO: double check this syntax.
-    @for (Array;;method) in array~t
+    @for method in mutators(array~t)
         # TODO: update `Call` stuff
-        ;;method(Call; method->call): null
+        method(This;, Call; method->call): null
             CountBefore := Array count()
-            Array;;method(Call)
+            array->method(This;, Call)
             assert Array count() == CountBefore
 }
 ```
@@ -3432,43 +3419,43 @@ map~(key, value) := extend(container~key, container~{Key, Value}, container~valu
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at key, too.
-    ;;_(Key): value
+    _(This;, Key): value
 
     # getter, which will create a default value instance if it's not present at Key.
-    ;;_(Key, fn(Value): ~t): t
+    _(This;, Key, fn(Value): ~t): t
 
     # returns a Null if key is not in the map.
-    ::_(Key)?: value
+    _(This, Key)?: value
 
     # getter, which will pass back a Null if the key is not in the map.
-    ::_(Key, fn(Value?): ~t): t
+    _(This, Key, fn(Value?): ~t): t
 
     # sets the value at the key, returning the old value:
-    ;;_(Key, Value;): value
+    _(This;, Key, Value;): value
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the key into the passed-in function by reference (`;`).
     # the return value of the passed-in function will become the new value at the key.
     # if a value at `Key` is not already present, a default `Value` will be created.
-    ;;_(Key, fn(Value;): ~t): t
+    _(This;, Key, fn(Value;): ~t): t
 
     # nullable modifier, which returns a Null if the key is not in the map.
     # if the Value wasn't Null, but becomes Null via the passed-in function,
     # the key will be deleted from the map.  conversely, if the value was Null, but
     # the passed-in function turns it into something non-null, the key/value will be added
     # to the map.
-    ;;_(Key, fn(Value?;): ~t): t
+    _(This;, Key, fn(Value?;): ~t): t
 
     # getter and modifier in one definition, with the `;:` "template mutability" operator:
-    # will throw for the const map (`::`) if Key is not in the map.
-    ;:_(Key, fn(;:Value): ~t): t
+    # will throw for the const map (`This:`) if Key is not in the map.
+    _(This;:, Key, fn(Value;:): ~t): t
 
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
-    ;:_(Key, fn(;:Value?): ~t): t
+    _(This;:, Key, fn(Value?;:): ~t): t
 
-    ::count(): count
+    count(This): count
 
-    ;;pop(Key): value
+    pop(This;, Key): value
 }
 ```
 
@@ -3493,24 +3480,24 @@ insertionOrderedMap~(key, value) := extend(map) {
     NextAvailableIndex; @private index = 1
 
     # creates a default value if not present at the key to pass in to the modifier:
-    ;;_(Key, fn(Value;): ~t): t
+    _(This;, Key, fn(Value;): ~t): t
         Index ?:= This KeyIndices_(Key)
         return if Index != Null
             This modifyAlreadyPresent(Index, fn)
         else
             This needToInsertThenModify(Key, fn)
 
-    ::_(Key, fn(Value?): ~t): t
+    _(This, Key, fn(Value?): ~t): t
         Index ?:= This KeyIndices_(Key)
         return if Index != Null
             assert Index != 0
-            This IndexedValues_(Index, ::(IndexedValue: indexedMapValue~value): t
+            This IndexedValues_(Index, (IndexedValue: indexedMapValue~value): t
                 return fn(IndexedValue Value)
             )
         else
             fn(Null)
     
-    ::forEach(Loop->fn(Key, Value): forLoop): null
+    forEach(This, Loop->fn(Key, Value): forLoop): null
         Index ;= This IndexedValues_0 NextIndex
         while Index != 0
             Key := This KeyIndices_Index
@@ -3520,9 +3507,9 @@ insertionOrderedMap~(key, value) := extend(map) {
                 break
             Index = This IndexedValues_Index NextIndex
         # mostly equivalent to using nested functions to avoid copies:
-        # `ForLoop := This KeyIndices_(Value: Index, ::(Key?):
+        # `ForLoop := This KeyIndices_(Value: Index, (Key?):
         #      assert Key != Null
-        #      return This IndexedValues_(Index, ::(IndexedMapValue?):
+        #      return This IndexedValues_(Index, (IndexedMapValue?):
         #          assert IndexedMapValue != Null
         #          return Loop->fn(Key, IndexedMapValue Value)
         #      )
@@ -3533,7 +3520,7 @@ insertionOrderedMap~(key, value) := extend(map) {
 
     # modifier for a keyed value not yet in the map, need to insert a default first:
     @private
-    ;;needToInsertThenModify(Key, fn(Value;): ~t): t
+    needToInsertThenModify(This;, Key, fn(Value;): ~t): t
         NewIndex := This AvailableIndex++ or reshuffle()
         This KeyIndices_Key = NewIndex
         PreviouslyLastIndex := This IndexedValues_0 PreviousIndex
@@ -3548,10 +3535,10 @@ insertionOrderedMap~(key, value) := extend(map) {
 
     # modifier for an already indexed value in the map:
     @private
-    ;;modifyAlreadyPresent(Index, fn(Value;): ~t): t
+    modifyAlreadyPresent(This;, Index, fn(Value;): ~t): t
         assert Index != 0
         assert This IndexedValues has(Index)
-        return This IndexedValues_(Index, ::(IndexedValue; indexedMapValue~value): t
+        return This IndexedValues_(Index, (IndexedValue; indexedMapValue~value): t
             return fn(IndexedValue Value;)
         )
 }
@@ -3569,21 +3556,21 @@ The default-named variable name for a set is `Set`.
 ```
 set~t := extend(container~t) {
     # returns true if the passed-in element is present in the set.
-    ::_(T): bool
+    _(This, T): bool
 
-    ::count(): count
+    count(This): count
 
     # add an element to the set:
-    ;;+=(T;): null
+    += (This;, T;): null
 
     # TODO: generalize with iterator or container:
     # union this set with another set:
-    ;;+=(Set: set~t): null
+    += (This;, Set: set~t): null
 
     # remove an element from the set, if present
-    ;;-=(T): null
+    -= (This;, T): null
 
-    ;;pop(): t
+    pop(This;): t
 
     ...
 }
@@ -3602,7 +3589,7 @@ TODO: make it easy to pass in a set as an argument and return a map with e.g. th
   maybe this isn't as important as it would be if we had a dedicated object type.
 ```
 fn(PickFrom: ~t_str, Fields: _str): t_str
-    return Fields map(::(Field: str) := mapElement(Field, PickFrom_Field))
+    return Fields map((Field: str) := mapElement(Field, PickFrom_Field))
 
 fn~{o, k from keys(o)}(PickFrom: o, Keys: k): pick(o, k)
     return pick(PickFrom, Keys)
@@ -3617,13 +3604,13 @@ and `from` selects multiple (or no) keys from the set (`k from keys(o)`).
 
 ```
 # TODO: no-copy iterator might require passing in the actual container in each
-# instance.  e.g., `;;next(fn(T?): ~u, Container: container~t): u`
+# instance.  e.g., `next(This;, fn(T?): ~u, Container: container~t): u`
 iterator~t := {
     # next value via getter function:
-    ;;next(fn(T?): ~u): u
+    next(This;, fn(T?): ~u): u
 
     # peak via no-copy getter function:
-    ::peak?(fn(T?): ~u): u
+    peak?(This, fn(T?): ~u): u
 
     # present only if underlying container supports removing the current element (at `peak()`)
     # returns the element, or null if no current element.
@@ -3631,11 +3618,11 @@ iterator~t := {
     # be defined IF replace is defined, and to return a null in replace,
     # but allow it to be overridden if remove is defined separately.
     # TODO: maybe require this for all containers that we use, so that things work "as expected"
-    ;;remove?()?: t
+    remove?(This;)?: t
 
     # present only if underlying container supports inserting a new element (before `peak()`)
     # TODO: maybe require this for all containers that we use, so that things work "as expected"
-    ;;insert?(T): null
+    insert?(This;, T): null
 
     # replaces the element at `next()` based on the passed-in value,
     # and the iterator should increment (i.e., skip the value you just passed in).
@@ -3644,7 +3631,7 @@ iterator~t := {
     # should be deleted out of the container.  if `next()` is Null but the passed-in
     # reference is not, then the new value should be added to the container.
     # the value that *was* at `next()` will be swapped into the reference.
-    ;;replace?(T?;): null
+    replace?(This;, T?;): null
 }
 ```
 
@@ -3655,15 +3642,15 @@ range~t := extend(iterator~t) {
     @private
     NextIndex: t = 0
 
-    ;;reset(StartAt: t = 0, This LessThan: t = 0): null
+    reset(This;, StartAt: t = 0, This LessThan: t = 0): null
         This NextIndex = StartAt
 
-    ;;next()?: t
+    next(This;)?: t
         if This NextIndex < This LessThan
             return This NextIndex++
         return Null
 
-    ::peak() := if This NextIndex < This LessThan
+    peak(This) := if This NextIndex < This LessThan
         This NextIndex 
     else
         Null
@@ -3682,7 +3669,7 @@ For example, here is an array iterator:
 arrayIterator~t := extend(iterator~t) {
     # to avoid creating a pointer, we need to pass in the array;
     # move the array in to avoid copying.
-    ;;reset(This Array!: t_, This NextIndex: index = 0) := Null
+    reset(This;, This Array!: t_, This NextIndex: index = 0) := Null
     # TODO: see if there's a better syntax for this:
     # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
     # e.g., 
@@ -3694,7 +3681,7 @@ arrayIterator~t := extend(iterator~t) {
     #   # MyArray is now back to [1,2,3,4] unless there were changes during iteration,
     #   # but in any case, without a copy,
 
-    ;;next()?: t
+    next(This;)?: t
         ???
 }
 ```
@@ -3704,7 +3691,7 @@ Or should we define iterators on the container itself?  E.g.,
 ```
 array~t := {
     # const iteration, with no-copy if possible:
-    ::forEach(fn(T): forLoop): null
+    forEach(This, fn(T): forLoop): null
         for Index: index < This count()
             # use the no-copy getter, here:
             # explicit:
@@ -3715,7 +3702,7 @@ array~t := {
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;forEach(fn(T;): forLoop): null
+    forEach(This;, fn(T;): forLoop): null
         for Index: index < This count()
             # do a swap on the value based on the passed in function:
             # explicit:
@@ -3726,9 +3713,9 @@ array~t := {
                 break
 
     # mutability template for both of the above:
-    ;:forEach(fn(;:T): forLoop): bool
+    forEach(This;:, fn(T;:): forLoop): bool
         for Index: index < This count()
-            if fn(;:This_Index) isBreak()
+            if fn(This_Index;:) isBreak()
                 return True
         return False
 }
@@ -3857,13 +3844,13 @@ myHashableClass := {
 
     # we allow a generic hash builder so we can do cryptographically secure hashes
     # or fast hashes in one definition, depending on what is required.
-    # TODO: This should probably already be defined for classes with exact fields!
-    ::hash(Builder; ~builder):
-        Id hash(Builder;)
-        Name hash(Builder;)
+    # This should automatically be defined for classes with precise fields (e.g., int, u32, string, etc.)!
+    hash(This, Builder; ~builder):
+        This Id hash(Builder;)
+        This Name hash(Builder;)
 }
 
-# note that defining `hash(~Builder;)` automatically defines a `fastHash` like this:
+# note that defining `hash(This, ~Builder;)` automatically defines a `fastHash` like this:
 # fastHash(MyHashableClass, Salt: ~salt): salt
 #   Builder := \\hash fast(Salt)
 #   MyHashableClass hash(Builder;)
@@ -4153,22 +4140,21 @@ myMask := mask(
 Variable and function lifetimes are usually scoped to the block that they
 were defined in.  Initialization happens when they are encountered, and
 descoping/destruction happens in reverse order when the block ends.  With
-functions we have to be especially careful when they are impure (i.e.,
-defined with a prefix `::` or `;;` for read-only and read-write functions).
+functions we have to be especially careful when they are impure.
 If an impure function's lifetime exceeds that of any of its hidden
 inputs' lifetimes, we'll get a segfault or worse.
 
 Let's illustrate the problem with an example:
 
 ```
-# define a re-definable function.  we also allow it to be impure:
-;;liveItUp(String); index
+# define a re-definable function.
+liveItUp(String); index
     return String countBytes()
 
 if SomeCondition
     SomeIndex; index = 9
     # redefine:
-    ;;liveItUp(String); index
+    liveItUp(String); index
         return String countBytes() + ++SomeIndex
 
     print liveItUp("hi")    # this should print 12
@@ -4194,25 +4180,25 @@ new syntax.  We still wouldn't allow references, however, they'd have to be new
 variables scoped into the function block.  We probably could do something like this:
 ```
 if SomeCondition
-    ;;liveItUp(String); index
+    liveItUp(String); index
         # "@dynamic" means declare once and let changes persist across function invocations.
         # Note that this functionality cannot be used to store references.
         @dynamic X; int = 12345
         return String countBytes() + ++X
 ```
 
-You can define variables and use them inside impure functions (either `;;` or `::`),
+You can define variables and use them inside impure functions
 but they must be defined *before* the impure function is first declared.  So this
 would be allowed:
 
 ```
 SomeIndex; index = 9
-;;liveItUp(String); index
+liveItUp(String); index
     return String countBytes()
 
 if SomeCondition
     # redefine:
-    ;;liveItUp(String); index
+    liveItUp(String); index
         return String countBytes() + ++SomeIndex
 
     print liveItUp("hi")    # this should print 12
@@ -4225,13 +4211,14 @@ Similarly, returning a function from within a function is breaking scope:
 
 ```
 # this produces a COMPILER error:
-nextGenerator(Int; int): ;;(): int
-    return ;;():
+nextGenerator(Int; int): fn(): int
+    return ():
         return ++Int    # ERROR! lifetime of Int does not exceed returned function!
 ```
 
 The `Int` here only lives inside of the block when `nextGenerator` is called,
 and so it will not be there for the returned function.
+TODO: if `Int` is defined as `;` then can we assume it's a reference?  no, it could be a temporary.
 
 TODO: discussion here: should we allow functions to be passed in as if they are pointers?
 i think this is fine, but maybe there are some edge cases that allow pointers to escape.
@@ -4241,8 +4228,8 @@ need to double check...
 # function that takes a function as an argument and returns a function
 # this closure is ok because the returned function has internals that have greater lifetimes
 # than itself.  i.e., the input function will be destroyed only after the output function
-# is descoped.  note that because the returned function is impure, it is prefixed with `::`.
-wow(Input->fn(): string): ::(): int
+# is descoped.
+wow(Input->fn(): string): fn(): int
     # example usage:
     # someFn() := "hey"
     # otherFn := wow(someFn)
@@ -4310,16 +4297,16 @@ audioCallee := extend(callee~(sample_;)) {
     # but that it doesn't matter what count it is.  in C++, this would
     # be a template type, e.g., `sample_~N`, but we don't actually
     # want a templated method here.
-    ;;call(Array; sample_): null
+    call(This;, Array; sample_): null
         for Index: index < Array count()
             # TODO: maybe implicitly use `\\math Pi` inside the `\\math sin` function,
             # but only if `Pi` is not defined elsewhere.  i.e., `\\math` becomes a scope
             # which everything is looked up within.
-            Array_Index = sample(Mono: \\math sin(2 * Pi * Phase))
-            Phase += Frequency * Audio DeltaT
+            Array_Index = sample(Mono: \\math sin(2 * Pi * This Phase))
+            Phase += This Frequency * Audio DeltaT
 
     # automatically defined by the callee class:
-    ;;hangUp(): null  
+    hangUp(This;): null  
 }
 
 someFunction(): null
@@ -4386,13 +4373,13 @@ grammarElement := enumerate(
 )
 
 tokenMatcher := {
-    ;;reset(This Name: str = "") := Null
+    reset(This;, This Name: str = "") := Null
     # don't have to restore the token array Index to the correct state,
     # consume as many tokens as you like here.  make sure to go
     # through "Grammar match(...)" in order to restore the Index
     # in case of a bad match.  @private so that only Grammar can call.
     @private
-    ::match(Index;, Array: token_): bool
+    match(This, Index;, Array: token_): bool
 }
 
 grammarMatcher := tokenMatcher | grammarElement | token
@@ -4487,12 +4474,6 @@ Grammar := singleton() {
         FunctionCall: sequence([FunctionName, AtomicStatement])
         # TODO: templates, or maybe preprocess these into lowerCamelCase types with hooks
         FunctionType: sequence([
-            optional(oneOf([
-                operator("::")
-                operator(";:")
-                operator(":;")
-                operator(";;")
-            ]))
             optional(identifier("fn"))
             FunctionArgsWithReturnType
         ])
@@ -4549,7 +4530,7 @@ Grammar := singleton() {
         )
     ]
 
-    ::match(Index;, Array: token_, GrammarMatcher): bool
+    match(This, Index;, Array: token_, GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
         Matched := consider GrammarMatcher Is
@@ -4583,11 +4564,11 @@ sequence := extend(tokenMatcher) {
     Uninterruptible: grammarMatcher_
     # TODO: some annotation to pass a variable up to the parent class,
     # e.g., `reset(@passTo(TokenMatcher) Name: str, OtherArgs...):`
-    ;;reset(Name: str, Array; grammarMatcher_):
-        tokenMatcher;;reset(Name)
+    reset(This;, Name: str, Array; grammarMatcher_):
+        tokenMatcher->reset(This;, Name)
         This Uninterrutible = Array!
 
-    ::match(Index;, Array: token_): bool
+    match(This, Index;, Array: token_): bool
         for (GrammarMatcher) in This Uninterruptible
             if not Grammar match(Index;, Array, GrammarMatcher)
                 return False
@@ -4596,10 +4577,10 @@ sequence := extend(tokenMatcher) {
 
 # TODO: make `block` a type of token as well.
 parentheses := extend(tokenMatcher) {
-    ;;reset(Name: str, This GrammarMatcher):
-        tokenMatcher;;reset(Name)
+    reset(This;, Name: str, This GrammarMatcher):
+        tokenMatcher->reset(This;, Name)
 
-    ::match(Index;, Array: token_): bool
+    match(This, Index;, Array: token_): bool
         # TODO: make sure copies are elided for constant temporaries like this:
         CurrentToken := Array_Index
         if CurrentToken Is != parenthesesToken
@@ -4627,11 +4608,11 @@ repeat := extend(tokenMatcher) {
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Interruptible`.
-    ;;reset(Name: str, This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
+    reset(This;, Name: str, This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
         This Interruptible = Array!
-        tokenMatcher;;reset(Name)
+        tokenMatcher->reset(This;, Name)
 
-    ::match(Index;, Array: token_): bool
+    match(This, Index;, Array: token_): bool
         if Index >= Array count()
             return False
 
@@ -4753,7 +4734,7 @@ and ensure encapsulation in some way, we can probably update max storage require
 class is loaded, and undo the update once the child class is unloaded.
 
 TODO: discuss having all instance methods in some special virtual table, e.g., possibly 
-with additional reflection information (for things like `@for (MyClass;;method) in myClass`
+with additional reflection information (for things like `@for method in mutators(myClass)`
 macro code).
 
 TODO: make it possible to have template methods with template classes
