@@ -272,8 +272,8 @@ throw an error.
 ## types of types
 
 Every variable has a reflexive type which describes the object/primitive that is held
-in the variable.  This can be accessed via the `Is` field on instances, and the `->Is`
-field on functions/classes.  If comparing against a known type, i.e., to check if some
+in the variable.  This can be accessed via the `Is` field on instances/functions/classes.
+If comparing against a known type, i.e., to check if some
 variable is an integer, it is highly recommended to use the `is` method, e.g., 
 
 ```
@@ -293,10 +293,10 @@ vector3 := {X; dbl, Y; dbl, Z; dbl}
 
 Vector3 := vector3(X: 1.2, Y: -1.4, Z: 1.6)
 
-print(Vector3::Is)                      # prints `is~vector3`
-print(vector3->Is == Vector3::Is)       # this prints true
+print(Vector3::Is)                  # prints `is~vector3`
+print(vector3 Is == Vector3::Is)    # this prints true
 
-SomeIs: is~any = Vector3::Is
+SomeIs: is~any = Vector3::Is        # `Vector3 Is` is equivalent
 
 # things can get recursive:
 print(SomeIs::Is)           # type of a type, resolves to `is~is~vector3`.
@@ -340,7 +340,7 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           |  ` {}`    | function call             | on fn: `a[B]`     |               |
 |   2       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
-|           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
+|           |   `->`    | new namespace             | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
 |           |   ` `     | implicit subscript        | binary: `A (B)`   |               |
@@ -416,12 +416,11 @@ no field value (i.e, a null field value).  In addition, `X_someFunction[3]` woul
 `(X_someFunction)[3]`, which is almost certainly not what is desired, unless `X` is a map with
 *function* keys.
 
-## new-namespace or class-scope operator `->`
+## new-namespace operator `->`
 
-The operator `->` can be used in three ways: (1) as a unary operator for an output-only argument
-name in a function declaration or function call, (2) for creating default-named variables in a
-new/existing namespace, and (3) as an indicator for class scoping for static/class functions.
-TODO: remove (3) for class scoping static/class functions.
+The operator `->` can be used in a couple ways: (1) as a unary operator for an output-only argument
+name in a function declaration or function call, and (2) for creating default-named variables in a
+new/existing namespace.
 
 We'll discuss more in the function-call section, but here are some examples of (1):
 TODO: do we want to keep this?
@@ -465,31 +464,6 @@ You can use the same namespace for multiple variables, e.g., `Input->Rune` and `
 as long as the variable names don't overlap.  You can also use the namespace operator inside
 of functions to declare new variables, but its utility is mostly to avoid argument renaming.
 Like the member access operators below, the namespace operator binds left to right.
-
-For the final way (3), we use `->` for class functions.  Class functions are like "static"
-class methods in C++, and here are some examples:
-
-```
-exampleClass := {
-    # this pure function does not require an instance, and cannot use instance variables:
-    ->someStaticFunction(Y; int): int
-        Y /= 2
-        return Y!
-
-    # this function does not require an instance, and cannot use instance variables,
-    # but it can read (but not write) global variables (or other files):
-    ->someStaticImpureFunction(): int
-        YString := read(File: "Y")
-        return int(?YString) ?? 7
-
-    # this function does not require an instance, and cannot use instance variables,
-    # but it can read/write global variables (or other files):
-    ->someStaticImpureFunctionWithSideEffects(Y: int): null
-        write(Y, File: "Y")
-}
-```
-
-See the classes section for more clarification and comparison to member access operators.
 
 ## member access operators `::`, `;;`, and ` ` as well as subscripts `_`
 
@@ -1233,7 +1207,7 @@ myClass~t := {
         This X = @mootOrCopy X
         # TODO: how complicated should the preprocessor be?  maybe `@if(@mutable Z, Z!, Z)` might be better.
         # `@mootOrCopy Z` can expand to `@if @mutable Z ${Z!} @else ${Z}`
-        # or maybe we can do something like `X = Other->X!:`
+        # or maybe we can do something like `This X = X!:`
 }
 ```
 
@@ -1249,7 +1223,7 @@ myClass~t := {
 
     # so `take` would become:
     take(This;:, X;: t):
-        x(This->X;:)
+        x(This, X;:)
 }
 ```
 
@@ -1713,21 +1687,21 @@ print(Call)  # prints {Input: {X: 4}, Output: {Int: 0, String: "hihihihi"}}
 ```
 
 If run-time checks and throwing errors are desired, one should use the more specific
-`myFn->call` type, with `myFn` the function you want arguments checked against.
+`myFn call` type, with `myFn` the function you want arguments checked against.
 
 ```
 # throws a compile-time error (if input and output are completely specified at the same time)
 # or a run-time error (if input and output are separately defined):
-Call ;= someFunction->call(Input: X: "4", Output: {Int: 0, String: ""})  # error!!
+Call ;= someFunction call(Input: X: "4", Output: {Int: 0, String: ""})  # error!!
 # the above will throw a compile-time error, since two values for Output are defined.
 
 # this is ok:
-Call2 ;= someFunction->call(Input: X: "4", Output: Int: 0)
+Call2 ;= someFunction call(Input: X: "4", Output: Int: 0)
 # this is also ok, but will cast X to int right away, and will throw an error when defining `Call3`
 # if `X` is not a integer-like string rather than when calling someFunction (like `call` would).
-Call3 ;= someFunction->call(Input: X: "4", Output: String: "")
+Call3 ;= someFunction call(Input: X: "4", Output: String: "")
 # also ok:
-Call4 ;= someFunction->call(Input: X: 4, Output: String: "")
+Call4 ;= someFunction call(Input: X: 4, Output: String: "")
 ```
 
 Note that it's also not allowed to define an overload for the `call` type yourself.
@@ -1748,11 +1722,11 @@ TODO: the `object` type is recursive, too.  need to think of a good way to handl
 or requesting subfields of a field that was not an object.
 
 If you want the output field to be determined in the normal way (by checking what is
-using the function's return value), you can also use `myFn->input` as a way to create
-type-safe `object` for the `Input` field of a `myFn->call`, i.e., the correctly typed
+using the function's return value), you can also use `myFn input` as a way to create
+type-safe `object` for the `Input` field of a `myFn call`, i.e., the correctly typed
 arguments to any overload of `myFn`.
 
-TODO: `myFn->output` probably doesn't exist in a type-safe way, since the output is
+TODO: `myFn output` probably doesn't exist in a type-safe way, since the output is
 determined by the input and chosen overload.
 
 ```
@@ -1762,7 +1736,7 @@ myFn(Times: int, String): null
 myFn(Dbl: dbl): dbl
     return 5 * Dbl
 
-Input; myFn->input = {}
+Input; myFn input = {}
 if SomeCondition
     Input Dbl = 123.3
 else
@@ -1860,6 +1834,7 @@ Some examples:
 parent := {
     reset(This;, This X: dbl, This Y: dbl) := Null
 
+    # note that this is a reassignable method, which means it is defined on a per-instance basis.
     optionalMethod?(This, Z: dbl); int
 }
 
@@ -2116,7 +2091,7 @@ check(fn(Int): bool, Int): int
 
 # but suppose we have a class which has a method that looks like this function:
 exampleClass := {
-    CheckTimes: int
+    CheckTimes; int
 
     someMethod(This;, Int): bool
         ++This CheckTimes
@@ -2196,21 +2171,18 @@ e.g., add an `@noOrder` annotation.
 
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
-Class functions (2) can't depend on the instance, i.e., `This`, and are declared using
-the operator `->`.  They are called with the syntax `someClass->someClassFunction(...Args)`.
+Class functions (2) can't depend on the instance, i.e., `This`, but are declared
+like other instance methods, just without `This` as an argument.  They must be declared
+as immutable.
 
-TODO: do we want to get rid of these?  or can we make the class-function/instance-function more distinct?
-```
-# TODO, WIP
-someClass := { instanceFunction(#( no This )#): r1, method(This, ...Args): r2 }
-someClass->someStaticFunction(): null
-someClass->otherMethod(This, ...Args): r3
-```
-Instance functions (3) must be pure functions so that they can be copied freely;
-they can't depend on any instance variables, but they can be different from instance to instance.
+Instance functions (3) can't depend on any instance variables, but they can be different from instance to instance.
 They cannot be overridden by child classes but they can be overwritten.  I.e.,
 if a child class defines the instance function of a parent class, it overwrites the parent's
-instance function; calling one calls the other.
+instance function; calling one calls the other.  To declare an instance function, we simply
+declare a mutable function, without a `This`, inside the class definition.
+In addition instance functions must be pure functions so that they can be copied freely.
+TODO: we maybe should allow instance functions access to `This`, implicitly; the `This` will change
+to the next instance when copied.
 
 Class constructors are methods (1) which are defined using `reset(This;, Args...)`,
 which also allow you to reset the class instance as long as the variable is mutable.
@@ -2244,6 +2216,7 @@ exampleClass := {
     # class instance variables can be defined here:
     X; int
 
+    # TODO: maybe bring back `;;` and `::` methods as shorthands for `(This;, ...)` and `(This)`.
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `reset` function.  this is true even
     # if the class instance variables are defined as immutable.
@@ -2252,37 +2225,47 @@ exampleClass := {
     # or short-hand: `reset(This;, This X; int) := Null`
     # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
 
-    # class methods can be defined as well.
+    # some more examples of class methods (1):
     # this one does not change the underlying instance:
     doSomething(This, Int): int
         return This X + Int
 
-    # this method mutates the class instance, so it is prefaced with `;;`:
+    # this method mutates the class instance, so it uses `This; this` instead of `This:`:
     addSomething(This;, Int): null
         This X += Int
 
+    # this reassignable method is defined on a per-instance basis. changing it on one class instance
+    # will be isolated from any changes on another class instance.
+    reassignableMethod(This, Int); string
+        # this is the default implementation that all instances will start with.
+        return string(This X + Int)
+
+    # same as the other reassignable method above, but with a mutable instance.
+    reassignableMutableMethod(This;, Int); null
+        # this is the default implementation that all instances will start with.
+        This X -= Int
+
+    # some examples of class functions (2):
     # this pure function does not require an instance, and cannot use instance variables:
-    ->someStaticFunction(Y; int): int
+    someStaticFunction(Y; int): int
         Y /= 2
         return Y!
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read/write global variables (or other files):
-    ->someStaticImpureFunctionWithSideEffects(Y: int): null
+    someStaticImpureFunctionWithSideEffects(Y: int): null
         write(Y, File: "Y")
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read (but not write) global variables (or other files):
-    ->someStaticImpureFunction(): int
+    someStaticImpureFunction(): int
         YString := read(File: "Y")
         return int(?YString) ?? 7
 
-    # class instance functions can be defined here; this is a *pure function*
+    # class instance functions (3) can be defined here; this is a *pure function*
     # that cannot depend on instance variables, however.  it can be set 
     # individually for each class instance, unlike a static class function.
-    # TODO: maybe do instance functions as reassignable `someFunction(); ret`
-    #       and class static functions as non-reassignable.
-    somePureFunction(): null
+    somePureFunction(); null
         print("hello!")
 }
 
@@ -2298,10 +2281,22 @@ ConstVar X += 3                 # COMPILER ERROR! `ConstVar` is deeply constant.
 ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
 ```
 
+You can also define your own custom methods/functions on a class outside of the class body.
+These definitions will only be visible to files importing this code, and not to all files
+that import the original class.
+
+```
+exampleClass myAddedClassFunction(X: int): exampleClass
+    return exampleClass(X)
+
+exampleClass myAddedMethod(This, Y: int): int
+    return This X * 1000 + Y * 100
+```
+
 Note that we recommend using named fields for constructors rather than static
 class functions to create new instances of the class.  This is because named fields
 are self descriptive and don't require named static functions for readability.
-E.g., instead of `MyDate := dateClass->fromIsoString("2020-05-04")`, just use
+E.g., instead of `MyDate := dateClass fromIsoString("2020-05-04")`, just use
 `MyDate := dateClass(IsoString: "2020-05-04")` and define the
 `reset(This;, IsoString: string)` method accordingly.
 
@@ -2557,9 +2552,9 @@ is a child class.  E.g., a parent class method can return a `this` type instance
 and using the method on a subclass instance will return an instance of the subclass.
 
 We can access member variables or functions that belong to that the parent type,
-i.e., without subclass overloads, using the syntax `parentClassName->variable(This)` or
-`parentClassName->someMethod(This)`.  Use `This;` to access variables or methods that will
-mutate the underlying class instance, e.g., `parentClassName->variable(This;, 3)`.
+i.e., without subclass overloads, using the syntax `parentClassName variable(This)` or
+`parentClassName someMethod(This)`.  Use `This;` to access variables or methods that will
+mutate the underlying class instance, e.g., `parentClassName variable(This;, 3)`.
 
 Some examples:
 
@@ -2604,7 +2599,7 @@ cat := extend(animal) {
     # become hidden to users of this child class:
     reset(This;): null
         # can refer to parent methods using class name:
-        animal->reset(This;, Name: "Cat-don't-care-what-you-name-it")
+        animal reset(This;, Name: "Cat-don't-care-what-you-name-it")
 
     speak(This): null
         print("hisss!")
@@ -2637,13 +2632,10 @@ WeirdAnimal := animal(
     goes(This) := "meanders"
     escape(This): null
         # to call the parent method `escape()` in here, we can use this:
-        # TODO: can we switch to `animal.escape` here?
-        # or even `animal escape` and always require functions to use parentheses to be considered called?
-        # TODO: we could make static functions simpler, too, not requiring `->`
-        animal->escape(This)
+        animal escape(This)
         print("${Name} ${goes()} back...")
         # or we can use this:
-        animal->escape(This)
+        animal escape(This)
 )
 
 WeirdAnimal escape()    # prints "Waberoo ... meanders ... meanders back ... meanders away!!"
@@ -2861,9 +2853,9 @@ someClass := {
 {someClass} := \/some-class
 
 # define a new method on `someClass` from some-class.hm
-someClass->newMethod(This, String): int
+someClass newMethod(This, String): int
     for Int: int < 100
-        if someClass->existingMethod(This, Int) == String
+        if someClass existingMethod(This, Int) == String
             return Int
     return -1
 
@@ -2906,7 +2898,7 @@ the parent class reference.
 ### screen.hm ###
 screen := singleton() {
     draw(This;, Image, Vector2): null
-    clear(This;, Color := color->Black)
+    clear(This;, Color := color Black)
 }
 ### implementation/sdl-screen.hm ###
 SdlScreen := singleton(\/../screen screen) {
@@ -2914,7 +2906,7 @@ SdlScreen := singleton(\/../screen screen) {
         # actual implementation code:
         This SdlSurface draw(Image, Vector2)
 
-    clear(This;, Color := color->Black)
+    clear(This;, Color := color Black)
         This SdlSurface clear(Color)
 }
 ### some-other-file.hm ###
@@ -2942,7 +2934,7 @@ options := mask(
     @alias InheritAlignX := AlignInheritX
 )
 
-Options := options->InheritAlignX   # converts to `options->AlignInheritX` on next format.
+Options := options InheritAlignX    # converts to `options AlignInheritX` on next format.
 ```
 
 Aliases can also be used for more complicated logic and even deprecating code.
@@ -3042,12 +3034,12 @@ TODO: how does file access work with the reference pattern
 # errors and asserts
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
-e.g., `map.hm` has a `map->error` type which can be caught using `catch error` or `catch map->error`.
+e.g., `map.hm` has a `map error` type which can be caught using `catch error` or `catch map error`.
 Use `throw errorType("message ${HelpfulVariableToDebug}")` to throw a specific error, or 
 `throw "message ${HelpfulVariableToDebug}"` to automatically use the correct error subclass for
 whatever context you're in.  Note that you're not able to throw a module-specific error
-from another module (e.g., you can't throw `map->error` from the `array.hm` module), but you can
-*catch* module-specific errors from another module (e.g., `catch map->error` from the `array.hm`
+from another module (e.g., you can't throw `map error` from the `array.hm` module), but you can
+*catch* module-specific errors from another module (e.g., `catch map error` from the `array.hm`
 module).  Of course, you can throw/catch explicitly defined errors from other modules, as long as
 they are visible to you (see section on public/protected/private visibility).
 
@@ -3090,11 +3082,11 @@ assert WhateverExpression
 ```
 
 Note that `assert` logic is always run, even in non-debug code.  To only check statements
-in the debug binary, use `debug->assert`, which has the same signature as `assert`.  Using
-`debug->assert` is not recommended, except to enforce the caller contract of private/protected
+in the debug binary, use `debug assert`, which has the same signature as `assert`.  Using
+`debug assert` is not recommended, except to enforce the caller contract of private/protected
 methods.  For public methods, `assert` should always be used to check arguments.  Note also
 that `assert` will throw the correct error subclass for the module that it is in;
-`debug->assert` will throw a `debug->error` to help indicate that it is not a production error.
+`debug assert` will throw a `debug error` to help indicate that it is not a production error.
 
 TODO: try/catch/finally 
 
@@ -3179,7 +3171,7 @@ array~t := extend(container~t, container~{Index, T}) {
     _(This, Index, fn(T): ~u): u
 
     # Note: You can use the `;:` const template for function arguments.
-    # e.g., `myArray~t := extend(array~t) ${ _(This;:, Index, fn(T;:): ~u) := array->(This;:, Index, fn) }`
+    # e.g., `myArray~t := extend(array~t) ${ _(This;:, Index, fn(T;:): ~u) := array_(This;:, Index, fn) }`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`T?;`) is null, but you switch to
@@ -3286,9 +3278,9 @@ fixedCountArray~t := extend(array~t) {
     # TODO: double check this syntax.
     @for method in mutators(array~t)
         # TODO: update `Call` stuff
-        method(This;, Call; method->call): null
+        method(This;, Call; method call): null
             CountBefore := Array count()
-            array->method(This;, Call)
+            array method(This;, Call)
             assert Array count() == CountBefore
 }
 ```
@@ -3502,7 +3494,7 @@ insertionOrderedMap~(key, value) := extend(map) {
             Key := This KeyIndices_Index
             {Value: not~null} := This IndexedValues_Index
             ForLoop := Loop->fn(Key, Value)
-            if ForLoop == forLoop->Break
+            if ForLoop == forLoop Break
                 break
             Index = This IndexedValues_Index NextIndex
         # mostly equivalent to using nested functions to avoid copies:
@@ -3697,7 +3689,7 @@ array~t := {
             ForLoop := This_(Index, fn)
             # implicit:
             ForLoop := fn(This_Index)
-            if ForLoop == forLoop->Break
+            if ForLoop == forLoop Break
                 break
 
     # no-copy iteration, but can mutate the array.
@@ -3708,7 +3700,7 @@ array~t := {
             ForLoop := This_(Index, fn)
             # implicit:
             ForLoop := fn(This_Index;)
-            if ForLoop == forLoop->Break
+            if ForLoop == forLoop Break
                 break
 
     # mutability template for both of the above:
@@ -3943,7 +3935,7 @@ values that are enumerated via the method `count(): count`, the min and max valu
 `min(): index`, `max(): index`, and some convenience methods on any instance of the enumeration.
 
 ```
-Test: bool = False  # or `Test := bool->False`
+Test: bool = False  # or `Test := bool False`
 
 # use `isUpperCamelCaseName()` to check for equality:
 if Test isTrue()
@@ -3952,14 +3944,14 @@ if Test isFalse()
     print("test is false!")
 
 # get the count (number of enumerated values) of the enum:
-print("bool has ${bool->count()} possibilities:")
+print("bool has ${bool count()} possibilities:")
 # get the lowest and highest values of the enum:
-print("starting at ${bool->min()} and going to ${bool->max()}")
+print("starting at ${bool min()} and going to ${bool max()}")
 ```
 
 Because of this, it is a bit confusing to create an enum that has `Count` as an
 enumerated value name, but it is not illegal, since we can still distinguish between the
-enumerated value (`enumName->Count`) and total number of enumerated values (`enumName->count()`).
+enumerated value (`enumName Count`) and total number of enumerated values (`enumName count()`).
 
 Also note that the `count()` method will return the total number of
 enumerations, not the number +1 after the last enum value.  This can be confusing
@@ -3972,8 +3964,8 @@ sign := enumerate(
     Positive: 1
 )
 
-print("sign has ${sign->count()} values")   # 3
-print("starting at ${sign->min()} and going to ${sign->max()}")     # -1 and 1
+print("sign has ${sign count()} values")   # 3
+print("starting at ${sign min()} and going to ${sign max()}")     # -1 and 1
 
 weird := enumerate(
     X: 1
@@ -3982,9 +3974,9 @@ weird := enumerate(
     Q: 9
 )
 
-print(weird->count())   # prints 4
-print(weird->min())     # prints 1
-print(weird->max())     # prints 9
+print(weird count())   # prints 4
+print(weird min())     # prints 1
+print(weird max())     # prints 9
 ```
 
 ### Testing enums with lots of values
@@ -4004,9 +3996,9 @@ option := enumerate(
     NowYouWillBeSadForever
 )
 
-print("number of options should be 7:  ${option->count()}")
+print("number of options should be 7:  ${option count()}")
 
-Option1 := option->ContentWithLife
+Option1 := option ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
 if Option1 isNotAGoodOption()
@@ -4027,7 +4019,7 @@ consider Option1
         print("that was boring")
 ```
 
-Note that we don't have to do `option->NotAGoodOption` (and similarly for other options)
+Note that we don't have to do `option NotAGoodOption` (and similarly for other options)
 along with the `case` keyword.  The compiler knows that since `Option1` is of type `option`,
 that you are looking at the different values for `option` in the different cases.
 
@@ -4059,9 +4051,9 @@ nonMutuallyExclusiveType := mask(
 # since that makes the number of values and how to lay them out harder to reason about
 
 # has all the same static methods as enum, though perhaps they are a bit surprising:
-nonMutuallyExclusiveType->count() == 16
-nonMutuallyExclusiveType->min() == 0
-nonMutuallyExclusiveType->max() == 15   # = X | Y | Z | T
+nonMutuallyExclusiveType count() == 16
+nonMutuallyExclusiveType min() == 0
+nonMutuallyExclusiveType max() == 15   # = X | Y | Z | T
 
 Options ;= nonMutuallyExclusiveType()
 Options isNone()    # True.  note there is no `hasNone()` method, since that doesn't
@@ -4564,7 +4556,7 @@ sequence := extend(tokenMatcher) {
     # TODO: some annotation to pass a variable up to the parent class,
     # e.g., `reset(@passTo(TokenMatcher) Name: str, OtherArgs...):`
     reset(This;, Name: str, Array; grammarMatcher_):
-        tokenMatcher->reset(This;, Name)
+        tokenMatcher reset(This;, Name)
         This Uninterrutible = Array!
 
     match(This, Index;, Array: token_): bool
@@ -4577,7 +4569,7 @@ sequence := extend(tokenMatcher) {
 # TODO: make `block` a type of token as well.
 parentheses := extend(tokenMatcher) {
     reset(This;, Name: str, This GrammarMatcher):
-        tokenMatcher->reset(This;, Name)
+        tokenMatcher reset(This;, Name)
 
     match(This, Index;, Array: token_): bool
         # TODO: make sure copies are elided for constant temporaries like this:
@@ -4609,7 +4601,7 @@ repeat := extend(tokenMatcher) {
     # use the `sequence` token matcher inside `Interruptible`.
     reset(This;, Name: str, This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
         This Interruptible = Array!
-        tokenMatcher->reset(This;, Name)
+        tokenMatcher reset(This;, Name)
 
     match(This, Index;, Array: token_): bool
         if Index >= Array count()
