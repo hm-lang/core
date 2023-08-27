@@ -14,10 +14,8 @@ another class's instance, like `int(MyNumberString)` which converts `MyNumberStr
 
 There are a few reserved keywords, like `if`, `else`, `with`, `return`, `assert`,
 `throw`, `catch`, 
-which are function-like but will consume the rest of the statement, even without parentheses.
-E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function, whereas
-something like `sin X + 5` will give the value `sin(X) + 5` due to operator precedence.
-TODO: remove `sin X + 5`, require `sin(X) + 5`, so that we can use `sin is` and other method without `->`.
+which are function-like but will consume the rest of the statement.
+E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 
 Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
 most importantly in contrast to most other languages, underscores (`_`) are also not allowed.
@@ -287,7 +285,6 @@ else if X is(dbl)
     print("X is a double")
 ```
 
-For single-argument calls you can also omit the parentheses, e.g., `X is int`.
 This reads a little better than something like `if X Is == int`, but the latter also is
 valid hm-lang (and does what you expect).  Some more examples:
 
@@ -338,7 +335,9 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           |   `{}`    | parentheses               | grouping: `{A}`   |               |
 |           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
-|   1       |   ` `     | function call             | on fn: `a B`      | RTL           |
+|   1       |  ` ()`    | function call             | on fn: `a(B)`     | LTR           |
+|           |  ` []`    | function call             | on fn: `a[B]`     |               |
+|           |  ` {}`    | function call             | on fn: `a[B]`     |               |
 |   2       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `->`    | new namespace/class scope | binary: `A->B`    |               |
@@ -389,34 +388,31 @@ needs to be RTL for `array~array~int` processing as `array~(array~int)`, etc.
 ## function calls
 
 Function calls are assumed whenever a function identifier (i.e., `lowerCamelCase`)
-occurs before an atomic expression.  E.g., `print X` where `X` is a variable name or other
-primitive constant (like `5`), or, using parentheses, `anyFunctionName(Any + Expression / Here)`.
-Function calls bind strongly, so that `sin X + 3` is equivalent to `(sin(X)) + 3`
-and `tan Y * 3` is equivalent to `(tan(Y)) * 3`, as well as `sin X^2` being equivalent
-to `(sin(X))^2`.  It is highly recommended (possibly to be enforced by the compiler)
-to write expressions the other way around, e.g., `3 * tan Y`, `3 + sin X`, and
-`sin(X)^2` so that the order of operations is more clear to developers.  Multiple function
-calls are associated right-to-left, so `sin cos tan X` is equivalent to `sin(cos(tan(X)))`.
+occurs before a parenthetical expression.  E.g., `print(X)` where `X` is a variable name or other
+primitive constant (like `5`), or `anyFunctionName(Any + Expression / Here)`.
+In case a function returns another function, `getFunction(X)(Y, Z)` will call the
+second function with `(Y, Z)` arguments.
 
 Note that methods defined on classes can be prefaced by member access (e.g., ` `, `::`, or `;;`),
 and that path will still be used for function specification, even though member access has
 less precedence.  So for example, if some instance `MyClassInstance` has a field `MyField`
 which itself has a method `print`, then `MyClassInstance::MyField::print("Carrots")` 
-(or `MyClassInstance MyField print "Carrots"`) will use the `print` function specified
+(or `MyClassInstance MyField print("Carrots")`) will use the `print` function specified
 on `MyField` rather than the global `print` function, even though the function call has
 higher precedence than member access.  E.g., the compiler sees
-`MyClassInstance::MyField::(print "Carrots")`, but knows to use
-`MyClassInstance::MyField::print` when running the internal `(print "Carrots")`.
+`MyClassInstance::MyField::(print("Carrots"))`, but knows to use
+`MyClassInstance::MyField::print` when running the internal `(print("Carrots"))`.
 
 It is recommended to use parentheses where possible, to help people see the flow more easily.
 E.g., `someFunction SomeInstance SomeField someMethod() FinalField` looks pretty complicated.
 This would compile as `(someFunction(SomeInstance)::SomeField::someMethod())::FinalField`,
-and including these parentheses would help others follow the flow.
+and including these parentheses would help others follow the flow.  Even better would be to
+add descriptive variables as intermediate steps.
 
 Deep dive!  Function calls are higher priority than member access because `someMethod() FinalField`
 would compile as `someMethod( ()::FinalField )` otherwise, which would evaluate to `someMethod(Null)`
 since `()::FinalField` is accessing the `FinalField` field on the object `()`, for which there is
-no field value (i.e, a null field value).  In addition, `X_someFunction 3` would compile as
+no field value (i.e, a null field value).  In addition, `X_someFunction[3]` would compile as
 `(X_someFunction)[3]`, which is almost certainly not what is desired, unless `X` is a map with
 *function* keys.
 
@@ -425,6 +421,7 @@ no field value (i.e, a null field value).  In addition, `X_someFunction 3` would
 The operator `->` can be used in three ways: (1) as a unary operator for an output-only argument
 name in a function declaration or function call, (2) for creating default-named variables in a
 new/existing namespace, and (3) as an indicator for class scoping for static/class functions.
+TODO: remove (3) for class scoping static/class functions.
 
 We'll discuss more in the function-call section, but here are some examples of (1):
 TODO: do we want to keep this?
@@ -590,9 +587,8 @@ that would make things like `!!!` ambiguous.
 ## superscripts/exponentiation
 
 Note that exponentiation -- `^` and `**` which are equivalent --
-binds less strongly than function calls and member access.  So something like `sin X^2` will be
-equivalent to `(sin(X))^2`).  It is more clear to use the following syntax:
-use `anyFunction(AnyExpression)^Power`, which is equivalent to `(anyFunction(AnyExpression))^Power`.
+binds less strongly than function calls and member access.  So something like `A_B^2` will be
+equivalent to `(A_B)^2`.
 
 ## bitshifts `<<` and `>>`
 
@@ -979,36 +975,6 @@ Y := 3
 v(X, Y)     # equivalent to `v(X: X, Y: Y)` but the redundancy is not idiomatic.
 v(Y, X)     # equivalent
 ```
-
-### eliding parentheses for single-argument function calls
-
-We also allow calling functions without parentheses for a single argument, like this:
-
-```
-print(String): null     # definition, using an default-named string, e.g., `String: string`.
-
-# example calls:
-print("Hello, world!")  # with parentheses, and without explicitly naming the variable
-print "Hello, world!"   # without
-```
-
-To specify multiple arguments, one must use parentheses to avoid ambiguity.
-However, if you are specifying a single, named argument, you can avoid using parentheses.
-
-```
-v(X: dbl, Int): null    # definition
-
-v 100       # executes v(X: 0.0, Int: 100)
-v X: 5      # executes v(X: dbl(5), Int: 0)
-
-# COMPILE ERROR: need parentheses here, since commas bind less strongly than function-spaces:
-v 100, X: 10
-```
-
-Note, even though `return` looks like a function (since it is `lowerCamelCase`), it behaves
-as a control statement (like `if` or `for`).  So it doesn't need to follow these laws;
-it consumes the remainder of the line for the return value.
-E.g., `return f X + 3` is the same as `return(f(X) + 3)`.
 
 ### functions as arguments
 
@@ -1834,7 +1800,7 @@ To declare a reassignable function, use `;` after the arguments.
 
 ```
 greetings(Noun: string); null
-    print "Hello, ${Noun}!"
+    print("Hello, ${Noun}!")
 
 # you can use the function:
 greetings(Noun: "World")
@@ -1842,13 +1808,13 @@ greetings(Noun: "World")
 # or redefine it:
 # option 1:
 greetings = (Noun: string): null
-    print "Hi, ${Noun}!"
+    print("Hi, ${Noun}!")
 # option 2:
 greetings = "Greetings, ${$Noun}!"
 # NOT OK: COMPILE ERROR: this looks like a redeclaration of the function, rather than a reassignment:
 # also not ok if `;` is changed to `:`.
 greetings(Noun: string); null
-    print "Overwriting?"
+    print("Overwriting?")
 ```
 
 It needs to be clear what function overload is being redefined (i.e., having the same function signature),
@@ -1946,10 +1912,10 @@ argument modifiers (i.e., `;` and `:` are different overloads, as are nullable t
 
 ```
 greetings(String): null
-    print "Hello, ${String}!"
+    print("Hello, ${String}!")
 
 greetings(Say: string, To: string): null
-    print "${Say}, ${To}!"
+    print("${Say}, ${To}!")
 
 greetings(Say: string, To: string, Times: int): null
     for Count: int < Times
@@ -1963,7 +1929,7 @@ greetings(Times: 5, Say: "Hey", To: "Sam")
 # note this is a different overload, since it must be called with `Say;`
 greetings(Say; string): null
     Say += " wow"
-    print "${Say}, world..."
+    print("${Say}, world...")
 
 MySay ;= "hello"
 greetings(Say; MySay)   # prints "hello wow, world..."
@@ -2314,6 +2280,8 @@ exampleClass := {
     # class instance functions can be defined here; this is a *pure function*
     # that cannot depend on instance variables, however.  it can be set 
     # individually for each class instance, unlike a static class function.
+    # TODO: maybe do instance functions as reassignable `someFunction(); ret`
+    #       and class static functions as non-reassignable.
     somePureFunction(): null
         print("hello!")
 }
@@ -2607,7 +2575,7 @@ animal := {
     # this method is defined, so it's implemented by the base class.
     # derived classes can still change it, though.
     escape(This): null
-        print "${This Name} ${This goes()} away!!"
+        print("${This Name} ${This goes()} away!!")
 
     # a method that returns an instance of whatever the class instance
     # type is known to be.  e.g., an animal returns an animal instance,
@@ -2621,7 +2589,7 @@ snake := extend(animal) {
     # child classes will inherit their parent `reset()` methods.
 
     speak(This): null
-        print "hisss!"
+        print("hisss!")
     goes(This): string
         return "slithers"
 
@@ -2639,12 +2607,12 @@ cat := extend(animal) {
         animal->reset(This;, Name: "Cat-don't-care-what-you-name-it")
 
     speak(This): null
-        print "hisss!"
+        print("hisss!")
     goes(This): string
         return "saunters"
 
     escape(This): null
-        print "CAT ESCAPES DARINGLY!"
+        print("CAT ESCAPES DARINGLY!")
 
     # the parent `clone()` method won't work, so override:
     clone(This): this
@@ -2665,7 +2633,7 @@ All abstract methods must be defined for the instance to be created, and if a
 WeirdAnimal := animal(
     Name: "Waberoo"
     speak(This): null
-        print "Meorooo"
+        print("Meorooo")
     goes(This) := "meanders"
     escape(This): null
         # to call the parent method `escape()` in here, we can use this:
@@ -2673,7 +2641,7 @@ WeirdAnimal := animal(
         # or even `animal escape` and always require functions to use parentheses to be considered called?
         # TODO: we could make static functions simpler, too, not requiring `->`
         animal->escape(This)
-        print "${Name} ${goes()} back..."
+        print("${Name} ${goes()} back...")
         # or we can use this:
         animal->escape(This)
 )
@@ -3688,7 +3656,7 @@ range~t := extend(iterator~t) {
 }
 
 for (Index: index) in range(LessThan: 10)
-    print Index
+    print(Index)
 # prints "0" to "9"
 ```
 
@@ -3916,7 +3884,7 @@ for Value: int < 10
     # Value goes from 0 to 9 by 1;
     # Value is not allowed to be mutated (defined with `:`).
     # trying to mutate it throws a compiler error.
-    print Value
+    print(Value)
 # prints "0" to "9" on separate newlines.
 
 # for-loop whose counter can be modified inside the block.
@@ -3979,14 +3947,14 @@ Test: bool = False  # or `Test := bool->False`
 
 # use `isUpperCamelCaseName()` to check for equality:
 if Test isTrue()
-    print "test is true :("
+    print("test is true :(")
 if Test isFalse()
-    print "test is false!"
+    print("test is false!")
 
 # get the count (number of enumerated values) of the enum:
-print "bool has ${bool->count()} possibilities:"
+print("bool has ${bool->count()} possibilities:")
 # get the lowest and highest values of the enum:
-print "starting at ${bool->min()} and going to ${bool->max()}"
+print("starting at ${bool->min()} and going to ${bool->max()}")
 ```
 
 Because of this, it is a bit confusing to create an enum that has `Count` as an
@@ -4004,8 +3972,8 @@ sign := enumerate(
     Positive: 1
 )
 
-print "sign has ${sign->count()} values" # 3
-print "starting at ${sign->min()} and going to ${sign->max()}"  # -1 and 1
+print("sign has ${sign->count()} values")   # 3
+print("starting at ${sign->min()} and going to ${sign->max()}")     # -1 and 1
 
 weird := enumerate(
     X: 1
@@ -4036,27 +4004,27 @@ option := enumerate(
     NowYouWillBeSadForever
 )
 
-print "number of options should be 7:  ${option->count()}"
+print("number of options should be 7:  ${option->count()}")
 
 Option1 := option->ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
 if Option1 isNotAGoodOption()
-    print "oh no"
+    print("oh no")
 else if Option1 isOopsYouMissedIt()
-    print "whoops"
+    print("whoops")
 ...
 
 # instead, consider doing this:
 consider Option1
     case NotAGoodOption
-        print "oh no"
+        print("oh no")
     case BestOptionStillComing
-        print "was the best actually..."
+        print("was the best actually...")
     case Unselected
         fallThrough
     default
-        print "that was boring"
+        print("that was boring")
 ```
 
 Note that we don't have to do `option->NotAGoodOption` (and similarly for other options)
@@ -4141,7 +4109,7 @@ is special logic with `|` and `&` for `oneOf` values in masks.
 Options2; options = AlignCenterX
 Options2 |= AlignRight    # will clear out existing AlignCenterX/Left/Right first before `OR`ing
 if Options2 & AlignCenterX
-    print "this will never trigger even if AlignCenterX == 4 and AlignRight == 12."
+    print("this will never trigger even if AlignCenterX == 4 and AlignRight == 12.")
 ```
 
 You can also explicitly tell the mask to avoid assigning a power of two to one of the
@@ -4188,10 +4156,10 @@ if SomeCondition
     liveItUp(String); index
         return String countBytes() + ++SomeIndex
 
-    print liveItUp("hi")    # this should print 12
-    print liveItUp("ok")    # this should print 13
+    print(liveItUp("hi"))   # this should print 12
+    print(liveItUp("ok"))   # this should print 13
 
-print liveItUp("no")        # should this print 14 or 2??
+print(liveItUp("no"))       # should this print 14 or 2??
 ```
 
 Within the `if SomeCondition` block, a new variable `SomeIndex` gets defined,
@@ -4232,10 +4200,10 @@ if SomeCondition
     liveItUp(String); index
         return String countBytes() + ++SomeIndex
 
-    print liveItUp("hi")    # this should print 12
-    print liveItUp("ok")    # this should print 13
+    print(liveItUp("hi"))   # this should print 12
+    print(liveItUp("ok"))   # this should print 13
 
-print liveItUp("no")        # prints 14
+print(liveItUp("no"))       # prints 14
 ```
 
 Similarly, returning a function from within a function is breaking scope:
