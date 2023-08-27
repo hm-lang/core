@@ -17,6 +17,7 @@ There are a few reserved keywords, like `if`, `else`, `with`, `return`, `assert`
 which are function-like but will consume the rest of the statement, even without parentheses.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function, whereas
 something like `sin X + 5` will give the value `sin(X) + 5` due to operator precedence.
+TODO: remove `sin X + 5`, require `sin(X) + 5`, so that we can use `sin is` and other method without `->`.
 
 Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
 most importantly in contrast to most other languages, underscores (`_`) are also not allowed.
@@ -39,8 +40,8 @@ If you need more indents, refactor your code.
 Lines can be continued at a +2 indent from the originating line, though there are some
 special rules here when parentheses are involved.  If an open parenthesis is encountered at
 the end of the line, and the next lines are only at +1 indent, then we assume an array
-is being constructed.  If any `:` or `;` are encountered in what otherwise might be a
-line-continued array, we assume we're creating an object/map.  If the line after an open
+is being constructed.  If `:` is encountered in what otherwise might be a
+line-continued array, we assume we're creating an map.  If the line after an open
 parenthesis is at +2 indent, then we assume we are just continuing the line and not creating
 an array.  Note that operators besides parentheses *are ignored* for determining the indent,
 so typical practice is to tab to the operator then tab to the number/symbol you need for
@@ -60,18 +61,10 @@ ArrayVariable := [
     5
 ]
 
-ObjectVariable := {
-    SomeValue: 100
-    OtherValue: "hi"
+MapVariable := {
+    SomeValue: 100      # equivalent to "SomeValue": 100
+    OtherValue: "hi"    # equivalent to "OtherValue": "hi"
 }
-
-NotAnArray := (
-        (20 + 45)
-    *   Continuing + The + Line + AtPlus2Indent - (
-                Nested * Parentheses / Are + Ok
-                - Too
-        )
-)
 ```
 
 Note that the close parenthesis must be at the same indent as the line of the open parenthesis.
@@ -79,23 +72,24 @@ The starting indent of the line is what matters, so a close parenthesis can be o
 line as an open parenthesis.
 
 ```
-SomeLineContinuationExampleVariable :=
-        OptionalExpressionExplicitlyAtPlusTwoIndent
-    +   5 - someFunction(
-                AnotherOptionalExpression
-            +   NextVariable
-            -   CanKeepGoing
-            /   Indefinitely
+NotAnArray := (
+        (20 + 45)
+    *   Continuing + The + Line + AtPlus2Indent - (
+                Nested * Parentheses / Are + Ok
+                - Too
         )
+)
 
 AnotherLineContinuationVariable := CanOptionallyStartUpHere
     +   OkToNotHaveAPreviousLineStartingAtPlusTwoIndent * (
                 KeepGoingIfYouLike
             -   HoweverLong
-        )
+        ) + (70 - 30) * 3
 ```
 
-Note that line continuations must be at least +2 indent, but can be more if desired:
+Note that line continuations must be at least +2 indent, but can be more if desired.
+Unless there are parentheses involved, all indents for subsequent line continuations
+should be the same.
 
 ```
 ExamplePlusThreeIndent
@@ -104,8 +98,45 @@ ExamplePlusThreeIndent
         -   Continuing
 ```
 
-Unless there are parentheses involved, all indents for subsequent line continuations
-should be the same.
+Arguments supplied to functions are similar to maps and only require +1 indent.
+
+```
+if someFunctionCall(
+    X
+    Y: 3 + sin(Z)
+)
+    doSomething()
+
+declaringAFunctionWithMultilineArguments(
+    Times: int
+    Greeting: string
+    Name: string = "World"
+): string
+    return "${Greeting}, ${Name}! " * Times
+```
+
+You can call or declare functions with arguments at +2 indent, but then you must use commas at the end
+of each argument line because +2 indent is the same as a line continuation.  The last argument's comma
+is optional but recommended.
+
+```
+declaringAFunctionWithPlusTwoIndentArguments(
+        Times: int,
+        Greeting: string,
+        Name: string = "World",
+): string
+    return "${Greeting}, ${Name}! " * Times
+
+SomeLineContinuationExampleVariable :=
+        OptionalExpressionExplicitlyAtPlusTwoIndent
+    +   5 - someFunction(
+                AnotherOptionalExpression
+            +   NextVariable
+            -   CanKeepGoing
+            /   Indefinitely,
+                R: 123.4,
+        )
+```
 
 ### block parentheses and commas
 
