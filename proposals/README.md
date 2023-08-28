@@ -2224,11 +2224,6 @@ e.g., `This X` or `This someMethod()`, so that we can disambiguate calling a glo
 that might have the same name as our class instance method, or using a global variable that
 might have the same name as a class instance variable.
 
-TODO: do we need "block parentheses" notation here, e.g., `${`?  i don't think so, because
-`${` should only be required for places where a parentheses can mean something else.
-here there is no ambiguity, we are creating an object, but because the LHS is lowerCamelCase,
-we are creating a class.
-
 ```
 exampleClass := {
     # class instance variables can be defined here:
@@ -2834,7 +2829,6 @@ All classes have a few compiler-provided methods which cannot be overridden.
     should be faster than copy for types bigger than the processor's word size.
 * `Is: is` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
-    TODO: we should probably make this `is` instead of `Is`
     TODO: discuss how `consider`'s `case` statements cast their arguments
     to the same type as the type of the `consider` statement.
     ```
@@ -2948,6 +2942,8 @@ are useful for gently adjusting programmer expectations.  The hm-lang formatter 
 substitute the preferred name for any aliases found, and the compiler will only
 warn on finding aliases.
 TODO: maybe combine formatter/compiler.
+TODO: maybe even add compiler errors to the code itself, with some special comments
+that will be removed on next compile, e.g., `@hmError`.
 
 Aliases can be used for simple naming conventions, e.g.:
 
@@ -4381,6 +4377,9 @@ grammarElement := enumerate(
     AtomicStatement
     ClassName
     ClassDefinition
+    ClassBlock
+    ClassStatement
+    ClassMethod
     EndOfInput
 )
 
@@ -4535,7 +4534,24 @@ Grammar := singleton() {
                 doNotAllow(operator("?:="), "Classes cannot be nullable.")
             ])
             optional(ExtendParentClasses)
-            parentheses(Block)
+            parentheses(ClassBlock)
+        ])
+        ClassBlock: repeat(ClassStatement)
+        ClassStatement: oneOf([
+            VariableDefinition
+            VariableDeclaration
+            FunctionDefinition
+            FunctionDeclaration
+            ClassMethod
+        ])
+        ClassMethod: sequence([
+            oneOf([operator("::"), operator(";;"), operator(";:"), operator(":;")]),
+            oneOf([
+                FunctionDefinition
+                FunctionDeclaration
+                # TODO: prefix ! and !!, as well as postfix !
+                # TODO: subscript access _
+            ])
         ])
         EndOfInput: tokenMatcher(
             match(Index;, Array: token_) := Index >= Array count()
