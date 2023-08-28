@@ -392,6 +392,8 @@ occurs before a parenthetical expression.  E.g., `print(X)` where `X` is a varia
 primitive constant (like `5`), or `anyFunctionName(Any + Expression / Here)`.
 In case a function returns another function, `getFunction(X)(Y, Z)` will call the
 second function with `(Y, Z)` arguments.
+TODO: how do we know it's not implicit subscript access here, e.g., if it's only one argument?
+`getFunction(X)(Y)`.
 
 Note that methods defined on classes can be prefaced by member access (e.g., ` `, `::`, or `;;`),
 and that path will still be used for function specification, even though member access has
@@ -4325,6 +4327,79 @@ someFunction(): null
     # `Audio hangUp(Callee;)` automatically happens when `Callee` is descoped.
 ```
 
+### Gotcha: Invalid references.
+
+```
+Array ;= [0, 1, 2, 3, 4]
+Array_(3, modify(Int;):
+    # this will almost certainly reallocate the array
+    Array_20 = 5
+    # so now `Int`, which is a ref type, is an invalid reference unless we're smart.
+    Int = -3    # could be segfault, could be worse
+)
+```
+
+Probably want to use an array ref type for `Int`, e.g., internally it's a pointer to `Array` and the array index (e.g., 3).
+Maps we could avoid reallocation issues if we do a linked-list for the insertion-ordered map, but we'll still have an issue
+for other types of maps (hashMap).
+This gets more complicated if we have nested containers, but ideally the pointer is a nested-pointer type.
+Alternatively, we might be able to do a dirty check whenever the parent container is changed, so we don't have to
+pay the cost of navigating the hierarchy unless the developer is making changes.
+
+```
+// Example C++ code
+array<bigInt> Array({0, 1, 2, 3, 4});
+Array.subscript(index(3), [&](bigInt *Int){
+    Array[20] = 5;
+    // NOTE we reset Int pointer now that Array was modified.
+    reset(&Int, &Array, index(3));
+    // continue on with regular logic.
+    *Int = -3;
+});
+```
+
+Nested containers get even worse.
+
+```
+# Nested containers in hm-lang:
+IntInt; int__ = [[1,2], [3], [4,5,6]]
+
+IntInt_(2, modify(Array; int_): null
+    Array_(3, fn(Int;): null
+        IntInt_20 = [8, 9, 10]
+        Int = 7
+    )
+)
+
+// Example C++ code:
+array<array<bigInt>> IntInt({array<bigInt>({1, 2}), array<bigInt>({3}), array<bigInt>({4, 5, 6})});
+IntInt.subscript(index(2), [&](array<bigInt> *Array){
+    // the Array pointer can change, do we even want to be calling this like this?
+    Array->subscript(index(3), [&](bigInt *Int){
+        IntInt[20] = array<bigInt>({8, 9, 10});
+        // NOTE we reset Array pointer now that IntInt was modified.
+        reset(&Array, &IntInt, index(2));
+        reset(&Int, Array, index(3));
+        // continue on with regular logic.
+        *Int = 7;
+    });
+});
+```
+
+TODO: we might not always know that a nested container is being modified.  E.g.,
+
+```
+badDesign(X; int__, Y; int_): null
+    X[100] = [1,2,3]
+    Y[10] = 4
+
+IntInt; int__ = [[0]]
+badDesign(IntInt;, IntInt[5];)
+
+// in C++, inside badDesign, it might not be obvious that Y is a child of X.
+```
+
+TODO: do we want to bring back MMR for these reasons?
 
 # grammar/syntax
 
@@ -4341,6 +4416,10 @@ NowAnArray := int_(QuestionableChoices) # makes an array of [X, 100, Y]
 ```
 
 TODO: () or {} or [] are equivalent to Null, or a null object or empty args list.
+
+TODO: can we define the grammar in the terms below, but then create a finite state machine
+which reads in the grammar below, deduces the possible states, then reads tokens in and
+flips between states while reading through files?
 
 Note on terminology:
 
