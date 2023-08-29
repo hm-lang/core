@@ -4401,6 +4401,34 @@ badDesign(IntInt;, IntInt[5];)
 
 TODO: do we want to bring back MMR for these reasons?
 TODO: that would only help mutable arguments; const ref arguments would still be problematic.
+unless everything is a pointer, but there's a performance cost to that.
+e.g., `array~int` could become `array<std::unique_ptr<bigInt>>`, and we could pass in `bigInt *` to any `Int;` argument.
+this will still break however if the array element is deleted in a function.
+
+```
+Array := [0, 1, 2, 3, 4]
+sawOffBranch(Int;): null
+    Array erase(Int)
+    Int += 10
+
+# this will be bad if we strictly have a reference to Array[3]
+sawOffBranch(Array[3];)
+#   Array erase(Array[3]) -> Array erase(3)
+#   Array[3] += 10  -> Array[3 #(original Array[3])#] += 10   OR  Array[4 #(new Array[3])#] += 10 ?
+```
+
+Solutions:
+*   "Lendable" pointer that passes ownership to the function block in case the function block's reference needs to outlive the
+    container's version of the pointer (e.g., in case it was deleted).  In case of container element deletion, though, the
+    lendable has to see if it needs to pass back the ownership, and it could be O(N) to find its original match.
+*   Shared pointer for all elements, even i32, etc.  (Seems like high overhead/cost.)
+*   Container pointers which always jump from the base container to a specific key, with bounds checking.
+*   Container pointers with a cached pointer to the element, which will get reset if the Container gets size-modified.
+*   Raw pointers to elements that get reset if the container changes, but this will fail if we go past the bounds (due to null).
+*   Disallow cases like this where the interior of a function modifies a container element that is passed inside.
+    Because we don't allow arbitrary pointers, the compiler should be able to detect if we pass in an element to a function
+    where things are deleted from the element's container.  This also seems limiting, because it might be desirable inside
+    a function to delete the element from a container.
 
 # grammar/syntax
 
