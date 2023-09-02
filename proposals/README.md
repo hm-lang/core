@@ -228,7 +228,10 @@ Other types which have a fixed amount of memory:
 and similarly for `i8` to `i512`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
 
-TODO: can we remove `ordinal` in favor of `count`?
+TODO: can we remove `ordinal` in favor of `count`?  No, i don't think so;
+we don't want to automatically convert an `index` to a `count` via +- 1, since that would be confusing.
+e.g., should `count(index(0))` be 1 or 0?  how about `Index := Array count() - 1`.
+we can do a +-1 with `ordinal`, however, without as much confusion.
 
 ## casting between types
 
@@ -393,7 +396,9 @@ primitive constant (like `5`), or `anyFunctionName(Any + Expression / Here)`.
 In case a function returns another function, `getFunction(X)(Y, Z)` will call the
 second function with `(Y, Z)` arguments.
 TODO: how do we know it's not implicit subscript access here, e.g., if it's only one argument?
-`getFunction(X)(Y)`.
+`getSomething(X)(Y)`.  Maybe we need to require `_` if it's key access.
+TODO: rethink `_` as array access, we probably could just do `get`/`set`.
+`A_5 = 3` -> `A.set(5, 3)`
 
 Note that methods defined on classes can be prefaced by member access (e.g., ` `, `::`, or `;;`),
 and that path will still be used for function specification, even though member access has
@@ -4414,7 +4419,7 @@ sawOffBranch(Int;): null
 # this will be bad if we strictly have a reference to Array[3]
 sawOffBranch(Array[3];)
 #   Array erase(Array[3]) -> Array erase(3)
-#   Array[3] += 10  -> Array[3 #(original Array[3])#] += 10   OR  Array[4 #(new Array[3])#] += 10 ?
+#   Array[3??] += 10  -> Array[3 #(original Array[3])#] += 10   OR  Array[4 #(new Array[3])#] += 10 ?
 ```
 
 Solutions:
@@ -4429,6 +4434,15 @@ Solutions:
     Because we don't allow arbitrary pointers, the compiler should be able to detect if we pass in an element to a function
     where things are deleted from the element's container.  This also seems limiting, because it might be desirable inside
     a function to delete the element from a container.
+
+I think container pointers which hold the container plus the key internally are the way to go, unless we just
+want to detect the problem and throw an error instead.  Each container could hold an ID (e.g., a random u64),
+and the pointer could verify the ID before asking the container for the key (inside the pointer).  If the container
+does not give the right ID, then the container was likely deleted.  This wouldn't stop segfaults but it could
+stop the runtime from sourcing/modifying data from the wrong place.
+
+Containers of containers (and further nesting) require key arrays for the pointers.
+E.g., `MyMap["Ginger"][1]["Soup"]` would be a struct which contains `&MyMap`, plus the tuple `("Ginger", 1, "Soup")`.
 
 # grammar/syntax
 
