@@ -256,6 +256,7 @@ R: int = X round()              # R = 5.  rounds to closest integer, breaking ti
                                 #         to the integer larger in magnitude.
 
 # Note, representable issues arise for conversions even between different integer types.
+# WARNING: we skip checks from intX -> intY in `optimized` compile mode, but not `debug` or `hardened`.
 A: u32 = 1234
 Q: u8 = A               # RUN-TIME ERROR, `A` is not representable as a `u8`.
 B: u8 = A & 255         # OK, communicates intent and puts `A` into the correct range for a `u8`.
@@ -3131,6 +3132,15 @@ container~t := {
 }
 ```
 
+TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `map~(key: string, value: int|null)`.
+This is because `Map[X] = Null` should delete the key specified by `X` from the map.  Plus, we already have handling for
+nullable values from the map, if we ask for the element at a key and it's not present in the map.  Similarly for arrays;
+`Array[3] = Null` should delete the fourth item in the array.  If the elements should represent optional things, then
+we should use the `optional` type.
+
+TODO: clean up usage of "optional" when we really mean "nullable", so that we can distinguish between the two.
+Or figure out a way to not distinguish between optional and nullable (e.g., allow null in Map or Array??).
+
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
@@ -4439,10 +4449,14 @@ I think container pointers which hold the container plus the key internally are 
 want to detect the problem and throw an error instead.  Each container could hold an ID (e.g., a random u64),
 and the pointer could verify the ID before asking the container for the key (inside the pointer).  If the container
 does not give the right ID, then the container was likely deleted.  This wouldn't stop segfaults but it could
-stop the runtime from sourcing/modifying data from the wrong place.
+stop the runtime from sourcing/modifying data from the wrong place.  We can supply these for `debug` and `hardened`
+compilation targets.
 
 Containers of containers (and further nesting) require key arrays for the pointers.
 E.g., `MyMap["Ginger"][1]["Soup"]` would be a struct which contains `&MyMap`, plus the tuple `("Ginger", 1, "Soup")`.
+
+For performance optimization, we could have a `@noNewKeys` or `@fixedCount` annotation on a container class,
+so that passed-in arrays/maps are kept at the same size/count inside the function block.
 
 # grammar/syntax
 
