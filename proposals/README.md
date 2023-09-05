@@ -394,12 +394,10 @@ needs to be RTL for `array~array~int` processing as `array~(array~int)`, etc.
 Function calls are assumed whenever a function identifier (i.e., `lowerCamelCase`)
 occurs before a parenthetical expression.  E.g., `print(X)` where `X` is a variable name or other
 primitive constant (like `5`), or `anyFunctionName(Any + Expression / Here)`.
-In case a function returns another function, `getFunction(X)(Y, Z)` will call the
-second function with `(Y, Z)` arguments.
-TODO: how do we know it's not implicit subscript access here, e.g., if it's only one argument?
-`getSomething(X)(Y)`.  Maybe we need to require `_` if it's key access.
-TODO: rethink `_` as array access, we probably could just do `get`/`set`.
-`A_5 = 3` -> `A.set(5, 3)`
+In case a function returns another function, you must use the default function name `fn`
+to call the other function inline, e.g., `getFunction(X) fn(Y, Z)` will call the
+second function with `(Y, Z)` arguments, or define the function as a temporary,
+e.g., `theFunction := getFunction(X), theFunction(Y, Z)`.
 
 Note that methods defined on classes can be prefaced by member access (e.g., ` `, `::`, or `;;`),
 and that path will still be used for function specification, even though member access has
@@ -521,8 +519,6 @@ instance, respectively.  For example, the `array` class has overloads for sortin
 does not change the instance but returns a sorted copy of the array (`::sort(): this`), and
 (2) one which sorts in place (`;;sort(): null`).  The ` ` (member access) operator will use
 `This:` if the LHS is an immutable variable or `This;` if the LHS is mutable.  Some examples in code:
-TODO: consider switching to `Me: me` from `This` for brevity.  `I` is too short and conflicts
-with common range usage (`for I: int < 3`).
 
 ```
 # there are better ways to get a median, but just to showcase member access:
@@ -934,13 +930,6 @@ v(X: dbl, Y: dbl): null
 
 # Note that it is also ok to use parentheses around a function definition,
 # but you should use the block parentheses notation `$(`.
-# TODO: see if we need to use `$(` or can get away with `(`.
-#       this looks a bit like `str[...]` which is ok if we can determine that `...`
-#       is a block to be executed sequentially.  but then we'd need `:= str[...]`
-#           excite(Times: int): str {
-#               return "hi!" * Times
-#           }
-#       maybe we allow it because we have classes defined without `${`.
 excite(Times: int): str ${
     return "hi!" * Times
 }
@@ -1042,10 +1031,10 @@ anotherTestFunction(): bool
 q(anotherTestFunction)  # should print "function returned false!"
 
 # or you can create a default-named function yourself:
-q(;;fn(): bool
+q(fn(): bool
     return random() > 0.5
 )   # will print one of the above due to randomness.
-# equivalent to `q(;;() := random() > 0.5)`
+# equivalent to `q(() := random() > 0.5)`
 
 # when defining a lambda (not declaring it), you can omit the name:
 q(() := True)
@@ -1227,8 +1216,7 @@ myClass~t := {
     # maybe something like this?
     ;:take(X;: t):
         This X = @mootOrCopy X
-        # TODO: how complicated should the preprocessor be?  maybe `@if(@mutable Z, Z!, Z)` might be better.
-        # `@mootOrCopy Z` can expand to `@if @mutable Z ${Z!} @else ${Z}`
+        # `@mootOrCopy Z` can expand to `@if @mutable(Z) ${Z!} @else ${Z}`
         # or maybe we can do something like `This X = X!:`
 }
 ```
@@ -1269,16 +1257,16 @@ someFunction(): dbl
     return 987.6
 
 # present argument (case 2):
-someFunction(Y: int): flt
-    return 2.3 * flt(Y)
+someFunction(Y: int): dbl
+    return 2.3 * dbl(Y)
 
 # nullable argument (case 3):
-someFunction(Y?: int): string
-    return "why not ${Y}"
+someFunction(Y?: int): dbl
+    return if Y != Null ${1.77} else ${Y + 2.71}
 
 # default argument (case 4):
-someFunction(Y := 3): i64
-    return i64(Y)
+someFunction(Y := 3): dbl
+    return dbl(Y)
 ```
 
 Note that mutable arguments `;` are distinct overloads, which indicate either mutating
@@ -1352,7 +1340,7 @@ where we actually don't want to call an overload of the function if the argument
 X ?:= if Y != Null ${overloaded(Y)} else ${Null}
 
 # instead, you should use the more idiomatic hm-lang version.
-# putting a ? before the argument name will check that argument;
+# putting a ? *before* the argument name will check that argument;
 # if it is Null, the function will not be called and Null will be returned instead.
 X ?:= overloaded(?Y)
 
