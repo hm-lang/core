@@ -424,28 +424,8 @@ no field value (i.e, a null field value).  In addition, `X_someFunction[3]` woul
 
 ## new-namespace operator `->`
 
-The operator `->` can be used in a couple ways: (1) as a unary operator for an output-only argument
-name in a function declaration or function call, and (2) for creating default-named variables in a
-new/existing namespace.
-
-We'll discuss more in the function-call section, but here are some examples of (1):
-TODO: do we want to keep this?
-
-```
-# function declaration + definition, uses `Output` as an output variable via `->Output`.
-myFunction(Input: int, ->Output; str):
-    Output = str(Input)
-
-# function calling:
-Output := myFunction(Input: 301)  # Output = "301"
-# equivalently, defines an immutable `Output` in this scope:
-myFunction(Input: 301, ->Output: str)
-
-# argument renaming is also possible; this defines `MyOutput` in this scope:
-myFunction(Input: 445, ->MyOutput: str as Output)
-```
-
-Examples of (2):
+The operator `->` can be used to create default-named variables in a
+new/existing namespace.  For example:
 `New->Int`, `Old->String`, `Input->Array`, or `Output->Rune`, where the LHS is the namespace
 and the RHS is the variable name (typically the `UpperCamelCase` version of the `lowerCamelCase` type).
 This allows you to pass in default-named arguments into functions, while avoiding argument/variable
@@ -1361,95 +1341,20 @@ doSomething(X?: int): int
     return 3
 ```
 
-### output arguments
+### destructring
 
-Arguments can be declared as input-only, output-only, or both input and output (IO).
-Input-only arguments are guaranteed not to change the value of any backing variable
-in the outside scope.  They are passed essentially by constant reference (e.g., C++
-`const t &`) but will be copied-on-write (COW) if they are modified inside the function.
-Output-only arguments are just the return values of the function, i.e., the fields
-of an output object.  These can be thought of as pointers from the caller's scope that
-the function is allowed to modify the pointed-at value of, write-only (no read).  IO
-arguments are of course readable and writeable variables from the caller's scope.
-Here are some simple examples of input and output variables:
-TODO: do we want Output and IO arguments to essentially be (special) pointers?
-      We may want to re-write the MMR section for this.
+TODO: cleanup
 
 ```
-# this function has an input variable `Input: int` and an output variable `Str; str`:
-fn(Input: int): str
-    return "hi" * Input
-# alternative, equivalent definition:
-fn(Input: int, ->Str; str):
-    Str = "hi" * Input
-
-# when calling the function, you can specifically declare/initialize the output variable
-# via `->` with no prefix, like this:
-fn(Input: 3, ->Str:)    # equivalent to `fn(Input: 3, ->Str: str)` due to default naming.
-print(Str)              # prints "hihihi"
-
-# you can make the newly initialized output variable mutable for later via an explicit `;`
-fn(Input: 4, ->Str;)    # equivalent to `fn(Input: 4, ->Str; str)` due to default naming.
-print(Str)              # prints "hihihihi"
-Str += "yo"             # Str is now "hihihihiyo"
-
-# alternatively, you can pre-define the output variable and then avoid using `;` or `:`.
-Str ;= str("asdf")      # note it needs to be mutable.
-fn(Input: 2, ->Str)     # note there is no `;` or `:` here.
-print(Str)              # prints "hihi"
-
-# note that you can also immediately define the output variable, as usual:
-Str := fn(Input: 1)     # Str = "hi"
-```
-
-Here are some more complicated examples which include IO variables:
-
-```
-# === function definition ===========================
-# TODO: do we keep this or require people to switch to `Io;`?
-# this function rounds down a dbl and returns the integer and fractional parts via
-# `RoundDown` and `Io` respectively:
-fraction(In: string, Io: dbl): (Io: dbl, RoundDown: int)
-    print(In)
-    RoundDown := Io round(Down)
-    return {Io: Io - RoundDown, RoundDown}
-
-# equivalent definition using mutable reference syntax:
 fraction(In: string, Io; dbl): (RoundDown: int)
     print(In)
     RoundDown := Io round(Down)
     Io -= RoundDown
     return {RoundDown}
 
-# equivalent definition using mutable reference and output argument syntax:
-fraction(In: string, Io; dbl, ->RoundDown; int):
-    print(In)
-    RoundDown = Io round(Down)
-    Io -= RoundDown
-# note that we can't have variable shadows, so this would throw a compile error:
-# `fraction(In: str, Io: dbl, ->Io; dbl, ->RoundDown; int)`
-
-# === function calling ==============================
-# we can call with variables that get defined inline like this.
-{Io: dbl, RoundDown: int} = fraction(In: "hello!", Io: 1.234)
-# note `Io` and `RoundDown` are both immutable outside the function scope.
-# you could make `Io` and `RoundDown` mutable via the following:
-{Io; dbl, RoundDown; int} = fraction(In: "hello!", Io: 1.234)
-RoundDown += 3  # OK, `RoundDown` is mutable.
-
-# we can call with pre-existing variables, using MMR, like this:
-In := "hello!"
-Io ;= 1.234     # note `;` so it's mutable.
-RoundDown; int
-fraction(In, Io;, ->RoundDown)
-
-# we can call with variables that get defined inline like this, besides `Io`, which is MMR.
-Io ;= 1.234     # note `;` so it's mutable.
-fraction(In: "hello!", Io;, ->RoundDown; int)
-
-# This should not be supported: `fraction(In: "hello!", Io: 1.234, ->Io: dbl, ->RoundDown: int)`
-# Because inside the function, we might have ambiguous expectations for how `Io` behaves
-# if it is read after it is written inside the function.
+# destructuring
+Io ;= 1.234
+{RoundDown:} = fn(In: "hello", Io;)
 
 # === calling the function with variable renaming ===
 # with pre-existing variables, using MMR syntax:
@@ -1462,54 +1367,18 @@ InputOutput ;= 1.234     # note `;` so it's mutable.
 {RoundDown as IntegerPart;} = fraction(In: Greeting, Io; InputOutput)
 # you can specify the return type of the renamed variable like this:
 {RoundDown as IntegerPart; int} = fraction(In: Greeting, Io; InputOutput)
-# or like this: TODO: does this work ok or is it breaking some type syntax here?
-{IntegerPart; int(RoundDown)} = fraction(In: Greeting, Io; InputOutput)
-
-# with pre-existing variables, using MMR and output argument syntax:
-Greeting := "hello!"
-InputOutput ;= 1.234     # note `;` so it's mutable.
-IntegerPart; int
-fraction(In: Greeting, Io; InputOutput, ->IntegerPart as RoundDown)
-# equivalent:
-fraction(In: Greeting, Io; InputOutput, RoundDown: ->IntegerPart)
-
-# we can call with variables that get defined inline like this, besides `Io`, which is MMR.
-InputOutput ;= 1.234     # note `;` so it's mutable.
-fraction(In: "hello!", Io; InputOutput, ->IntegerPart: int as RoundDown)
-# TODO: equivalent?
-fraction(In: "hello!", Io; InputOutput, RoundDown: ->IntegerPart: int)
-
-# destructuring
-Io ;= 1.234
-{RoundDown:} = fn(In: "hello", Io;)
 
 # automatic de-nesting or automatic destructuring
 # when there is a single-field object (SFO) with the correct name, we can do automatic de-nesting,
 # which is equivalent to the `{RoundDown:} = ...` syntax above:
 Io ;= 1.234
 RoundDown := fn(In: "hello", Io;)
-# TODO: can we define the `;` inline, e.g., `Io; int(3)`?  i think it may be inconsistent with other syntax
 
 # if the field name doesn't match, we won't do automatic de-nesting:
 Io ;= 1.234
 Result := fn(In: "hello", Io;)
-# `Result` is an object because the output variables were named, so we'll get `RoundDown` here.
-# note that `Io` will not be a field on `Result` because we got it via the `;` argument reference:
+# `Result` is an object because the output variables were named, so we'll get `RoundDown` like this:
 print(Result RoundDown)
-
-# note that when there is no match in names, we'll get the full return object:
-Result := fn(In: "hello", Io: 1.234)
-# `Result` has nested fields based on the function's outputs:
-print(Result Io)
-print(Result RoundDown)
-
-# here there's no match in names, so we'll return an object,
-# and using `->` will reduce the number of fields in the return object.
-Result := fn(In: "Hello", Io: 1.234, ->RoundDown: int)
-# `RoundDown` is taken out of the `Result` object here, so there's only `Io` left:
-print(Result Io)
-# TODO: do we automatically put in a `Io` on the output if `Io` is const on the arguments?
-# or do we throw an error and require passing in `Io` as a reference `;`?
 
 # TODO: think about what overload matching means with SFOs, or with return variables whose names
 # don't match any return fields.
@@ -1522,12 +1391,8 @@ It is a compiler error to do something like `X: int := someFunction(Z)`, since i
 looks somewhat ambiguous -- is it a lambda or a declaration?  So make sure to include
 parentheses if a lambda is desired.
 
-TODO: does having output arguments obviate the need for the spread operator in JS, e.g.,
-`const {field, ...otherFields} = doStuff();` since we can do `OtherFields := doStuff(->Field: field)`?
-the `...` notation seems a bit more clear what's happening, though.
-maybe we get rid of output arguments and do `{...OtherFields:, Field:} := doStuff()`
-TODO: double check if we even have a legitimate need for doing things in multiple ways,
-that can be confusing as a new developer -- which way is better, etc.
+TODO: discuss/maybe implement spread operator in JS, e.g.,
+`const {Field:, ...OtherFields:} = doStuff();`
 
 Note, you can also have nullable output arguments.  These will be discussed
 more in the function overload section, but here are some examples.
@@ -1539,12 +1404,6 @@ wow(Lives: int)?: cat
         cat()
     else
         Null
-
-# alternative output argument definition
-# TODO: have we gotten rid of -> as an output??
-wow(Lives: int, ->Cat?: cat):
-    if Lives == 9
-        Cat = cat()
 ```
 
 For nested object return types, there is some syntactic sugar for dealing with them.
@@ -1567,9 +1426,7 @@ R; str
 S: str
 (Q as W: Z: A, R as W: B, S as W: C) = nest(X: 3, Y: "whoa")
 
-# or, inline:
-(Q; int as W: Z: A, R; str as W: B, S: str as W: C) = nest(X: 3, Y: "whoa")
-# equivalently, spread out a bit to aid in reading:
+# or, defining the variables inline:
 (
     Q; int as W: Z: A
     R; str as W: B
