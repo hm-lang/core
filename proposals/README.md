@@ -358,6 +358,7 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           |   `-`     | unary minus               | unary:  `-A`      |               |
 |           |   `+`     | unary plus                | unary:  `+A`      |               |
 |           |   `!`     | prefix boolean not        | unary:  `!A`      |               |
+|           |  `not`    | prefix boolean not        | unary:  `not A`   |               |
 |   5       |   `>>`    | bitwise right shift       | binary: `A>>B`    | LTR           |
 |           |   `<<`    | bitwise left shift        | binary: `A<<B`    |               |
 |   6       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
@@ -385,7 +386,6 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |   12      |   `,`     | comma                     | binary/postfix    | LTR           |
 
 
-TODO: discussion on not.  this should be keyword/overload for `prefix !`.
 TODO: discussion on `~`
 needs to be RTL for `array~array~int` processing as `array~(array~int)`, etc.
 
@@ -2153,6 +2153,8 @@ exampleClass := {
     ;;addSomething(Int): null
         This X += Int
 
+    # TODO: should we distinguish between virtual (overridable) and non-virtual (non-overridable)
+    #       methods?  if so, we can use `myFn();` for virtual and `myFn():` for non-virtual.
     # this reassignable method is defined on a per-instance basis. changing it on one class instance
     # will be isolated from any changes on another class instance.
     ::reassignableMethod(Int); string
