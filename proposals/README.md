@@ -341,7 +341,7 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
 |   1       |  ` ()`    | function call             | on fn: `a(B)`     | LTR           |
 |           |  ` []`    | function call             | on fn: `a[B]`     |               |
-|           |  ` {}`    | function call             | on fn: `a[B]`     |               |
+|           |  ` {}`    | function call             | on fn: `a{B}`     |               |
 |   2       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `->`    | new namespace             | binary: `A->B`    |               |
@@ -941,6 +941,63 @@ v(X, Y)     # equivalent to `v(X: X, Y: Y)` but the redundancy is not idiomatic.
 v(Y, X)     # equivalent
 ```
 
+### function arguments
+
+Arguments must have unique names; e.g., you must not declare a function with two arguments
+that have the same name.  This is obvious because we wouldn't be able to distinguish between
+the two arguments inside the function body.
+
+```
+myFun(X: int, X: dbl): int|dbl = X      # COMPILER ERROR.  duplicate identifiers
+```
+
+However, there are times where it is useful for a function to have two arguments with the same
+name, and that's for default-named arguments in a function where *order doesn't matter.*
+This is true, for example, in a function like `max`:
+
+```
+@orderIndependent
+max(First->Int, Second->Int): int
+    return if First->Int > Second->Int
+        First->Int
+    else
+        Second->Int
+
+max(5, 3) == max(3, 5)
+```
+
+The compiler is not smart enough to know whether order matters or not, so we need to annotate
+the function with `@orderIndependent`, and we need to use namespaces (`First->` and `Second->`)
+in order to distinguish between the two variables inside the function block.
+
+There is one place where it is not obvious that two arguments can have the same name, and
+that is in method definitions.  Take for example the vector dot product:
+
+```
+vector2 := {
+    ;;reset(This X; dbl, This Y; dbl) := Null
+
+    @orderIndependent
+    ::dot(Vector2): dbl
+        return This X * Vector2 X + This Y * Vector2 Y
+}
+Vector2 := vector2(1, 2)
+OtherVector2 := vector2(3, -4)
+print(Vector2 dot(OtherVector2))    # prints -5
+print(dot(Vector2, OtherVector2))   # equivalent, prints -5
+```
+
+The method `::dot(Vector2): dbl` has a function signature `dot(This, Vector2): dbl`,
+where `This` is an instance of `vector2`, so ultimately this function looks like
+`dot(Vector2, Vector2): dbl`, and can be called thus.  Therefore this function
+*must* be order independent and should be annotated as such.  Otherwise it is
+a compiler error.
+
+Note that operations like `+` should be order independent, whereas `+=` should be
+order dependent, since the method would look like this: `;;+=(Vector2)`, which is
+equivalent to `+=(This;, Vector2)`, where the first argument is mutable.
+
+
 ### functions as arguments
 
 A function can have a function as an argument, and there are a few different ways to call
@@ -975,7 +1032,7 @@ detect(greet(Int): string
 ### default-name arguments in functions
 
 For functions with a single argument where the variable name doesn't matter,
-you can use default-named variables.  For primitive types, the default-name identifier
+you can use default-named variables.  For standard ASCII identifiers, the default-name identifier
 is just the `UpperCamelCase` version of the `lowerCamelCase` type.
 
 ```
@@ -1907,7 +1964,7 @@ using the syntax `~(type1, type2, ...)` or `~someType` (for just one generic typ
 after a function name but before the argument list.  We also allow defining templates
 inline for convenience.  e.g., `logger(T: ~t): t`, using `~` the first time you see
 the type (reading left to right).
-TODO: could do `logger(@infer t: type, T: t): t` if we don't want `~` for it.
+TODO: could do `logger(T: @infer t): t` if we don't want `~` for it.
 I prefer the efficiency of `logger(T: ~t): t`, though.
 
 ```
@@ -2034,11 +2091,7 @@ This is useful to overload e.g., the printing of your class instance, via defini
 `print(This)` as a method, so that `print(SomeClass)` will then call `SomeClass::print()`.
 Similarly, you can do `count(SomeClass)` if `SomeClass` has a `count(This)` method, which
 all container classes have.  This also should work for multiple argument methods, since
-`Array swap(Index1, Index2)` can easily become `swap(Array, Index1, Index2)`.
-TODO: Double check that the above is ok, but it seems helpful.  Need to check for if
-the `this` type is added as a method argument, because then it's not clear how things should work.
-TODO: allow multiple types of an argument without names if the order doesn't matter.
-e.g., add an `@noOrder` annotation.
+`Array swap(Index1, Index2)` can easily become `swap(Array;, Index1, Index2)`.
 
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
@@ -2857,7 +2910,7 @@ to invoke logic from these external files.
 vector2 := {
     ;;reset(This X: dbl, This Y: dbl): null
 
-    @noOrder
+    @orderIndependent
     ::dot(Vector2: vector2) := This X * Vector2 X + This Y * Vector2 Y
 }
 
