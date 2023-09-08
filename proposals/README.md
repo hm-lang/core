@@ -4808,6 +4808,8 @@ TODO
 
 TODO: maybe want to separate elements inside a container from container in a consistent way.
 e.g., `Array[3]` -> `Key; key~array~int = 3, Array[Key]`.
+TODO: this might be better as a function, e.g., `key(array~int)` is the `index` type.
+function signature `key(Is): is`
 
 # object format
 
@@ -4870,6 +4872,14 @@ cast to them (i.e., without allocation)?  need to know the possible memory layou
 i.e., all possible child classes.  if we know for certain how files are loaded and used, 
 and ensure encapsulation in some way, we can probably update max storage required if a child
 class is loaded, and undo the update once the child class is unloaded.
+alternatively, since child classes can be persisted, we might not want to update the max storage
+when the child class is unloaded.  we could have a shared pointer to the class, and on class
+destructors, remove their copy of that; that would be more fireproof.
+but similarly, if new child classes are added with more space, then we'd need to go back
+and redo arrays with the parent class wrappers to expand their size.  since we should know
+all imports ahead of time, however, we could just get the largest child implementation and use that.
+for scripts that extend a class, we might fit in as much as we can to the wrapper classes
+memory but then use a pointer to the rest.  it's ok if scripts take a performance hit (pointer dereference).
 
 TODO: discuss having all instance methods in some special virtual table, e.g., possibly 
 with additional reflection information (for things like `@for method in mutators(myClass)`
