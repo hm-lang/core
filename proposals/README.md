@@ -825,10 +825,11 @@ ImmutableMix Mut += 4               # COMPILE ERROR, ImmutableMix is immutable, 
 ImmutableMix Imm -= 1               # COMPILE ERROR, ImmutableMix and this field are immutable
 
 # NOTE that in general, calling a function with variables defined by `;` is a different
-# overload than calling with `:`.  Mutable argument variables imply that the arguments are
-# being passed by reference and will be mutated inside the function.  Data classes do not have
-# these overloads, so they will throw compile errors:
-MyMixMatch := mixMatch(X; 5, Y; 3)  # COMPILE ERROR: mixMatch has no overloads for `(X;, Y;)`
+# overload than calling with `:`.  Mutable argument variables imply that the arguments will
+# be mutated inside the function, and because they are passed by reference, escape the function
+# block with changes.  Data classes have overloads with mutable arguments, which imply that
+# the data class will take over the argument (via moot).  This implies a move (not copy) operation.
+MyMixMatch := mixMatch(X; 5, Y; 3)  # `;` is useful for taking arguments via a move.
 # see section on mutable/immutable arguments for more information.
 ```
 
@@ -968,7 +969,8 @@ max(5, 3) == max(3, 5)
 
 The compiler is not smart enough to know whether order matters or not, so we need to annotate
 the function with `@orderIndependent`, and we need to use namespaces (`First->` and `Second->`)
-in order to distinguish between the two variables inside the function block.
+in order to distinguish between the two variables inside the function block.  When calling `max`,
+we don't need to use those namespaces, and can't (since they're invisible to the outside world).
 
 There is one place where it is not obvious that two arguments can have the same name, and
 that is in method definitions.  Take for example the vector dot product:
@@ -996,7 +998,6 @@ a compiler error.
 Note that operations like `+` should be order independent, whereas `+=` should be
 order dependent, since the method would look like this: `;;+=(Vector2)`, which is
 equivalent to `+=(This;, Vector2)`, where the first argument is mutable.
-
 
 ### functions as arguments
 
@@ -1273,6 +1274,81 @@ myClass~t := {
         This x(X;:)
 }
 ```
+
+### passing by reference
+
+In hm-lang, all arguments are effectively passed by reference; this is to make things
+consistent between primitives and non-primitives.  Most programming languages pass primitives
+by value, and this is possible in hm-lang but not the default.
+
+For example, this function call passes `Array[3]` by reference, even if `Array[3]` is a primitive.
+
+```
+Array; int_ = [0, 1, 2, 3, 4]
+myFunction(Array[3];)   # passed as mutable reference
+myFunction(Array[3])    # passed as readonly reference
+```
+
+You can switch to passing by value by coercing a new type:
+
+```
+Array; int = [0, 1, 2, 3, 4]
+myFunction(int(Array[3]);)  # passed by value, it's mutable inside
+myFunction(int(Array[3]))   # passed by value, immutable inside
+```
+
+Normally this distinction of passing by reference or value does not matter.
+The situations where it does matter is when the function modifies the outside variable
+in a self-referential way.  While this is allowed, it's not recommended!  Here is
+an example with an array:
+
+```
+Array ;= [0, 1, 2, 3, 4]
+sawOffBranch(Int;): null
+    Array erase(Int)
+    Int *= 10
+
+sawOffBranch(Array[3];)
+print(Array)    # prints [0, 1, 2, 40]
+# walking through the code:
+# sawOffBranch(Array[3];):
+#     Array erase(Array[3]) # Array erase(3) --> Array becomes [0, 1, 2, 4]
+#     Array[3] *= 10        # reference to 4 *= 10  --> 40
+```
+
+Note that references to elements in a container are internally pointers to the container plus the key/offset,
+so that we don't delete the value at `Array[3]` and thus invalidate the reference `Array[3];` above.
+Containers of containers (and further nesting) require key arrays for the pointers.
+E.g., `MyMap["Ginger"][1]["Soup"]` would be a struct which contains `&MyMap`, plus the tuple `("Ginger", 1, "Soup")`.
+
+TODO: discussion on `Array_5` being a reference.  this might break old hm-lang assumptions (based on MMR),
+since we normally do `array~t := { ::_(Index): t, ;;_(Index, T;): null }`.  but because we ask for it in an argument,
+the `:` and `;` get the readonly/mutable reference version?  to get the swap semantics correct, do we do
+`TmpInt ;= Array[3]!, sawOffBranch(TmpInt;), Array[3] = TmpInt!`?  this would give `[0, 1, 2, 30]` above.
+BUT if someone accesses `Array[3]` inside the function, is it alright that it has become 0?
+
+Here is an example without a container, which is still surprising, because
+the argument appears to be immutable.
+
+```
+MyInt ;= 123
+notActuallyConstant(Int): null
+    print("Int before ${Int}")
+    MyInt += Int
+    print("Int middle ${Int}")
+    MyInt += Int
+    print("Int after ${Int}")
+    # Int += 5  # this would be a compiler error since `Int` is readonly from this scope.
+
+notActuallyConstant(MyInt) # prints "Int before 123", then "Int middle 246", then "Int after 492"
+```
+
+Because of this, one should be careful about assuming that a readonly argument is deeply constant;
+it may only be not-writeable from your scope's reference to the variable.
+TODO: we should replace "immutable" argument -> "readonly" argument everywhere.
+
+For performance optimization, we could have a `@noNewKeys` or `@fixedCount` annotation on a container class,
+so that passed-in arrays/maps are kept at the same size/count inside the function block.
 
 ### nullable arguments
 
@@ -3250,7 +3326,7 @@ doSomething(ConstArray: dbl_): dbl_2
 
 # copies Vector3, of course:
 print(doSomething(CopiedArray: Vector3))    # prints [3.1, 2.4]
-# can bring in Vector3 by reference (i.e., no copy) here:
+# can bring in Vector3 by constant reference (i.e., no copy) here:
 print(doSomething(ConstArray: Vector3))     # prints [3.1, 2.4]
 ```
 
@@ -4315,122 +4391,6 @@ someFunction(): null
     sleep Seconds: 10
     # `Audio hangUp(Callee;)` automatically happens when `Callee` is descoped.
 ```
-
-### Gotcha: Invalid references.
-
-```
-Array ;= [0, 1, 2, 3, 4]
-Array_(3, modify(Int;):
-    # this will almost certainly reallocate the array
-    Array_20 = 5
-    # so now `Int`, which is a ref type, is an invalid reference unless we're smart.
-    Int = -3    # could be segfault, could be worse
-)
-```
-
-Probably want to use an array ref type for `Int`, e.g., internally it's a pointer to `Array` and the array index (e.g., 3).
-Maps we could avoid reallocation issues if we do a linked-list for the insertion-ordered map, but we'll still have an issue
-for other types of maps (hashMap).
-This gets more complicated if we have nested containers, but ideally the pointer is a nested-pointer type.
-Alternatively, we might be able to do a dirty check whenever the parent container is changed, so we don't have to
-pay the cost of navigating the hierarchy unless the developer is making changes.
-
-```
-// Example C++ code
-array<bigInt> Array({0, 1, 2, 3, 4});
-Array.subscript(index(3), [&](bigInt *Int){
-    Array[20] = 5;
-    // NOTE we reset Int pointer now that Array was modified.
-    reset(&Int, &Array, index(3));
-    // continue on with regular logic.
-    *Int = -3;
-});
-```
-
-Nested containers get even worse.
-
-```
-# Nested containers in hm-lang:
-IntInt; int__ = [[1,2], [3], [4,5,6]]
-
-IntInt_(2, modify(Array; int_): null
-    Array_(3, fn(Int;): null
-        IntInt_20 = [8, 9, 10]
-        Int = 7
-    )
-)
-
-// Example C++ code:
-array<array<bigInt>> IntInt({array<bigInt>({1, 2}), array<bigInt>({3}), array<bigInt>({4, 5, 6})});
-IntInt.subscript(index(2), [&](array<bigInt> *Array){
-    // the Array pointer can change, do we even want to be calling this like this?
-    Array->subscript(index(3), [&](bigInt *Int){
-        IntInt[20] = array<bigInt>({8, 9, 10});
-        // NOTE we reset Array pointer now that IntInt was modified.
-        reset(&Array, &IntInt, index(2));
-        reset(&Int, Array, index(3));
-        // continue on with regular logic.
-        *Int = 7;
-    });
-});
-```
-
-TODO: we might not always know that a nested container is being modified.  E.g.,
-
-```
-badDesign(X; int__, Y; int_): null
-    X[100] = [1,2,3]
-    Y[10] = 4
-
-IntInt; int__ = [[0]]
-badDesign(IntInt;, IntInt[5];)
-
-// in C++, inside badDesign, it might not be obvious that Y is a child of X.
-```
-
-TODO: do we want to bring back MMR for these reasons?
-TODO: that would only help mutable arguments; const ref arguments would still be problematic.
-unless everything is a pointer, but there's a performance cost to that.
-e.g., `array~int` could become `array<std::unique_ptr<bigInt>>`, and we could pass in `bigInt *` to any `Int;` argument.
-this will still break however if the array element is deleted in a function.
-
-```
-Array := [0, 1, 2, 3, 4]
-sawOffBranch(Int;): null
-    Array erase(Int)
-    Int += 10
-
-# this will be bad if we strictly have a reference to Array[3]
-sawOffBranch(Array[3];)
-#   Array erase(Array[3]) -> Array erase(3)
-#   Array[3??] += 10  -> Array[3 #(original Array[3])#] += 10   OR  Array[4 #(new Array[3])#] += 10 ?
-```
-
-Solutions:
-*   "Lendable" pointer that passes ownership to the function block in case the function block's reference needs to outlive the
-    container's version of the pointer (e.g., in case it was deleted).  In case of container element deletion, though, the
-    lendable has to see if it needs to pass back the ownership, and it could be O(N) to find its original match.
-*   Shared pointer for all elements, even i32, etc.  (Seems like high overhead/cost.)
-*   Container pointers which always jump from the base container to a specific key, with bounds checking.
-*   Container pointers with a cached pointer to the element, which will get reset if the Container gets size-modified.
-*   Raw pointers to elements that get reset if the container changes, but this will fail if we go past the bounds (due to null).
-*   Disallow cases like this where the interior of a function modifies a container element that is passed inside.
-    Because we don't allow arbitrary pointers, the compiler should be able to detect if we pass in an element to a function
-    where things are deleted from the element's container.  This also seems limiting, because it might be desirable inside
-    a function to delete the element from a container.
-
-I think container pointers which hold the container plus the key internally are the way to go, unless we just
-want to detect the problem and throw an error instead.  Each container could hold an ID (e.g., a random u64),
-and the pointer could verify the ID before asking the container for the key (inside the pointer).  If the container
-does not give the right ID, then the container was likely deleted.  This wouldn't stop segfaults but it could
-stop the runtime from sourcing/modifying data from the wrong place.  We can supply these for `debug` and `hardened`
-compilation targets.
-
-Containers of containers (and further nesting) require key arrays for the pointers.
-E.g., `MyMap["Ginger"][1]["Soup"]` would be a struct which contains `&MyMap`, plus the tuple `("Ginger", 1, "Soup")`.
-
-For performance optimization, we could have a `@noNewKeys` or `@fixedCount` annotation on a container class,
-so that passed-in arrays/maps are kept at the same size/count inside the function block.
 
 # grammar/syntax
 
