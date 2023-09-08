@@ -2942,21 +2942,40 @@ To import a path that has special characters, just use the special characters
 inline after the `\/`, e.g., `\/sehr/übel` to reference the file at `./sehr/übel.hm`.
 For a path that has spaces (e.g., in file or directory names), use parentheses to
 surround the path, e.g., `\\[library/path/with spaces]` for a library path or 
-`\/[relative/path/with a space/to/a/great file]` for a relative path.  Or you can
+`\/(relative/path/with a space/to/a/great file)` for a relative path.  Or you can
 use a backslash to escape the space, e.g., `\\library/path/with\ spaces` or
 `\/relative/path/with\ a\ space/to/a/great\ file`.  Other standard escape sequences
 (using backslashes) will probably be supported.
 
-Note that while `\\math atan(X, Y)` might look like grammatically like `\\math(atan(X, Y))`,
-which would be wrong for operator precedence, we instead take the entire import as
-if it was an UpperCamelCase identifier.  E.g., `\\math` acts like one identifier, `Math`,
+Note that we take the entire import as
+if it were an UpperCamelCase identifier.  E.g., `\\math` acts like one identifier, `Math`,
 so `\\math atan(X, Y)` resolves like `Math atan(X, Y)`, i.e., member access or drilling down
 from `Math := \\math`.  Similarly for any relative import; `\/relative/import/file someFunction(Q)`
 correctly becomes like `File someFunction(Q)` for `File := \/relative/import/file`.
 
+## scripts
+
+While it's generally nice to compile your code for performance, there are times where
+it doesn't make sense to optimize for performance at the cost of compile times.  For example,
+when prototyping movement in a game, it's useful to get a feel for what your code is doing
+by trying out many things.  For this reason, it's important that hm-lang offers an interpreter
+for your scripts, so that you can iterate quickly without always waiting for your program to compile.
+
+In order to reduce compile times, you can define scripts to be interpreted in your main binary
+using files with an `.hms` extension.  After you are satisfied with the script, you can promote
+it to compiled code by converting the `.hms` file to a `.hm` file.
+
+Note that one downside of scripting is that what used to be compile-time errors become runtime errors.
+
+TODO: how are we actually going to do this, e.g., need to expose public/protected functions to
+the calling code, pulling in other import dependencies should not reload code if we've already loaded
+those dependencies in other compiled files, etc.
+
 ## file access / file system
 
 TODO: how does file access work with the reference pattern
+
+TODO: make it possible to mock out file system access in unit tests.
 
 # errors and asserts
 
