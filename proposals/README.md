@@ -2971,6 +2971,61 @@ TODO: how are we actually going to do this, e.g., need to expose public/protecte
 the calling code, pulling in other import dependencies should not reload code if we've already loaded
 those dependencies in other compiled files, etc.
 
+## tests
+
+Unit tests should be written inside the file that they are testing.  Files should generally be less than
+1000 lines of code, including tests, but this is not strictly enforced.  Because unit tests live inside
+the files where the code is defined, tests can access private functions for testing.  It is generally
+recommended to test the public API exhaustively, however, so private function testing should be redundant.
+Tests are written as functions with a `@test` annotation.
+
+```
+@private
+privateFunction(X: int, Y: int): {Z: str}
+    return "${X}:${Y}"
+
+@protected
+protectedFunction(X: int, Y: int): {Z: str}
+    {Z;} = privateFunction(X, Y)
+    Z += "!"
+    return {Z}
+
+publicFunction(X1: int, Y1: int, X2: int, Y2: int): null
+    print(protectedFunction(X: X1, Y: Y1) Z, privateFunction(X: X2, Y: Y2))
+
+@test check1():
+    assert privateFunction(X: 5, Y: 3) == {Z: "5:3"}
+    assert privateFunction(X: -2, Y: -7) == {Z: "-2:-7"}
+
+@test check2():
+    assert protectedFunction(X: 5, Y: -3) == {Z: "5:-3!"}
+    assert protectedFunction(X: -2, Y: 7) == {Z: "-2:7!"}
+
+@test check3():
+    publicFunction(X1: -5, Y1: 3, X2: 2, Y2: 7)
+    assert Test print() == "-5:3!2:7" + \\os NewLine
+    publicFunction(X1: 2, Y1: -7, X2: -5, Y2: -3)
+    assert Test print() == "2:-7!-5:-3" + \\os NewLine
+```
+
+Inside of a `@test` function, you have access to a `Test` variable which includes
+things like what has been printed (`Test print()`).  In this example, `Test print()`
+will pull everything that would have been printed in the test and puts it into a string
+for comparisons and matching.  It then clears its internal state so that new calls
+to `Test print()` will only see new things since the last time `Test print()` was called.
+
+Integration tests can be written in files that end with `.test.hm` or `.test.hms` (i.e., as a script).
+These can pull in any dependencies via standard file/module imports, including other test files.
+E.g., if you create some test helper functions in `helper.test.hm`, you can import these
+into other test files (but not non-test files) for usage.
+
+In debug mode (the default), unit tests are always run before a program runs its non-test code
+(i.e., whenever `hm run` is invoked), and integration tests (and unit tests) are run via `hm test`.
+In hardened or optimized modes, unit tests can be invoked via `hm test -h` (hardened, also `--hardened`
+works instead of `-h`) or `hm test -o` (optimized, also `--optimized` works instead of `-o`).
+If you are in a subdirectory of your main project, `hm test` will only run tests in that directory
+and any subdirectories.
+
 ## file access / file system
 
 TODO: how does file access work with the reference pattern
