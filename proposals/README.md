@@ -456,11 +456,11 @@ Like the member access operators below, the namespace operator binds left to rig
 We use `::`, `;;`, and ` ` (member access) for accessing variables or functions that belong to
 another object.  The `::` operator ensures that the RHS operand is read only, not write,
 so that both LHS and RHS variables remain constant.  Oppositely, the `;;` scope operator passes
-the RHS operand as writable, and therefore cannot be used if the LHS variable is immutable.
-The implicit member access operator ` ` is equivalent to `::` when the LHS is an immutable variable
+the RHS operand as writable, and therefore cannot be used if the LHS variable is readonly.
+The implicit member access operator ` ` is equivalent to `::` when the LHS is a readonly variable
 and `;;` when the LHS is a mutable variable.  When declaring class methods, `::` and `;;` can be
-unary prefixes to indicate immutable/mutable class methods.  They are shorthand for adding a
-immutable/mutable `This` as an argument.
+unary prefixes to indicate readonly/mutable class methods.  They are shorthand for adding a
+readonly/mutable `This` as an argument.
 
 ```
 exampleClass := {
@@ -490,7 +490,7 @@ print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints ["hello", 
 print(SomeClass::I_1)   # prints "world"
 print(SomeClass I_1)    # also prints "world", ` ` (member access) and `_` bind LTR.
 SomeClass;;I_4 = "love" # the fifth element is love.
-SomeClass::I_7 = "oops" # COMPILE ERROR, `::` means the array should be immutable.
+SomeClass::I_7 = "oops" # COMPILE ERROR, `::` means the array should be readonly.
 SomeClass;;I[7] = "no problem"
 ```
 
@@ -498,7 +498,7 @@ For class methods, `;;` (`::`) selects the overload that mutates (keeps constant
 instance, respectively.  For example, the `array` class has overloads for sorting, (1) which
 does not change the instance but returns a sorted copy of the array (`::sort(): this`), and
 (2) one which sorts in place (`;;sort(): null`).  The ` ` (member access) operator will use
-`This:` if the LHS is an immutable variable or `This;` if the LHS is mutable.  Some examples in code:
+`This:` if the LHS is a readonly variable or `This;` if the LHS is mutable.  Some examples in code:
 
 ```
 # there are better ways to get a median, but just to showcase member access:
@@ -506,7 +506,7 @@ getMedianSlow(Array: array~int): int
     if Array count() == 0
         throw "no elements in array, can't get median."
     # make a copy of the array, but no longer allow access to it (via `@hide`):
-    Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is immutable.
+    Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is readonly.
     # note that we need parentheses here around the desired array index
     # since `//` binds less strongly than `_`:
     return Sorted->Array[Sorted->Array count() // 2]
@@ -519,9 +519,9 @@ getMedianSlow(Array; array~int): int
     return Array _ (Array count() // 2)
 ```
 
-Note that if the LHS is immutable, you will not be able to use a `;;` method.
+Note that if the LHS is readonly, you will not be able to use a `;;` method.
 To sum up, if the LHS is mutable, you can use `;;` or `::`, and ` ` (member access) will
-effectively be `;;`.  If the LHS is immutable, you can only use `::` and ` `, which are equivalent.
+effectively be `;;`.  If the LHS is readonly, you can only use `::` and ` `, which are equivalent.
 
 Subscripts have the same binding strength as member access operators since they are conceptually
 similar operations.  This allows for operations like `++A_3` meaning `++(A_3)` and
@@ -682,8 +682,8 @@ Y: int = 5
 # using the variable:
 print(Y * 30)
 
-Y = 123     # COMPILER ERROR, Y is immutable and thus non-reassignable.
-Y += 3      # COMPILER ERROR, Y is immutable and thus deeply constant.
+Y = 123     # COMPILER ERROR, Y is readonly and thus non-reassignable.
+Y += 3      # COMPILER ERROR, Y is readonly and here deeply constant.
 ```
 
 Mutable/reassignable/non-constant variables can use `VariableName = Expression`
@@ -710,7 +710,7 @@ array of a constant integer.  Constant variables are deeply constant, and mutabl
 variables are modifiable/reassignable, and we only have to think about this
 (as programmers using the language) at the level of the variable itself,
 not based on the type of the variable.  The underlying type is the same for both
-constant and mutable variables (i.e., a mutable type), but the variable is only
+readonly and mutable variables (i.e., a mutable type), but the variable is only
 allowed to mutate the memory if it is declared as a mutable variable with `;`.
 
 ## nullable variable types
@@ -770,24 +770,24 @@ TODO: see if it's consistent to use `|` and `&` here, or maybe use `or` and `and
 ## nested/object types
 
 You can declare an object type inline with nested fields.  The nested fields defined
-with `:` are immutable, and `;` are mutable.
+with `:` are readonly, and `;` are mutable.
 
 ```
 Vector; (X: dbl, Y: dbl, Z: dbl) = (X: 4, Y: 3, Z: 1.5)
-Vector X += 4   # COMPILER ERROR, field `X` of object is immutable
+Vector X += 4   # COMPILER ERROR, field `X` of object is readonly 
 
 # note however, as defined, Vector is reassignable since it was defined with `;`:
 Vector = (X: 1, Y: 7.2)
 # note, missing fields will be default-initialized.
 Vector Z == 0   # should be True.
 
-# to make an object variable immutable, use := when defining:
+# to make an object variable readonly, use := when defining:
 Vector2 := (X: 3.75, Y: 3.25)
 # or you can use `:` with an explicit type specifier and then `=`:
 Vector2: (X: dbl, Y: dbl) = (X: 3.75, Y: 3.25)
 # then these operations are invalid:
-Vector2 X += 3          # COMPILER ERROR, variable is immutable, field cannot be modified
-Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is immutable, cannot be reassigned
+Vector2 X += 3          # COMPILER ERROR, variable is readonly, field cannot be modified
+Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is readonly, cannot be reassigned
 ```
 
 You can define a type/interface for objects you use multiple times.
@@ -807,31 +807,45 @@ can reassign the variable or modify the mutable fields.  But if you define the
 variable with `:`, the object is deeply constant, regardless of the field definitions.
 
 ```
-# mixMatch has one mutable field and one immutable field:
+# mixMatch has one mutable field and one readonly field:
 mixMatch := (Mut; dbl, Imm: dbl)
 
 # when defined with `;`, the object is mutable and reassignable.
 MutableMix; mixMatch = (Mut: 3, Imm: 4)
-MutableMix = mixMatch(X: 6, Y: 3)   # OK, MutableMix is mutable and thus reassignable
-MutableMix Mut += 4                 # OK, MutableMix is mutable and this field is mutable
-MutableMix Imm -= 1                 # COMPILE ERROR, MutableMix is mutable but this field is immutable
-                                    # if you want to modify the `Imm` field, you need to reassign
-                                    # the variable completely.
+MutableMix = mixMatch(Mut: 6, Imm: 3)   # OK, MutableMix is mutable and thus reassignable
+MutableMix Mut += 4                     # OK, MutableMix is mutable and this field is mutable
+MutableMix Imm -= 1                     # COMPILE ERROR, MutableMix is mutable but this field is readonly
+                                        # if you want to modify the `Imm` field, you need to reassign
+                                        # the variable completely or call `reset`.
 
-# when defined with `:`, the object is deeply constant, so its fields cannot be changed:
-ImmutableMix: mixMatch = (X: 5, Y: 3)
-ImmutableMix = mixMatch(X: 6, Y: 3) # COMPILE ERROR, ImmutableMix is immutable, thus non-reassignable
-ImmutableMix Mut += 4               # COMPILE ERROR, ImmutableMix is immutable, thus deeply constant
-ImmutableMix Imm -= 1               # COMPILE ERROR, ImmutableMix and this field are immutable
+# NOTE you *are* allowed to reset a mutable class instance (via `reset` or reassignment)
+# and thereby effectively change any internal readonly fields:
+MutableMix reset(Mut: 100, Imm: 300)        # OK, will update `Imm` to 300
+MutableMix = mixMatch(Mut: 101, Imm: 303)   # OK, will update `Imm` to 303
+
+# when defined with `:`, the object is readonly, so its fields cannot be changed:
+ImmutableMix: mixMatch = (Mut: 5, Imm: 3)
+ImmutableMix reset(Mut: 7, Imm: 5)      # COMPILE ERROR, ImmutableMix is readonly, thus non-resettable
+ImmutableMix = mixMatch(Mut: 6, Imm: 4) # COMPILE ERROR, ImmutableMix is readonly, thus non-reassignable
+ImmutableMix Mut += 4                   # COMPILE ERROR, ImmutableMix is readonly
+ImmutableMix Imm -= 1                   # COMPILE ERROR, ImmutableMix is readonly
 
 # NOTE that in general, calling a function with variables defined by `;` is a different
 # overload than calling with `:`.  Mutable argument variables imply that the arguments will
 # be mutated inside the function, and because they are passed by reference, escape the function
 # block with changes.  Data classes have overloads with mutable arguments, which imply that
 # the data class will take over the argument (via moot).  This implies a move (not copy) operation.
-MyMixMatch := mixMatch(X; 5, Y; 3)  # `;` is useful for taking arguments via a move.
-# see section on mutable/immutable arguments for more information.
+MyMixMatch := mixMatch(Mut; 5, Imm; 3)  # `;` is useful for taking arguments via a move.
+# see section on mutable/readonly arguments for more information.
 ```
+
+Note that hm-lang takes a different approach than C++ when it comes to constant/readonly fields
+inside of classes.  In C++, using `const` on a field type bars reassignment of the class instance.
+(`non-static const member ‘const t T’, cannot use default assignment operator`.)
+In hm-lang, readonly variables are not always deeply constant.  And in the case of readonly class
+instance fields, readonly variables are set based on the constructor and shouldn't be modified
+afterwards by other methods... except for the constructor if it's called again (i.e., via
+`reset`ting the instance or reassignment).
 
 ### automatic deep nesting
 
@@ -1086,10 +1100,10 @@ q(():
 # also equivalent to `q((): ${X})`
 ```
 
-### constant versus mutable arguments
+### readonly versus mutable arguments
 
-Functions can be defined with mutable or immutable arguments, e.g., via
-`MutableArgument; mutableType` and `ImmutableArgument: immutableType` in the
+Functions can be defined with mutable or readonly arguments, e.g., via
+`MutableArgument; mutableType` and `ReadonlyArgument: readonlyType` in the
 arguments list.  This choice has two important effects: (1) you can modify
 mutable argument variables inside the function definition and (2) any
 modifications to a mutable argument variable inside the function block persist
@@ -1110,26 +1124,26 @@ check(Arg123: string): string
     print(Arg123)
     return Arg123 + "??!!"
 
-MyValue; string = "immutable"
-check(Arg123: MyValue)  # prints "immutable!!??"
-print(MyValue)          # prints "immutable"
-check(Arg123; MyValue)  # prints "immutable??!!"
-print(MyValue)          # prints "immutable??!!"
+MyValue; string = "readonly"
+check(Arg123: MyValue)  # prints "readonly!!??"
+print(MyValue)          # prints "readonly"
+check(Arg123; MyValue)  # prints "readonly??!!"
+print(MyValue)          # prints "readonly??!!"
 ```
 
-Note that if you try to call a function with an immutable variable argument,
+Note that if you try to call a function with a readonly variable argument,
 but there is no overload defined for it, this will be an error.  Similarly
 for mutable variable arguments.
 
 ```
-onlyImmutable(A: int): str
+onlyReadonly(A: int): str
     return str(A) * A
 
 MyA ;= 10
-onlyImmutable(A; MyA)  # COMPILE ERROR, no mutable overload for `onlyImmutable(A;)`
+onlyReadonly(A; MyA)    # COMPILE ERROR, no mutable overload for `onlyReadonly(A;)`
 
-print(onlyImmutable(A: 3))      # OK, prints "333"
-print(onlyImmutable(A: MyA))    # OK, prints "10101010101010101010"
+print(onlyReadonly(A: 3))       # OK, prints "333"
+print(onlyReadonly(A: MyA))     # OK, prints "10101010101010101010"
 
 onlyMutable(B; int): str
     Result := str(B) * B
@@ -1137,7 +1151,7 @@ onlyMutable(B; int): str
     return Result
 
 MyB ;= 10
-onlyMutable(B: MyB)             # COMPILE ERROR, no immutable overload for `onlyMutable(B:)`
+onlyMutable(B: MyB)             # COMPILE ERROR, no readonly overload for `onlyMutable(B:)`
 # same for something like `onlyMutable(B: 10)`.
 
 print(onlyMutable(B; MyB))      # OK, prints "10101010101010101010"
@@ -1240,7 +1254,7 @@ e.g., `over(@modifying Load; int)` in the above example.
 
 If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
-e.g., `@mutable`/`@immutable` to determine if the variable is mutable or not.
+e.g., `@mutable`/`@readonly` to determine if the variable is mutable or not.
 
 ```
 myClass~t := {
@@ -1252,9 +1266,9 @@ myClass~t := {
         This X = X
 
     # maybe something like this?
-    ;:take(X;: t):
+    ;;take(X;: t):
         This X = @mootOrCopy X
-        # `@mootOrCopy Z` can expand to `@if @mutable(Z) ${Z!} @else ${Z}`
+        # `@mootOrCopy Z` can expand to `@if @readonly(Z) ${Z} @else ${Z!}`
         # or maybe we can do something like `This X = X!:`
 }
 ```
@@ -1294,7 +1308,7 @@ You can switch to passing by value by coercing a new type:
 ```
 Array; int = [0, 1, 2, 3, 4]
 myFunction(int(Array[3]);)  # passed by value, it's mutable inside
-myFunction(int(Array[3]))   # passed by value, immutable inside
+myFunction(int(Array[3]))   # passed by value, readonly inside
 ```
 
 Normally this distinction of passing by reference or value does not matter.
@@ -1350,7 +1364,7 @@ print(doSomething(Animals_"world")) # returns "Woodsy hisss!" (snake name + cat 
 ```
 
 Here is an example without a container, which is still surprising, because
-the argument appears to be immutable.  Again, it's not recommended to write your code like this;
+the argument appears to be readonly.  Again, it's not recommended to write your code like this;
 but these are edge cases that might pop up in a complex code base.
 
 ```
@@ -1368,7 +1382,6 @@ notActuallyConstant(MyInt) # prints "Int before 123", then "Int middle 246", the
 
 Because of this, one should be careful about assuming that a readonly argument is deeply constant;
 it may only be not-writeable from your scope's reference to the variable.
-TODO: we should replace "immutable" argument -> "readonly" argument everywhere.
 
 For performance optimization, we could have a `@noNewKeys` or `@fixedCount` annotation on a container class,
 so that passed-in arrays/maps are kept at the same size/count inside the function block.
@@ -2196,7 +2209,7 @@ And of course, class methods can also be overridden by child classes (see sectio
 
 Class functions (2) can't depend on the instance, i.e., `This`, but are declared
 like other instance methods, just without `This` as an argument.  They must be declared
-as immutable.
+as readonly.
 
 Instance functions (3) can't depend on any instance variables, but they can be different from instance to instance.
 They cannot be overridden by child classes but they can be overwritten.  I.e.,
@@ -2236,7 +2249,7 @@ exampleClass := {
 
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `reset` function.  this is true even
-    # if the class instance variables are defined as immutable.
+    # if the class instance variables are defined as readonly.
     ;;reset(X; int): null
         This X = X!
     # or short-hand: `;;reset(This X; int) := Null`
@@ -2294,11 +2307,11 @@ print(Example doSomething(7))   # should print 12
 Example = exampleClass(X: 7)    # note: variable can be reassigned.
 Example X -= 3                  # internal fields can be reassigned as well.
 
-# note that if you define an instance of the class as immutable, you can only operate
+# note that if you define an instance of the class as readonly, you can only operate
 # on the class with functions that do not mutate it.
 ConstVar := exampleClass(X: 2)
-ConstVar X += 3                 # COMPILER ERROR! `ConstVar` is deeply constant.
-ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is non-reassignable.
+ConstVar X += 3                 # COMPILER ERROR! `ConstVar` is readonly.
+ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is readonly.
 ```
 
 You can also define your own custom methods/functions on a class outside of the class body.
@@ -2425,7 +2438,7 @@ example := {
     X; str
 
     # getter: calls an external function with X, which can
-    #         avoid a copy if the function argument is immutable.
+    #         avoid a copy if the function argument is readonly.
     @visibility
     ::x(fn(Str): ~t) := fn(This X)
 
@@ -2650,8 +2663,6 @@ All abstract methods must be defined for the instance to be created, and if a
 (i.e., which is the default constructor) should be defined for the lambda class.
 While these don't look like lambda functions, they use the notation `::speak(): null`
 to mean `speak(This): null`, which is fine as a lambda.
-TODO: this probably isn't consistent with what we originally said about lambda functions
-and how to define them on a class.
 
 ```
 WeirdAnimal := animal(
@@ -3224,7 +3235,7 @@ An array contains a list of elements in contiguous memory.  You can
 define an array explicitly using the notation `array~elementType`
 for the type `elementType`, or implicitly with the subscript operator, `_`
 (AKA "key" or "indexing" operator), using the notation `elementType_`.
-E.g. `MyArray: int_` or `MyArray: array~int` for an immutable integer array.
+E.g. `MyArray: int_` or `MyArray: array~int` for a readonly integer array.
 The mutable versions of course use `;` instead of `:`.
 
 Side note: as we will see, the subscript operator is usually a binary operator, i.e.,
@@ -3236,10 +3247,10 @@ The default-named version of an array does not depend on the element type;
 it is always `Array`.  Example usage and declarations:
 
 ```
-# this is an immutable array:
+# this is a readonly array:
 MyArray: dbl_ = [1.2, 3, 4.5]       # converts all to dbl
-MyArray append(5)   # COMPILE ERROR: MyArray is immutable
-MyArray_1 += 5      # COMPILE ERROR: MyArray is immutable
+MyArray append(5)   # COMPILE ERROR: MyArray is readonly
+MyArray_1 += 5      # COMPILE ERROR: MyArray is readonly
 
 # mutable integer array:
 Array; int_    # declaring a mutable, default-named integer array
@@ -3330,11 +3341,11 @@ fixed-count arrays are zero-indexed, so the first element in a fixed-count array
 `Array` is `Array_0`.
 
 Fixed-count arrays can be passed in without a copy to functions taking
-an array as an immutable argument, but will be of course copied into a 
+an array as a readonly argument, but will be of course copied into a 
 resizable array if the argument is mutable.  Some examples:
 
 ```
-# immutable array of count 4
+# readonly array of count 4
 Int4: int_4 = [-1, 5, 200, 3450]
 # mutable array of fixed-count 3:
 Vector3; dbl_3 = [1.5, 2.4, 3.1]
@@ -3347,7 +3358,7 @@ doSomething(CopiedArray; dbl_): dbl_2
     # PRETENDING TO DO SOMETHING USEFUL WITH CopiedArray:
     return [CopiedArray pop(), CopiedArray pop()]
 
-# a function with an immutable argument:
+# a function with a readonly argument:
 doSomething(ConstArray: dbl_): dbl_2
     return [ConstArray_-2, ConstArray_-1]
 
@@ -3492,7 +3503,7 @@ NameDatabase_124 = "Jane"
 print(NameDatabase_123.4)   # RUNTIME ERROR, 123.4 is not representable as an `int`.
 print(NameDatabase_123.4 round(Stochastically))     # prints "John" with 60% probability, "Jane" with 40%.
 
-# note that the definition of the key is an immutable array:
+# note that the definition of the key is a readonly array:
 StackDatabase; string_(int_)    # parentheses are grammatically unnecessary,
                                 # since subscripts go right to left.
                                 # i.e., `StackDatabase; string_int_` would be ok too.
@@ -3982,7 +3993,7 @@ unless the `map` instance is a temporary.
 ## for loops
 
 ```
-# for-loop with counter that is immutable inside the for-loop's block:
+# for-loop with counter that is readonly inside the for-loop's block:
 for Value: int < 10
     # Value goes from 0 to 9 by 1;
     # Value is not allowed to be mutated (defined with `:`).
@@ -4000,6 +4011,7 @@ for Special; int < 4
 # prints "A:0", "B:1", "A:3", "B:4"     # notice skip from B:1 to A:3 as `Special`
 # increments on its own because of the for-loop iteration logic.  Note also the
 # possibly undesired behavior that `Special` becomes >= 4 inside the for-loop block.
+# Prefer while loops here to be explicit about when/how the incrementing occurs.
 
 # for-loop iterating over non-number elements:
 vector2 := {X: dbl, Y: dbl}
