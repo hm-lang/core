@@ -249,18 +249,18 @@ types (e.g., `u32` or `i64`), so errors can be thrown in that case.  The big-int
 # Going from a floating point number to an integer should be done carefully...
 X: dbl = 5.43
 Q: int = X                      # RUN-TIME ERROR, throws since `X` is not representable as an integer
-Y: int = X round Down           # Y = 5.  equivalent to `X floor()`
-Z: int = X round Up             # Z = 6.  equivalent to `X ceil()`.
-W: int = X round Stochastically # W = 5 with probability 57%, or 6 with probability 43%.
+Y: int = X round(Down)          # Y = 5.  equivalent to `X floor()`
+Z: int = X round(Up)            # Z = 6.  equivalent to `X ceil()`.
+W: int = X round(Stochastically)# W = 5 with probability 57%, or 6 with probability 43%.
 R: int = X round()              # R = 5.  rounds to closest integer, breaking ties at half
                                 #         to the integer larger in magnitude.
 
 # Note, representable issues arise for conversions even between different integer types.
 # WARNING: we skip checks from intX -> intY in `optimized` compile mode, but not `debug` or `hardened`.
 A: u32 = 1234
-Q: u8 = A               # RUN-TIME ERROR, `A` is not representable as a `u8`.
-B: u8 = A & 255         # OK, communicates intent and puts `A` into the correct range for a `u8`.
-C: u8 = A clamp(0, 255) # OK, also communicates intent
+Q: u8 = A                           # RUN-TIME ERROR, `A` is not representable as a `u8`.
+B: u8 = A & 255                     # OK, communicates intent and puts `A` into the correct range.
+C: u8 = A clamp(Min: 0, Max: 255)   # OK, communicates a different intent.
 ```
 
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
@@ -410,7 +410,7 @@ higher precedence than member access.  E.g., the compiler sees
 `MyClassInstance::MyField::print` when running the internal `(print("Carrots"))`.
 
 It is recommended to use parentheses where possible, to help people see the flow more easily.
-E.g., `someFunction SomeInstance SomeField someMethod() FinalField` looks pretty complicated.
+E.g., `someFunction(SomeInstance SomeField someMethod()) FinalField` looks pretty complicated.
 This would compile as `(someFunction(SomeInstance)::SomeField::someMethod())::FinalField`,
 and including these parentheses would help others follow the flow.  Even better would be to
 add descriptive variables as intermediate steps.
@@ -421,6 +421,9 @@ since `()::FinalField` is accessing the `FinalField` field on the object `()`, f
 no field value (i.e, a null field value).  In addition, `X_someFunction[3]` would compile as
 `(X_someFunction)[3]`, which is almost certainly not what is desired, unless `X` is a map with
 *function* keys.
+
+TODO: should `_` be lower priority than member access?  e.g., `Whatever_Something Else` should
+probably be `Whatever_(Something Else)` not `(Whatever_Something) Else`??
 
 ## new-namespace operator `->`
 
@@ -535,13 +538,13 @@ Note that `something() NestedField` becomes `(something())::NestedField` due to
 the function call having higher precedence.  (You can also use destructuring if you want
 to keep a variable for multiple uses: `{NestedField} := something()`.)
 Similarly, using a function on the RHS of a subscript operation will call the function
-since it has higher priority.  E.g., `Array_someFunction 3` becomes `Array_(someFunction(3))`.
+since it has higher priority.  E.g., `Array_someFunction(3)` becomes `Array_(someFunction(3))`.
 
 ## prefix and postfix exclamation points `!`
 
 The operator `!` is always unary (except when combined with equals for not equals,
 e.g., `!=`).  It can act as a prefix operator "not", e.g., `!A`, pronounced "not A",
-or a postfix operator on a variable, e.g., `Z!`, pronounced "Z mooted".  In the first
+or a postfix operator on a variable, e.g., `Z!`, pronounced "Z mooted" (or "moot Z").  In the first
 example, prefix `!` calls the `!This: bool` method defined on `A`, which creates a
 temporary value of the boolean opposite of `A` without modifying `A`.  In the second
 case, it calls a built-in method on `Z`, which moves the current data out of `Z` into
@@ -572,7 +575,7 @@ for other types that will do the expected full division.  For floats, e.g., 16.0
 Note that `A << 0 == A >> 0 == A`, and that negating the second operand is the same
 as switching the operation, i.e., `A << B == A >> -B`.
 
-Bitshifts have a higher precedence than multiplication and division because they are
+In contrast to C/C++, bitshifts have a higher precedence than multiplication and division because they are
 "stronger" operations: `100 << 3 == 800` whereas `100 * 3 == 300`, and the difference widens
 as the second operand increases; similarly for division, bitshift right `>>` is "stronger"
 than division at reducing the first operand via the second operand.
@@ -580,7 +583,7 @@ Thus `7 * 31 >> 3` groups as `7 * (31 >> 3) == 21` (and not as `(7 * 31) >> 3 ==
 and `105 // 5 << 2` groups as `105 // (5 << 2) == 5` and not `(105 // 5) << 2 == 84`.
 
 Looking the other direction, bitshifts have lower precedence than exponentiation because
-exponents are generally stronger -- as long as the first operand, the base, of the exponentiation is
+exponents are generally stronger -- as long as the first operand, the base of the exponentiation, is
 larger than two.  E.g., `3^4 == 81` is greater than `3 << 4 == 48`.
 Thus `2 << 3^2 == 2 << (3^2) == 1024` and not `(2 << 3)^2 == 256`, etc.
 
@@ -639,7 +642,7 @@ Otherwise, if `Y` evaluates to truthy (i.e., `!!Y == True`), then the return val
 Otherwise, the return will be `Null`.  Note in a conditional, e.g., `if X or Y`, we'll always
 cast to boolean implicitly (i.e., `if bool(X or Y)` explicitly).
 
-Similarly, the `and` operation `X and Y` also has type `x | y | null`.  If `X` or `Y` is falsey,
+Similarly, the `and` operation `X and Y` also has type `y | null`.  If `X` or `Y` is falsey,
 then the return value will be `Null`.  If both are truthy, the return value will be `Y`.
 Again, in a conditional, we'll cast `X and Y` to a boolean.
 
@@ -651,7 +654,7 @@ if both `X` and `Y` are truthy or if they are both falsy.  If just one of the op
 is truthy, the result will be the truthy operand.  An example implementation:
 
 ```
-xor(X: ~x, Y: ~y): x|y|null
+xor(X: ~x, Y: ~y)?: x|y
     XIsTrue := bool(X)
     YIsTrue := bool(Y)
     if XIsTrue
@@ -661,6 +664,8 @@ xor(X: ~x, Y: ~y): x|y|null
     else
         return Null
 ```
+
+TODO: What's the default name for a combined type, e.g., `x|y` or `x&y`?
 
 ## assignment operators
 
@@ -672,7 +677,9 @@ to be consistent.
 
 Variables are named using `UpperCamelCase` identifiers.  The `:` symbol is used
 to declare deeply constant, non-reassignable variables, and `;` is used to declare
-mutable, reassignable variables.
+mutable, reassignable variables.  Note when passed in as arguments to a function,
+`:` has a slightly different meaning; a variable with `:` is readonly and not
+necessarily deeply constant.  That will be discussed more later.
 
 ```
 # declaring and setting a non-reassignable variable that holds a big integer
@@ -705,7 +712,7 @@ W ;= int(7)
 ```
 
 Note that we use `;` and `:` as if it were an annotation on the variable name (rather
-than the type) so that we don't have to worry about complex types like a mutable
+than the type) so that we don't have to worry about needlessly complex types like a mutable
 array of a constant integer.  Constant variables are deeply constant, and mutable
 variables are modifiable/reassignable, and we only have to think about this
 (as programmers using the language) at the level of the variable itself,
@@ -720,7 +727,7 @@ symbol, `?`, placed after the variable name.  E.g., `X?: int` declares a variabl
 can be an integer or null.  The default value for an optional type is `Null`.
 For an optional type with more than one non-null type, we use `Y?: someType|anotherType`.
 In either case, you can use `;` instead of `:` to indicate that the variable is mutable.
-Note that if you are defining the variable inline (e.g., with `:=` or `;=`), you should
+Note that if you are defining a nullable variable inline (e.g., with `:=` or `;=`), you should
 prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a compiler error
 if a declared variable is nullable but `?` is not used, since we want the programmer to be
 aware of the fact that the variable could be null, even though the program will take care
@@ -805,6 +812,9 @@ Depending on how the variable is defined, however, you may not be able to change
 the fields once they are set.  If you define the variable with `;`, then you
 can reassign the variable or modify the mutable fields.  But if you define the
 variable with `:`, the object is deeply constant, regardless of the field definitions.
+Readonly fields on an object are normally deeply constant, unless the instance is
+mutable and is reset (either via `reset` or reassignment).  This allows you to
+effectively change any internal readonly fields, but only in the constructor.
 
 ```
 # mixMatch has one mutable field and one readonly field:
@@ -812,21 +822,17 @@ mixMatch := (Mut; dbl, Imm: dbl)
 
 # when defined with `;`, the object is mutable and reassignable.
 MutableMix; mixMatch = (Mut: 3, Imm: 4)
-MutableMix = mixMatch(Mut: 6, Imm: 3)   # OK, MutableMix is mutable and thus reassignable
-MutableMix Mut += 4                     # OK, MutableMix is mutable and this field is mutable
-MutableMix Imm -= 1                     # COMPILE ERROR, MutableMix is mutable but this field is readonly
-                                        # if you want to modify the `Imm` field, you need to reassign
-                                        # the variable completely or call `reset`.
-
-# NOTE you *are* allowed to reset a mutable class instance (via `reset` or reassignment)
-# and thereby effectively change any internal readonly fields:
+MutableMix = mixMatch(Mut: 6, Imm: 3)       # OK, MutableMix is mutable and thus reassignable
 MutableMix reset(Mut: 100, Imm: 300)        # OK, will update `Imm` to 300
-MutableMix = mixMatch(Mut: 101, Imm: 303)   # OK, will update `Imm` to 303
+MutableMix Mut += 4                         # OK, MutableMix is mutable and this field is mutable
+MutableMix Imm -= 1                         # COMPILE ERROR, MutableMix is mutable but this field is readonly
+                                            # if you want to modify the `Imm` field, you need to reassign
+                                            # the variable completely or call `reset`.
 
 # when defined with `:`, the object is readonly, so its fields cannot be changed:
 ImmutableMix: mixMatch = (Mut: 5, Imm: 3)
-ImmutableMix reset(Mut: 7, Imm: 5)      # COMPILE ERROR, ImmutableMix is readonly, thus non-resettable
 ImmutableMix = mixMatch(Mut: 6, Imm: 4) # COMPILE ERROR, ImmutableMix is readonly, thus non-reassignable
+ImmutableMix reset(Mut: 7, Imm: 5)      # COMPILE ERROR, ImmutableMix is readonly, thus non-resettable
 ImmutableMix Mut += 4                   # COMPILE ERROR, ImmutableMix is readonly
 ImmutableMix Imm -= 1                   # COMPILE ERROR, ImmutableMix is readonly
 
@@ -857,9 +863,11 @@ with e.g., `{X: {Y: 3}}` vs. `{X: {Y: 3, Z: 4}}`.
 
 ## temporarily locking mutable variables
 
-You can also make a variable non-reassignable and deeply constant
+You can also make a variable readonly
 for the remainder of the current block by using `@lock` before the variable name.
 Note that you can modify it one last time with the `@lock` annotation, if desired.
+Also note that the variable may not be deeply constant, e.g., if lambdas are called
+which modify it, but you will not be able to explicitly modify it.
 
 ```
 X; int = 4  # defined as mutable and reassignable
@@ -930,7 +938,6 @@ excite(Times: int): str ${
 }
 
 # You can also define functions inline with the `$(` ... `)` block operator.
-
 oh(Really; dbl): dbl ${ Really *= 2.5, return 50 + Really }
 ```
 
@@ -982,11 +989,11 @@ max(5, 3) == max(3, 5)
 ```
 
 The compiler is not smart enough to know whether order matters or not, so we need to annotate
-the function with `@orderIndependent`, and we need to use namespaces (`First->` and `Second->`)
+the function with `@orderIndependent` -- otherwise it's a compiler error -- and we need to use namespaces (`First->` and `Second->`)
 in order to distinguish between the two variables inside the function block.  When calling `max`,
 we don't need to use those namespaces, and can't (since they're invisible to the outside world).
 
-There is one place where it is not obvious that two arguments can have the same name, and
+There is one place where it is not obvious that two arguments might have the same name, and
 that is in method definitions.  Take for example the vector dot product:
 
 ```
@@ -1067,6 +1074,8 @@ with a function argument, the default name must be used (`fn`); when *defining*
 a lambda function for use inside a function, the default name can be omitted.
 
 ```
+# default name `fn` must be used when declaring the function `q`,
+# so that it can be used inside the function block.
 q(fn(): bool): null
     if fn()
         print("function returned true!")
@@ -1125,10 +1134,10 @@ check(Arg123: string): string
     return Arg123 + "??!!"
 
 MyValue; string = "readonly"
-check(Arg123: MyValue)  # prints "readonly!!??"
+check(Arg123; MyValue)  # prints "readonly!!??"
+print(MyValue)          # prints "readonly!!??"
+check(Arg123: MyValue)  # prints "readonly??!!"
 print(MyValue)          # prints "readonly"
-check(Arg123; MyValue)  # prints "readonly??!!"
-print(MyValue)          # prints "readonly??!!"
 ```
 
 Note that if you try to call a function with a readonly variable argument,
@@ -1267,8 +1276,8 @@ myClass~t := {
 
     # maybe something like this?
     ;;take(X;: t):
-        This X = @mootOrCopy X
-        # `@mootOrCopy Z` can expand to `@if @readonly(Z) ${Z} @else ${Z!}`
+        This X = @mootOrCopy(X)
+        # `@mootOrCopy(Z)` can expand to `@if @readonly(Z) ${Z} @else ${Z!}`
         # or maybe we can do something like `This X = X!:`
 }
 ```
@@ -1303,7 +1312,7 @@ myFunction(Array[3];)   # passed as mutable reference
 myFunction(Array[3])    # passed as readonly reference
 ```
 
-You can switch to passing by value by coercing a new type:
+You can switch to passing by value by constructing a new temporary:
 
 ```
 Array; int = [0, 1, 2, 3, 4]
@@ -1348,10 +1357,13 @@ But then we would be straying from getter/swapper logic of hm-lang which makes i
 before putting it back into a container (in case there are any invariants/etc. that need to be restored).
 
 Here is an example with a map.  Note that the argument is readonly, but that doesn't mean
-it doesn't change, especially when we're doing self-referential logic like this.
+the argument doesn't change, especially when we're doing self-referential logic like this.
 
 ```
-# TODO: do we want to use underscores `{_"hello": cat()}` to indicate a map instead of an object?
+# TODO: do we want to use underscores `{_"hello" = cat()}` to indicate a map instead of an object?
+# maybe only if there's an equivalent nice way to do sets, e.g., `{_"hi", _"hey"}`
+# without the extra underscores, it's nicer, so if we can distinguish those grammatically,
+# we should keep the simpler approach.
 Animals ;= {"hello": cat(), "world": snake(Name: "Woodsy")}
 
 doSomething(Animal): string
