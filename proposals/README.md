@@ -1325,10 +1325,33 @@ TODO: discussion on `Array_5` being a reference.  this might break old hm-lang a
 since we normally do `array~t := { ::_(Index): t, ;;_(Index, T;): null }`.  but because we ask for it in an argument,
 the `:` and `;` get the readonly/mutable reference version?  to get the swap semantics correct, do we do
 `TmpInt ;= Array[3]!, sawOffBranch(TmpInt;), Array[3] = TmpInt!`?  this would give `[0, 1, 2, 30]` above.
-BUT if someone accesses `Array[3]` inside the function, is it alright that it has become 0?
+BUT if someone accesses `Array[3]` inside the function, is it alright that it has become 0?  otherwise
+we need to copy `Array[3]` and that's against the spirit here (we want to avoid copy, just do moves).
+This would be great for mutable arguments, and it avoids weird nested pointer dynamics, but the same thing
+wouldn't work for readonly arguments.  It'd be great to keep the solution the same for readonly and mutable arguments,
+and with the weird 0 mutable argument issue while inside the function, it might be nice to use pointer to container + offset.
+But then we would be straying from getter/swapper logic of hm-lang which makes it easy to check on the changes to a value
+before putting it back into a container (in case there are any invariants/etc. that need to be restored).
+
+Here is an example with a map.  Note that the argument is readonly, but that doesn't mean
+it doesn't change, especially when we're doing self-referential logic like this.
+
+```
+# TODO: do we want to use underscores `{_"hello": cat()}` to indicate a map instead of an object?
+Animals ;= {"hello": cat(), "world": snake(Name: "Woodsy")}
+
+doSomething(Animal): string
+    Result ;= Animal Name
+    Animals_"world" = cat()     # overwrites snake with cat
+    Result += " ${Animal speak()}"
+    return Result
+
+print(doSomething(Animals_"world")) # returns "Woodsy hisss!" (snake name + cat speak)
+```
 
 Here is an example without a container, which is still surprising, because
-the argument appears to be immutable.
+the argument appears to be immutable.  Again, it's not recommended to write your code like this;
+but these are edge cases that might pop up in a complex code base.
 
 ```
 MyInt ;= 123
@@ -2625,6 +2648,10 @@ All abstract base classes also provide ways to instantiate using lambda function
 All abstract methods must be defined for the instance to be created, and if a
 `reset` method is defined on the parent, any arguments passed into the first reset
 (i.e., which is the default constructor) should be defined for the lambda class.
+While these don't look like lambda functions, they use the notation `::speak(): null`
+to mean `speak(This): null`, which is fine as a lambda.
+TODO: this probably isn't consistent with what we originally said about lambda functions
+and how to define them on a class.
 
 ```
 WeirdAnimal := animal(
@@ -2635,7 +2662,7 @@ WeirdAnimal := animal(
     ::escape(): null
         # to call the parent method `escape()` in here, we can use this:
         animal::escape()
-        print("${Name} ${goes()} back...")
+        print("${This Name} ${This goes()} back...")
         # or we can use this:
         animal escape(This)
 )
