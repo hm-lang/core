@@ -12,8 +12,8 @@ act more functions than variables; e.g., you can convert one class instance into
 another class's instance, like `int(MyNumberString)` which converts `MyNumberString`
 (presumably a `string` type) into a big integer.
 
-There are a few reserved keywords, like `if`, `else`, `with`, `return`, `assert`,
-`throw`, `catch`, 
+There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
+`assert`, `throw`, `catch`, `what`,
 which are function-like but will consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 
@@ -285,7 +285,7 @@ X; dbl|int = 4
 ...
 if X is(int)
     print("X is an integer")
-else if X is(dbl)
+elif X is(dbl)
     print("X is a double")
 ```
 
@@ -2825,18 +2825,17 @@ All classes have a few compiler-provided methods which cannot be overridden.
     should be faster than copy for types bigger than the processor's word size.
 * `Is: is` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
-    TODO: discuss how `which` statements cast their case arguments
-    to the same type as the type of the `which` statement.
     ```
     X; null|int|dbl_
     X = [1.2, 3.4]
-    which is(X)
+    # you can check `X Is`, `X is()`, or `is(X)` (which is equivalent to `X is()`):
+    what is(X)
         null
-            print("X was Null")
+            print("X is Null")
         int
-            print("X was an integer")
+            print("X is an integer")
         dbl_
-            print("X was an array of double")
+            print("X is an array of double")
     ```
     Note that the `type` type can be created directly from the type
     constructors, e.g. `null` and `int`, e.g., `type(int) == 5 Is`.
@@ -3813,16 +3812,15 @@ array~t := {
 We have a few standard control statements or flow control keywords in hm-lang.
 
 TODO -- `return`
-TODO -- description, plus `if/else/else if` section
+TODO -- description, plus `if/else/elif` section
 
 ## conditional expressions
 
-Conditional statements including `if`, `else if`, `else`, as well as `which`,
+Conditional statements including `if`, `elif`, `else`, as well as `what`,
 can act as expressions and return values to the wider scope.  This obviates the need
-for ternary operators (like
-`X = doSomething() if Condition else DefaultValue` in python, or
-`int X = Condition ? doSomething() : DefaultValue;` in C/C++).
-In hm-lang, we borrow from Kotlin the idea that
+for ternary operators (like `X = doSomething() if Condition else DefaultValue` in python
+(which inverts the control flow), or `int X = Condition ? doSomething() : DefaultValue;`
+in C/C++).  In hm-lang, we borrow from Kotlin the idea that
 [`if` is an expression](https://kotlinlang.org/docs/control-flow.html#if-expression)
 and write something like:
 
@@ -3868,21 +3866,21 @@ Q ?:= if Condition What + IndentTwice
 
 Which will give a compiler error since there is no internal block for the `if` statement.
 
-### which statements
+### what statements
 
-`which` statements are comparable to `switch-case` statements in C/C++,
+`what` statements are comparable to `switch-case` statements in C/C++,
 but in hm-lang the `case` keyword is not required.  You can use the keyword
 `else` for a case that is not matched by any others, i.e., the default case.
 
 TODO: non-ternary example with numbers.
-TODO: explain how `case` values are cast to the same type as the value being `which`-ed.
+TODO: explain how `case` values are cast to the same type as the value being `what`-ed.
 
 You can use RHS expressions for the last line of each block to return a value
 to the original scope.  In this example, `X` can become 5, 7, 8, or 100, with various
 side effects (i.e., printing).
 
 ```
-X := which String
+X := what String
     "hello"
         print("hello to you, too!")
         5
@@ -3902,19 +3900,19 @@ X := which String
 
 # Note again that you can use `$(` ... `)` block operators to make these inline.
 # Try to keep usage to code that can fit legibly on one line:
-Y := which String $( "hello" $(5), "world" $(7), else $(100) )
+Y := what String $( "hello" $(5), "world" $(7), else $(100) )
 ```
 
 You don't need to explicitly "break" a `case` statement like in C/C++.
-Because of that, a `break` inside a `which` statement will break out of
-any enclosing `for` or `while` loop.  This makes `which` statements more
+Because of that, a `break` inside a `what` statement will break out of
+any enclosing `for` or `while` loop.  This makes `what` statements more
 like `if` statements in hm-lang.
 
 ```
 AirQualityForecast := ["good", "bad", "really bad", "bad", "ok"]
 MehDays ;= 0
 for Quality: in AirQualityForecast
-    which Quality
+    what Quality
         "really bad"
             print("it's going to be really bad!")
             break   # stops `for` loop
@@ -3954,14 +3952,14 @@ TODO: do we even really want a `fallThrough` keyword?  it makes it complicated t
 will essentially be a `goto` because fall through won't work due to the check for string
 equality.
 
-We'll add a compiler hint with the best `CompileTimeSalt` to the `which` statement,
+We'll add a compiler hint with the best `CompileTimeSalt` to the `what` statement,
 so that future transpilations are fast.  The compiler will still try more salts
 if the chosen salt doesn't work, however, e.g., in the situation where new cases
-were added to the `which` statement.
+were added to the `what` statement.
 
 ```
 @compiler(CompileTimeSalt: 1234)
-X := which String
+X := what String
     "hello"
         print("hello to you, too!")
         5
@@ -3973,7 +3971,7 @@ X := which String
 ```
 
 Similarly, any class that supports a compile-time fast hash with a salt can be
-put into a `which` statement.  Floating point classes or containers thereof
+put into a `what` statement.  Floating point classes or containers thereof
 (e.g., `dbl` or `flt_`) are not considered *exact* enough to be hashable, but
 hm-lang will support fast hashes for classes like `int`, `i32`, and `u64_`.
 
@@ -3998,7 +3996,7 @@ myHashableClass := {
 
 MyHashableClass := myHashableClass(Id: 123, Name: "Whatever")
 
-which MyHashableClass
+what MyHashableClass
     myHashableClass(Id: 5, Name: "Ok")
         print("5 OK")
     myHashableClass(Id: 123, Name: "Whatever")
@@ -4153,7 +4151,7 @@ print(weird max())     # prints 9
 
 ### Testing enums with lots of values
 
-Note that if you are checking many values, a `which` statement may be more useful
+Note that if you are checking many values, a `what` statement may be more useful
 than testing each value against the various possibilities.  Also note that you don't need
 to explicitly set each enum value.
 
@@ -4175,12 +4173,12 @@ Option1 := option ContentWithLife
 # avoid doing this if you are checking many possibilities:
 if Option1 isNotAGoodOption()
     print("oh no")
-else if Option1 isOopsYouMissedIt()
+elif Option1 isOopsYouMissedIt()
     print("whoops")
 ...
 
 # instead, consider doing this:
-which Option1
+what Option1
     NotAGoodOption
         print("oh no")
     BestOptionStillComing
@@ -4720,7 +4718,7 @@ Grammar := singleton() {
     ::match(Index;, Array: token_, GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
-        Matched := which is(GrammarMatcher)
+        Matched := what is(GrammarMatcher)
             tokenMatcher
                 GrammarMatcher match(Index;, Array)
             grammarElement
@@ -4734,7 +4732,7 @@ Grammar := singleton() {
 
 # TODO: actually compiling code will require going through the TokenMatchers
 # in a specific order to avoid running through all options to see what fits.
-# OR, maybe we can parse a statement into tokens, and then do a `which Statement`
+# OR, maybe we can parse a statement into tokens, and then do a `what Statement`
 # with case `RhsStatement` etc., where the hash only takes into account the sequence
 # of tokens but not the actual token content.  we'd also need to ignore repeated fields,
 # i.e., only count them once.
