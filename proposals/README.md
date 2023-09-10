@@ -3871,15 +3871,14 @@ Which will give a compiler error since there is no internal block for the `if` s
 ### which statements
 
 `which` statements are comparable to `switch-case` statements in C/C++,
-but in hm-lang the `case` keyword is not required.  You can use the annotation
-`@Default` for a case that is not matched by any others.
+but in hm-lang the `case` keyword is not required.  You can use the keyword
+`else` for a case that is not matched by any others, i.e., the default case.
 
 TODO: non-ternary example with numbers.
-TODO: fallThrough keyword and behavior when multiple cases are in a row.
 TODO: explain how `case` values are cast to the same type as the value being `which`-ed.
 
 You can use RHS expressions for the last line of each block to return a value
-to the original scope.  In this example, `X` can become 5, 7, or 100, with various
+to the original scope.  In this example, `X` can become 5, 7, 8, or 100, with various
 side effects (i.e., printing).
 
 ```
@@ -3887,15 +3886,44 @@ X := which String
     "hello"
         print("hello to you, too!")
         5
+    # you can do multiple matches over multiple lines:
     "world"
+    "earth"
+        # String == "world" or "earth" here.
         print("it's a big place")
         7
-    @Default
+    #or you can do multiple matches in a single line with commas:
+    "hi", "hey", "howdy"
+        # String == "hi", "hey", or "howdy" here.
+        print("err, hi.")
+        8
+    else
         100
 
 # Note again that you can use `$(` ... `)` block operators to make these inline.
 # Try to keep usage to code that can fit legibly on one line:
-Y := which String $( "hello" $(5), "world" $(7), @Default $(100) )
+Y := which String $( "hello" $(5), "world" $(7), else $(100) )
+```
+
+You don't need to explicitly "break" a `case` statement like in C/C++.
+Because of that, a `break` inside a `which` statement will break out of
+any enclosing `for` or `while` loop.  This makes `which` statements more
+like `if` statements in hm-lang.
+
+```
+AirQualityForecast := ["good", "bad", "really bad", "bad", "ok"]
+MehDays ;= 0
+for Quality: in AirQualityForecast
+    which Quality
+        "really bad"
+            print("it's going to be really bad!")
+            break   # stops `for` loop
+        "good"
+            print("good, that's good!")
+        "bad"
+            print("oh no")
+        "ok"
+            ++MehDays
 ```
 
 Implementation details:  For strings, at compile time we do a fast hash of each 
@@ -3922,6 +3950,10 @@ switch (fastHash(ConsideredString, CompileTimeSalt)) {
 }
 ```
 
+TODO: do we even really want a `fallThrough` keyword?  it makes it complicated that it
+will essentially be a `goto` because fall through won't work due to the check for string
+equality.
+
 We'll add a compiler hint with the best `CompileTimeSalt` to the `which` statement,
 so that future transpilations are fast.  The compiler will still try more salts
 if the chosen salt doesn't work, however, e.g., in the situation where new cases
@@ -3936,7 +3968,7 @@ X := which String
     "world"
         print("it's a big place")
         7
-    @Default
+    else
         100
 ```
 
@@ -4155,7 +4187,7 @@ which Option1
         print("was the best actually...")
     Unselected
         fallThrough
-    @Default
+    else
         print("that was boring")
 ```
 
