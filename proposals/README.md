@@ -485,6 +485,7 @@ to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  When an ex
 is used to key the index, you may also use an implicit subscript, which occurs when we have
 a non-function LHS followed by parentheses, e.g., `Array[Some + Expression / Here]`.
 TODO: probably can use `_` inside numeric identifiers without confusion, e.g., `1_000_000`.
+TODO: we probably can use `_` at the end of a numeric identifier to give the type, e.g., `1234_i32`.
 Some examples:
 
 ```
@@ -2706,6 +2707,9 @@ SomeAnimal = cat()
 SomeAnimal goes()   # prints "saunters"
 ```
 
+TODO: discuss wrapper class which allocates enough data for any child class; if some child
+class takes up too much memory it's created as a new unique pointer.
+
 This is less surprising than the C++ behavior.  But in cases where users want to gain back
 the no-dynamically-allocated class instances, we have a `@only` annotation that can be used
 on the type.  E.g., `SomeVariable: @only someType` will ensure that `SomeVariable` is
@@ -2760,10 +2764,13 @@ SomeExample := someExample(5)
 ToString: string = SomeExample to()
 
 # or you can explicitly ask for the type
-ToDbl := SomeExample to ~(dbl) ()
+ToDbl := SomeExample to() Dbl
 
 # or you can explicitly ask like this:
 To64 := i64(SomeExample to())
+
+# this should probably not work, if the type isn't specified:
+Unspecified := SomeExample to()     # COMPILER ERROR, specify a type for `Unspecified`
 ```
 
 ## generic/template classes
@@ -2788,13 +2795,7 @@ OtherInstance := genericClass ~(key: dbl, value: string) (Key: 3, Value: 4)
 # note the passed-in values will be converted into the correct type.
 ```
 
-TODO:
-You can also have virtual generic methods on generic classes, but we may
-have to think of a clever way to achieve this.  E.g., C++ does not allow this...
-We might have to pass a list of unary and binary (two-operand) operation
-functions into the method which know how to handle the other data.
-OR, if we switch methods to global functions, then we're probably ok.
-e.g., `::method(U: ~u): u` becomes `globalMethod(Generic: generic~t, U: ~u): u`
+You can also have virtual generic methods on generic classes, which is not allowed by C++.
 
 ```
 generic~t := {
@@ -2807,43 +2808,12 @@ generic~t := {
 
 Generic := generic~string
 Generic Value = "hello"
-print(Generic method(2))    # prints ("3" * 7)
-
-==>
-// Put result into first argument, based on operands in second and third slots:
-typedef std::function<void(void *, void *, void *)> binaryFunction;
-typedef std::function<void(void *)> createOrDeleteFunction;
-
-template <class t>
-class generic {
-    t Value_;
-public:
-    void method(
-        void *Input_U,
-        void *Output_U,
-        binaryFunction add_u_and_bigInt,
-        binaryFunction multiply_t_and_uStar,
-        binaryFunction add_u_and_t,
-        createOrDeleteFunction allocate_uStar,
-        createOrDeleteFunction cleanup_uStar
-    ){
-        t OtherT;
-        {   
-            bigInt _BigInt_ = 5;
-            void *_U_plus_5_;
-            allocate_uStar(_U_plus_5_);
-            add_u_and_bigInt(_U_plus_5_, Input_U, (void *)&_BigInt_);
-
-            multiply_t_and_uStar((void *)&OtherT, (void *)&Value_, _U_plus_5_);
-            cleanup_uStar(_U_plus_5_);
-        }
-
-        add_u_and_t(Output_U, Input_U, (void *)&OtherT);
-    }
-};
-
-// TODO: definitions for binary functions and calling method in C++
+print(Generic method(i32(2)))    # prints ("3" * 7)
 ```
+
+Since we switch methods to global functions, we're probably ok.
+E.g., `::method(U: ~u): u` becomes `globalMethod(Generic: generic~t, U: ~u): u`
+becomes `template <class t, class u> u globalMethod(readonlyRef<generic<t>> Generic, readonlyRef<u> U)`
 
 ## common class methods
 
@@ -2855,17 +2825,17 @@ All classes have a few compiler-provided methods which cannot be overridden.
     should be faster than copy for types bigger than the processor's word size.
 * `Is: is` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
-    TODO: discuss how `consider`'s `case` statements cast their arguments
-    to the same type as the type of the `consider` statement.
+    TODO: discuss how `which` statements cast their case arguments
+    to the same type as the type of the `which` statement.
     ```
     X; null|int|dbl_
     X = [1.2, 3.4]
-    consider X Is
-        case null
+    which is(X)
+        null
             print("X was Null")
-        case int
+        int
             print("X was an integer")
-        case dbl_
+        dbl_
             print("X was an array of double")
     ```
     Note that the `type` type can be created directly from the type
@@ -3847,7 +3817,7 @@ TODO -- description, plus `if/else/else if` section
 
 ## conditional expressions
 
-Conditional statements including `if`, `else if`, `else`, as well as `consider` and `case`,
+Conditional statements including `if`, `else if`, `else`, as well as `which`,
 can act as expressions and return values to the wider scope.  This obviates the need
 for ternary operators (like
 `X = doSomething() if Condition else DefaultValue` in python, or
@@ -3898,31 +3868,34 @@ Q ?:= if Condition What + IndentTwice
 
 Which will give a compiler error since there is no internal block for the `if` statement.
 
-### consider-case statements
+### which statements
+
+`which` statements are comparable to `switch-case` statements in C/C++,
+but in hm-lang the `case` keyword is not required.  You can use the annotation
+`@Default` for a case that is not matched by any others.
 
 TODO: non-ternary example with numbers.
 TODO: fallThrough keyword and behavior when multiple cases are in a row.
-TODO: consider doing `case Option1, Option2` instead of `case Option1 \n case Option2` with implied fallThrough.
-TODO: explain how `case` values are cast to the same type as the value being `consider`-ed.
+TODO: explain how `case` values are cast to the same type as the value being `which`-ed.
 
-You can use RHS expressions for the last line of a `case` block to return a value
+You can use RHS expressions for the last line of each block to return a value
 to the original scope.  In this example, `X` can become 5, 7, or 100, with various
 side effects (i.e., printing).
 
 ```
-X := consider String
-    case "hello"
+X := which String
+    "hello"
         print("hello to you, too!")
         5
-    case "world"
+    "world"
         print("it's a big place")
         7
-    default
+    @Default
         100
 
 # Note again that you can use `$(` ... `)` block operators to make these inline.
 # Try to keep usage to code that can fit legibly on one line:
-Y := consider String $( case "hello" $(5), case "world" $(7), default $(100) )
+Y := which String $( "hello" $(5), "world" $(7), @Default $(100) )
 ```
 
 Implementation details:  For strings, at compile time we do a fast hash of each 
@@ -3949,8 +3922,26 @@ switch (fastHash(ConsideredString, CompileTimeSalt)) {
 }
 ```
 
+We'll add a compiler hint with the best `CompileTimeSalt` to the `which` statement,
+so that future transpilations are fast.  The compiler will still try more salts
+if the chosen salt doesn't work, however, e.g., in the situation where new cases
+were added to the `which` statement.
+
+```
+@compiler(CompileTimeSalt: 1234)
+X := which String
+    "hello"
+        print("hello to you, too!")
+        5
+    "world"
+        print("it's a big place")
+        7
+    @Default
+        100
+```
+
 Similarly, any class that supports a compile-time fast hash with a salt can be
-put into a consider-case statement.  Floating point classes or containers thereof
+put into a `which` statement.  Floating point classes or containers thereof
 (e.g., `dbl` or `flt_`) are not considered *exact* enough to be hashable, but
 hm-lang will support fast hashes for classes like `int`, `i32`, and `u64_`.
 
@@ -3975,24 +3966,21 @@ myHashableClass := {
 
 MyHashableClass := myHashableClass(Id: 123, Name: "Whatever")
 
-consider MyHashableClass
-    case myHashableClass(Id: 5, Name: "Ok")
+which MyHashableClass
+    myHashableClass(Id: 5, Name: "Ok")
         print("5 OK")
-    case myHashableClass(Id: 123, Name: "Whatever")
+    myHashableClass(Id: 123, Name: "Whatever")
         print("great!")
 ```
 
 Note that if your `fastHash` implementation is terrible (e.g., `fastHash(Salt) := Salt`),
 then the compiler will error out after a certain number of attempts with different salts.
 
-TODO: figure out a way to do a fast hash on a `set` or `map`, maybe need to sort
-the keys first so the insertion order doesn't matter.  or we require that people
-sort their maps/sets first so that insertion order doesn't matter.  maybe make
-it a compile-time error to `consider` a set or map that hasn't been sorted just
-above; give convenience annotations like `Map alreadySorted()` or `Set insertionOrdered()`
-which are allowed inside a consider-case statement.  and, of course `Map;;sort()` is also allowed.
-TODO: discussion on return types, e.g., `map::alreadySorted(): this` technically returns a reference,
-unless the `map` instance is a temporary.
+For sets and maps, we use a hash method that is order-independent (even if the container
+is insertion-ordered).  E.g., we can sum the hash codes of each element, or `xor` them.
+Arrays have order-dependent hashes, since `[1, 2]` should be considered different than `[2, 1]`,
+but the map `{"hi": 1, "hey": 2}` should be the same as `{"hey": 2, "hi": 1}` (different
+insertion order, but same contents).
 
 ## for loops
 
@@ -4133,7 +4121,7 @@ print(weird max())     # prints 9
 
 ### Testing enums with lots of values
 
-Note that if you are checking many values, a `consider-case` statement may be more useful
+Note that if you are checking many values, a `which` statement may be more useful
 than testing each value against the various possibilities.  Also note that you don't need
 to explicitly set each enum value.
 
@@ -4160,14 +4148,14 @@ else if Option1 isOopsYouMissedIt()
 ...
 
 # instead, consider doing this:
-consider Option1
-    case NotAGoodOption
+which Option1
+    NotAGoodOption
         print("oh no")
-    case BestOptionStillComing
+    BestOptionStillComing
         print("was the best actually...")
-    case Unselected
+    Unselected
         fallThrough
-    default
+    @Default
         print("that was boring")
 ```
 
@@ -4700,12 +4688,12 @@ Grammar := singleton() {
     ::match(Index;, Array: token_, GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
-        Matched := consider GrammarMatcher Is
-            case tokenMatcher
+        Matched := which is(GrammarMatcher)
+            tokenMatcher
                 GrammarMatcher match(Index;, Array)
-            case grammarElement
+            grammarElement
                 This Elements_GrammarMatcher match(Index;, Array)
-            case token
+            token
                 Index < Array count() and Array _ Index++ == Grammar Matcher
         if not Matched
             Index = Snapshot
@@ -4714,8 +4702,8 @@ Grammar := singleton() {
 
 # TODO: actually compiling code will require going through the TokenMatchers
 # in a specific order to avoid running through all options to see what fits.
-# OR, maybe we can parse a statement into tokens, and then do a `consider Statement`
-# with `case RhsStatement` etc., where the hash only takes into account the sequence
+# OR, maybe we can parse a statement into tokens, and then do a `which Statement`
+# with case `RhsStatement` etc., where the hash only takes into account the sequence
 # of tokens but not the actual token content.  we'd also need to ignore repeated fields,
 # i.e., only count them once.
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
