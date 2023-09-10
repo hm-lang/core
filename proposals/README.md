@@ -484,6 +484,7 @@ Or if we declare an array `Array; int_`, then `Array_3 = 100` sets the fourth va
 to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  When an expression
 is used to key the index, you may also use an implicit subscript, which occurs when we have
 a non-function LHS followed by parentheses, e.g., `Array[Some + Expression / Here]`.
+TODO: probably can use `_` inside numeric identifiers without confusion, e.g., `1_000_000`.
 Some examples:
 
 ```
@@ -1109,6 +1110,287 @@ q(():
 # also equivalent to `q((): ${X})`
 ```
 
+## function overloads
+
+Functions can do different things based on which arguments are passed in.
+For one function to be an overload of another function, it must be defined in the same file,
+and it must have different argument names or return values.  You can also have different
+argument modifiers (i.e., `;` and `:` are different overloads, as are nullable types, `?`).
+
+```
+greetings(String): null
+    print("Hello, ${String}!")
+
+greetings(Say: string, To: string): null
+    print("${Say}, ${To}!")
+
+greetings(Say: string, To: string, Times: int): null
+    for Count: int < Times
+        greetings(Say, To)
+
+# so you call this in different ways:
+greetings("World")
+greetings(To: "you", Say: "Hi")
+greetings(Times: 5, Say: "Hey", To: "Sam")
+
+# note this is a different overload, since it must be called with `Say;`
+greetings(Say; string): null
+    Say += " wow"
+    print("${Say}, world...")
+
+MySay ;= "hello"
+greetings(Say; MySay)   # prints "hello wow, world..."
+print(MySay)            # prints "hello wow" since MySay was modified
+```
+
+Note also, overloads must be distinguishable based on argument **names**, not types.
+Name modifiers (i.e., `;`, `:`, and `?`) also count as different overloads.
+
+```
+fibonacci(Times: int): int
+    Previous ;= 1
+    Current ;= 0
+    for Count: int < Times
+        NextPrevious := Current
+        Current += Previous
+        Previous = NextPrevious
+    return Current
+
+fibonacci(Times: dbl): int
+    GoldenRatio: dbl = (1.0 + \\math sqrt(5)) * 0.5
+    OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
+    return round{(GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)}
+# COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
+
+# NOTE: if the second function returned a `dbl`, then we actually could distinguish between
+# the two overloads.  This is because default names for each return would be `Int` and `Dbl`,
+# respectively, and that would be enough to distinguish the two functions.  The first overload
+# would still be default in the case of a non-matching name (e.g., `Result := fibonnaci(Times: 3)`),
+# but we could determine `Int := fibonacci(Times: 3)` to definitely be the first overload and
+# `Dbl := fibonacci(Times: 7.3)` to be the second overload.
+```
+
+There is the matter of how to determine which overload to call.  We consider
+only overloads that possess all the specified input argument names.  If there are some
+unknown names in the call, we'll check for matching types.  E.g., an unnamed `4.5`, 
+as in `fn(4.5)` or `fn(X, 4.5)`, will be checked for a default-named `Dbl` since `4.5`
+is of type `dbl`.  Similarly, if a named variable, e.g., `Q` doesn't match in `fn(Q)`
+or `fn(X, Q)`, we'll check if there is an overload of `fn` with a default-named type
+of `Q`; e.g., if `Q` is of type `animal`, then we'll look for the `fn(Animal):` 
+or `fn(X, Animal)` overload.
+
+NOTE: we cannot match a function overload that has more arguments than we supplied in
+a function call.  If we want to allow missing arguments in the function call, the declaration
+should be explicit about that; e.g., `fn(X?: int) := ...` or `fn(X := 0) := ...`.
+Similarly, we cannot match an overload that has fewer arguments than we supplied in the call.
+
+Output arguments are similar, and are also matched by name.  This is pretty obvious with
+something like `X := calling(InputArgs...)`, which will first look for an `X` output name
+to match.  If there is no `X` output name, then the first non-null, default-named output
+overload will be used.  E.g., if `calling(InputArgs...): dbl` was defined before
+`calling(InputArgs...): str`, then `dbl` will win.  For an output variable with an explicit
+type, e.g., `X: dbl = calling(InputArgs...)`, this will look for an overload with output
+name `X` first, *then* look for the overload with a default-named `Dbl: dbl` type.
+This might be surprising, but we want to enable easy conversions between types which can
+implicitly convert to each other, so that we don't always need to be explicit about converting
+iterators to containers, etc.  If there is no default-named `Dbl: dbl` output type, we'll look
+for the first non-null, default-named output overload.  For function calls like
+`X := dbl(calling(InputArgs...))`, we will lose all `X` output name information because
+`dbl(...)` will hide the `X` name.  In this case, we'll look for an overload with a
+default-named `Dbl: dbl` type output, then any non-null, default-named output overload.
+For calls like`X := calling(InputArgs...) Dbl`, we will explicitly pick a default-named
+`Dbl: dbl` output overload or throw a compiler error if none exists.
+
+TODO: reconsider SFO logic (i.e., `{Int}` being equivalent to `int`).  Then the rules
+for the above might not be as confusing.  Depends on if we want to keep MMR or not,
+since `fn(Int;): dbl` needs to be equivalent to `fn(Int): {Dbl, Int}` in that case,
+in which case we need SFO for convenience.
+
+### nullable input arguments
+
+When you call a function with an argument that is null, conceptually we choose the
+overload that doesn't include that argument.  In other words, a null argument is
+the same as a missing argument when it comes to function overloads.  Thus, we are
+not free to create overloads that attempt to distinguish between all of these cases:
+(1) missing argument, (2) present argument, (3) nullable argument, and (4) default argument.
+Only functions for Cases (1) and (2) can be simultaneously defined; any other combination
+results in a compile-time error.  Cases (3) and (4) can each be thought of as defining two function
+overloads, one for the case of the missing argument and one for the case of the present argument.
+
+Defining conflicting overloads, of course, is impossible.  Here are some example overloads;
+again, only Cases (1) and (2) are compatible and can be defined together.
+
+```
+# missing argument (case 1):
+someFunction(): dbl
+    return 987.6
+
+# present argument (case 2):
+someFunction(Y: int): dbl
+    return 2.3 * dbl(Y)
+
+# nullable argument (case 3):
+someFunction(Y?: int): dbl
+    return if Y != Null ${1.77} else ${Y + 2.71}
+
+# default argument (case 4):
+someFunction(Y := 3): dbl
+    return dbl(Y)
+```
+
+Note that mutable arguments `;` are distinct overloads, which indicate either mutating
+the external variable, taking it, or swapping it with some other value, depending on
+the behavior of the function.  Temporaries are also allowed, so defaults can be defined
+for mutable arguments.
+
+What are some of the practical outcomes of these overloads?  Suppose
+we define present and missing argument overloads in the following way:
+
+```
+overloaded(): dbl
+    return 123.4
+overloaded(Y: int): string
+    return "hi ${Y}"
+```
+
+The behavior that we get when we call `overloaded` will depend on whether we
+pass in a `Y` or not.  But if we pass in a null `Y`, then we also will end up
+calling the overload that defined the missing argument case.  I.e.:
+
+```
+Y?; int = ... # Y is maybe null, maybe non-null
+
+# the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
+Z := overloaded(Y?) # also OK, but not idiomatic: `Z := overloaded(Y?: Y)`
+# Z has type `dbl|string` due to the different return types of the overloads.
+```
+
+The reason behind this behavior is that in hm-lang, an argument list is conceptually an object
+with various fields, since an argument has a name (the field name) as well as a value (the field value).
+An object with a field that is `Null` should not be distinguishable from an object that
+does not have the field, since `Null` is the absence of a value.  Thus, if we count up
+the number of fields in an object using `count()`, we'll get results like this:
+`object()::count() == 0`, `{Y: Null}::count() == 0`, and `{Y: 5}::count() == 1`.
+
+Note that when calling a function with a nullable variable/expression, we need to
+indicate that the field is nullable if the expression itself is null (or nullable). 
+Just like when we define nullable variables, we use `?:=` or `?;=`, we need to use
+`?:` or `?;` (or some equivalent) when passing a nullable field.  For example:
+
+```
+someFunction(X?: int): int
+    return X ?? 1000
+
+# when argument is not null:
+someFunction(X: 100)    # OK, expression for X is definitely not null
+someFunction(X?: 100)   # ERROR! expression for X is definitely not null
+
+# when argument is an existing variable:
+X ?;= Null
+print(someFunction(X?))  # can do `X?: X`, but that's not idiomatic.
+
+# when argument is a new nullable expression:
+someFunction(X?: someNullishFunction())  # REQUIRED since someNullishFunction can return a Null
+someFunction(X: someNullishFunction())   # ERROR! someNullishFunction is nullable, need `X?:`.
+
+# where someNullishFunction might look like this:
+someNullishFunction()?: int
+    return if SomeCondition $( Null ) else $( 100 )
+```
+
+We also want to make it easy to chain function calls with variables that might be null,
+where we actually don't want to call an overload of the function if the argument is null.
+
+```
+# in other languages, you might check for null before calling a function on a value.
+# this is also valid hm-lang but it's not idiomatic:
+X ?:= if Y != Null ${overloaded(Y)} else ${Null}
+
+# instead, you should use the more idiomatic hm-lang version.
+# putting a ? *before* the argument name will check that argument;
+# if it is Null, the function will not be called and Null will be returned instead.
+X ?:= overloaded(?Y)
+
+# either way, X has type `string|null`.
+```
+
+You can use prefix `?` with multiple arguments; if any argument with prefix `?` is null,
+then the function will not be called.
+
+This can also be used with the `return` function to only return if the value is not null.
+
+```
+doSomething(X?: int): int
+    Y ?:= ?X * 3    # Y is Null or X*3 if X is not Null.
+    return ?Y       # only returns if Y is not Null
+    #[ do some other stuff ]#
+    ...
+    return 3
+```
+
+### nullable output arguments
+
+We also support function overloads for outputs that are nullable.  Just like with overloads
+for nullable input arguments, there are some restrictions on defining overloads with (1) a
+missing output, (2) a present output, and (3) a nullable output.  The restriction is a bit
+different here, in that we cannot define (1) and (3) simultaneously for nullable outputs.
+This enables us to distinguish between, e.g., `X ?:= myOverload(Y)` and `X := myOverload(Y)`,
+which defines a nullable `X` or a non-null `X`.
+
+```
+# case 1, missing output (not compatible with case 3):
+myOverload(Y: str): null
+    print(Y)
+
+# case 2, present output:
+myOverload(Y: str): {X: int}
+    # note, this will throw if `Y` is not convertible to an `int`.
+    return {X: int(Y)}
+
+# case 3, nullable output (not compatible with case 1):
+myOverload(Y: str): {X?: int}
+    try
+        # TODO: do we want to allow `?fn` to automatically catch errors in `fn` and return null?
+        X := int(Y)
+        return {X}
+    catch
+        return {}
+
+
+X := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
+X ?:= myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
+```
+
+Note that if only Case 3 is defined, we can use a special notation to ensure that the return
+value is not null, e.g., `{X: not~null} = ...`.  This will throw a run-time error if the return
+value for `X` is null.  Note that this syntax is invalid if Case 2 is defined, since there is
+no need to assert a non-null return value in that case.
+
+```
+# normal call for case 3, defines an X which may be null:
+{X?:} = myOverload(Y: "123")
+
+# special call for case 3; if X is null, this will throw a run-time error,
+# otherwise will define a non-null X:
+{X: not~null} = myOverload(Y: "123")
+```
+
+If there are multiple return arguments, i.e., via an output type data class,
+e.g., `{X: dbl, Y: str}`, then we support destructuring to help nail down
+which overload should be used.  E.g., `A := myOverload()` will first look
+for an overload with an output named `A`, and `{X:, Y:} = myOverload()` will
+look for an overload with outputs named `X` and `Y`.  Note that for hm-lang,
+`A := myOverload()` is equivalent to `{A:} = myOverload()`.  Thus the declarations
+`fn(): {Int}` and `fn(): int` are the same overload.
+
+When matching outputs, the fields count as additional arguments, which must
+be matched.  If you want to call an overload with multiple output arguments,
+but you don't need one of the outputs, you can use the `@hide` annotation to
+ensure it's not used afterwards.  E.g., `{@hide X:, Y: str} = myOverload()`.
+
+We also allow calling functions with any dynamically generated arguments, so that means
+being able to resolve the overload at run-time.
+
 ### readonly versus mutable arguments
 
 Functions can be defined with mutable or readonly arguments, e.g., via
@@ -1398,133 +1680,27 @@ it may only be not-writeable from your scope's reference to the variable.
 For performance optimization, we could have a `@noNewKeys` or `@fixedCount` annotation on a container class,
 so that passed-in arrays/maps are kept at the same size/count inside the function block.
 
-### nullable arguments
+### destructuring
 
-When you call a function with an argument that is null, conceptually we choose the
-overload that doesn't include that argument.  In other words, a null argument is
-the same as a missing argument when it comes to function overloads.  Thus, we are
-not free to create overloads that attempt to distinguish between all of these cases:
-(1) missing argument, (2) present argument, (3) nullable argument, and (4) default argument.
-Only functions for Cases (1) and (2) can be simultaneously defined; any other combination
-results in a compile-time error.  Cases (3) and (4) can each be thought of as defining two function
-overloads, one for the case of the missing argument and one for the case of the present argument.
+If the return type from a function has multiple fields, we can grab them
+using the notation `{Field1:, Field2;} = doStuff()`, where `doStuff` has
+a function signature of `(): {Field1: field1, Field2: field2, ...}`, and
+`...` are potentially ignored return fields.  In the example, we're declaring
+`Field1` as readonly and `Field2` as mutable, but any combination of `;`
+and `:` are possible.  If we already have `Field1` or `Field2` declared,
+we should avoid using `:` or `;` in the destructuring;
+`{Field1, Field2} = doStuff()` should suffice.  Of course, they should
+be previously declared as mutable if we are reassigning them via destructuring,
+otherwise it's a compiler error.  We can also get the remaining fields in their
+own object, e.g., `{Field1:, ...OtherFields:} = doStuff()`, which will have
+`OtherFields` as type `{Field2: field2, ...}`.
 
-Defining conflicting overloads, of course, is impossible.  Here are some example overloads;
-again, only Cases (1) and (2) are compatible and can be defined together.
+This notation is a bit more flexible than JavaScript, since we're
+allowed to reassign existing variables while destructuring.  In JavaScript,
+`const {Field1, Field2} = doStuff()` declares and defines the fields `Field1` and `Field2`,
+but `{Field1, Field2} = doStuff()`, i.e., reassignment in hm-lang, is an error.
 
-```
-# missing argument (case 1):
-someFunction(): dbl
-    return 987.6
-
-# present argument (case 2):
-someFunction(Y: int): dbl
-    return 2.3 * dbl(Y)
-
-# nullable argument (case 3):
-someFunction(Y?: int): dbl
-    return if Y != Null ${1.77} else ${Y + 2.71}
-
-# default argument (case 4):
-someFunction(Y := 3): dbl
-    return dbl(Y)
-```
-
-Note that mutable arguments `;` are distinct overloads, which indicate either mutating
-the external variable, taking it, or swapping it with some other value, depending on
-the behavior of the function.  Temporaries are also allowed, so defaults can be defined
-for mutable arguments.
-
-TODO: check if this breaks class instantiation assumptions.
-
-What are some of the practical outcomes of these overloads?  Suppose
-we define present and missing argument overloads in the following way:
-
-```
-overloaded(): dbl
-    return 123.4
-overloaded(Y: int): string
-    return "hi ${Y}"
-```
-
-The behavior that we get when we call `overloaded` will depend on whether we
-pass in a `Y` or not.  But if we pass in a null `Y`, then we also will end up
-calling the overload that defined the missing argument case.  I.e.:
-
-```
-Y?; int = ... # Y is maybe null, maybe non-null
-
-# the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
-Z := overloaded(Y?) # also OK, but not idiomatic: `Z := overloaded(Y?: Y)`
-# Z has type `dbl|string` due to the different return types of the overloads.
-```
-
-The reason behind this behavior is that in hm-lang, an argument list is conceptually an object
-with various fields, since an argument has a name (the field name) as well as a value (the field value).
-An object with a field that is `Null` should not be distinguishable from an object that
-does not have the field, since `Null` is the absence of a value.  Thus, if we count up
-the number of fields in an object using `count()`, we'll get results like this:
-`object()::count() == 0`, `{Y: Null}::count() == 0`, and `{Y: 5}::count() == 1`.
-
-Note that when calling a function with a nullable variable/expression, we need to
-indicate that the field is nullable if the expression itself is null (or nullable). 
-Just like when we define nullable variables, we use `?:=` or `?;=`, we need to use
-`?:` or `?;` (or some equivalent) when passing a nullable field.  For example:
-
-```
-someFunction(X?: int): int
-    return X ?? 1000
-
-# when argument is not null:
-someFunction(X: 100)    # OK, expression for X is definitely not null
-someFunction(X?: 100)   # ERROR! expression for X is definitely not null
-
-# when argument is an existing variable:
-X ?;= Null
-print(someFunction(X?))  # can do `X?: X`, but that's not idiomatic.
-
-# when argument is a new nullable expression:
-someFunction(X?: someNullishFunction())  # REQUIRED since someNullishFunction can return a Null
-someFunction(X: someNullishFunction())   # ERROR! someNullishFunction is nullable, need `X?:`.
-
-# where someNullishFunction might look like this:
-someNullishFunction()?: int
-    return if SomeCondition $( Null ) else $( 100 )
-```
-
-We also want to make it easy to chain function calls with variables that might be null,
-where we actually don't want to call an overload of the function if the argument is null.
-
-```
-# in other languages, you might check for null before calling a function on a value.
-# this is also valid hm-lang but it's not idiomatic:
-X ?:= if Y != Null ${overloaded(Y)} else ${Null}
-
-# instead, you should use the more idiomatic hm-lang version.
-# putting a ? *before* the argument name will check that argument;
-# if it is Null, the function will not be called and Null will be returned instead.
-X ?:= overloaded(?Y)
-
-# either way, X has type `string|null`.
-```
-
-You can use prefix `?` with multiple arguments; if any argument with prefix `?` is null,
-then the function will not be called.
-
-This can also be used with the `return` function to only return if the value is not null.
-
-```
-doSomething(X?: int): int
-    Y ?:= ?X * 3    # Y is Null or X*3 if X is not Null.
-    return ?Y       # only returns if Y is not Null
-    #[ do some other stuff ]#
-    ...
-    return 3
-```
-
-### destructring
-
-TODO: cleanup
+Some worked examples follow, including field renaming.
 
 ```
 fraction(In: string, Io; dbl): (RoundDown: int)
@@ -1535,7 +1711,7 @@ fraction(In: string, Io; dbl): (RoundDown: int)
 
 # destructuring
 Io ;= 1.234
-{RoundDown:} = fn(In: "hello", Io;)
+{RoundDown:} = fraction(In: "hello", Io;)
 
 # === calling the function with variable renaming ===
 # with pre-existing variables, using MMR syntax:
@@ -1553,11 +1729,11 @@ InputOutput ;= 1.234     # note `;` so it's mutable.
 # when there is a single-field object (SFO) with the correct name, we can do automatic de-nesting,
 # which is equivalent to the `{RoundDown:} = ...` syntax above:
 Io ;= 1.234
-RoundDown := fn(In: "hello", Io;)
+RoundDown := fraction(In: "hello", Io;)
 
 # if the field name doesn't match, we won't do automatic de-nesting:
 Io ;= 1.234
-Result := fn(In: "hello", Io;)
+Result := fraction(In: "hello", Io;)
 # `Result` is an object because the output variables were named, so we'll get `RoundDown` like this:
 print(Result RoundDown)
 
@@ -1569,11 +1745,7 @@ Note that destructuring looks different than defining a lambda function due
 to the extra `:` after the parentheses.  e.g., `(X: int, Y: str) = someFunction(Z)` is
 destructuring, but `(X: int, Y: str) := someFunction(Z)` is defining a lambda.
 It is a compiler error to do something like `X: int := someFunction(Z)`, since it
-looks somewhat ambiguous -- is it a lambda or a declaration?  So make sure to include
-parentheses if a lambda is desired.
-
-TODO: discuss/maybe implement spread operator in JS, e.g.,
-`const {Field:, ...OtherFields:} = doStuff();`
+looks somewhat ambiguous -- is it a lambda or a declaration?
 
 Note, you can also have nullable output arguments.  These will be discussed
 more in the function overload section, but here are some examples.
@@ -1616,7 +1788,7 @@ S: str
 ```
 
 TODO: make return values part of an `object`.  If return is null, then `Output` is Null (empty object). 
-if return is a single variable (e.g., `hello(Int): str), then `Output` populates a default-named field
+if return is a single variable (e.g., `hello(Int): str`), then `Output` populates a default-named field
 with the instance (e.g., `Output Str`).  If the return is multiple variables, `Output` has all those fields.
 Casting `object` to boolean, e.g., via `if Output $( doSomething() )` will check first to see if `Output` is a
 single-field object (SFO).  If so, then we'll cast that field to boolean.  Otherwise, we'll throw a compile error,
@@ -1628,37 +1800,26 @@ since creating objects will incur overhead, but just for organization.
 
 We allow for dynamically setting arguments to a function by using the `call` type,
 which has a few fields: `Input` and `Output` for the arguments and return values
-of the function, as well as optional `Warning` and `Error` fields for any issues
+of the function, as well as optional `Info`, `Warning`, and `Error` fields for any issues
 encountered when calling the function.  These fields are named to imply that the function
 call can do just about anything (including fetching data from a remote server).
 
 ```
-# TODO: split into `arguments` and `returns` since we switched to `;` being temp/mutable refs.
-# i.e., `fn(Arguments): returns`.  `arguments` include the output field names in a set.
-# `arguments~(output limits str|symbol) := { Input; any_str, Output; _output }` and
-# `returns~(output limits str|symbol) := any_output`
-# TODO: discussion of `limits` and `extends` for template types.
+# TODO: reconcile with MMR vs. mutable/readonly refs for arguments.
 call := {
     Input; any_str
     Output; any_str
+    Info?; string
     Warning?; string
-    # TODO: consider letting this be `error|string` type, or requiring `error` only:
-    Error?; string
+    Error?; error
 
     # note you can have an arbitrary variable name here via `~Name`,
-    # and the variable name string can be accessed via `@Name`.  TODO: switch to `@@Name`
-    # TODO: we probably want a more narrow fix here since we'd only not know the name of
-    # a variable in these contexts where we're passing in a `~Name: ~t` style argument.
-    # maybe something with ~.  maybe `@~Name`
-    # TODO: figure out how remote server call would work with an impure function.
-    #       this is probably impossible.  no way to keep track of how an impure function
-    #       would have called things (i.e., read a value off the local disk, written it later, etc.)
-    # TODO: maybe rethink how `if` statements can work with block parentheses `$( ... )`
+    # and the variable name string can be accessed via `@~Name`.
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
-    ;;io(~Name!; ~t): null
-        This Output_@Name = t()
-        This Input_@Name = Name!
+    ;;io(~Name; ~t): null
+        This Output_@~Name = t()
+        This Input_@~Name = Name!
 }
 ```
 
@@ -1692,24 +1853,23 @@ someFunction(X: string): int
 
 MyString: string = someFunction(X: 100)     # uses the first overload
 MyInt: int = someFunction(X: "cow")         # uses the second overload
+# TODO: we probably can check names first, then types second, so we could determine
+#       that this will call the second overload.
 WhatIsThis := someFunction(X: "asdf")       # WARNING! calls first overload
-
-# TODO: this might be easier to understand if we used @in/@out arguments
 
 # example which will use the default overload:
 Call; call
-Call Input X = 2
-# TODO: switch to new `arguments/returns` approach
+Call Input_"X" = 2
 # use `Call` with `;` so that `Call;;Output` can be updated.
 someFunction(Call;)
-print(Call Output)  # prints {String: "hihi"}
+print(Call Output)  # prints {"String": "hihi"}
 
-# define a default value for the Input object's field to get the other overload:
+# define a value for the object's Output field to get the other overload:
 Call; call
-Call Input X = "hello"
-Call Output Int = -1
+Call Input_"X" = "hello"
+Call Output_"Int" = -1
 someFunction(Call;)
-print(Call Output)  # prints {Int: 5}
+print(Call Output)  # prints {"Int": 5}
 
 # dynamically determine the function overload:
 Call; call = if someCondition()
@@ -1718,7 +1878,7 @@ else
     {Input: X: "hey", Output; Int; -1}
 
 someFunction(Call;)
-print(Call Output)  # will print {String: "hihihihihi"} or {Int: 3} depending on `someCondition()`.
+print(Call Output)  # will print {"String": "hihihihihi"} or {"Int": 3} depending on `someCondition()`.
 ```
 
 Note that `call` is so generic that you can put any fields that won't actually
@@ -1754,50 +1914,26 @@ Call4 ;= someFunction call(Input: X: 4, Output: String: "")
 
 Note that it's also not allowed to define an overload for the `call` type yourself.
 This will give a compile error, e.g.:
-TODO: explain reasoning here.
 
 ```
-# COMPILE ERROR!!  you cannot define an overload for `call`!
+# COMPILE ERROR!!  you cannot define a function overload with a default-named `call` argument!
 someFunction(Call;): null
     print(Call Input X)
 ```
 
-TODO: probably can allow defining an overload for a `call` argument that is not default-named,
-i.e., something like `MyCall; call` is ok.
+This is because all overloads need to be representable by `Call; call`, including any
+overloads you would create with `call`.  Instead, you can create an overload with a
+`call` argument that is not default-named.
+
+```
+someFunction(MyCall; call): null
+    print(Call Input X) # OK
+```
+
 TODO: discuss the `object` type, which allows you to build up function arguments.
 e.g., `Object; object = {Hello: "World"}`.
 TODO: the `object` type is recursive, too.  need to think of a good way to handle weird stuff here,
 or requesting subfields of a field that was not an object.
-
-If you want the output field to be determined in the normal way (by checking what is
-using the function's return value), you can also use `myFn input` as a way to create
-type-safe `object` for the `Input` field of a `myFn call`, i.e., the correctly typed
-arguments to any overload of `myFn`.
-
-TODO: `myFn output` probably doesn't exist in a type-safe way, since the output is
-determined by the input and chosen overload.
-
-```
-myFn(Times: int, String): null
-    for Int: int < Times
-        print(String)
-myFn(Dbl: dbl): dbl
-    return 5 * Dbl
-
-Input; myFn input = {}
-if SomeCondition
-    Input Dbl = 123.3
-else
-    Input = {Times: 50, String: "Hello"}
-# other fields defined on `Input` would give compiler errors, or mismatched fields,
-# e.g., `Input = {Times: 1, Dbl: 1.4}` would give an error.
-
-Result ?:= myFn(Input)   # Result can be `null|dbl`
-```
-
-TODO: i think it would be best not to throw a run-time error if the arguments
-don't match, e.g., if they are overspecified, especially for these dynamically
-built arguments.
 
 Note: You *can* create your own overload of a function with the `object` type as
 input, but it *cannot* be default-named `Object`.  This is for the same reason that we don't
@@ -1816,6 +1952,8 @@ myFunction(Cool: object):       # OK
 myFunction(Cool: {DidIDefineThis: True, X: 5})
 ```
 
+TODO: a consistent object API.  e.g., `Object count()` might be overridden.
+
 ## redefining a function
 
 To declare a reassignable function, use `;` after the arguments.
@@ -1827,16 +1965,11 @@ greetings(Noun: string); null
 # you can use the function:
 greetings(Noun: "World")
 
-# or redefine it:
-# option 1:
-greetings = (Noun: string): null
-    print("Hi, ${Noun}!")
-# option 2:
-greetings = "Greetings, ${$Noun}!"
-# NOT OK: COMPILE ERROR: this looks like a redeclaration of the function, rather than a reassignment:
-# also not ok if `;` is changed to `:`.
+# or you can redefine it:
 greetings(Noun: string); null
-    print("Overwriting?")
+    print("Overwriting!")
+# it's not ok if we use `greetings(Noun: string): null` when redefining, since that looks like
+# we're switching from mutable to readonly.
 ```
 
 It needs to be clear what function overload is being redefined (i.e., having the same function signature),
@@ -1892,10 +2025,6 @@ Example ;= parent(X: 5, Y: 1)
 Example::optionalMethod(Z: dbl); int
     return floor(Z * This X)
 
-# equivalent using explicit `This`:
-Example optionalMethod(This, Z: dbl); int
-    return floor(Z * This X)
-
 Example optionalMethod(2.15)    # returns 10
 
 # or set it to Null:
@@ -1914,7 +2043,7 @@ Child ;= child(X: 6, Y: 2)
 Child optionalMethod(0)     # returns 12
 
 # but note that unless the method is protected, users can still redefine it.
-Child optionalMethod(Z: dbl): int
+Child::optionalMethod(Z: dbl): int
     return floor(Z)
 
 Child optionalMethod(5.4)   # returns 5
@@ -1924,176 +2053,30 @@ Child optionalMethod(5.4)   # returns 5
 # if the instance is passed into a function which takes a parent class,
 # that function scope can reassign the method to Null (since the parent
 # class has no restrictions).
+# TODO: `Child::optionalMethod = Null` looks wrong (no modifying a :: variable) but it should be right
+#       (we only want to modify the ::optionalMethod overload, not an ;;optionalMethod overload).
+#       we probably need to specify the whole function overload here.
 Child optionalMethod = Null
+# TODO: does this work? but might look like trying to do a `?; int` function.
+Child optionalMethod?(This, Z: dbl); int = Null
+Child::optionalMethod?(Z: dbl); int = Null      # should be the same
+# TODO: maybe need to erase it.
+erase(Child, optionalMethod?(This, Z: dbl); int)
 
 # therefore the executable will always check for Null before calling the method:
 Child optionalMethod(1.45)  # returns Null
 ```
 
-## function overloads
-
-Functions can do different things based on which arguments are passed in.
-For one function to be an overload of another function, it must be defined in the same file,
-and it must have different argument names or return values.  You can also have different
-argument modifiers (i.e., `;` and `:` are different overloads, as are nullable types, `?`).
-
-```
-greetings(String): null
-    print("Hello, ${String}!")
-
-greetings(Say: string, To: string): null
-    print("${Say}, ${To}!")
-
-greetings(Say: string, To: string, Times: int): null
-    for Count: int < Times
-        greetings(Say, To)
-
-# so you call this in different ways:
-greetings("World")
-greetings(To: "you", Say: "Hi")
-greetings(Times: 5, Say: "Hey", To: "Sam")
-
-# note this is a different overload, since it must be called with `Say;`
-greetings(Say; string): null
-    Say += " wow"
-    print("${Say}, world...")
-
-MySay ;= "hello"
-greetings(Say; MySay)   # prints "hello wow, world..."
-print(MySay)            # prints "hello wow" since MySay was modified
-```
-
-Note also, overloads must be distinguishable based on argument **names**, not types.
-Name modifiers (i.e., `;`, `:`, and `?`) also count as different overloads.
-
-```
-fibonacci(Times: int): int
-    Previous ;= 1
-    Current ;= 0
-    for Count: int < Times
-        NextPrevious := Current
-        Current += Previous
-        Previous = NextPrevious
-    return Current
-
-fibonacci(Times: dbl): int
-    GoldenRatio: dbl = (1.0 + \\math sqrt(5)) * 0.5
-    OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
-    return int{Round: (GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)}
-# COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
-
-# NOTE: if the second function returned a `dbl`, then we actually could distinguish between
-# the two overloads.  This is because default names for each return would be `Int` and `Dbl`,
-# respectively, and that would be enough to distinguish the two functions.  The first overload
-# would still be default in the case of a non-matching name (e.g., `Result := fibonnaci(Times: 3)`),
-# but we could determine `Int := fibonacci(Times: 3)` to definitely be the first overload and
-# `Dbl := fibonacci(Times: 7.3)` to be the second overload.
-```
-
-There is the matter of how to determine which overload to call.  We consider
-only overloads that possess all the specified input argument names.  If there are some
-unknown names in the call, we'll check for matching types.  E.g., an unnamed `4.5`, 
-as in `fn(4.5)` or `fn(X, 4.5)`, will be checked for a default-named `Dbl` since `4.5`
-is of type `dbl`.  Similarly, if a named variable, e.g., `Q` doesn't match in `fn(Q)`
-or `fn(X, Q)`, we'll check if there is an overload of `fn` with a default-named type
-of `Q`; e.g., if `Q` is of type `animal`, then we'll look for the `fn(Animal):` overload.
-
-NOTE: we cannot match a function overload that has more arguments than we supplied in
-a function call.  If we want to allow missing arguments in the function call, the declaration
-should be explicit about that; e.g., `fn(X?: int) := ...` or `fn(X := 0) := ...`.
-Similarly, we cannot match an overload that has fewer arguments than we supplied in the call.
-
-Output arguments are similar, and are also matched by name.  This is pretty obvious with
-something like `X := calling(InputArgs...)`, which will first look for an `X` output name
-to match.  If there is no `X` output name, then the first non-null, default-named output
-overload will be used.  E.g., if `calling(InputArgs...): dbl` was defined before
-`calling(InputArgs...): str`, then `dbl` will win.  For an output variable with an explicit
-type, e.g., `X: dbl = calling(InputArgs...)`, this will look for an overload with output
-name `X` first, *then* look for the overload with a default-named `Dbl: dbl` type.
-This might be surprising, but we want to enable easy conversions between types which can
-implicitly convert to each other, so that we don't always need to be explicit about converting
-iterators to containers, etc.  If there is no default-named `Dbl: dbl` output type, we'll look
-for the first non-null, default-named output overload.  For function calls like
-`X := dbl(calling(InputArgs...))`, we will lose all `X` output name information because
-`dbl(...)` will hide the `X` name.  In this case, we'll look for an overload with a
-default-named `Dbl: dbl` type output, then any non-null, default-named output overload.
-For calls like`X := calling(InputArgs...) Dbl`, we will explicitly pick a default-named
-`Dbl: dbl` output overload or throw a compiler error if none exists.
-
-We also support function overloads for outputs that are nullable.  Just like with overloads
-for nullable input arguments, there are some restrictions on defining overloads with (1) a
-missing output, (2) a present output, and (3) a nullable output.  The restriction is a bit
-different here, in that we cannot define (1) and (3) simultaneously for nullable outputs.
-This enables us to distinguish between, e.g., `X ?:= myOverload(Y)` and `X := myOverload(Y)`,
-which defines a nullable `X` or a non-null `X`.
-
-```
-# case 1, missing output (not compatible with case 3):
-myOverload(Y: str): null
-    print(Y)
-
-# case 2, present output:
-myOverload(Y: str): {X: int}
-    # note, this will throw if `Y` is not convertible to an `int`.
-    return {X: int(Y)}
-
-# case 3, nullable output (not compatible with case 1):
-myOverload(Y: str): {X?: int}
-    try
-        # TODO: do we want to allow `?fn` to automatically catch errors in `fn` and return null?
-        X := int(Y)
-        return {X}
-    catch
-        return {}
-
-
-X := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
-X ?:= myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
-```
-
-Note that if only Case 3 is defined, we can use a special notation to ensure that the return
-value is not null, e.g., `{X: not~null} = ...`.  This will throw a run-time error if the return
-value for `X` is null.  Note that this syntax is invalid if Case 2 is defined, since there is
-no need to assert a non-null return value in that case.
-
-```
-# normal call for case 3, defines an X which may be null:
-{X?:} = myOverload(Y: "123")
-
-# special call for case 3; if X is null, this will throw a run-time error,
-# otherwise will define a non-null X:
-{X: assert~not~null} = myOverload(Y: "123")
-```
-
-If there are multiple return arguments, i.e., via an output type data class,
-e.g., `{X: dbl, Y: str}`, then we support destructuring to help nail down
-which overload should be used.  E.g., `A := myOverload()` will first look
-for an overload with an output named `A`, and `{X:, Y:} = myOverload()` will
-look for an overload with outputs named `X` and `Y`.  Note that for hm-lang,
-`A := myOverload()` is equivalent to `{A:} = myOverload()`.  Thus the declarations
-`fn(): {Int}` and `fn(): int` are the same overload.
-
-When matching outputs, the fields count as additional arguments, which must
-be matched.  If you want to call an overload with multiple output arguments,
-but you don't need one of the outputs, you can use the `@hide` annotation to
-ensure it's not used afterwards.  E.g., `{@hide X:, Y: str} = myOverload()`.
-
-We also allow calling functions with any dynamically generated arguments, so that means
-being able to resolve the overload at run-time.
-
 ## function templates/generics
 
-You can create template functions which can work for a variety of types
-using the syntax `~(type1, type2, ...)` or `~someType` (for just one generic type) 
-after a function name but before the argument list.  We also allow defining templates
-inline for convenience.  e.g., `logger(T: ~t): t`, using `~` the first time you see
-the type (reading left to right).
+For functions that accept multiple types as input/output, we define template types
+inline, e.g., `logger(T: ~t): t`, using `~` the first time you see the type in the
+definition (reading left to right).
 TODO: could do `logger(T: @infer t): t` if we don't want `~` for it.
 I prefer the efficiency of `logger(T: ~t): t`, though.
 
 ```
-# declaration equivalent to `logger ~(t) (T): t` or `logger(T: ~t): t`:
-logger ~t (T): t
+logger(T: ~t): t
     print("got ${T}")
     return T
 
@@ -2103,14 +2086,10 @@ Result := logger(Vector3)   # prints "got vector3(X: 0, Y: 5, Z: 0)".
 Vector3 == Result           # equals True
 
 # implicit type request:
-OtherResult := logger(5)    # prints "got 5" and returns the integer 5.
-
-# explicit generic request:
-DblResult := logger ~dbl (5)    # prints "got 5.0" and returns 5.0
+IntResult := logger(5)    # prints "got 5" and returns the integer 5.
 
 # explicit type request:
-AnotherDblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
-# can also use `logger dbl(4)` above or `logger dbl 4` with function spaces.
+DblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
 ```
 
 ## pure functions and functions with side effects
@@ -2135,7 +2114,7 @@ since they use data within the class instance to determine the result of the fun
 # we want to pass in a function here:
 check(fn(Int): bool, Int): int
     Result := if fn(Int)
-        Int / 2
+        Int // 2
     else
         2 * Int + 1
     print(Result)
@@ -2154,8 +2133,8 @@ ExampleClass; exampleClass
 
 # if we allow calling this instance's method in the `check` function, we get
 # results that depend on how many times the method has already been called:
-check(ExampleClass someMethod, 3)    # returns 7
-check(ExampleClass someMethod, 3)    # returns 1
+check(ExampleClass;;someMethod, 3)  # returns 7
+check(ExampleClass;;someMethod, 3)  # returns 1
 ```
 
 Calling an impure function anywhere in a function makes that function impure.
@@ -2331,15 +2310,23 @@ These definitions will only be visible to files importing this code, and not to 
 that import the original class.
 
 ```
-exampleClass myAddedClassFunction(X: int): exampleClass
-    return exampleClass(X)
+# static function
+exampleClass myAddedClassFunction(K: int): exampleClass
+    return exampleClass(X: K * 1000)
 
+# method which keeps the class instance readonly:
 exampleClass myAddedMethod(This, Y: int): int
     return This X * 1000 + Y * 100
 
-# or equivalently:
+# equivalently, a method which keeps the instance readonly:
 exampleClass::myAddedMethod(Y: int): int
     return This X * 1000 + Y * 100
+
+# a method which can mutate the class instance:
+# this could also be defined as `exampleClass anotherMethod(This;, PlusK: int): null`.
+exampleClass;;anotherMethod(PlusK: int): null
+    This X += PlusK * 1000
+
 ```
 
 Note that we recommend using named fields for constructors rather than static
@@ -2360,6 +2347,8 @@ for an instance of the class, use this notation:
 örsted := {
     # define a custom default name:
     This := Örsted
+    # TODO: this should probably be a macro, e.g.,
+    @defaultName(Örsted)
     ... other class methods ...
 }
 
@@ -2406,9 +2395,9 @@ the "access" visibility in the table above.
 To put into words -- `@public` methods can be called by anyone, regardless
 of whether the method modifies the class instance or not.  `@protected`
 methods which modify the class instance cannot be called by non-friends,
-but constant methods can be called by anyone.  `@private` methods which
+but constant `@protected` methods can be called by anyone.  `@private` methods which
 modify the class instance can only be called by module functions, and
-constant methods can be called by friends.
+constant `@private` methods can be called by friends.
 
 Note that reassignable methods, e.g., those defined with
 `::someConstantMethod(...Args); returnType` or `;;someMutatingMethod(...Args); returnType`
@@ -2780,8 +2769,8 @@ To64 := i64(SomeExample to())
 ## generic/template classes
 
 To create a generic class, you put the expression `~(types...)` after the
-class identifier.  You can use these new types for any class inheritance
-from a parent which is a generic/template class.
+class identifier, or `~type` for a single template type.  You can use these
+new types for any class inheritance from a parent which is a generic/template class.
 
 ```
 # create a class with two generic types, `key` and `value`:
@@ -2804,6 +2793,9 @@ You can also have virtual generic methods on generic classes, but we may
 have to think of a clever way to achieve this.  E.g., C++ does not allow this...
 We might have to pass a list of unary and binary (two-operand) operation
 functions into the method which know how to handle the other data.
+OR, if we switch methods to global functions, then we're probably ok.
+e.g., `::method(U: ~u): u` becomes `globalMethod(Generic: generic~t, U: ~u): u`
+
 ```
 generic~t := {
     Value; t
@@ -4041,7 +4033,32 @@ for (Vector2) in Array
 # printing and echoing output
 
 TODO: allow tabbed print output.  e.g., `\n` inside of a `string()` method
-will tab to the correct indent.
+will tab to the correct indent.  Or, instead of searching through each string,
+maybe we just look at `print` and add the newlines at the start.  Each thread should
+have its own tab stop.  E.g.,
+
+```
+array~t := {
+    ...
+    ::print(): null
+        if This count() == 0
+            return print("[]")
+        print("[")
+        with indent():
+            for T: in This
+                print(T)
+        print("]")
+}
+```
+
+TODO: defining `print` on a class will also define the `string()` method.
+essentially any `print`s called inside of the class `print` will be redirectable to
+a string-stream, etc.  `indent` should maybe do something different for `string()`;
+maybe just add commas *after* the line instead of spaces before the line to be printed.
+
+```
+
+```
 
 # enums and masks
 
@@ -4345,6 +4362,7 @@ nextGenerator(Int; int): fn(): int
 The `Int` here only lives inside of the block when `nextGenerator` is called,
 and so it will not be there for the returned function.
 TODO: if `Int` is defined as `;` then can we assume it's a reference?  no, it could be a temporary.
+We can always define temporaries outside of the function block so that they stick around.
 
 TODO: discussion here: should we allow functions to be passed in as if they are pointers?
 i think this is fine, but maybe there are some edge cases that allow pointers to escape.
