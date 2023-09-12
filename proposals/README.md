@@ -3719,7 +3719,16 @@ The way we achieve that is through using an array iterator:
 
 ```
 # TODO: some notation for switching to a child class when calling the parent class method.
-#       does this work, or is there a better way to do it?
+#       does this work, or is there a better way to do it? (see below in arrayIterator class)
+# TODO: there should be a way to determine if the parent class is `@only` and therefore
+#       cannot be switched to another class.  maybe just throw an error.
+# TODO: add an annotation, e.g., `@becomes(arrayIterator~t)` on the parent type here.
+#       that way we could compile-time check `@only` classes for modifications.
+#       e.g., `next(Iterator; iterator~t @becomes(arrayIterator~t), Array: Array~t): null`
+# TODO: a way to check if we're switching from `Array` to `Map` or something else
+#       do we throw an error, do we just start iterating on that thing?
+#       what happens if we come back to the original Array?  probably can just start from 0
+#       we shouldn't be expected to remember things if the user resets to another container.
 iterator~t;;next(Array: Array~t): null
     This = arrayIterator~t()
     return This;;next(Array)
@@ -3810,7 +3819,9 @@ Note that ternary logic short-circuits operations, so that calling the function
 of a block can become the RHS value for a statement like this.
 
 TODO: more discussion about how `return` works vs. putting a RHS statement on a line.
-TODO: add a way to get two variables out of this, e.g.,
+
+Of course you can get two values out of a conditional expression, e.g., via destructuring:
+
 ```
 {X, Y} := if Condition
     {X: 3, Y: doSomething()}
@@ -3927,13 +3938,13 @@ TODO: do we even really want a `fallThrough` keyword?  it makes it complicated t
 will essentially be a `goto` because fall through won't work due to the check for string
 equality.
 
-We'll add a compiler hint with the best `CompileTimeSalt` to the `what` statement,
-so that future transpilations are fast.  The compiler will still try more salts
+We'll add a compiler hint with the best compile-time `Salt` to the `what` statement,
+so that future transpilations are faster.  The compiler will still try more salts
 if the chosen salt doesn't work, however, e.g., in the situation where new cases
 were added to the `what` statement.
 
 ```
-@compiler(CompileTimeSalt: 1234)
+@compiler(Salt: 1234)
 X := what String
     "hello"
         print("hello to you, too!")
@@ -3948,7 +3959,8 @@ X := what String
 Similarly, any class that supports a compile-time fast hash with a salt can be
 put into a `what` statement.  Floating point classes or containers thereof
 (e.g., `dbl` or `flt_`) are not considered *exact* enough to be hashable, but
-hm-lang will support fast hashes for classes like `int`, `i32`, and `u64_`.
+hm-lang will support fast hashes for classes like `int`, `i32`, and `u64_`,
+and other containers of precise types, as well as recursive containers thereof.
 
 ```
 myHashableClass := {
@@ -3959,14 +3971,16 @@ myHashableClass := {
     # or fast hashes in one definition, depending on what is required.
     # This should automatically be defined for classes with precise fields (e.g., int, u32, string, etc.)!
     ::hash(Builder; ~builder):
-        This Id hash(Builder;)
-        This Name hash(Builder;)
+        # TODO: consider if we should hash the class' internal type ID,
+        #       i.e., in order to avoid collisions if multiple types have the same internal fields.
+        Builder hash(This Id)       # you can use `hash` via the builder or...
+        This Name hash(Builder;)    # you can use `hash` via the field.
 }
 
 # note that defining `::hash(~Builder;)` automatically defines a `fastHash` like this:
 # fastHash(MyHashableClass, Salt: ~salt): salt
 #   Builder := \\hash fast(Salt)
-#   MyHashableClass hash(Builder;)
+#   Builder hash(MyHashableClass)
 #   return Builder build()
 
 MyHashableClass := myHashableClass(Id: 123, Name: "Whatever")
@@ -4010,17 +4024,36 @@ for Special; int < 4
 # possibly undesired behavior that `Special` becomes >= 4 inside the for-loop block.
 # Prefer while loops here to be explicit about when/how the incrementing occurs.
 
+# you can do a for-loop with an existing variable.
+# this allows you to start at a different value, and keep the last value from the for loop.
+# NOTE the variable should be mutable!
+IteratingIndex ;= 3
+for IteratingIndex < 7
+    print(IteratingIndex)
+# prints 3, 4, 5, 6 each on new lines.
+assert IteratingIndex == 7      # you can keep IteratingIndex for use outside the for loop.
+
+# you can also inline the variable's starting value,
+# but this means you don't have access to the variable outside the for loop (probably for the best).
+for OtherIndex := index(3), OtherIndex < 7
+    # note that `OtherIndex` is readonly inside this block, but will be updated by the for loop.
+    print(OtherIndex)
+
+# TODO: consider if we want to add `OtherIndex += 2` logic; i'm not the biggest fan of it.
+#       i'd prefer it go in the middle, but that would probably confuse people
+
 # for-loop iterating over non-number elements:
 vector2 := {X: dbl, Y: dbl}
 Array: vector2_ = [{X: 5, Y: 3}, {X: 10, Y: 17}]
-for (Vector2: vector2) in Array
+for (Vector2: vector2) in Array     # `for (Vector2:) in Array` also works.
     print(Vector2)
 
-# when using `in`, we need to use parentheses around the iterand,
-# but we don't need to be explicit with the type if the variable name is
-# the default name for the variable type:
-for (Vector2) in Array
-    print(Vector2)
+# if the variable is already declared, you avoid the parentheses:
+# NOTE the variable should be mutable!
+IteratingVector; vector2
+for IteratingVector in Array
+    print(IteratingVector)
+# this is useful if you want to keep the result of the last element outside the for-loop.
 ```
 
 # printing and echoing output
