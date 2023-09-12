@@ -347,7 +347,9 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           |   `->`    | new namespace             | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
-|           |   ` `     | implicit subscript        | binary: `A (B)`   |               |
+|           |   ` ()`   | parenthetical subscript   | binary: `A(B)`    |               |
+|           |   ` []`   | parenthetical subscript   | binary: `A[B]`    |               |
+|           |   ` {}`   | parenthetical subscript   | binary: `A{B}`    |               |
 |           |   `!`     | postfix moot = move+reset | unary:  `A!`      |               |
 |   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
@@ -424,6 +426,8 @@ no field value (i.e, a null field value).  In addition, `X_someFunction[3]` woul
 
 TODO: should `_` be lower priority than member access?  e.g., `Whatever_Something Else` should
 probably be `Whatever_(Something Else)` not `(Whatever_Something) Else`??
+I think I actually like `Whatever_Something Else` equalling `(Whatever_Something) Else` just
+so we can read left to right more.
 
 ## new-namespace operator `->`
 
@@ -497,6 +501,10 @@ print(SomeClass I_1)    # also prints "world", ` ` (member access) and `_` bind 
 SomeClass;;I_4 = "love" # the fifth element is love.
 SomeClass::I_7 = "oops" # COMPILE ERROR, `::` means the array should be readonly.
 SomeClass;;I[7] = "no problem"
+
+NestedClass; someClass_ = []
+NestedClass_1 X = 1.234     # creates a default [0] and [1], sets [1]'s X to 1.234
+NestedClass_3 I_4 = "oops"  # creates a default [2] and [3], sets [3]'s I to ["", "", "", "", "oops"]
 ```
 
 For class methods, `;;` (`::`) selects the overload that mutates (keeps constant) the class
@@ -2310,6 +2318,9 @@ You can also define your own custom methods/functions on a class outside of the 
 These definitions will only be visible to files importing this code, and not to all files
 that import the original class.
 
+TODO: figure out a way to make new methods visible to other files if they import the file.
+maybe they need to import everything from the file.
+
 ```
 # static function
 exampleClass myAddedClassFunction(K: int): exampleClass
@@ -2845,47 +2856,6 @@ All classes have a few compiler-provided methods which cannot be overridden.
     a field defined as `is` or `Is`.  Maybe we need to use string access,
     e.g., `Object "MyField" = 3`
 
-## adding methods to existing classes
-
-You can declare and define methods in classes with the standard syntax,
-e.g., `someClass := {::someMethod(Int): string}`.  But you can also define
-new methods on a class outside of the class definition, even in a different file.
-For example:
-
-```
-#=== some-class.hm ===
-someClass := {
-    ;;reset(@private This Str: str): null
-
-    ::someMethod(Int): string
-        return This Str * Int
-}
-
-#=== other-file.hm ===
-{someClass} := \/some-class
-
-# define a new method on `someClass` from some-class.hm
-someClass newMethod(This, String): int      # equivalent to `someClass::newMethod(String): int`
-    for Int: int < 100
-        if someClass existingMethod(This, Int) == String
-            return Int
-    return -1
-
-SomeClass := someClass("hi")
-print(SomeClass newMethod("hihi"))  # should print 2
-print(SomeClass newMethod(""))      # should print 0
-print(SomeClass newMethod("hey"))   # should print -1
-```
-
-Note that the new method cannot access variables/methods inside the class that
-aren't visible to the file where the new method is being created (e.g., `other-file.hm`).
-Also, the new method is *not* visible to any other file, even if `other-file.hm` is
-imported by that file.
-
-TODO: discussion about how these sorts of package private methods might be good ways to define
-the implementation of the class, or some lower-level methods that might make the class definition
-too difficult to grasp at once.
-
 ## singletons
 
 Defining a singleton class is quite easy, using the `singleton` function.  Like `extend`,
@@ -2913,6 +2883,8 @@ screen := singleton() {
     ;;clear(Color := color Black)
 }
 ### implementation/sdl-screen.hm ###
+# TODO: we probably can convert `singleton(\/../screen screen)` -> `singleton(\/../screen)`
+#       where we're requesting the class name of a file that's named correctly.  similar for `extend(Hm)`, etc.
 SdlScreen := singleton(\/../screen screen) {
     ;;draw(Image, Vector2): null
         # actual implementation code:
@@ -2938,7 +2910,7 @@ substitute the preferred name for any aliases found, and the compiler will only
 warn on finding aliases.
 TODO: maybe combine formatter/compiler.
 TODO: maybe even add compiler errors to the code itself, with some special comments
-that will be removed on next compile, e.g., `@hmError`.
+that will be removed on next compile, e.g., `@compileError("please modify this ^")`.
 
 Aliases can be used for simple naming conventions, e.g.:
 
@@ -2989,6 +2961,7 @@ and `..` is allowed between backslashes to go to the parent directory relative
 to the current directory, e.g., `\/../subdirectory_in_parent_directory/other/file`.
 Note that we don't include the `.hm` extension on the final file, and we allow
 underscores in file and directory names.
+TODO: we can probably alias `.hm` imports into their non-`.hm` version.
 
 For example, suppose we have two files, `vector2.hm` and `main.hm` in the same
 directory.  Each of these is considered a module, and we can use backslashes
@@ -3054,6 +3027,8 @@ it to compiled code by converting the `.hms` file to a `.hm` file.
 
 Note that one downside of scripting is that what used to be compile-time errors become runtime errors.
 
+TODO: figure out how we import hm scripts (`.hms` files).  Maybe something like
+`Script := import("../my_scripts/doom.hms"), Script doom()`.
 TODO: how are we actually going to do this, e.g., need to expose public/protected functions to
 the calling code, pulling in other import dependencies should not reload code if we've already loaded
 those dependencies in other compiled files, etc.
@@ -3064,7 +3039,7 @@ Unit tests should be written inside the file that they are testing.  Files shoul
 1000 lines of code, including tests, but this is not strictly enforced.  Because unit tests live inside
 the files where the code is defined, tests can access private functions for testing.  It is generally
 recommended to test the public API exhaustively, however, so private function testing should be redundant.
-Tests are written as functions with a `@test` annotation.
+Tests are written as indented blocks with a `@test` annotation.
 
 ```
 @private
@@ -3080,19 +3055,21 @@ protectedFunction(X: int, Y: int): {Z: str}
 publicFunction(X1: int, Y1: int, X2: int, Y2: int): null
     print(protectedFunction(X: X1, Y: Y1) Z, privateFunction(X: X2, Y: Y2))
 
-@test check1():
+@test("foundation works fine")
     assert privateFunction(X: 5, Y: 3) == {Z: "5:3"}
     assert privateFunction(X: -2, Y: -7) == {Z: "-2:-7"}
 
-@test check2():
+@test("building blocks work fine")
     assert protectedFunction(X: 5, Y: -3) == {Z: "5:-3!"}
     assert protectedFunction(X: -2, Y: 7) == {Z: "-2:7!"}
 
-@test check3():
+@test("public function works correctly")
     publicFunction(X1: -5, Y1: 3, X2: 2, Y2: 7)
     assert Test print() == "-5:3!2:7" + \\os NewLine
-    publicFunction(X1: 2, Y1: -7, X2: -5, Y2: -3)
-    assert Test print() == "2:-7!-5:-3" + \\os NewLine
+
+    @test("nested tests also work")
+        publicFunction(X1: 2, Y1: -7, X2: -5, Y2: -3)
+        assert Test print() == "2:-7!-5:-3" + \\os NewLine
 ```
 
 Inside of a `@test` function, you have access to a `Test` variable which includes
@@ -3164,7 +3141,7 @@ assert SomeString endsWith(")")
     `expected nothing else on the line
      after the parenthetical.`
 
-# probably not intentional, parses as `Whatever Expression "this is a ..."`:
+# WARNING! probably not intentional, parses as `Whatever Expression "this is a ..."`:
 assert WhateverExpression
         "this is a double indented line, doesn't count as the assert error message"
 ```
@@ -3182,7 +3159,8 @@ TODO: try/catch/finally
 
 ```
 container~t := {
-    ;;insert(T): null
+    # TODO: maybe just use `;;+=(T)`
+    ;;add(T): null
 
     # returns true iff the element was present in the container before being removed:
     ;;remove(T): bool
@@ -3209,7 +3187,8 @@ define an array explicitly using the notation `array~elementType`
 for the type `elementType`, or implicitly with the subscript operator, `_`
 (AKA "key" or "indexing" operator), using the notation `elementType_`.
 E.g. `MyArray: int_` or `MyArray: array~int` for a readonly integer array.
-The mutable versions of course use `;` instead of `:`.
+The mutable versions of course use `;` instead of `:`.  We can also
+define an array via `value[]` instead of `value_` for type `value`.
 
 Side note: as we will see, the subscript operator is usually a binary operator, i.e.,
 requiring two operands, `A _ B`, read "A subscript B".  We make an exception for the
@@ -3237,23 +3216,32 @@ StringArray; string_ = ["hi", "there"]
 print(StringArray pop())    # prints "there".  now StringArray == ["hi"]
 ```
 
+TODO: `StringArray = ("hi")` probably doesn't work from a grammar perspective.
+well, it might be ok as long as we're ok with assigning `StringArray = "hi"` to set
+`StringArray` equal to a one element array (with "hi").
+we should probably require arrays as `[]`.  arguments can be standard parentheses,
+`(X: 1, Y)`.  objects can be `{}`.  it would be nice to have distinct notation
+for maps and sets as well.  maybe arguments, maps, and objects should be `()`,
+and sets should be `{}`?
+
 The default implementation of `array` might be internally a contiguous deque,
 so that we can pop or insert into the beginning at O(1).  We might reserve
 `stack` for a contiguous list that grows in one direction only.
 
 ```
 # some relevant pieces of the class definition
-array~t := extend(container~t, container~{Index, T}) {
+array~t := extend(container~t) {
     # swapper, sets the value at the index, returning the old value in the reference.
     # if the swapped in value is Null but the array value wasn't Null, the array
     # will shrink by one, and all later indexed values will move down one index.
     ;;_(Index, T?;): null
 
-    # TODO: make sure the notation works well here and for moot
+    # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(This): bool
         return This count() > 0
 
-    (This;)!: bool
+    # moot notation, with or without This:
+    (This;)!: this  # `;;()!: this` also works, notice `!` after the parentheses.
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the index into the passed-in function by reference (`;`).
@@ -3333,7 +3321,7 @@ doSomething(CopiedArray; dbl_): dbl_2
 
 # a function with a readonly argument:
 doSomething(ConstArray: dbl_): dbl_2
-    return [ConstArray_-2, ConstArray_-1]
+    return [ConstArray_-1, ConstArray_-2]
 
 # copies Vector3, of course:
 print(doSomething(CopiedArray: Vector3))    # prints [3.1, 2.4]
@@ -3348,11 +3336,9 @@ count is unknown at compile time, the fixed-count array will be defined on the h
 ```
 # note you can use an input argument to define the return type's
 # fixed-array count, which is something like a generic:
-range(Int): int_Int
-    assert Int >= 0
-        "can't have a fixed negative-count array"
-    Result; int_Int
-    for I: int < Int
+range(Count): int_Count
+    Result; int_Count
+    for I: index < Count
         Result_I = I
     return Result
 
@@ -3365,59 +3351,20 @@ In hm-lang:
 
 ```
 fixedCountArray~t := extend(array~t) {
+    @private FixedCount: count
+    ;;reset(Count): null
+        This FixedCount = Count
+        This count(Count)
     @hide pop
-    @hide insert
+    @hide add
     @hide erase
     @hide append
     @hide shift
-    # TODO: double check this syntax.
-    @for method in mutators(array~t)
-        # TODO: update `Call` stuff
-        ;;method(Call; method call): null
-            CountBefore := Array count()
-            array ;;method(Call)
-            assert Array count() == CountBefore
+    @hide reserve
+    ;;count(Count): null
+        assert Count == FixedCount
+        array~t;;count(Count)
 }
-```
-
-In C++, we might do something like this:
-
-```
-template <class t>
-class fixedCountArray {
-    array<t> Internal;
-public:
-    const array<t> *operator -> () const {
-        return &Internal;
-    }
-    fixedCountArrayModifier<t> modify() {
-        return fixedCountArrayModifier<t>(&Internal);
-    }
-};
-
-template <class t>
-class fixedCountArrayModifier {
-    array<t> *Internal;
-    count InitialCount;
-public:
-    fixedCountArrayModifier(array<t> *Array)
-    :   Internal(Array),
-        InitialCount(Array->count())
-    {}
-
-    NO_COPY(fixedCountArrayModifier)
-    NO_MOVE(fixedCountArrayModifier)
-
-    ~fixedCountArrayModifier() {
-        if (Internal->count() != InitialCount) {
-            throw fixedCountArrayError("Fixed-count array was modified");
-        }
-    }
-
-    array<t> *operator -> () {
-        return Internal;
-    }
-};
 ```
 
 ## maps
@@ -3435,18 +3382,32 @@ whatever the array element type is, `elementType_index` indicates a map type,
 not an array type.  The array type, `elementType_` would be useful for densely
 packed data (i.e., instances of `elementType` for most indices), while the map
 type `elementType_index` would be useful for sparse data.
+We can also specify a map via `value[key]` instead of `value_key`.
 
 To define a map (and its contents) inline, use this notation:
 
 ```
+Jim1 := "Jim C"
+Jim2 := "Jim D"
 # map from string to ints:
 EmployeeIds: int_string = [
-    # option 1: `X: Y` syntax
+    # option 1.A: `X: Y` syntax
     "Jane": 123
-    # option 2: `{Key: X, Value: Y}` syntax
+    # option 1.B: `{Key: X, Value: Y}` syntax
     {Key: "Jane", Value: 123}
-    # option 3: `[X, Y]` syntax, ok if key and value types are different
+    # option 1.C: `[X, Y]` syntax, ok if key and value types are different
     ["Jane", 123]
+    # option 1.D:
+    Jane: 123
+    # if you have some variables to define your key, you need to take care (see WARNING below).
+    # option 2.A, wrap in parentheses to indicate it's a variable not a key
+    (Jim1): 203
+    # option 2.B
+    {Key: Jim1, Value: 203}
+    # option 2.C
+    [Jim1, 203]
+    # WARNING! not a good option for 2; no equivalent of option 1.D here.
+    # Jim1: Jim1Id # WARNING, looks like option 1.C, which would define "Jim1" instead of "Jim C"
 ]
 # note that commas are optional if elements are separated by newlines,
 # but required if elements are placed on the same line.
@@ -3457,10 +3418,29 @@ EmployeeIds: int_string = [
 
 TODO: can we make this super nice with shorthand?  e.g., `EmployeeIds := int_str $( "Jane": 123 )`,
 or do we need `(int_str)("Jane": 123)`?  similarly for arrays `int_ $[1, 2, 3]` or `(int_)(1, 2, 3)`
-and sets `_int $(10, 20, 30)` or `(_int)(10, 20, 30)`
+and sets `_int $(10, 20, 30)` or `(_int)(10, 20, 30)`, or `_{1, 2, 3}`?
+If we switch to `()` being arguments, and `[]` being arrays, then we could reuse `[]` for maps
+as well because they are insertion ordered, and maybe `_[Value1, Value2]` for sets.
+or maybe `()` for arguments and organization, and `{}` for code execution.
+```
+vector3 := (X: dbl, Y: dbl)
+vector4 := (
+    X: dbl
+    Y: dbl
+    Z: dbl
+    T: dbl
+)
+# code execution in strings:  usually ${} but $() might make more sense (mathematical grouping)
+# function arguments:         usually ()
+# mathematical grouping:      usually ()
+# objects/class definitions:  whatever, might make sense as similar to function arguments or maps
+# arrays:                     usually []
+# maps:                       usually {}, but might make more sense as []
+# sets:                       usually {}
+```
 
 Maps require a key type whose instances can hash to an integer or string-like value.
-E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array ~dbl`).
+E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array~dbl`).
 
 ```
 DblDatabase; dbl_int       # OK, int is an OK key type
@@ -3483,10 +3463,10 @@ StackDatabase; string_(int_)    # parentheses are grammatically unnecessary,
 StackDatabase_[1,2,3] = "stack123"
 StackDatabase_[1,2,4] = "stack124"
 # prints "stack123" with 90% probability, "stack124" with 10%:
-print(StackDatabase_[1.0, 2.0, 3.1] map($Dbl round(Stochastically))
+print(StackDatabase_map([1.0, 2.0, 3.1], $Dbl round(Stochastically))
 # things get more complicated, of course, if all array elements are non-integer.
 # the array is cast to the key type (integer array) first.
-StackDatabase_[2.2, 3.5, 4.8] map($Dbl round(Stochastically)) = "odd"
+StackDatabase_[2.2, 3.5, 4.8] map($Dbl round(Stochastically))
 # result could be stored in [2, 3, 4], [2, 3, 5], [2, 4, 4], [2, 4, 5],
 #                           [3, 3, 4], [3, 3, 5], [3, 4, 4], [3, 4, 5]
 # but the key is decided first, then the map is added to.
@@ -3555,77 +3535,80 @@ like `unorderedMap`.
 
 ```
 @private
-indexedMapValue~t := {NextIndex; index, PreviousIndex; index, Value; t}
+indexedMapElement~(key, value) := (
+    NextIndex; index
+    PreviousIndex; index
+    Key: key
+    Value; value
+)
 
 insertionOrderedMap~(key, value) := extend(map) {
-    KeyIndices; @private @only unorderedBiMap~(key, value: index)
-    IndexedValues; @private @only unorderedMap~(
+    @private 
+    KeyIndices; @only unorderedMap~(key, value: index)
+    @private 
+    IndexedMap; @only unorderedMap~(
         key: index
-        value: indexedMapValue~value
-    ) = [{key: 0, value: {NextIndex: 0, value(), PreviousIndex: 0}}]
+        value: indexedMapElement~(key, value)
+    ) = [{Key: 0, Value: {NextIndex: 0, key(), value(), PreviousIndex: 0}}]
     NextAvailableIndex; @private index = 1
 
     # creates a default value if not present at the key to pass in to the modifier:
-    ;;_(Key, fn(Value;): ~t): t
-        Index ?:= This KeyIndices_(Key)
+    ;;_(Key;:, fn(Value;): ~t): t
+        Index ?:= This KeyIndices_Key
         return if Index != Null
             This modifyAlreadyPresent(Index, fn)
         else
-            This needToInsertThenModify(Key, fn)
+            This needToInsertThenModify(Key;:, fn)
 
     ::_(Key, fn(Value?): ~t): t
-        Index ?:= This KeyIndices_(Key)
+        Index ?:= This KeyIndices_Key
         return if Index != Null
             assert Index != 0
-            This IndexedValues_(Index, (IndexedValue: indexedMapValue~value): t
-                return fn(IndexedValue Value)
+            This IndexedMap_(Index, (IndexedMapElement): t
+                return fn(IndexedMapElement Value)
             )
         else
             fn(Null)
     
-    ::forEach(Loop->fn(Key, Value): forLoop): null
-        Index ;= This IndexedValues_0 NextIndex
+    ::forEach(Loop->fn(Key, Value): loop): null
+        Index ;= This IndexedMap_0 NextIndex
         while Index != 0
-            Key := This KeyIndices_Index
-            {Value: not~null} := This IndexedValues_Index
+            {Value:, Key:} = ~not~null(This IndexedMap_Index)
             ForLoop := Loop->fn(Key, Value)
-            if ForLoop == forLoop Break
+            if ForLoop == loop Break
                 break
-            Index = This IndexedValues_Index NextIndex
+            Index = This IndexedMap_Index NextIndex
         # mostly equivalent to using nested functions to avoid copies:
-        # `ForLoop := This KeyIndices_(Value: Index, (Key?):
-        #      assert Key != Null
-        #      return This IndexedValues_(Index, (IndexedMapValue?):
-        #          assert IndexedMapValue != Null
-        #          return Loop->fn(Key, IndexedMapValue Value)
-        #      )
-        #  )
-        # `
-        # which isn't idiomatic, but maybe what we want to do internally
-        # if we don't have const references, to avoid copies of Key and Value instances.
+        #   ForLoop := This IndexedMap_(Index, (IndexedMapElement?):
+        #       if IndexedMapElement == Null
+        #           error("insertion-ordered map invariant was broken")
+        #       Index = IndexedMapElement NextIndex
+        #       return Loop->fn(IndexedMapElement Key, IndexedMapElement Value)
+        #   )
 
     # modifier for a keyed value not yet in the map, need to insert a default first:
     @private
-    ;;needToInsertThenModify(Key, fn(Value;): ~t): t
-        NewIndex := This AvailableIndex++ or reshuffle()
-        This KeyIndices_Key = NewIndex
-        PreviouslyLastIndex := This IndexedValues_0 PreviousIndex
-        This IndexedValues_0 PreviousIndex = NewIndex
-        This IndexedValues_PreviouslyLastIndex NextIndex = NewIndex
-        This IndexedValues_NewIndex = {
+    ;;needToInsertThenModify(Key;:, fn(Value;): ~t): t
+        NewIndex := This NextAvailableIndex++ or reshuffle()
+        PreviouslyLastIndex := This IndexedMap_0 PreviousIndex
+        This IndexedMap_NewIndex = {
             PreviousIndex: PreviouslyLastIndex
             NextIndex: 0
+            Key
             Value: value()
         }
+        This KeyIndices_@mootOrCopy(Key) = NewIndex
+        This IndexedMap_0 PreviousIndex = NewIndex
+        This IndexedMap_PreviouslyLastIndex NextIndex = NewIndex
         return This modifyAlreadyPresent(NewIndex, fn)
 
     # modifier for an already indexed value in the map:
     @private
     ;;modifyAlreadyPresent(Index, fn(Value;): ~t): t
-        assert Index != 0
-        assert This IndexedValues has(Index)
-        return This IndexedValues_(Index, (IndexedValue; indexedMapValue~value): t
-            return fn(IndexedValue Value;)
+        debug assert Index != 0
+        return This IndexedMap_(Index, (IndexedMapElement?;): t
+            assert IndexedMapElement != Null
+            return fn(IndexedMapElement Value;)
         )
 }
 ```
@@ -3637,7 +3620,7 @@ fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certa
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set~elementType`
 to be explicit or `VariableName: _elementType` using the subscript operator `_` on the
 opposite side of the array type (i.e., the array looks like `arrayElementType_`).
-The default-named variable name for a set is `Set`.
+The default-named variable name for a set of any type is `Set`.
 
 ```
 set~t := extend(container~t) {
@@ -3662,7 +3645,7 @@ set~t := extend(container~t) {
 }
 ```
 
-Like the keys in hash maps, items added to a set become deeply constant,
+Like the keys in maps, items added to a set become deeply constant,
 even if the set variable is mutable.
 
 TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
@@ -3688,118 +3671,103 @@ and `from` selects multiple (or no) keys from the set (`k from keys(o)`).
 
 ## iterator
 
-```
-# TODO: no-copy iterator might require passing in the actual container in each
-# instance.  e.g., `;;next(fn(T?): ~u, Container: container~t): u`
-iterator~t := {
-    # next value via getter function:
-    ;;next(fn(T?): ~u): u
-
-    # peak via no-copy getter function:
-    ::peak?(fn(T?): ~u): u
-
-    # present only if underlying container supports removing the current element (at `peak()`)
-    # returns the element, or null if no current element.
-    # TODO: figure out a nice syntax for this method to automatically
-    # be defined IF replace is defined, and to return a null in replace,
-    # but allow it to be overridden if remove is defined separately.
-    # TODO: maybe require this for all containers that we use, so that things work "as expected"
-    ;;remove?()?: t
-
-    # present only if underlying container supports inserting a new element (before `peak()`)
-    # TODO: maybe require this for all containers that we use, so that things work "as expected"
-    ;;insert?(T): null
-
-    # replaces the element at `next()` based on the passed-in value,
-    # and the iterator should increment (i.e., skip the value you just passed in).
-    # if there was an element at this point in the container, and a null
-    # is passed into `replace`, then the element (and its former location)
-    # should be deleted out of the container.  if `next()` is Null but the passed-in
-    # reference is not, then the new value should be added to the container.
-    # the value that *was* at `next()` will be swapped into the reference.
-    ;;replace?(T?;): null
-}
-```
-
-For example, here is a way to create an iterator over some number of indices:
+For example, here is a way to create an iterator over some incrementing values:
 
 ```
 range~t := extend(iterator~t) {
     @private
-    NextIndex: t = 0
+    NextValue: t = 0
 
     ;;reset(StartAt: t = 0, This LessThan: t = 0): null
-        This NextIndex = StartAt
+        This NextValue = StartAt
 
     ;;next()?: t
-        if This NextIndex < This LessThan
-            return This NextIndex++
+        if This NextValue < This LessThan
+            return This NextValue++
         return Null
 
-    ::peak() := if This NextIndex < This LessThan
-        This NextIndex 
+    ::peak() ?:= if This NextValue < This LessThan
+        This NextValue 
     else
         Null
 }
 
-for (Index: index) in range(LessThan: 10)
+for (Index: index) in range(LessThan: index(10))
     print(Index)
 # prints "0" to "9"
 ```
 
-TODO: how does this work with the "no pointers" framework?
-
-For example, here is an array iterator:
+We want to avoid pointers, so iterators should just be indices into
+the container that work with the container to advance, peak, etc.
+Thus, we need to call `Iterator next` with the container to retrieve
+the element and advance the iterator, e.g.:
 
 ```
-arrayIterator~t := extend(iterator~t) {
-    # to avoid creating a pointer, we need to pass in the array;
-    # move the array in to avoid copying.
-    ;;reset(This Array!: t_, This NextIndex: index = 0) := Null
-    # TODO: see if there's a better syntax for this:
-    # To take an Array and return the Array back, no-copy, use the `with @holding` syntax:
-    # e.g., 
-    #   MyArray; int_ = [1,2,3,4]
-    #   with Iterator ;= iterator @holding(MyArray)
-    #       for (Int: int) in Iterator
-    #           ...
-    #   print(MyArray)
-    #   # MyArray is now back to [1,2,3,4] unless there were changes during iteration,
-    #   # but in any case, without a copy,
+Array := [1,2,3]
+Iterator; iterator~int
+assert Iterator next(Array) == 1
+assert next(Array, Iterator;) == 2  # you can use global `next`
+assert Iterator::peak(Array) == 3
+assert peak(Iterator, Array) == 3   # or you can use global `peak`
+assert Iterator next(Array) == 3
+assert Iterator next(Array) == Null
+assert Iterator peak(Array) == Null
+# etc.
+```
 
-    ;;next()?: t
-        ???
+The way we achieve that is through using an array iterator:
+
+```
+# TODO: some notation for switching to a child class when calling the parent class method.
+#       does this work, or is there a better way to do it?
+iterator~t;;next(Array: Array~t): null
+    This = arrayIterator~t()
+    return This;;next(Array)
+
+arrayIterator~t := extend(iterator~t) {
+    NextIndex; index
+    ;;reset(StartIndex: index = 0):
+        This NextIndex = StartIndex
+
+    ;;next(Array: array~t)?: t
+        if NextIndex < Array count()
+            return Array[NextIndex++]
+        return Null
+    ...
 }
 ```
 
-Or should we define iterators on the container itself?  E.g.,
+We can also directly define iterators on the container itself.
+We shouldn't need to define both the `iterator` version and the `forEach` version;
+we should be able to translate one into the other.
+TODO: think of a good mechanism for this.
 
 ```
 array~t := {
     # const iteration, with no-copy if possible:
-    ::forEach(fn(T): forLoop): null
+    ::forEach(fn(T): loop): null
         for Index: index < This count()
             # use the no-copy getter, here:
             # explicit:
             ForLoop := This_(Index, fn)
             # implicit:
             ForLoop := fn(This_Index)
-            if ForLoop == forLoop Break
+            if ForLoop == loop Break
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;forEach(fn(T;): forLoop): null
+    ;;forEach(fn(T;): loop): null
         for Index: index < This count()
             # do a swap on the value based on the passed in function:
             # explicit:
             ForLoop := This_(Index, fn)
             # implicit:
             ForLoop := fn(This_Index;)
-            if ForLoop == forLoop Break
+            if ForLoop == loop Break
                 break
 
     # mutability template for both of the above:
-    ;:forEach(fn(T;:): forLoop): bool
+    ;:forEach(fn(T;:): loop): bool
         for Index: index < This count()
             if fn(This_Index;:) isBreak()
                 return True
@@ -3857,7 +3825,7 @@ more than this would trigger line continuation logic.  I.e., at +2 or more inden
 the next line is considered part of the original statement and not a block.  For example:
 
 ```
-# ERROR, NOT WHAT YOU WANT:
+# WARNING, PROBABLY NOT WHAT YOU WANT:
 Q ?:= if Condition
         What + IndentTwice
 # actually looks to the compiler like:
@@ -3871,6 +3839,13 @@ Which will give a compiler error since there is no internal block for the `if` s
 `what` statements are comparable to `switch-case` statements in C/C++,
 but in hm-lang the `case` keyword is not required.  You can use the keyword
 `else` for a case that is not matched by any others, i.e., the default case.
+We switch from the standard terminology for two reasons: (1) even though
+`switch X` does describe that the later logic will branch between the different
+cases of what `X` could be, `what X` is more descriptive as to checking what `X` is,
+which is the important thing that `what` is doing at the start of the statement.
+(2) `switch` is something that a class instance might potentially want to do,
+e.g., `MyInstance switch(Background1)`, and having `switch` as a keyword negates
+that possibility.
 
 TODO: non-ternary example with numbers.
 TODO: explain how `case` values are cast to the same type as the value being `what`-ed.
