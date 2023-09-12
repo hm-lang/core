@@ -228,10 +228,15 @@ Other types which have a fixed amount of memory:
 and similarly for `i8` to `i512`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
 
+TODO: we probably also can support any number of 64 bits in an integral type,
+instead of just x2 all the time (e.g., `u192`).
+
 TODO: can we remove `ordinal` in favor of `count`?  No, i don't think so;
 we don't want to automatically convert an `index` to a `count` via +- 1, since that would be confusing.
 e.g., should `count(index(0))` be 1 or 0?  how about `Index := Array count() - 1`.
 we can do a +-1 with `ordinal`, however, without as much confusion.
+TODO: we probably don't want to do any conversion.  e.g., `ordinal(1)` should always be 1 numerically.
+and `ordinal(index(1))` shouldn't have weird semantics...
 
 ## casting between types
 
@@ -4082,9 +4087,9 @@ essentially any `print`s called inside of the class `print` will be redirectable
 a string-stream, etc.  `indent` should maybe do something different for `string()`;
 maybe just add commas *after* the line instead of spaces before the line to be printed.
 
-```
-
-```
+TODO: we should also have a print macro here in case we want to stop printing,
+e.g., in case the string buffer is full (e.g., limited output).  if the print
+command triggers a stop at any point, then abort (and stop calling the method)
 
 # enums and masks
 
@@ -4096,26 +4101,40 @@ The syntax is `lowerCamelCase := enumerate` followed by a list of named values
 are mutually exclusive -- no two values may be held simultaneously.  See
 masks for a similar class type that allows multiple options at once.
 
+Enums are by default the smallest standard integral type that holds all values,
+but they can be signed types (in contrast to masks which are unsigned).
+If desired, you can specify the underlying enum type using `enumerate~i8(...)` instead
+of `enumerate(...)`, but this will be a compile error if the type is not big enough to
+handle all options.
+
 For example:
 
 ```
 # TODO: should definitions be `False := 0` and `True := 1` ?
 # Enums use a similar syntax as maps when being defined,
 # except that the left-hand side must be an UpperCamelCase identifier:
+# TODO: probably `bool` can fit in a `u1`, which we could specify in a struct.
 bool := enumerate(
     False: 0
     True: 1
 )
 ```
 
-Enums provide a few extra additional properties for free as well, including the number of
-values that are enumerated via the method `count(): count`, the min and max values
-`min(): index`, `max(): index`, and some convenience methods on any instance of the enumeration.
+TODO: consider doing enums like rust, so you can have a struct inside
+the value, e.g., like a proto oneof.
+
+Enums provide a few extra additional properties for free as well, including
+the number of values that are enumerated via the method `count(): count`,
+the min and max values `min(): enumType`, `max(): enumType`, and some
+convenience methods on any instance of the enumeration.
 
 ```
 Test: bool = False  # or `Test := bool False`
 
 # use `isUpperCamelCaseName()` to check for equality:
+# TODO: is this necessary? `Test isTrue()`
+#  is technically shorter: `Test == True`   
+# maybe we can infer enum types where necessary to save time.
 if Test isTrue()
     print("test is true :(")
 if Test isFalse()
@@ -4161,7 +4180,7 @@ print(weird max())     # prints 9
 
 Note that if you are checking many values, a `what` statement may be more useful
 than testing each value against the various possibilities.  Also note that you don't need
-to explicitly set each enum value.
+to explicitly set each enum value; they start at 0 and increment by default.
 
 ```
 option := enumerate(
@@ -4179,6 +4198,7 @@ print("number of options should be 7:  ${option count()}")
 Option1 := option ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
+# TODO: do we want the `isOptionX` method here??
 if Option1 isNotAGoodOption()
     print("oh no")
 elif Option1 isOopsYouMissedIt()
@@ -4198,7 +4218,7 @@ what Option1
 ```
 
 Note that we don't have to do `option NotAGoodOption` (and similarly for other options)
-along with the `case` keyword.  The compiler knows that since `Option1` is of type `option`,
+along with the cases.  The compiler knows that since `Option1` is of type `option`,
 that you are looking at the different values for `option` in the different cases.
 
 ### Default value of an enumeration
@@ -4214,12 +4234,18 @@ Each value can also be thought of as a flag or option, which are bitwise OR'd to
 (i.e., `|`) for the variable instance.  Under the hood, these are unsigned integer types.
 Trying to assign a negative value will throw a compiler error.
 
-TODO: allow specifying the integer type backing the mask (or enum), e.g., `enumerate~i64(...)`
+Like with enums, you can specify the integer type that backs the mask, but in this case
+it must be an unsigned type, e.g., `mask~u32`.  Note that by default, the `maskType`
+is exactly as many bits as it needs to be to fit the desired options, rounded up to
+the nearest standard unsigned type (`u8`, `u16`, `u32`, `u64`, `u128`, etc.).
+TODO: We probably should warn if the user is getting into the `u128+` territory.
+
+TODO: is there a good generalization of "any type in an enum" functionality
+that rust provides, for masks?
 
 ```
 # the mask is required to specify types that are powers of two:
 nonMutuallyExclusiveType := mask(
-    # `None: 0` is automatically added as a mask option.
     X: 1
     Y: 2
     Z: 4
@@ -4234,8 +4260,7 @@ nonMutuallyExclusiveType min() == 0
 nonMutuallyExclusiveType max() == 15   # = X | Y | Z | T
 
 Options ;= nonMutuallyExclusiveType()
-Options isNone()    # True.  note there is no `hasNone()` method, since that doesn't
-                    #        make sense -- either the mask is None or it has something.
+Options == 0        # True; masks start at 0.
 Options |= X        # TODO: make sure it's ok to implicitly add the mask type here.
 Options |= nonMutuallyExclusiveType Z   # explicit mask type
 
@@ -4243,22 +4268,20 @@ Options hasX()  # True
 Options hasY()  # False
 Options hasZ()  # True
 Options hasT()  # False
-Options isX()   # False, since Options is a combo of X and Z
-
-Options = T
-Options isT()   # True, since Options is now solely T
 ```
 
 ## interplay with `oneOf`
+
+TODO: should we just rename `enumerate` to `oneOf`???
 
 We can also create a mask with one or more `oneOf` fields, e.g.:
 
 ```
 options := mask(
-    oneOf([AlignCenterX, AlignLeft, AlignRight])
-    oneOf([AlignCenterY, AlignTop, AlignBottom])
+    oneOf(AlignCenterX, AlignLeft, AlignRight)
+    oneOf(AlignCenterY, AlignTop, AlignBottom)
 
-    oneOf([FontVerySmall, FontSmall, FontNormal := 0, FontLarge, FontVeryLarge])
+    oneOf(FontVerySmall, FontSmall, FontNormal := 0, FontLarge, FontVeryLarge)
 )
 ```
 
@@ -4271,7 +4294,7 @@ Options; options = AlignCenterX | AlignRight     # COMPILER ERROR!
 Note that internally, an `OR` combination of the `oneOf` values may actually be valid;
 it may be another one of the `oneOf` values in order to save bits.  Otherwise, each
 new value in the `oneOf` would need a new power of 2.  For example, we can represent
-`oneOf([AlignCenterX, AlignLeft, AlignRight])` with only two powers of two, e.g.,
+`oneOf(AlignCenterX, AlignLeft, AlignRight)` with only two powers of two, e.g.,
 `AlignCenterX = 4`, `AlignLeft = 8`, and `AlignRight = 12`.  Because of this, there
 is special logic with `|` and `&` for `oneOf` values in masks.
 
@@ -4283,12 +4306,14 @@ if Options2 & AlignCenterX
 ```
 
 You can also explicitly tell the mask to avoid assigning a power of two to one of the
-`oneOf` values by setting it to zero (e.g., `oneOf([..., Value := 0, ... ])`.
+`oneOf` values by setting it to zero (e.g., `oneOf(..., Value := 0, ... )`.
 For example, the font size `oneOf` earlier could be represented by 3 powers of two, e.g.,
 `FontVerySmall = 16`, `FontSmall = 32`, `FontLarge = 64`, `FontVeryLarge = 96`.
 Note that we have the best packing if the number of non-zero values is 3 (requiring 2 powers of two),
 7 (requiring 3 powers of two), or, in general, one less than a power of two (i.e., `2^P - 1`,
 requiring `P` powers of two).
+
+TODO: do multiple oneOf with 0's make sense?
 
 ## named value-combinations
 
@@ -4343,18 +4368,6 @@ We actually don't want `liveItUp("no")` to return 2 here, either; we want this
 code to fail at compilation.  We want to detect when users are trying to do
 closures (popular in garbage-collected languages) and let them know this is
 not allowed.
-TODO: maybe we want to allow an impure function to "take" a variable into its own
-private scope so that we could return liveItUp here, but that would require some
-new syntax.  We still wouldn't allow references, however, they'd have to be new
-variables scoped into the function block.  We probably could do something like this:
-```
-if SomeCondition
-    liveItUp(String); index
-        # "@dynamic" means declare once and let changes persist across function invocations.
-        # Note that this functionality cannot be used to store references.
-        @dynamic X; int = 12345
-        return String countBytes() + ++X
-```
 
 You can define variables and use them inside impure functions
 but they must be defined *before* the impure function is first declared.  So this
@@ -4376,29 +4389,43 @@ if SomeCondition
 print(liveItUp("no"))       # prints 14
 ```
 
+Alternatively, we allow an impure function to "take" a variable into
+its own private scope so that we could redefine `liveItUp` here with a new
+internal variable.  We still wouldn't allow references; they'd have to be
+new variables scoped into the function block.
+
+```
+if SomeCondition
+    liveItUp(String); index
+        # "@dynamic" means declare once and let changes persist across function invocations.
+        # Note that this functionality cannot be used to store references.
+        @dynamic X; int = 12345
+        return String countBytes() + ++X
+```
+
 Similarly, returning a function from within a function is breaking scope:
 
 ```
-# this produces a COMPILER error:
 nextGenerator(Int; int): fn(): int
     return ():
-        return ++Int    # ERROR! lifetime of Int does not exceed returned function!
+        return ++Int
 ```
 
-The `Int` here only lives inside of the block when `nextGenerator` is called,
-and so it will not be there for the returned function.
-TODO: if `Int` is defined as `;` then can we assume it's a reference?  no, it could be a temporary.
-We can always define temporaries outside of the function block so that they stick around.
+However, technically this is OK because arguments in functions are references,
+and they should therefore be defined before this function is called.
+Even if `Int;` here is a temporary, it is defined before this function
+(and not deleted after the function call).
+TODO: does this just increase our stack variables without end?  we probably
+want to allow getting rid of stack variables here.
 
-TODO: discussion here: should we allow functions to be passed in as if they are pointers?
-i think this is fine, but maybe there are some edge cases that allow pointers to escape.
-need to double check...
+Here is an example where the return value is a function which uses
+the another function from the input.  This is ok because the returned
+function has internals that have greater lifetimes than itself; i.e.,
+the input function will be destroyed only after the output function
+is descoped.
 
 ```
 # function that takes a function as an argument and returns a function
-# this closure is ok because the returned function has internals that have greater lifetimes
-# than itself.  i.e., the input function will be destroyed only after the output function
-# is descoped.
 wow(Input->fn(): string): fn(): int
     # example usage:
     # someFn() := "hey"
