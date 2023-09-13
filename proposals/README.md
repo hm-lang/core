@@ -4548,6 +4548,7 @@ grammarElement := enumerate(
     # "TypeElement" to avoid overload with type/Type
     TypeElement
     FunctionType
+    ForLoop,
     NonFunctionType
     FunctionArgsWithReturnType
     VariableName
@@ -4618,6 +4619,40 @@ Grammar := singleton() {
                     operatorMatcher(":=")
                 ])
                 RhsStatement
+            ])
+        ])
+        #(#
+        # for-loops
+        # e.g.
+        for Variable: variableType < UpperBoundExclusive
+            ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
+        # or
+        for Variable: variableType <= UpperBoundInclusive
+            ... use Variable from 0 to floor(UpperBoundInclusive) ...
+        # TODO: support starting value, or just variable names
+        Variable; variableType = 5
+        for @lock Variable < UpperBoundExclusive
+            ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
+        # starting at number in the for loop
+        for Variable := StartingValue, Variable < UpperBoundExclusive
+            ... use Variable from StartingValue ...
+        #)#
+        ForLoop := oneOfMatcher([
+            sequenceMatcher([
+                # TODO: do we even need `keywordMatcher`, `identifierMatcher`, and `operatorMatcher`?
+                #       can't we just use `singleTokenMatcher` and be done with it?
+                keywordMatcher("for")
+                VariableDeclaration
+                oneOfMatcher([operatorMatcher("<"), operatorMatcher("<=")])
+                Expression
+                Block
+            ])
+            sequenceMatcher([
+                keywordMatcher("for")
+                listMatcher(FunctionArgument)
+                keywordMatcher("in")
+                Expression
+                Block
             ])
         ])
         FunctionName: singleTokenMatcher(LowerCamelCase)
@@ -4696,7 +4731,7 @@ Grammar := singleton() {
                 # map types, e.g., `str_int` or `dbl_str`
                 # as well as array types, e.g., `str_` or `dbl_`.
                 LowerCamelCase
-                repeat(operatorMatcher("_"), AtLeastTimes: 1)
+                repeatMatcher(operatorMatcher("_"), AtLeastTimes: 1)
                 # present if we're a map type, absent if an array type:
                 optionalMatcher(TypeElement)
             ])
@@ -4732,7 +4767,7 @@ Grammar := singleton() {
             optionalMatcher(ExtendParentClasses)
             parenthesesMatcher(ClassBlock)
         ])
-        ClassBlock: repeat(ClassStatement)
+        ClassBlock: repeatMatcher(ClassStatement)
         ClassStatement: oneOfMatcher([
             VariableDefinition
             VariableDeclaration
@@ -4755,7 +4790,7 @@ Grammar := singleton() {
             ])
         ])
         EndOfInput: tokenMatcher(
-            match(Index;, Array: token_) := Index >= Array count()
+            ::match(Index;, Array: token_) := Index >= Array count()
         )
     ]
 
@@ -4784,7 +4819,7 @@ Grammar := singleton() {
 
 # a list encompasses things like (), (GrammarMatcher), (GrammarMatcher, GrammarMatcher), etc.,
 # but also lists with newlines if properly tabbed.
-listMatcher(GrammarMatcher) := parenthesesMatcher(repeat([
+listMatcher(GrammarMatcher) := parenthesesMatcher(repeatMatcher([
     GrammarMatcher
     CommaOrBlockNewline
 ])
@@ -4804,7 +4839,7 @@ sequence := extend(tokenMatcher) {
 }
 
 # TODO: make `block` a type of token as well.
-parentheses := extend(tokenMatcher) {
+parenthesesMatcher := extend(tokenMatcher) {
     ;;reset(This GrammarMatcher) := Null
 
     ::match(Index;, Array: token_): bool
@@ -4827,7 +4862,7 @@ parentheses := extend(tokenMatcher) {
 
 # TODO: make this a function which returns either `repeatInterruptible` and `repeatTimes`
 # this is essentially the definition for repeatInterruptible:
-repeat := extend(tokenMatcher) {
+repeatMatcher := extend(tokenMatcher) {
     Interruptible: GrammarMatcher_
     # until `Until` is found, checks matches through `Interruptible` repeatedly.
     # note that `Until` can be found at any point in the array;
@@ -4854,53 +4889,12 @@ repeat := extend(tokenMatcher) {
                     return False
 }
 
-#(#
-# e.g.
-for Variable: variableType < UpperBoundExclusive
-    ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
-# or
-for Variable: variableType <= UpperBoundInclusive
-    ... use Variable from 0 to floor(UpperBoundInclusive) ...
-# TODO: support starting value, or just variable names
-Variable; variableType = 5
-for @lock Variable < UpperBoundExclusive
-    ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
-# starting at number in the for loop
-for Variable := StartingValue, Variable < UpperBoundExclusive
-    ... use Variable from StartingValue ...
-#)#
-ForLoop := oneOfMatcher([
-    sequenceMatcher([
-        # TODO: do we even need `keywordMatcher`, `identifierMatcher`, and `operatorMatcher`?
-        #       can't we just use `singleTokenMatcher` and be done with it?
-        keywordMatcher("for")
-        VariableDeclaration
-        oneOfMatcher([operatorMatcher("<"), operatorMatcher("<=")])
-        Expression
-        Block
-    ])
-    sequenceMatcher([
-        keywordMatcher("for")
-        listMatcher(FunctionArgument)
-        keywordMatcher("in")
-        Expression
-        Block
-    ])
-])
-
 TODO: support internationalization.  do we really require Upper/lower+CamelCase for variables/functions?
 or is the syntax unambiguous enough to not need them?
 
 # tokenizer
 
 TODO
-
-# references via keys
-
-TODO: maybe want to separate elements inside a container from container in a consistent way.
-e.g., `Array[3]` -> `Key; key~array~int = 3, Array[Key]`.
-TODO: this might be better as a function, e.g., `key(array~int)` is the `index` type.
-function signature `key(Is): is`
 
 # object format
 
@@ -4914,6 +4908,7 @@ dynamic-type variables include a 64 bit field for their type at the start of the
 acting much like a vtable.  However, the type table includes more than just method pointers.
 
 ```
+// C++ code
 typedef u64 typeId;
 
 struct variableType {
@@ -4960,20 +4955,14 @@ struct typeInfo {
 
 TODO: storage for dynamic types, can we create wrapper classes with enough memory and
 cast to them (i.e., without allocation)?  need to know the possible memory layouts beforehand,
-i.e., all possible child classes.  if we know for certain how files are loaded and used, 
-and ensure encapsulation in some way, we can probably update max storage required if a child
-class is loaded, and undo the update once the child class is unloaded.
-alternatively, since child classes can be persisted, we might not want to update the max storage
-when the child class is unloaded.  we could have a shared pointer to the class, and on class
-destructors, remove their copy of that; that would be more fireproof.
-but similarly, if new child classes are added with more space, then we'd need to go back
-and redo arrays with the parent class wrappers to expand their size.  since we should know
+i.e., all possible child classes.  since we should know
 all imports ahead of time, however, we could just get the largest child implementation and use that.
+(maybe check if one child uses a lot more memory than other siblings and push to a pointer.)
 for scripts that extend a class, we might fit in as much as we can to the wrapper classes
 memory but then use a pointer to the rest.  it's ok if scripts take a performance hit (pointer dereference).
+
+TODO: a general purpose "part of your memory is here, part of your memory is there" class
 
 TODO: discuss having all instance methods in some special virtual table, e.g., possibly 
 with additional reflection information (for things like `@for method in mutators(myClass)`
 macro code).
-
-TODO: make it possible to have template methods with template classes
