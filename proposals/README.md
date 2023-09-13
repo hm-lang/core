@@ -429,11 +429,6 @@ no field value (i.e, a null field value).  In addition, `X_someFunction[3]` woul
 `(X_someFunction)[3]`, which is almost certainly not what is desired, unless `X` is a map with
 *function* keys.
 
-TODO: should `_` be lower priority than member access?  e.g., `Whatever_Something Else` should
-probably be `Whatever_(Something Else)` not `(Whatever_Something) Else`??
-I think I actually like `Whatever_Something Else` equalling `(Whatever_Something) Else` just
-so we can read left to right more.
-
 ## new-namespace operator `->`
 
 The operator `->` can be used to create default-named variables in a
@@ -1651,6 +1646,8 @@ wouldn't work for readonly arguments.  It'd be great to keep the solution the sa
 and with the weird 0 mutable argument issue while inside the function, it might be nice to use pointer to container + offset.
 But then we would be straying from getter/swapper logic of hm-lang which makes it easy to check on the changes to a value
 before putting it back into a container (in case there are any invariants/etc. that need to be restored).
+TODO: we want to make it consistent with what's happening with `This;` inside class methods;
+we shouldn't moot the class instance into `This` for the method; it should be a reference.
 
 Here is an example with a map.  Note that the argument is readonly, but that doesn't mean
 the argument doesn't change, especially when we're doing self-referential logic like this.
@@ -3801,8 +3798,8 @@ TODO -- description, plus `if/else/elif` section
 Conditional statements including `if`, `elif`, `else`, as well as `what`,
 can act as expressions and return values to the wider scope.  This obviates the need
 for ternary operators (like `X = doSomething() if Condition else DefaultValue` in python
-(which inverts the control flow), or `int X = Condition ? doSomething() : DefaultValue;`
-in C/C++).  In hm-lang, we borrow from Kotlin the idea that
+which inverts the control flow, or `int X = Condition ? doSomething() : DefaultValue;`
+in C/C++ which takes up two symbols `?` and `:`).  In hm-lang, we borrow from Kotlin the idea that
 [`if` is an expression](https://kotlinlang.org/docs/control-flow.html#if-expression)
 and write something like:
 
@@ -4426,11 +4423,11 @@ is descoped.
 
 ```
 # function that takes a function as an argument and returns a function
+# example usage:
+#   someFn() := "hey"
+#   otherFn := wow(someFn)
+#   print(otherFn()) # 3
 wow(Input->fn(): string): fn(): int
-    # example usage:
-    # someFn() := "hey"
-    # otherFn := wow(someFn)
-    # print(otherFn()) # 3
     return (): int
         return Input->fn() countBytes()
 ```
@@ -4461,8 +4458,9 @@ the element via the pointer.  The element might not exist anymore
 (e.g., the array was shrunk), and in the worst case, the array
 might not even exist (e.g., the array was descoped).
 
-In this way, ownership of another variable is very strict in hm-lang.
-Only one object can modify the memory at some location (i.e., of a variable).
+TODO: we probably actually want pointers for interfacing with C/C++ code.
+but they should be hidden behind a type that requires an `@unsafe` label,
+e.g., `ptr~u64`.
 
 ## handling system callbacks
 
@@ -4475,10 +4473,18 @@ When the `callee` is descoped, it will deregister itself with the `caller`
 internally, so that the `caller` will no longer call the `callee`.
 
 ```
-# caller := { Callees; _(ptr~callee~t), runCallbacks(T: t): for (Ptr) in Callees $(Ptr call(T)) }
-# TODO: we probably don't want to allow ; on a type, since ; implies input an output logic,
-# it's not technically a type but syntactic sugar on the variable input/output logic.
-audio := singleton(caller~(sample_;)) {
+variableAccess := enumerate(Mutable, Readonly)
+caller~(t, VariableAccess) := {
+    Callees; _(ptr~callee~(t, VariableAccess))
+    @if VariableAccess == Readonly
+        ::runCallbacks(T: t) := for (Ptr) in Callees $(Ptr call(T)) 
+    @if VariableAccess == Mutable
+        ::runCallbacks(T; t) := for (Ptr) in Callees $(Ptr call(T;)) 
+    # probably can do this with shorthand:
+    # ::runCallbacks(@access(T, VariableAccess) t): null
+    #       for (Ptr) in Callees $(Ptr call(@access(T, VariableAccess)))
+}
+audio := singleton(caller~(sample_, Mutable)) {
     # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
@@ -4490,16 +4496,9 @@ audioCallee := extend(callee~(sample_;)) {
     Frequency; flt = 440
     Phase; flt = 0
 
-    # TODO: find a way to make it clear this is a fixed-count array
-    # but that it doesn't matter what count it is.  in C++, this would
-    # be a template type, e.g., `sample_~N`, but we don't actually
-    # want a templated method here.
-    ;;call(Array; sample_): null
+    ;;call(Array; @fixedCount sample_): null
         for Index: index < Array count()
-            # TODO: maybe implicitly use `\\math Pi` inside the `\\math sin` function,
-            # but only if `Pi` is not defined elsewhere.  i.e., `\\math` becomes a scope
-            # which everything is looked up within.
-            Array_Index = sample(Mono: \\math sin(2 * Pi * This Phase))
+            Array_Index = sample(Mono: \\math sin(2 * \\math Pi * This Phase))
             Phase += This Frequency * Audio DeltaT
 
     # automatically defined by the callee class:
@@ -4510,7 +4509,7 @@ someFunction(): null
     Callee; audioCallee
     Callee Frequency = 880
     Audio call(Callee;)
-    sleep Seconds: 10
+    sleep(Seconds: 10)
     # `Audio hangUp(Callee;)` automatically happens when `Callee` is descoped.
 ```
 
@@ -4521,18 +4520,12 @@ our notation might be difficult to distinguish arrays from arguments.
 Maybe we assume that we're creating an argument object, unless we are explicitly
 casting to an array.
 
-```
-# this could be an object with arguments, e.g., {X: X, Int: 100, Y: Y}:
-QuestionableChoices := {X, 100, Y}
-activate(QuestionableChoices)           # calls `activate` with the arguments object.
-NowAnArray := int_(QuestionableChoices) # makes an array of [X, 100, Y]
-```
-
 TODO: () or {} or [] are equivalent to Null, or a null object or empty args list.
 
 TODO: can we define the grammar in the terms below, but then create a finite state machine
 which reads in the grammar below, deduces the possible states, then reads tokens in and
 flips between states while reading through files?
+we probably can keep it like this, but optimize `oneOfMatcher` and internally in this way.
 
 Note on terminology:
 
@@ -4576,7 +4569,6 @@ grammarElement := enumerate(
 )
 
 tokenMatcher := {
-    ;;reset(This Name: str = "") := Null
     # don't have to restore the token array Index to the correct state,
     # consume as many tokens as you like here.  make sure to go
     # through "Grammar match(...)" in order to restore the Index
@@ -4585,160 +4577,177 @@ tokenMatcher := {
     ::match(Index;, Array: token_): bool
 }
 
+singleTokenMatcher := extend(tokenMatcher) (
+    ;;reset(This Token) := Null
+
+    # we automatically inherit the @visibility of the parent class method
+    # unless we specifically provide one.
+    ;;match(Index;, Array: token_): bool
+        return Index < Array count() and Array[Index++] == This Token
+)
+
+# TODO: should we switch `x | y` to `oneOf(x, y)` and `x & y` to `allOf(x, y)`
+#       this would make it more consistent with the enumerate change to oneOf,
+#       if we make it rust-like encompassing more than just numeric values.
 grammarMatcher := tokenMatcher | grammarElement | token
 
 Grammar := singleton() {
     @private
     Elements: tokenMatcher_grammarElement = [
-        TypeElement: oneOf([
+        TypeElement: oneOfMatcher([
             FunctionType
             NonFunctionType
         ])
-        VariableName: UpperCamelCase
-        VariableDeclaration: sequence([
+        VariableName: singleTokenMatcher(UpperCamelCase)
+        VariableDeclaration: sequenceMatcher([
             VariableName
-            optional(operator("?"))
-            oneOf([operator(":"), operator(";")])
+            optionalMatcher(operatorMatcher("?"))
+            oneOfMatcher([operatorMatcher(":"), operatorMatcher(";")])
             TypeElement
         ])
-        VariableDefinition: oneOf([
+        VariableDefinition: oneOfMatcher([
             # VariableName: type = ...
-            sequence([VariableDeclaration, operator("="), RhsStatement])
+            sequenceMatcher([VariableDeclaration, operatorMatcher("="), RhsStatement])
             # VariableName := ...
-            sequence([
+            sequenceMatcher([
                 VariableName
-                oneOf([
-                    operator("?;=")
-                    operator("?:=")
-                    operator(";=")
-                    operator(":=")
+                oneOfMatcher([
+                    operatorMatcher("?;=")
+                    operatorMatcher("?:=")
+                    operatorMatcher(";=")
+                    operatorMatcher(":=")
                 ])
                 RhsStatement
             ])
         ])
-        FunctionName: LowerCamelCase
-        FunctionDeclaration: oneOf([
+        FunctionName: singleTokenMatcher(LowerCamelCase)
+        FunctionDeclaration: oneOfMatcher([
             # `fnName(Args): retType`, `fnName?(Args): retType`, or
             # `fnName(Args)?: retType`, also allowing `;` instead of `:`.
-            sequence([
+            sequenceMatcher([
                 FunctionName
                 FunctionArgsWithReturnType
             ])
             # `fnName: fn(Args): retType` or similar
-            sequence([
+            sequenceMatcher([
                 FunctionName
-                oneOf([operator(":"), operator(";")])
+                oneOfMatcher([operatorMatcher(":"), operatorMatcher(";")])
                 FunctionType
             ])
         ])
-        FunctionArgsWithReturnType: sequence([
-            list(FunctionArgument)
-            optional(operator("?"))
-            oneOf([operator(":"), operator(";")])
+        FunctionArgsWithReturnType: sequenceMatcher([
+            listMatcher(FunctionArgument)
+            optionalMatcher(operatorMatcher("?"))
+            oneOfMatcher([operatorMatcher(":"), operatorMatcher(";")])
             TypeElement
         ])
-        FunctionDefinition: oneOf([
+        FunctionDefinition: oneOfMatcher([
             # fnName(Args...): returnType
             #   BlockStatements
-            sequence([FunctionDeclaration, Block])
+            sequenceMatcher([FunctionDeclaration, Block])
             # (Args...): returnType
             #   BlockStatements
-            sequence([FunctionArgsWithReturnType, Block])
+            sequenceMatcher([FunctionArgsWithReturnType, Block])
             # fnName(Args...) := Statement
-            sequence([
+            sequenceMatcher([
                 FunctionName 
-                list(FunctionArgument)
-                oneOf([
-                    operator("?;=")
-                    operator("?:=")
-                    operator(";=")
-                    operator(":=")
+                listMatcher(FunctionArgument)
+                oneOfMatcher([
+                    operatorMatcher("?;=")
+                    operatorMatcher("?:=")
+                    operatorMatcher(";=")
+                    operatorMatcher(":=")
                 ])
                 RhsStatement
             ])
             # (Args...) := Statement
-            sequence([
-                list(FunctionArgument)
-                oneOf([
-                    operator("?;=")
-                    operator("?:=")
-                    operator(";=")
-                    operator(":=")
+            sequenceMatcher([
+                listMatcher(FunctionArgument)
+                oneOfMatcher([
+                    operatorMatcher("?;=")
+                    operatorMatcher("?:=")
+                    operatorMatcher(";=")
+                    operatorMatcher(":=")
                 ])
                 RhsStatement
             ])
         ])
-        FunctionArgument := oneOf([
+        FunctionArgument := oneOfMatcher([
             VariableDefinition
             VariableDeclaration
             FunctionDefinition
             FunctionDeclaration
         ])
-        FunctionCall: sequence([FunctionName, AtomicStatement])
+        FunctionCall: sequenceMatcher([FunctionName, AtomicStatement])
         # TODO: templates, or maybe preprocess these into lowerCamelCase types with hooks
-        FunctionType: sequence([
-            optional(identifier("fn"))
+        FunctionType: sequenceMatcher([
+            optionalMatcher(identifierMatcher("fn"))
             FunctionArgsWithReturnType
         ])
         # TODO: templates, but see above.
-        NonFunctionType: oneOf([
-            sequence([
+        NonFunctionType: oneOfMatcher([
+            sequenceMatcher([
                 # set types, e.g., `_int` or `_str` and even
                 # nested set types e.g., `__int` or `___str`.
-                operator("_")
+                operatorMatcher("_")
                 TypeElement
             ])
-            sequence([
+            sequenceMatcher([
                 # map types, e.g., `str_int` or `dbl_str`
                 # as well as array types, e.g., `str_` or `dbl_`.
                 LowerCamelCase
-                repeat(operator("_"), AtLeastTimes: 1)
+                repeat(operatorMatcher("_"), AtLeastTimes: 1)
                 # present if we're a map type, absent if an array type:
-                optional(TypeElement)
+                optionalMatcher(TypeElement)
             ])
             # simple type, e.g., `int` or `dbl` or `myClassType`
             LowerCamelCase
         ])
-        RhsStatement: oneOf([
+        RhsStatement: oneOfMatcher([
             AtomicStatement,
-            sequence([AtomicStatement, AnyOperator, RhsStatement]),
+            sequenceMatcher([AtomicStatement, AnyOperator, RhsStatement]),
         ])
-        AtomicStatement: oneOf([
+        AtomicStatement: oneOfMatcher([
             VariableName
             FunctionCall
-            parentheses(RhsStatement)
-            list(DefinedArgument)
+            parenthesesMatcher(RhsStatement)
+            listMatcher(DefinedArgument)
         ])
-        ClassName: sequence([
+        ClassName: sequenceMatcher([
             LowerCamelCase
-            optional(TemplateArguments)
+            optionalMatcher(TemplateArguments)
         ])
-        ExtendParentClasses: sequence([
-            keyword("extend")
-            list(ClassName)
+        ExtendParentClasses: sequenceMatcher([
+            keywordMatcher("extend")
+            listMatcher(ClassName)
         ])
-        ClassDefinition: sequence([
+        ClassDefinition: sequenceMatcher([
             ClassName
-            oneOf([
-                operator(":=")
-                doNotAllow(operator(";="), "Classes cannot be mutable.")
-                doNotAllow(operator("?;="), "Classes cannot be nullable/mutable.")
-                doNotAllow(operator("?:="), "Classes cannot be nullable.")
+            oneOfMatcher([
+                operatorMatcher(":=")
+                doNotAllow(operatorMatcher(";="), "Classes cannot be mutable.")
+                doNotAllow(operatorMatcher("?;="), "Classes cannot be nullable/mutable.")
+                doNotAllow(operatorMatcher("?:="), "Classes cannot be nullable.")
             ])
-            optional(ExtendParentClasses)
-            parentheses(ClassBlock)
+            optionalMatcher(ExtendParentClasses)
+            parenthesesMatcher(ClassBlock)
         ])
         ClassBlock: repeat(ClassStatement)
-        ClassStatement: oneOf([
+        ClassStatement: oneOfMatcher([
             VariableDefinition
             VariableDeclaration
             FunctionDefinition
             FunctionDeclaration
             ClassMethod
         ])
-        ClassMethod: sequence([
-            oneOf([operator("::"), operator(";;"), operator(";:"), operator(":;")]),
-            oneOf([
+        ClassMethod: sequenceMatcher([
+            oneOfMatcher([
+                operatorMatcher("::")
+                operatorMatcher(";;")
+                operatorMatcher(";:")
+                operatorMatcher(":;")
+            ]),
+            oneOfMatcher([
                 FunctionDefinition
                 FunctionDeclaration
                 # TODO: prefix ! and !!, as well as postfix !
@@ -4759,7 +4768,7 @@ Grammar := singleton() {
             grammarElement
                 This Elements_GrammarMatcher match(Index;, Array)
             token
-                Index < Array count() and Array _ Index++ == Grammar Matcher
+                Index < Array count() and Array _ Index++ == GrammarMatcher
         if not Matched
             Index = Snapshot
         return Matched
@@ -4775,7 +4784,7 @@ Grammar := singleton() {
 
 # a list encompasses things like (), (GrammarMatcher), (GrammarMatcher, GrammarMatcher), etc.,
 # but also lists with newlines if properly tabbed.
-list(GrammarMatcher) := parentheses(repeat([
+listMatcher(GrammarMatcher) := parenthesesMatcher(repeat([
     GrammarMatcher
     CommaOrBlockNewline
 ])
@@ -4783,9 +4792,8 @@ list(GrammarMatcher) := parentheses(repeat([
 sequence := extend(tokenMatcher) {
     Uninterruptible: grammarMatcher_
     # TODO: some annotation to pass a variable up to the parent class,
-    # e.g., `reset(@passTo(TokenMatcher) Name: str, OtherArgs...):`
-    ;;reset(Name: str, Array; grammarMatcher_):
-        tokenMatcher;;reset(Name)
+    # e.g., `reset(@passTo(tokenMatcher) Name: str, OtherArgs...):`
+    ;;reset(Array; grammarMatcher_):
         This Uninterrutible = Array!
 
     ::match(Index;, Array: token_): bool
@@ -4797,11 +4805,9 @@ sequence := extend(tokenMatcher) {
 
 # TODO: make `block` a type of token as well.
 parentheses := extend(tokenMatcher) {
-    ;;reset(Name: str, This GrammarMatcher):
-        tokenMatcher;;reset(Name)
+    ;;reset(This GrammarMatcher) := Null
 
     ::match(Index;, Array: token_): bool
-        # TODO: make sure copies are elided for constant temporaries like this:
         CurrentToken := Array_Index
         if CurrentToken Is != parenthesesToken
             return False
@@ -4828,8 +4834,7 @@ repeat := extend(tokenMatcher) {
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Interruptible`.
-    ;;reset(Name: str, This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
-        tokenMatcher;;reset(Name)
+    ;;reset(This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
         This Interruptible = Array!
 
     ::match(Index;, Array: token_): bool
@@ -4841,11 +4846,13 @@ repeat := extend(tokenMatcher) {
                 # always check the escape sequence, Until:
                 if Grammar match(Index;, Array, This Until)
                     return True
+                # note that it's ok to call `Grammar` here despite
+                # the self-referential nature of the grammar, because
+                # this logic would essentially be written in a .cc file
+                # whereas `Grammar` would be defined in the .h file.
                 if not Grammar match(Index;, GrammarMatcher)
                     return False
 }
-# TODO: make sure the cyclic dependency is ok: i.e., Grammar match being called inside of
-# these token matchers...
 
 #(#
 # e.g.
@@ -4862,18 +4869,20 @@ for @lock Variable < UpperBoundExclusive
 for Variable := StartingValue, Variable < UpperBoundExclusive
     ... use Variable from StartingValue ...
 #)#
-ForLoop := oneOf([
-    sequence([
-        keyword("for")
+ForLoop := oneOfMatcher([
+    sequenceMatcher([
+        # TODO: do we even need `keywordMatcher`, `identifierMatcher`, and `operatorMatcher`?
+        #       can't we just use `singleTokenMatcher` and be done with it?
+        keywordMatcher("for")
         VariableDeclaration
-        oneOf([operator("<"), operator("<=")])
+        oneOfMatcher([operatorMatcher("<"), operatorMatcher("<=")])
         Expression
         Block
     ])
-    sequence([
-        keyword("for")
-        list(FunctionArgument)
-        keyword("in")
+    sequenceMatcher([
+        keywordMatcher("for")
+        listMatcher(FunctionArgument)
+        keywordMatcher("in")
         Expression
         Block
     ])
