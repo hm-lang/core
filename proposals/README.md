@@ -268,12 +268,30 @@ B: u8 = A & 255                     # OK, communicates intent and puts `A` into 
 C: u8 = A clamp(Min: 0, Max: 255)   # OK, communicates a different intent.
 ```
 
+If you want to verify if some value is representable as another type, you can do a try-catch,
+or you can do `X as(otherType)` which will return `Null` if it's not, or an instance of
+`otherType` if it is.  Due to nullable types being handled specially, you need to be
+explicit about assigning this to another variable to indicate that it could be null:
+
+```
+X: dbl = 1.234
+Y ?:= X as(int)     # `Y` is Null here because `X` was not an integer.
+Z: dbl = 2.0
+W ?:= Z as(u8)      # `W` is not Null here because `Z` was an integer between 0 and 255
+                    # but we still need to use `?:=` since the `dbl` might not have been
+                    # representable as a `u8`, so `W` might have been Null.
+```
+TODO:  Double check if `as` makes sense as a method.  If so, there should be some
+reciprocity between `x := { ;;reset(Y): null }` and `y := { ::as(Is: is~t): t }`.
+TODO: discuss the notation for a type being passed into a function.  i think we can
+convert to `Is: is~t` and then use it as `Is new(Args)`.
+
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
 is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
 Numbers are truthy only if they are non-zero, so `bool(0)` is `False` but `bool(100)` or `bool(0.5)`
 is `True`.
 
-TODO: casting to a complex type, e.g., `(int|str)(SomeValue)` will pass through `SomeValue`
+Casting to a complex type, e.g., `(int|str)(SomeValue)` will pass through `SomeValue`
 if it is an `int` or a `str`, otherwise try `int(SomeValue)` if that is allowed, and finally
 `str(SomeValue)` if that is allowed.  If none of the above are allowed, the compiler will
 throw an error.
