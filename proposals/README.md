@@ -167,11 +167,9 @@ If the block parentheses encapsulate content over multiple lines, note that
 the additional lines need to be tabbed to +1 indent to match the +1 indent given by `$(`.
 Multiline block parentheses are useful if you want to clearly delineate where your blocks
 begin and end, which helps some editors navigate more quickly to the beginning/end of the block.
-TODO: probably want a compile error if there's content after `$(` on a multiline block,
-since it looks cleaner.
 
 ```
-# multiline block parentheses via `$(`, though this is not required.
+# multiline block parentheses via an optional `$(`
 if SomeCondition $(
     print("toggling shutdown")
     print("waiting one more tick")
@@ -231,12 +229,14 @@ and similarly for `i8` to `i512`, using two's complement.  For example,
 TODO: we probably also can support any number of 64 bits in an integral type,
 instead of just x2 all the time (e.g., `u192`).
 
-TODO: can we remove `ordinal` in favor of `count`?  No, i don't think so;
-we don't want to automatically convert an `index` to a `count` via +- 1, since that would be confusing.
-e.g., should `count(index(0))` be 1 or 0?  how about `Index := Array count() - 1`.
-we can do a +-1 with `ordinal`, however, without as much confusion.
-TODO: we probably don't want to do any conversion.  e.g., `ordinal(1)` should always be 1 numerically.
-and `ordinal(index(1))` shouldn't have weird semantics...
+Note that the `ordinal` type behaves exactly like a number but can be used
+to index arrays starting at 1.  E.g., `Array_ordinal(1)` corresponds to `Array_index(0)`
+(which is equivalent to other numeric but non-index types, e.g., `Array_0`).
+There is an automatic delta by +-1 when converting from `index` to `ordinal`
+or vice versa, e.g., `ordinal(index(1)) == 2` and `index(ordinal(1)) == 0`.
+Note however, that there's a bit of asymmetry here; non-index, numeric types
+like `u64`, `count`, or `i32` will convert to `index` or `ordinal` without any delta.
+It's only when converting between `index` and `ordinal` that a delta occurs.
 
 ## casting between types
 
