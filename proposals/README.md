@@ -284,7 +284,18 @@ W ?:= Z as(u8)      # `W` is not Null here because `Z` was an integer between 0 
 TODO:  Double check if `as` makes sense as a method.  If so, there should be some
 reciprocity between `x := { ;;reset(Y): null }` and `y := { ::as(Is: is~t): t }`.
 TODO: discuss the notation for a type being passed into a function.  i think we can
-convert to `Is: is~t` and then use it as `Is new(Args)`.
+convert to `Is: is~t` and then use it as `Is new(Args)`.  alternatively, we could try
+`::as(t: ~t): t` or `::as(~t): t` for short.  the latter is nice from the perspective
+that it more closely resembles how we normally instantiate types, e.g., `T: t = t(U)`
+rather than `T: t = Is new(U)`.  however, to be fully consistent, we'd need to start
+typing the return values of functions like `getInt(): {Int}`, since `getInt(): int` would
+imply returning the `int` class type/instantiator.  in turn, that doesn't make sense
+since `X: int` should be fine, `X: Int` doesn't look right/would have sweeping implications.
+we'd need `Int` as the "instance" type, and `int` as the type/instantiator type.
+we might not be able to have default-named arguments anymore, which is the main draw.
+we'd change a lot of things, like `Y ?:= X as(Int)`.  but we could literally pass
+types around more easily, e.g., `q := int|dbl`, with usage `MyQ: Q = q("1234.5")`.
+There just wouldn't be a point to passing arguments like this: `(A: a)` (or `(a: b)`)
 
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
 is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
@@ -507,6 +518,7 @@ to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  When an ex
 is used to key the index, you may also use an implicit subscript, which occurs when we have
 a non-function LHS followed by parentheses, e.g., `Array[Some + Expression / Here]`.
 TODO: probably can use `_` inside numeric identifiers without confusion, e.g., `1_000_000`.
+we might even want `1[000][000]` to work in a similar way (if `_X` == `[X]`).
 TODO: we probably can use `_` at the end of a numeric identifier to give the type, e.g., `1234_i32`.
 Some examples:
 
@@ -692,8 +704,6 @@ xor(X: ~x, Y: ~y)?: x|y
     else
         return Null
 ```
-
-TODO: What's the default name for a combined type, e.g., `x|y` or `x&y`?
 
 ## assignment operators
 
@@ -1136,6 +1146,12 @@ q(():
 # equivalent to `q(() := X)`
 # also equivalent to `q((): ${X})`
 ```
+
+Since it's not a common occurrence, we don't need a default name for an instance of
+a combined type (e.g., `x|y` or `x&y`).  For function arguments, you can overload
+an `x` or a `y` version of the function so that you can pass in default `X` or `Y`.
+And if you don't care if it's `x` or `y` type, it's probably better to give it
+a non-default name to be clear what it's being used for.
 
 ## function overloads
 
