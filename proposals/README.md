@@ -309,6 +309,11 @@ boolean statement.  maybe we take over `new` instead of `is`.  we can still use 
 on `X` and return boolean (e.g., `X is(int)` returns true iff `X` is an instance of `int`,
 and `X is(5)` returns true iff `X` equals 5), and `X new` for instantiating based on `X`'s type.
 but then `what is(X)` doesn't work as well.
+maybe we can use `X new(5)` to instantiate a variable with the same type as `X`,
+which is also accessible via `is~x`, i.e., `X is new(5)`.
+TODO: maybe rename `reset` to `renew` or `new`.  we could always use `;;renew` as a class method
+and `new` as a class function.
+TODO: class functions should probably be callable via `X whatever()` or `x whatever()`.
 
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
 is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
@@ -1181,6 +1186,7 @@ the type of something.  This makes the most sense as a generic type,
 and can be done like this:
 
 ```
+# TODO: this should probably be `is: is~x`
 doSomething(~x): x
     return x(123)
 
@@ -1427,11 +1433,11 @@ myOverload(Y: str): {X: int}
 
 # case 3, nullable output (not compatible with case 1):
 myOverload(Y: str): {X?: int}
+    # this is essentially an implementation of `X ?:= int(Y), return {X}`
     try
-        # TODO: do we want to allow `?fn` to automatically catch errors in `fn` and return null?
         X := int(Y)
         return {X}
-    catch
+    catch int error
         return {}
 
 
@@ -1717,6 +1723,13 @@ But then we would be straying from getter/swapper logic of hm-lang which makes i
 before putting it back into a container (in case there are any invariants/etc. that need to be restored).
 TODO: we want to make it consistent with what's happening with `This;` inside class methods;
 we shouldn't moot the class instance into `This` for the method; it should be a reference.
+TODO: maybe instead of getter/swapper methods, we need `finalize()` methods for after a
+variable reference is mutated.  or maybe `mutated` or `done`.  for debugging, it might be nice
+to have both an `open()` and `close()` or `preMutate()` and `postMutate()`.  this should
+be done carefully internally since in the situation of the array element that gets deleted
+and then another array element gets modified, we should call these methods multiple times
+(e.g., `preMutate(index(3), Array_3 #[3]#)`, `postMutate(index(3), Null)`,
+`preMutate(index(3), Array_3 #[4]#)`, `postMutate(index(3), Array_3 #[40]#)`).
 
 Here is an example with a map.  Note that the argument is readonly, but that doesn't mean
 the argument doesn't change, especially when we're doing self-referential logic like this.
@@ -1886,6 +1899,7 @@ call can do just about anything (including fetching data from a remote server).
 
 ```
 # TODO: reconcile with MMR vs. mutable/readonly refs for arguments.
+#       probably want to proceed like MMR, with the Input/Output values matched.
 call := {
     Input; any_str
     Output; any_str
@@ -3227,6 +3241,12 @@ that `assert` will throw the correct error subclass for the module that it is in
 
 TODO: try/catch/finally 
 
+## automatically converting errors to null
+
+TODO: if a function `myFunction(...): q` throws an error, should we let `Q ?:= myFunction(...)`
+automatically catch the error and return null instead?  then we wouldn't need to have separate
+implementations for `X := int(...)` and `Y ?:= int(...)`.
+
 # standard container classes (and helpers)
 
 ```
@@ -4130,8 +4150,7 @@ for IteratingVector in Array
 
 # printing and echoing output
 
-TODO: allow tabbed print output.  e.g., `\n` inside of a `string()` method
-will tab to the correct indent.  Or, instead of searching through each string,
+TODO: allow tabbed print output.  instead of searching through each string,
 maybe we just look at `print` and add the newlines at the start.  Each thread should
 have its own tab stop.  E.g.,
 
