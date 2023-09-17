@@ -4479,10 +4479,11 @@ You can also explicitly tell the mask to avoid assigning a power of two to one o
 For example, the font size `oneOf` earlier could be represented by 3 powers of two, e.g.,
 `FontVerySmall = 16`, `FontSmall = 32`, `FontLarge = 64`, `FontVeryLarge = 96`.
 Note that we have the best packing if the number of non-zero values is 3 (requiring 2 powers of two),
-7 (requiring 3 powers of two), or, in general, one less than a power of two (i.e., `2^P - 1`,
-requiring `P` powers of two).
-
-TODO: do multiple oneOf's in masks with 0's make sense?
+7 (requiring 3 powers of two), or, in general, one less than a power of two, i.e., `2^P - 1`,
+requiring `P` powers of two.  This is because we need one value to be the default for each
+`oneOf` in the `mask`, which will be all `P` bits set to zero; the remaining `2^P - 1`
+combinations of the `P` bits can be used for the remaining `oneOf` values.  A default
+name can thus be chosen for each `oneOf`, e.g., `oneOf(..., WhateverName := 0, ...)`.
 
 ## named value-combinations
 
