@@ -296,13 +296,20 @@ we might not be able to have default-named arguments anymore, which is the main 
 we'd change a lot of things, like `Y ?:= X as(Int)`.  but we could literally pass
 types around more easily, e.g., `q := int|dbl`, with usage `MyQ: Q = q("1234.5")`.
 There just wouldn't be a point to passing arguments like this: `(A: a)` (or `(a: b)`)
+TODO: alternatively, we could switch to `is` being a function-like type.
+`class := { is := ... }`, but then we couldn't use `X is(int)` for X Is == int Is`,
+since `X is(...)` would try to instantiate a new instance of type `x` via `x(...)`.
+maybe this is ok if we get rid of the idea that `x` is a function overload for always creating
+instances of `x`.  e.g., `x(int)` can be boolean instead of `x` type.  it is nice to use
+`passInAType(~x) := x("123")` instead of `passInAType(Is: is~x) := x("123")`.
+we can still use `q := int|dbl` or `q := oneOf(int, dbl)`.
 
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
 is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
 Numbers are truthy only if they are non-zero, so `bool(0)` is `False` but `bool(100)` or `bool(0.5)`
 is `True`.
 
-Casting to a complex type, e.g., `(int|str)(SomeValue)` will pass through `SomeValue`
+Casting to a complex type, e.g., `SomeValue as(oneOf(int, str))` will pass through `SomeValue`
 if it is an `int` or a `str`, otherwise try `int(SomeValue)` if that is allowed, and finally
 `str(SomeValue)` if that is allowed.  If none of the above are allowed, the compiler will
 throw an error.
@@ -315,7 +322,7 @@ If comparing against a known type, i.e., to check if some
 variable is an integer, it is highly recommended to use the `is` method, e.g., 
 
 ```
-X; dbl|int = 4
+X; oneOf(dbl, int) = 4
 ...
 if X is(int)
     print("X is an integer")
@@ -676,25 +683,27 @@ so `Q := X < Y > Z` instantiates `Q` as a boolean, not as this internal class.
 
 ## and/or/xor operators
 
-The `or` operation `X or Y` technically has type `x | y | null` (for `X: x` and `Y: y`).
+The `or` operation `X or Y` technically has type `oneOf(null, x, y)` (for `X: x` and `Y: y`).
 If `X` evaluates to truthy (i.e., `!!X == True`), then the return value of `X or Y` will be `X`.
 Otherwise, if `Y` evaluates to truthy (i.e., `!!Y == True`), then the return value will be `Y`.
 Otherwise, the return will be `Null`.  Note in a conditional, e.g., `if X or Y`, we'll always
 cast to boolean implicitly (i.e., `if bool(X or Y)` explicitly).
 
-Similarly, the `and` operation `X and Y` also has type `y | null`.  If `X` or `Y` is falsey,
+Similarly, the `and` operation `X and Y` also has type `oneOf(null, y)`.  If `X` or `Y` is falsey,
 then the return value will be `Null`.  If both are truthy, the return value will be `Y`.
 Again, in a conditional, we'll cast `X and Y` to a boolean.
 
 This is a bit different than the JavaScript `||` and `&&`, which don't return `Null` unless
 one of `X` or `Y` is null, but the null choice makes the language consistent for `xor`.
+TODO: maybe make it simpler and avoid passing back null except for xor.
 
-The `xor` operation `X >< Y` has type `x | y | null`, and will return `Null`
+The `xor` operation `X >< Y` has type `oneOf(null, x, y)`, and will return `Null`
 if both `X` and `Y` are truthy or if they are both falsy.  If just one of the operands
 is truthy, the result will be the truthy operand.  An example implementation:
 
 ```
-xor(X: ~x, Y: ~y)?: x|y
+# you can define it as nullable via `xor(X: ~x, Y: ~y): oneOf(null, x, y)` or like this:
+xor(X: ~x, Y: ~y)?: oneOf(x, y)
     XIsTrue := bool(X)
     YIsTrue := bool(Y)
     if XIsTrue
@@ -762,8 +771,11 @@ allowed to mutate the memory if it is declared as a mutable variable with `;`.
 
 To make it easy to indicate when a variable can be nullable, we reserve the question mark
 symbol, `?`, placed after the variable name.  E.g., `X?: int` declares a variable `X` that
-can be an integer or null.  The default value for an optional type is `Null`.
-For an optional type with more than one non-null type, we use `Y?: someType|anotherType`.
+can be an integer or null.  The default value for an optional type is `Null`.  You can also
+use the notation `X: oneOf(null, int)`, though note that `null` should come first for to
+ensure that the default is `Null` (based on `oneOf` logic to default to the first choice).
+For an optional type with more than one non-null type, we use `Y?: oneOf(someType, anotherType)`
+or equivalently, `Y: oneOf(null, someType, anotherType)` (note again that `null` comes first).
 In either case, you can use `;` instead of `:` to indicate that the variable is mutable.
 Note that if you are defining a nullable variable inline (e.g., with `:=` or `;=`), you should
 prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a compiler error
@@ -785,7 +797,8 @@ someClass := { ::someMethod(): int }
 
 Nullable?; someClass = Null
 
-Value ?:= Nullable someMethod()  # `Value` has type `int|null` now, so it needs to be defined with `?`
+Value ?:= Nullable someMethod() # `Value` has type `oneOf(null, int)` now,
+                                # so it needs to be defined with `?`
 
 # eventually we want to support things like this, where the compiler
 # can tell if the type is nullable or not:
@@ -804,13 +817,9 @@ Optional functions are defined in a similar way (cf. section on nullable functio
 with the `?` just after the function name, e.g., `someFunction?(...Args): returnType`.
 
 TODO: how do we declare a function of multiple types?  e.g.,
-`someFunction: ((Dbl): string) | ((Dbl, Name: string): int)`.
+`someFunction: oneOf((Dbl): string, (Dbl, Name: string): int)`.
 This might have some usage for function overloads.  Maybe we disallow these and require
-declare the overloads individually.
-The `|` operator probably doesn't make sense unless we can determine what type it is before calling.
-Maybe we should require `&` when passing in a function with multiple overloads, so that we can
-call it either way.
-TODO: see if it's consistent to use `|` and `&` here, or maybe use `or` and `and` for the types.
+declare the overloads individually, although overloads would make more sense with `allOf(...)`.
 
 ## nested/object types
 
@@ -1008,7 +1017,7 @@ that have the same name.  This is obvious because we wouldn't be able to disting
 the two arguments inside the function body.
 
 ```
-myFun(X: int, X: dbl): int|dbl = X      # COMPILER ERROR.  duplicate identifiers
+myFun(X: int, X: dbl): oneOf(int, dbl) = X      # COMPILER ERROR.  duplicate identifiers
 ```
 
 However, there are times where it is useful for a function to have two arguments with the same
@@ -1146,12 +1155,6 @@ q(():
 # equivalent to `q(() := X)`
 # also equivalent to `q((): ${X})`
 ```
-
-Since it's not a common occurrence, we don't need a default name for an instance of
-a combined type (e.g., `x|y` or `x&y`).  For function arguments, you can overload
-an `x` or a `y` version of the function so that you can pass in default `X` or `Y`.
-And if you don't care if it's `x` or `y` type, it's probably better to give it
-a non-default name to be clear what it's being used for.
 
 ## function overloads
 
@@ -1305,7 +1308,7 @@ Y?; int = ... # Y is maybe null, maybe non-null
 
 # the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
 Z := overloaded(Y?) # also OK, but not idiomatic: `Z := overloaded(Y?: Y)`
-# Z has type `dbl|string` due to the different return types of the overloads.
+# Z has type `oneOf(dbl, string)` due to the different return types of the overloads.
 ```
 
 The reason behind this behavior is that in hm-lang, an argument list is conceptually an object
@@ -1354,7 +1357,7 @@ X ?:= if Y != Null ${overloaded(Y)} else ${Null}
 # if it is Null, the function will not be called and Null will be returned instead.
 X ?:= overloaded(?Y)
 
-# either way, X has type `string|null`.
+# either way, X has type `oneOf(null, string)`.
 ```
 
 You can use prefix `?` with multiple arguments; if any argument with prefix `?` is null,
@@ -2027,7 +2030,7 @@ but before the argument list.  E.g., `optionalFunction?(...Args): returnType` fo
 function and swapping `:` for `;` to create a reassignable function.
 When calling a nullable function, unless the function is explicitly checked for non-null,
 the return type will be nullable.  E.g., `X ?:= optionalFunction(...Args)` will have a
-type of `returnType|null`.  Nullable functions are checked by the executable, so the
+type of `oneOf(null, returnType)`.  Nullable functions are checked by the executable, so the
 programmer doesn't necessarily have to do it.
 
 A nullable function has `?` before the argument list; a `?` after the argument list
@@ -2043,14 +2046,14 @@ means that the return type is nullable.  The possible combinations are therefore
 
 * `nullableReturnFunction(...Args)?: returnType` is a non-null function
   which can return a nullable instance of `returnType`.  You can declare
-  this as `nullableReturnFunction(...Args): returnType|null` as well.
+  this as `nullableReturnFunction(...Args): oneOf(null, returnType)` as well.
 
 * `superNullFunction?(...Args)?: returnType` is a nullable function
   which can return a null `returnType` instance, even if the function is non-null.
   I.e., if `superNullFunction` is null, trying to call it will return null,
   but even if it's not null `superNullFunction` can still return null.
   You can also declare this as `superNullFunction?: (...Args)?: returnType`
-  or `superNullFunction?: (...Args): returnType|null)`.
+  or `superNullFunction?: (...Args): oneOf(null, returnType))`.
 
 
 Some examples:
@@ -2873,9 +2876,10 @@ All classes have a few compiler-provided methods which cannot be overridden.
 * `Is: is` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
     ```
-    X; null|int|dbl_
+    X; oneOf(null, int, dbl_)
     X = [1.2, 3.4]
     # you can check `X Is`, `X is()`, or `is(X)` (which is equivalent to `X is()`):
+    # TODO: just switch to `what X is` if we switch to `is` being a function.
     what is(X)
         null
             print("X is Null")
@@ -3207,7 +3211,7 @@ container~t := {
 }
 ```
 
-TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `map~(key: string, value: int|null)`.
+TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `map~(key: string, value: oneOf(null, int))`.
 This is because `Map[X] = Null` should delete the key specified by `X` from the map.  Plus, we already have handling for
 nullable values from the map, if we ask for the element at a key and it's not present in the map.  Similarly for arrays;
 `Array[3] = Null` should delete the fourth item in the array.  If the elements should represent optional things, then
@@ -4127,15 +4131,15 @@ command triggers a stop at any point, then abort (and stop calling the method)
 ## enumerations
 
 We can create a new type that exhaustively declares all possible values it can take.
-The syntax is `lowerCamelCase := enumerate` followed by a list of named values
+The syntax is `lowerCamelCase := oneOf` followed by a list of named values
 (each an `UpperCamelCase` identifier), with optional values they take.  Enumerations
 are mutually exclusive -- no two values may be held simultaneously.  See
 masks for a similar class type that allows multiple options at once.
 
 Enums are by default the smallest standard integral type that holds all values,
 but they can be signed types (in contrast to masks which are unsigned).
-If desired, you can specify the underlying enum type using `enumerate~i8(...)` instead
-of `enumerate(...)`, but this will be a compile error if the type is not big enough to
+If desired, you can specify the underlying enum type using `oneOf~i8(...)` instead
+of `oneOf(...)`, but this will be a compile error if the type is not big enough to
 handle all options.
 
 For example:
@@ -4145,14 +4149,11 @@ For example:
 # Enums use a similar syntax as maps when being defined,
 # except that the left-hand side must be an UpperCamelCase identifier:
 # TODO: probably `bool` can fit in a `u1`, which we could specify in a struct.
-bool := enumerate(
+bool := oneOf(
     False: 0
     True: 1
 )
 ```
-
-TODO: consider doing enums like rust, so you can have a struct inside
-the value, e.g., like a proto oneof.
 
 Enums provide a few extra additional properties for free as well, including
 the number of values that are enumerated via the method `count(): count`,
@@ -4186,7 +4187,7 @@ enumerations, not the number +1 after the last enum value.  This can be confusin
 in case you use non-standard enumerations (i.e., with values less than 0):
 
 ```
-sign := enumerate(
+sign := oneOf(
     Negative: -1
     Zero: 0
     Positive: 1
@@ -4195,7 +4196,7 @@ sign := enumerate(
 print("sign has ${sign count()} values")   # 3
 print("starting at ${sign min()} and going to ${sign max()}")     # -1 and 1
 
-weird := enumerate(
+weird := oneOf(
     X: 1
     Y: 2
     Z: 3
@@ -4214,7 +4215,7 @@ than testing each value against the various possibilities.  Also note that you d
 to explicitly set each enum value; they start at 0 and increment by default.
 
 ```
-option := enumerate(
+option := oneOf(
     Unselected
     NotAGoodOption
     ContentWithLife
@@ -4258,7 +4259,61 @@ Defaults to whatever value is 0 (the first, if no values are specified).
 
 If no value is zero, then the first specified value is default.
 
+## declaring more complicated types via `oneOf`
+
+```
+tree := oneOf(
+    # TODO: this maybe makes a case for `:=` instead of `:` in a oneOf.
+    # this looks like we're defining `leaf` to be an instance of type `(Value; int)`
+    # but we're really defining `leaf` as the type `(Value; int)`.
+    leaf: (Value; int)
+    branch: (
+        Left; tree
+        Right; tree
+    )
+)
+```
+
+TODO: how can we tell when we're creating a new `oneOf` value (e.g., `oneOf(X, Y)`)
+vs. using an existing type `oneOf(x, y)`?  probably depends on what's in scope;
+check if `X`, `Y`, `x`, or `y` is defined.
+TODO: does something like `oneOf(X, someType)` make sense?  no, let's not do this,
+because it would require a mixed-case variable name (`X|someType`).
+
+## `oneOf`s as function arguments
+
+The default name for a `oneOf` argument is `OneOf`.  E.g.,
+
+```
+myFunction(OneOf: oneOf(int, str)): dbl
+    return dbl(OneOf)
+
+print(myFunction(123))      # prints 123.0
+print(myFunction("123.4"))  # prints 123.4
+```
+
+Internally this creates multiple function overloads:  one for when the argument's
+type is unknown at compile time, and one for each of the possible argument types
+when it is known (e.g., `int` and `str` in this case).
+
+If you need to use multiple `oneOf`s in a function and still want them to be
+default-named, it's recommended to give specific names to each `oneOf`, e.g.,
+
+```
+intOrString := oneOf(int, str)
+weirdNumber := oneOf(dbl, u8, i32)
+
+myFunction(IntOrString, WeirdNumber): dbl
+    return dbl(IntOrString) * WeirdNumber
+```
+
+Again, this fans out into multiple function overloads for each of the cases
+of compile-time known and compile-time unknown arguments.
+
 ## masks
+
+TODO: switch to `anyOf` or `anyCombinationOf`.  `allOf` should be reserved for a type
+that is the combination of two or more types, e.g., `allOf(interface1, interface2)`.
 
 Masks are generalized from enumerations to allow multiple values held simultaneously.
 Each value can also be thought of as a flag or option, which are bitwise OR'd together
@@ -4303,8 +4358,6 @@ Options hasT()  # False
 
 ## interplay with `oneOf`
 
-TODO: should we just rename `enumerate` to `oneOf`???
-
 We can also create a mask with one or more `oneOf` fields, e.g.:
 
 ```
@@ -4344,7 +4397,7 @@ Note that we have the best packing if the number of non-zero values is 3 (requir
 7 (requiring 3 powers of two), or, in general, one less than a power of two (i.e., `2^P - 1`,
 requiring `P` powers of two).
 
-TODO: do multiple oneOf with 0's make sense?
+TODO: do multiple oneOf's in masks with 0's make sense?
 
 ## named value-combinations
 
@@ -4507,7 +4560,7 @@ When the `callee` is descoped, it will deregister itself with the `caller`
 internally, so that the `caller` will no longer call the `callee`.
 
 ```
-variableAccess := enumerate(Mutable, Readonly)
+variableAccess := oneOf(Mutable, Readonly)
 caller~(t, VariableAccess) := {
     Callees; _(ptr~callee~(t, VariableAccess))
     @if VariableAccess == Readonly
@@ -4578,7 +4631,7 @@ Note on terminology:
 # list of elements that can compose the grammar.
 # doesn't include stuff like LowerCamelCase or UpperCamelCase,
 # which are not grammatically relevant.
-grammarElement := enumerate(
+grammarElement := oneOf(
     # "TypeElement" to avoid overload with type/Type
     TypeElement
     FunctionType
@@ -4621,10 +4674,7 @@ singleTokenMatcher := extend(tokenMatcher) (
         return Index < Array count() and Array[Index++] == This Token
 )
 
-# TODO: should we switch `x | y` to `oneOf(x, y)` and `x & y` to `allOf(x, y)`
-#       this would make it more consistent with the enumerate change to oneOf,
-#       if we make it rust-like encompassing more than just numeric values.
-grammarMatcher := tokenMatcher | grammarElement | token
+grammarMatcher := oneOf(tokenMatcher, grammarElement, token)
 
 Grammar := singleton() {
     @private
