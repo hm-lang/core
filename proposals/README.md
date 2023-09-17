@@ -303,6 +303,12 @@ maybe this is ok if we get rid of the idea that `x` is a function overload for a
 instances of `x`.  e.g., `x(int)` can be boolean instead of `x` type.  it is nice to use
 `passInAType(~x) := x("123")` instead of `passInAType(Is: is~x) := x("123")`.
 we can still use `q := int|dbl` or `q := oneOf(int, dbl)`.
+for the `x(int)` case, should we switch to `X is == int`? `X is(int)` works fine
+but `X is(5)` will instantiate `x(5)` if possible, but looks like it should be another
+boolean statement.  maybe we take over `new` instead of `is`.  we can still use `is`
+on `X` and return boolean (e.g., `X is(int)` returns true iff `X` is an instance of `int`,
+and `X is(5)` returns true iff `X` equals 5), and `X new` for instantiating based on `X`'s type.
+but then `what is(X)` doesn't work as well.
 
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
 is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
@@ -1154,6 +1160,32 @@ q(():
 )
 # equivalent to `q(() := X)`
 # also equivalent to `q((): ${X})`
+```
+
+### types as arguments
+
+Generally speaking you can use generic/template programming for this case,
+which infers the types based on instances of the type.
+
+```
+# generic function taking an instance of `x` and returning one.
+doSomething(X: ~x): x
+    return X * 2
+
+doSomething(123)    # returns 246
+doSomething(0.75)   # returns 1.5
+```
+
+However, there are use cases where we might actually want to pass in
+the type of something.  This makes the most sense as a generic type,
+and can be done like this:
+
+```
+doSomething(~x): x
+    return x(123)
+
+print(doSomething(dbl)) # returns 123.0
+print(doSomething(u8))  # returns u8(123)
 ```
 
 ## function overloads
