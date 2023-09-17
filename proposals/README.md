@@ -282,7 +282,7 @@ W ?:= Z as(u8)      # `W` is not Null here because `Z` was an integer between 0 
                     # representable as a `u8`, so `W` might have been Null.
 ```
 TODO:  Double check if `as` makes sense as a method.  If so, there should be some
-reciprocity between `x := { ;;reset(Y): null }` and `y := { ::as(Is: is~t): t }`.
+reciprocity between `x := { ;;renew(Y): null }` and `y := { ::as(Is: is~t): t }`.
 TODO: discuss the notation for a type being passed into a function.  i think we can
 convert to `Is: is~t` and then use it as `Is new(Args)`.  alternatively, we could try
 `::as(t: ~t): t` or `::as(~t): t` for short.  the latter is nice from the perspective
@@ -311,9 +311,6 @@ and `X is(5)` returns true iff `X` equals 5), and `X new` for instantiating base
 but then `what is(X)` doesn't work as well.
 maybe we can use `X new(5)` to instantiate a variable with the same type as `X`,
 which is also accessible via `is~x`, i.e., `X is new(5)`.
-TODO: maybe rename `reset` to `renew` or `new`.  we could always use `;;renew` as a class method
-and `new` as a class function.
-TODO: class functions should probably be callable via `X whatever()` or `x whatever()`.
 
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
 is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
@@ -402,7 +399,7 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           |   ` ()`   | parenthetical subscript   | binary: `A(B)`    |               |
 |           |   ` []`   | parenthetical subscript   | binary: `A[B]`    |               |
 |           |   ` {}`   | parenthetical subscript   | binary: `A{B}`    |               |
-|           |   `!`     | postfix moot = move+reset | unary:  `A!`      |               |
+|           |   `!`     | postfix moot = move+renew | unary:  `A!`      |               |
 |   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `--`    | unary decrement           | unary:  `--A`     |               |
@@ -518,8 +515,8 @@ readonly/mutable `This` as an argument.
 
 ```
 exampleClass := {
-    # this `;;` prefix is shorthand for `reset(This; this, ...): null`:
-    ;;reset(This X: int, This Y: dbl): null
+    # this `;;` prefix is shorthand for `renew(This; this, ...): null`:
+    ;;renew(This X: int, This Y: dbl): null
         print("X ${X} Y ${Y}")
 
     # this `::` prefix is shorthand for `multiply(This: this, ...): dbl`:
@@ -871,7 +868,7 @@ the fields once they are set.  If you define the variable with `;`, then you
 can reassign the variable or modify the mutable fields.  But if you define the
 variable with `:`, the object is deeply constant, regardless of the field definitions.
 Readonly fields on an object are normally deeply constant, unless the instance is
-mutable and is reset (either via `reset` or reassignment).  This allows you to
+mutable and is reset (either via `renew` or reassignment).  This allows you to
 effectively change any internal readonly fields, but only in the constructor.
 
 ```
@@ -881,16 +878,16 @@ mixMatch := (Mut; dbl, Imm: dbl)
 # when defined with `;`, the object is mutable and reassignable.
 MutableMix; mixMatch = (Mut: 3, Imm: 4)
 MutableMix = mixMatch(Mut: 6, Imm: 3)       # OK, MutableMix is mutable and thus reassignable
-MutableMix reset(Mut: 100, Imm: 300)        # OK, will update `Imm` to 300
+MutableMix renew(Mut: 100, Imm: 300)        # OK, will update `Imm` to 300
 MutableMix Mut += 4                         # OK, MutableMix is mutable and this field is mutable
 MutableMix Imm -= 1                         # COMPILE ERROR, MutableMix is mutable but this field is readonly
                                             # if you want to modify the `Imm` field, you need to reassign
-                                            # the variable completely or call `reset`.
+                                            # the variable completely or call `renew`.
 
 # when defined with `:`, the object is readonly, so its fields cannot be changed:
 ImmutableMix: mixMatch = (Mut: 5, Imm: 3)
 ImmutableMix = mixMatch(Mut: 6, Imm: 4) # COMPILE ERROR, ImmutableMix is readonly, thus non-reassignable
-ImmutableMix reset(Mut: 7, Imm: 5)      # COMPILE ERROR, ImmutableMix is readonly, thus non-resettable
+ImmutableMix renew(Mut: 7, Imm: 5)      # COMPILE ERROR, ImmutableMix is readonly, thus non-renewable
 ImmutableMix Mut += 4                   # COMPILE ERROR, ImmutableMix is readonly
 ImmutableMix Imm -= 1                   # COMPILE ERROR, ImmutableMix is readonly
 
@@ -909,7 +906,7 @@ inside of classes.  In C++, using `const` on a field type bars reassignment of t
 In hm-lang, readonly variables are not always deeply constant.  And in the case of readonly class
 instance fields, readonly variables are set based on the constructor and shouldn't be modified
 afterwards by other methods... except for the constructor if it's called again (i.e., via
-`reset`ting the instance or reassignment).
+`renew`ing the instance or reassignment).
 
 ### automatic deep nesting
 
@@ -1056,7 +1053,7 @@ that is in method definitions.  Take for example the vector dot product:
 
 ```
 vector2 := {
-    ;;reset(This X; dbl, This Y; dbl) := Null
+    ;;renew(This X; dbl, This Y; dbl) := Null
 
     @orderIndependent
     ::dot(Vector2): dbl
@@ -1623,7 +1620,7 @@ Instead, documentation should make it clear what the mutable argument is being m
 is it (1) being modified for use outside the function, (2) being taken by the internal scope
 (and thus mooted in the outside scope), or (3) being swapped with some other value in the
 internal scope.  Cases (2) and (3) make more sense for class methods than standard functions,
-as there is likely an instance variable that could be reset (case 2) or swapped out (case 3).
+as there is likely an instance variable that could be renewed (case 2) or swapped out (case 3).
 We could document the behavior using annotations, e.g., `@modifying`, `@taking`, or `@swapping`,
 e.g., `over(@modifying Load; int)` in the above example.
 
@@ -2107,7 +2104,7 @@ Some examples:
 ```
 # creating an optional method in a class:
 parent := {
-    ;;reset(This X: dbl, This Y: dbl) := Null
+    ;;renew(This X: dbl, This Y: dbl) := Null
 
     # note that this is a reassignable method, which means it is defined on a per-instance basis.
     ::optionalMethod?(Z: dbl); int
@@ -2294,7 +2291,9 @@ And of course, class methods can also be overridden by child classes (see sectio
 
 Class functions (2) can't depend on the instance, i.e., `This`, but are declared
 like other instance methods, just without `This` as an argument.  They must be declared
-as readonly.
+as readonly.  They can be called from the class name, e.g., `x myClassFunction()`, or
+from an instance of the class, e.g., `X myClassFunction()`.  Note that because of this,
+we're not allowed to define class functions with the same name as instance methods.
 
 Instance functions (3) can't depend on any instance variables, but they can be different from instance to instance.
 They cannot be overridden by child classes but they can be overwritten.  I.e.,
@@ -2305,12 +2304,17 @@ In addition instance functions must be pure functions so that they can be copied
 TODO: we maybe should allow instance functions access to `This`, implicitly; the `This` will change
 to the next instance when copied.
 
-Class constructors are methods (1) which are defined using `;;reset(Args...)`,
-which also allow you to reset the class instance as long as the variable is mutable.
-The first `reset` method defined in the class is also the default constructor,
+Class constructors are methods (1) which are defined using `;;renew(Args...)`,
+which also allow you to renew the class instance as long as the variable is mutable.
+The first `renew` method defined in the class is also the default constructor,
 which will be called with default-constructed arguments (if any) if a default
-instance of the class is needed.  It is a compiler error if a `;;reset()` method
-(with no arguments besides `This;`) is defined after other `reset` methods (with arguments).
+instance of the class is needed.  It is a compiler error if a `;;renew()` method
+(with no arguments besides `This;`) is defined after other `renew` methods (with arguments).
+TODO: does this actually make sense? do we need `new` here?  if we have the type `t`,
+we can use `t(...)` to create an instance.
+Note that `renew` should be a class instance method (1), i.e., `;;renew(...)`, but we'll
+also define class functions (2) for `new` that correspond to each `renew` method,
+which you can call in the usual way, `x new(123)`, or via an instance, `X new(123)`.
 
 When defining methods or functions of all kinds, note that you can use `this`
 to refer to the current class instance type.  E.g.,
@@ -2333,11 +2337,11 @@ exampleClass := {
     X; int
 
     # classes must be resettable to a blank state, or to whatever is specified
-    # as the starting value based on a `reset` function.  this is true even
+    # as the starting value based on a `renew` function.  this is true even
     # if the class instance variables are defined as readonly.
-    ;;reset(X; int): null
+    ;;renew(X; int): null
         This X = X!
-    # or short-hand: `;;reset(This X; int) := Null`
+    # or short-hand: `;;renew(This X; int) := Null`
     # adding `This` to the arg name will automatically set `This X` to the passed in `X`.
 
     # some more examples of class methods (1):
@@ -2431,7 +2435,7 @@ class functions to create new instances of the class.  This is because named fie
 are self descriptive and don't require named static functions for readability.
 E.g., instead of `MyDate := dateClass fromIsoString("2020-05-04")`, just use
 `MyDate := dateClass(IsoString: "2020-05-04")` and define the
-`;;reset(IsoString: string)` method accordingly.
+`;;renew(IsoString: string)` method accordingly.
 
 
 ## unicode/localization support
@@ -2696,7 +2700,7 @@ Some examples:
 
 ```
 animal := {
-    ;;reset(This Name: string) := Null
+    ;;renew(This Name: string) := Null
 
     # define two methods on `animal`: `speak` and `go`.
     # these are "abstract" methods, i.e., not implemented by this base class.
@@ -2716,8 +2720,8 @@ animal := {
 }
 
 snake := extend(animal) {
-    # if no `reset` functions are defined,
-    # child classes will inherit their parent `reset()` methods.
+    # if no `renew` functions are defined,
+    # child classes will inherit their parent `renew()` methods.
 
     ::speak(): null
         print("hisss!")
@@ -2731,11 +2735,11 @@ Snake := snake(Name: "Fred")
 Snake escape()  # prints "Fred slithers away!!"
 
 cat := extend(animal) {
-    # here we define a `reset` method, so the parent `reset` methods
+    # here we define a `renew` method, so the parent `reset` methods
     # become hidden to users of this child class:
-    ;;reset(): null
+    ;;renew(): null
         # can refer to parent methods using class name:
-        animal;;reset(Name: "Cat-don't-care-what-you-name-it")
+        animal;;renew(Name: "Cat-don't-care-what-you-name-it")
 
     ::speak(): null
         print("hisss!")
@@ -2753,6 +2757,30 @@ cat := extend(animal) {
 
 Cat := cat()
 Cat escape()    # prints "CAT ESCAPES DARINGLY!"
+```
+
+We have some functionality to make it easy to pass `renew` arguments to
+a parent class via `@passTo(parentClassName)` in the constructor.
+This way you don't need to add the boiler plate logic inside the
+constructor like this `;;renew(ParentArgument): ${ parent;;renew(ParentArgument) }`,
+you can make it simpler like this instead:
+
+```
+horse := extend(animal) {
+    ;;renew(@passTo(animal) Name: str, This Owner: str, NeighTimes: int = 0)
+        for Int: int < NeighTimes
+            This speak()
+
+    ::speak(): null
+        print("Neigh!")
+
+    ::goes(): string
+        return "gallops"
+}
+
+Horse := horse(Name: "James", Owner: "Fred", NeighTimes: 1)
+print(Horse Owner)  # Fred
+print(Horse Name)   # James
 ```
 
 All abstract base classes also provide ways to instantiate using lambda functions.
@@ -2848,7 +2876,7 @@ You can define methods on your class that work for a variety of types.
 ```
 someExample := {
     Value: int
-    ;;reset(Int): null
+    ;;renew(Int): null
         This Value = Int
     ::to(): ~t
         return t(This Value)
@@ -2878,7 +2906,7 @@ new types for any class inheritance from a parent which is a generic/template cl
 ```
 # create a class with two generic types, `key` and `value`:
 genericClass~(key, value) := {
-    ;;reset(This Key: key, This Value: value): null
+    ;;renew(This Key: key, This Value: value): null
 }
 # also equivalent:
 # genericClass := (This Key: ~key, This Value: ~value)
@@ -2916,7 +2944,7 @@ becomes `template <class t, class u> u globalMethod(readonlyRef<generic<t>> Gene
 All classes have a few compiler-provided methods which cannot be overridden.
 
 * `This;!: this` creates a temporary with the current instance's values, while
-    resetting the current instance to a default instance -- i.e., calling `reset()`.
+    resetting the current instance to a default instance -- i.e., calling `renew()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
 * `Is: is` provides the class type.  This makes it easy to determine
@@ -3013,7 +3041,7 @@ Aliases can also be used for more complicated logic and even deprecating code.
 
 ```
 myClass := {
-    ;;reset(This X; int) := null
+    ;;renew(This X; int) := null
 
     # This was here before...
     # ;;myDeprecatedMethod(DeltaX: int): null
@@ -3056,7 +3084,7 @@ to invoke logic from these external files.
 ```
 # vector2.hm
 vector2 := {
-    ;;reset(This X: dbl, This Y: dbl): null
+    ;;renew(This X: dbl, This Y: dbl): null
 
     @orderIndependent
     ::dot(Vector2: vector2) := This X * Vector2 X + This Y * Vector2 Y
@@ -3444,7 +3472,7 @@ In hm-lang:
 ```
 fixedCountArray~t := extend(array~t) {
     @private FixedCount: count
-    ;;reset(Count): null
+    ;;renew(Count): null
         This FixedCount = Count
         This count(Count)
     @hide pop
@@ -3770,7 +3798,7 @@ range~t := extend(iterator~t) {
     @private
     NextValue: t = 0
 
-    ;;reset(StartAt: t = 0, This LessThan: t = 0): null
+    ;;renew(StartAt: t = 0, This LessThan: t = 0): null
         This NextValue = StartAt
 
     ;;next()?: t
@@ -3827,7 +3855,7 @@ iterator~t;;next(Array: Array~t): null
 
 arrayIterator~t := extend(iterator~t) {
     NextIndex; index
-    ;;reset(StartIndex: index = 0):
+    ;;renew(StartIndex: index = 0):
         This NextIndex = StartIndex
 
     ;;next(Array: array~t)?: t
@@ -4317,6 +4345,9 @@ tree := oneOf(
     # TODO: this maybe makes a case for `:=` instead of `:` in a oneOf.
     # this looks like we're defining `leaf` to be an instance of type `(Value; int)`
     # but we're really defining `leaf` as the type `(Value; int)`.
+    # we probably can distinguish based on `leaf` being lowerCamelCase (means type)
+    # and `Leaf` would be the instance of the type.  if so, do we even need
+    # to define classes like `class := (...)` or can we just do `class: (...)`?
     leaf: (Value; int)
     branch: (
         Left; tree
@@ -4365,6 +4396,9 @@ of compile-time known and compile-time unknown arguments.
 
 TODO: switch to `anyOf` or `anyCombinationOf`.  `allOf` should be reserved for a type
 that is the combination of two or more types, e.g., `allOf(interface1, interface2)`.
+`any` implies one or more, which misses `none`.  maybe `option` is better here,
+or `anyOrNoneOf`, or `zeroOrMoreOf`.  `anyOrNoneOf` has the benefit that it
+describes one of the values (`None`).
 
 Masks are generalized from enumerations to allow multiple values held simultaneously.
 Each value can also be thought of as a flag or option, which are bitwise OR'd together
@@ -4551,7 +4585,10 @@ and they should therefore be defined before this function is called.
 Even if `Int;` here is a temporary, it is defined before this function
 (and not deleted after the function call).
 TODO: does this just increase our stack variables without end?  we probably
-want to allow getting rid of stack variables here.
+want to allow getting rid of stack variables here.  we probably could annotate
+functions as "need temporaries to last" (or not), and try to decide this
+at compile time.  if we don't know (e.g., the function is a lambda), we'll
+check at runtime.
 
 Here is an example where the return value is a function which uses
 the another function from the input.  This is ok because the returned
@@ -4717,7 +4754,7 @@ tokenMatcher := {
 }
 
 singleTokenMatcher := extend(tokenMatcher) (
-    ;;reset(This Token) := Null
+    ;;renew(This Token) := Null
 
     # we automatically inherit the @visibility of the parent class method
     # unless we specifically provide one.
@@ -4938,7 +4975,7 @@ Grammar := singleton() {
             grammarElement
                 This Elements_GrammarMatcher match(Index;, Array)
             token
-                Index < Array count() and Array _ Index++ == GrammarMatcher
+                Index < Array count() and Array[Index++] == GrammarMatcher
         if not Matched
             Index = Snapshot
         return Matched
@@ -4951,6 +4988,8 @@ Grammar := singleton() {
 # of tokens but not the actual token content.  we'd also need to ignore repeated fields,
 # i.e., only count them once.
 # TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
+# or probably don't need to label token matchers if we build the logic for transpilation
+# inside of the grammar elements.
 
 # a list encompasses things like (), (GrammarMatcher), (GrammarMatcher, GrammarMatcher), etc.,
 # but also lists with newlines if properly tabbed.
@@ -4961,9 +5000,7 @@ listMatcher(GrammarMatcher) := parenthesesMatcher(repeatMatcher([
 
 sequence := extend(tokenMatcher) {
     Uninterruptible: grammarMatcher_
-    # TODO: some annotation to pass a variable up to the parent class,
-    # e.g., `reset(@passTo(tokenMatcher) Name: str, OtherArgs...):`
-    ;;reset(Array; grammarMatcher_):
+    ;;renew(Array; grammarMatcher_):
         This Uninterrutible = Array!
 
     ::match(Index;, Array: token_): bool
@@ -4975,7 +5012,7 @@ sequence := extend(tokenMatcher) {
 
 # TODO: make `block` a type of token as well.
 parenthesesMatcher := extend(tokenMatcher) {
-    ;;reset(This GrammarMatcher) := Null
+    ;;renew(This GrammarMatcher) := Null
 
     ::match(Index;, Array: token_): bool
         CurrentToken := Array_Index
@@ -5004,7 +5041,7 @@ repeatMatcher := extend(tokenMatcher) {
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Interruptible`.
-    ;;reset(This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
+    ;;renew(This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
         This Interruptible = Array!
 
     ::match(Index;, Array: token_): bool
