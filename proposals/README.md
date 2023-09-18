@@ -1,5 +1,88 @@
 # general syntax
 
+TODO: rethink everything.
+
+* `x` (function/type-like)
+* `X` (instance-like)
+
+```
+# declaring a variable, options
+MyVar(int)                  # defaults to readonly
+ReadonlyVar(int, Readonly)  # default
+MutableVar(int, Mutable)    # read/write
+ReadonlyVar: int
+MutableVar; int
+```
+
+```
+# declaring + defining a variable, options
+MyVar(123)                  # defaults to readonly
+ReadonlyVar(123, Readonly)  # default
+MutableVar(321, Mutable)    # mutable, starts at 123.
+ReadonlyVar := 123
+MutableVar ;= 321
+```
+
+Using the notation `MyVar(123)` (`MyVar(int)`) to define (declare) a variable
+allows us to use the same notation to define/declare variables in scope
+as defining variables in function arguments.
+
+```
+# calling a function, options:
+doSomething(With(5), X(12, Mutable), Y(340, Mutable))
+doSomething(With := 5, X ;= 12, Y ;= 340)
+doSomething(With: 5, X; 12, Y; 340)
+doSomething(With 5, X 12, Y 340)
+```
+
+`doSomething(With(5), X(12), Y(340))` looks the most readable at a glance,
+then `doSomething(With := 5, X ;= 12, Y ;= 340)`.
+could use other parentheses, e.g., `doSomething(With{5}, X{12}, Y{340})`.
+could revert to MMR to deal with choosing between mutable and readonly,
+but const-ref still has problems.
+
+```
+# declaring a "void" function, options
+doSomething(With(int), X(int, Mutable), Y(int, Mutable)) (null)
+doSomething(With: int, X; int, Y; int): null
+```
+
+```
+# declaring a function that returns other values, options
+doSomething(X(int), Y(int)) (W(int), Z(dbl))
+doSomething(X: int, Y: int): (W: int, Z: int)
+```
+
+```
+# defining a void function
+doSomething(With(int), X(int, Mutable), Y(int, Mutable)) (null)
+    X = With + 4
+    Y = With - 4
+```
+
+```
+# defining a function that returns other values
+doSomething(X(int), Y(int)) (W(int), Z(dbl))
+    # option A:
+    Z = \\math atan(X, Y)
+    W = 123
+    # option B:
+    return (Z(\\math atan(X, Y)), W(123))
+```
+
+not super happy about this notation yet
+```
+# declaring a simple class
+vector3 := (X: dbl, Y: dbl, Z: dbl)
+vector3() {X(dbl), Y(dbl), Z(dbl)}
+```
+
+```
+# declaring a "complicated" class
+myClass() ( ;;renew(This X(int)) ${Null} )
+myClass := ( ;;renew(This X: int) := Null )
+```
+
 ## variable and function names
 
 Identifiers in hm-lang are very important.  The capitalization (or lack thereof)
