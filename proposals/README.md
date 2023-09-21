@@ -1,191 +1,101 @@
 # general syntax
 
-TODO: rethink everything.
-
 * `x` (function/type-like)
 * `X` (instance-like)
 
 ```
-# declaring a variable, options
-MyVar(int)                  # defaults to readonly
-ReadonlyVar(int, Readonly)  # default
-MutableVar(int, Mutable)    # read/write
-ReadonlyVar(int, ro)
-MutableVar(int, rw)
+# declaring a variable:
 ReadonlyVar: int
 MutableVar; int
 ```
 
 ```
-# declaring + defining a variable, options
-MyVar(123)                  # defaults to readonly
-ReadonlyVar(123, Readonly)  # default
-MutableVar(321, Mutable)    # mutable, starts at 321.
+# declaring + defining a variable:
 ReadonlyVar := 123
 MutableVar ;= 321
-ArrayVar([1, 2, 3, 4], int[], Readonly)
 ArrayVar := [1, 2, 3, 4]
 ```
 
-Using the notation `MyVar(123)` (`MyVar(int)`) to define (declare) a variable
-allows us to use the same notation to define/declare variables in scope
-as defining variables in function arguments.
-
 ```
-# calling a function, options:
-doSomething(With(5), X(12, Mutable), Y(340, Mutable))
-doSomething(With(5ro), X(12rw), Y(340rw))
-doSomething(With(5, ro), X(12, rw), Y(340, rw))
-doSomething(With := 5, X ;= 12, Y ;= 340)
-doSomething(With: 5, X; 12, Y; 340)
-doSomething(With:(5), X;(12), Y;(340))
-doSomething(With 5, X 12, Y 340)
-```
-
-`doSomething(With(5), X(12), Y(340))` looks the most readable at a glance,
-then `doSomething(With := 5, X ;= 12, Y ;= 340)`.
-could use other parentheses, e.g., `doSomething(With{5}, X{12}, Y{340})`.
-could revert to MMR to deal with choosing between mutable and readonly,
-but const-ref still has problems.
-
-```
-# calling a function with variables matching the argument names:
-doSomething(With(), X(Mutable), Y(Mutable))
-doSomething(With, X(Mutable), Y(Mutable))
-doSomething(With, X(rw), Y(rw))
-doSomething((With), (X, Mutable), (Y, Mutable))
-doSomething(With, X(;), Y(;))
-doSomething(With, X;, Y;)
-```
-
-```
-# declaring a "void" function, options
-doSomething(With(int), X(int, Mutable), Y(int, Mutable)) (null)
-doSomething(With(int), X(int, Mutable), Y(int, Mutable)) ()
-doSomething[With(int), X(int, Mutable), Y(int, Mutable)] (null)
+# declaring a "void" function:
 doSomething(With: int, X; int, Y; int): null
-```
 
-```
-# declaring a function that returns other values, options
-doSomething[X(int), Y(int)] (W(int), Z(dbl))
-doSomething(X(int), Y(int)) (W(int), Z(dbl))
-doSomething(X(int), Y(int)) {W(int), Z(dbl)}
-doSomething(X(int), Y(int))  (W(int), Z(dbl))   # could use formatter to add extra space
-doSomething(X: int, Y: int): (W: int, Z: int)
-```
-
-without any `:` (or other symbol) in between args and return value,
-it's easy to mistake it as one big argument list.
-
-```
 # defining a void function
-doSomething(With(int), X(int, Mutable), Y(int, Mutable)) (null)
+doSomething(With: int, X; int, Y; int): null
+    # because `X` and `Y` are defined with `;`, they are mutable
+    # in this scope and their changes will persist back into the
+    # caller's scope.
     X = With + 4
     Y = With - 4
+
+# calling a function with temporaries:
+doSomething(With: 5, X; 12, Y; 340)
+
+# calling a function with variables matching the argument names:
+With := 1000
+X ;= 1
+Y ;= 2
+# TODO: if X and Y are defined as mutable, should `(X)` default
+#       to calling the mutable version?  think about class instances
+#       with `This` calling other (possibly mutable) methods.
+# Note that readonly arguments (`:`) are the default,
+# so you need to specify `;` for mutable arguments.
+doSomething(With, X;, Y;)
+
+# calling a function with argument renaming:
+Mean := 1000
+MutatedX ;= 1
+MutatedY ;= 2
+doSomething(With: Mean, X; MutatedX, Y; MutatedY)
 ```
 
 ```
+# declaring a function that returns other values:
+doSomething(X: int, Y: int): (W: int, Z: int)
+
 # defining a function that returns other values
-doSomething(X(int), Y(int))  (W(int), Z(dbl))
+doSomething(X: int, Y: int): (W: int, Z: int)
     # option A:
     Z = \\math atan(X, Y)
     W = 123
     # option B:
-    return (Z(\\math atan(X, Y)), W(123))
+    return (Z: \\math atan(X, Y), W: 123)
 ```
 
-not super happy about this notation yet
 ```
 # declaring a simple class
 vector3 := (X: dbl, Y: dbl, Z: dbl)
-vector3() {X(dbl), Y(dbl), Z(dbl)}
-vector3({X(dbl), Y(dbl), Z(dbl)})
-vector3()
-    X(dbl)
-    Y(dbl)
-    Z(dbl)
-vector3{} $(X(dbl), Y(dbl), Z(dbl))
-```
 
-```
 # declaring a "complicated" class
-myClass() ( ;;renew(This X(int)) ${Null} )
-myClass := ( ;;renew(This X: int) := Null )
+myClass := (
+    # methods which mutate the class use a `;;` prefix
+    ;;renew(This X: int) := Null
+
+    # methods which keep the class readonly use a `::` prefix
+    ::doSomething(Y: int): int
+        return This X * Y
+    # inline: `::doSomething(Y: int) := int(This X * Y)`
+)
 ```
 
 ```
 # combining two classes
 aOrB := oneOf(a, b)
-aOrB{oneOf(a,b)}
+aAndB := allOf(a, b)
 ```
 
-maybe `Something{...}` is a declaration of a variable,
-`something(...) {...}` is a declaration of a function,
-`something{...}` is a declaration of a class.
-if we want to allow `Something(...)` to declare a variable
-
 ```
-# declaring a variable:
-MyVar{int}              # defaults to readonly
-ReadonlyVar{int, ro}    # default
-MutableVar{int, rw}     # read/write
-
-# declaring + defining a variable:
-MyVar{123, u8}              # defaults to readonly
-ReadonlyVar{123, ro}        # default
-MutableVar{321, rw}         # mutable, starts at 321.
-ArrayVar{[1, 2, 3, 4], int[]}
-
-# calling a function:
-doSomething(With{5}, X{12, rw}, Y{340, rw})
-
-# calling a function with variables matching the argument names:
-doSomething(With, X{rw}, Y{rw})
-
-# declaring a "void" function, options
-doSomething(With{int}, X{int, rw}, Y{int, rw}) {null}
-
-# declaring a function that returns other values, options
-doSomething(X{int}, Y{int}) {W{int}, Z{dbl}}
-
-# defining a void function
-doSomething(With{int}, X{int, rw}, Y{int, rw}) {null}
-    X = With + 4
-    Y = With - 4
-
-# defining a function that returns other values
-doSomething(X{int}, Y{int}) {W{int}, Z{dbl}}
-    # option A:
-    Z = \\math atan(X, Y)
-    W = 123
-    # option B:
-    return (Z(\\math atan(X, Y)), W(123))
-
 # defining a function with some lambda functions as arguments
-doSomething(you{}, greet(Name{str}) {str}) {str}
-    return greet(you())
+doSomething(you(): str, greet(Name: str): str): str
+    return greet(Name: you())
 
 # calling a function with some functions as arguments
-myName() {str}
+myName(): str
     return "World"
-doSomething(you{myName}, greet(Name{str}) {str}
+# inline, `myName() := "World"`
+doSomething(you: myName, greet(Name: str): str
     return "Hello, ${Name}"
 )
-
-# declaring a simple class
-vector3{}
-    X(dbl), Y(dbl), Z(dbl)
-
-# declaring a "complicated" class
-myClass{parentClass1, parentClass2}
-    ;;renew(This X{int}) ${Null}
-    ::doSomething(Y{int}) {int}
-        return This X * Y
-    # inline: `::doSomething(Y{int}) ${int(This X * Y)}`
-
-# combining two classes
-aOrB{oneOf(a, b)}
 ```
 
 ## variable and function names
