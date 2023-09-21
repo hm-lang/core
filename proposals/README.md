@@ -35,9 +35,6 @@ doSomething(With: 5, X; 12, Y; 340)
 With := 1000
 X ;= 1
 Y ;= 2
-# TODO: if X and Y are defined as mutable, should `(X)` default
-#       to calling the mutable version?  think about class instances
-#       with `This` calling other (possibly mutable) methods.
 # Note that readonly arguments (`:`) are the default,
 # so you need to specify `;` for mutable arguments.
 doSomething(With, X;, Y;)
@@ -2792,7 +2789,8 @@ We can access member variables or functions that belong to that the parent type,
 i.e., without subclass overloads, using the syntax `parentClassName someMethod(This, ...Args)`
 or `parentClassName::someMethod(...Args)`.  Use `This;` to access variables or methods that will
 mutate the underlying class instance, e.g., `parentClassName someMethod(This;, ...Args)`
-or `parentClassName;;someMethod(...Args)`.
+or `parentClassName;;someMethod(...Args)`.  hm-lang doesn't have a `super` keyword
+because we want inheritance to be as clear as composition for how method calls work.
 
 Some examples:
 
