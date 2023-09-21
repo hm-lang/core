@@ -376,6 +376,7 @@ W ?:= Z as(u8)      # `W` is not Null here because `Z` was an integer between 0 
                     # but we still need to use `?:=` since the `dbl` might not have been
                     # representable as a `u8`, so `W` might have been Null.
 ```
+TODO: we probably can just do `Y?: int = X`.
 TODO:  Double check if `as` makes sense as a method.  If so, there should be some
 reciprocity between `x := { ;;renew(Y): null }` and `y := { ::as(Is: is~t): t }`.
 TODO: discuss the notation for a type being passed into a function.  i think we can
@@ -406,6 +407,7 @@ and `X is(5)` returns true iff `X` equals 5), and `X new` for instantiating base
 but then `what is(X)` doesn't work as well.
 maybe we can use `X new(5)` to instantiate a variable with the same type as `X`,
 which is also accessible via `is~x`, i.e., `X is new(5)`.
+TODO: switch to `new~t` instead of `is~t`.  `is~t` should be a function for `is(T)`
 
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
 is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
@@ -567,6 +569,9 @@ since `()::FinalField` is accessing the `FinalField` field on the object `()`, f
 no field value (i.e, a null field value).  In addition, `X_someFunction[3]` would compile as
 `(X_someFunction)[3]`, which is almost certainly not what is desired, unless `X` is a map with
 *function* keys.
+
+TODO: if you don't supply all the arguments, you should get a new function that prefills
+all the arguments you supplied and keeps as its own arguments the ones you didn't.
 
 ## new-namespace operator `->`
 
