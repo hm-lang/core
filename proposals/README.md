@@ -2,6 +2,8 @@
 
 * `x` (function/type-like)
 * `X` (instance-like)
+* `A: x` `A` is an instance of type `x`
+* `fn(): x` `fn` returns an instance of type `x`
 
 ```
 # declaring a variable:
@@ -93,6 +95,26 @@ myName(): str
 doSomething(you: myName, greet(Name: str): str
     return "Hello, ${Name}"
 )
+```
+
+```
+# defining a function that returns a lambda function
+makeCounter(Counter; int): fn(): int
+    return fn() := ++Counter
+Counter ;= 123
+counter := makeCounter(Counter;)
+print(counter())    # 124
+```
+
+```
+# defining a function that takes a type constructor as an argument
+# and returns a type constructor:
+doSomething(new~x, namedNew: new~y): new~oneOf(x, y)
+    return if random(dbl) < 0.5 ${x} else ${y}
+    # you can also use `new~x` and `namedNew` if desired:
+    # return if random(dbl) < 0.5 ${new~x} else ${namedNew}
+
+someType := doSomething(int, namedNew: dbl)
 ```
 
 ## variable and function names
@@ -376,38 +398,9 @@ W ?:= Z as(u8)      # `W` is not Null here because `Z` was an integer between 0 
                     # but we still need to use `?:=` since the `dbl` might not have been
                     # representable as a `u8`, so `W` might have been Null.
 ```
-TODO: we probably can just do `Y?: int = X`.
+TODO: we probably can also do `Y?: int = X`.
 TODO:  Double check if `as` makes sense as a method.  If so, there should be some
-reciprocity between `x := { ;;renew(Y): null }` and `y := { ::as(Is: is~t): t }`.
-TODO: discuss the notation for a type being passed into a function.  i think we can
-convert to `Is: is~t` and then use it as `Is new(Args)`.  alternatively, we could try
-`::as(t: ~t): t` or `::as(~t): t` for short.  the latter is nice from the perspective
-that it more closely resembles how we normally instantiate types, e.g., `T: t = t(U)`
-rather than `T: t = Is new(U)`.  however, to be fully consistent, we'd need to start
-typing the return values of functions like `getInt(): {Int}`, since `getInt(): int` would
-imply returning the `int` class type/instantiator.  in turn, that doesn't make sense
-since `X: int` should be fine, `X: Int` doesn't look right/would have sweeping implications.
-we'd need `Int` as the "instance" type, and `int` as the type/instantiator type.
-we might not be able to have default-named arguments anymore, which is the main draw.
-we'd change a lot of things, like `Y ?:= X as(Int)`.  but we could literally pass
-types around more easily, e.g., `q := int|dbl`, with usage `MyQ: Q = q("1234.5")`.
-There just wouldn't be a point to passing arguments like this: `(A: a)` (or `(a: b)`)
-TODO: alternatively, we could switch to `is` being a function-like type.
-`class := { is := ... }`, but then we couldn't use `X is(int)` for X Is == int Is`,
-since `X is(...)` would try to instantiate a new instance of type `x` via `x(...)`.
-maybe this is ok if we get rid of the idea that `x` is a function overload for always creating
-instances of `x`.  e.g., `x(int)` can be boolean instead of `x` type.  it is nice to use
-`passInAType(~x) := x("123")` instead of `passInAType(Is: is~x) := x("123")`.
-we can still use `q := int|dbl` or `q := oneOf(int, dbl)`.
-for the `x(int)` case, should we switch to `X is == int`? `X is(int)` works fine
-but `X is(5)` will instantiate `x(5)` if possible, but looks like it should be another
-boolean statement.  maybe we take over `new` instead of `is`.  we can still use `is`
-on `X` and return boolean (e.g., `X is(int)` returns true iff `X` is an instance of `int`,
-and `X is(5)` returns true iff `X` equals 5), and `X new` for instantiating based on `X`'s type.
-but then `what is(X)` doesn't work as well.
-maybe we can use `X new(5)` to instantiate a variable with the same type as `X`,
-which is also accessible via `is~x`, i.e., `X is new(5)`.
-TODO: switch to `new~t` instead of `is~t`.  `is~t` should be a function for `is(T)`
+reciprocity between `x := { ;;renew(Y): null }` and `y := { ::as(new~t): t }`.
 
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
 is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
@@ -422,12 +415,14 @@ throw an error.
 ## types of types
 
 Every variable has a reflexive type which describes the object/primitive that is held
-in the variable.  This can be accessed via the `Is` field on instances/functions/classes.
-If comparing against a known type, i.e., to check if some
-variable is an integer, it is highly recommended to use the `is` method, e.g., 
+in the variable.  This can be accessed via the `is()` class function, which is also
+defined on each instance.  If comparing against a known type, i.e., to check if some
+variable is an integer, it is highly recommended to use the `::is(new~t)` method, e.g., 
 
 ```
-X; oneOf(dbl, int) = 4
+# implementation note: `int` should come first so it gets tried first;
+# `dbl` will eat up many values that are integers, including `4`.
+X; oneOf(int, dbl) = 4
 ...
 if X is(int)
     print("X is an integer")
@@ -435,36 +430,49 @@ elif X is(dbl)
     print("X is a double")
 ```
 
-This reads a little better than something like `if X Is == int`, but the latter also is
-valid hm-lang (and does what you expect).  Some more examples:
+You can create a new instance of the same type by chaining `is()` like this:
+
+```
+xType := X is()
+Y := xType(1234)
+
+# alternatively:
+Y := X is() new(1234)
+```
+
+The reason we need a `new` in between `is()` and the constructor arguments
+for `X is() new(1234)` is that otherwise we grammatically don't know whether
+we're doing an implicit subscript or a function call.  We could use the
+default function name `fn` but `new` is more clear.
+
+Some more examples:
 
 ```
 vector3 := {X; dbl, Y; dbl, Z; dbl}
 
 Vector3 := vector3(X: 1.2, Y: -1.4, Z: 1.6)
 
-print(Vector3::Is)                  # prints `is~vector3`
-print(vector3 Is == Vector3::Is)    # this prints true
+print(Vector3::is())                # prints `new~vector3`
+print(vector3 == Vector3 is())      # this prints true
+print(vector3 is() == Vector3 is()) # this also prints true.
+```
 
-SomeIs: is~any = Vector3::Is        # `Vector3 Is` is equivalent
+Note that because we allow calling class functions by class instances,
+we need `vector3 is()` to be the same as `Vector3 is()`.  Thus there
+is no type recursion possible; `vector3 is() is() == vector3 is() == vector3`.
 
-# things can get recursive:
-print(SomeIs::Is)           # type of a type, resolves to `is~is~vector3`.
+```
+# we'll define `someType` as vector3, but it could become
+# different than vector3 in the future.
+someType; new~any = Vector3 is()    # also equivalent: `someType; new~any = vector3`
+
+# TODO: is this ok?  should `someType` recognize that it is a `new~any` somehow??
+# things can't get recursive:
+print(someType is())                # prints `vector3`
 
 # creates a dynamical instance of vector3; the compiler doesn't know it's a vector3.
-# even though we know it comes from a vector3, `SomeIs` is a generic `is~any`.
-SomeThing := SomeIs new(X: 5, Y: 6, Z: -7)
-```
-
-The `is` class is pretty simple, though under the hood it has 64 bits effectively
-pointing to the vtable for the class.
-
-```
-is~t := {
-    # Type instances have a `new` method which allows you to construct an
-    # instance of the class.
-    ::new(...Args): t
-}
+# even though we know it comes from a vector3, `someType` is a generic `new~any`.
+SomeThing := someType(X: 5, Y: 6, Z: -7)
 ```
 
 TODO: types of functions, shouldn't really have `new`.
@@ -1283,12 +1291,24 @@ the type of something.  This makes the most sense as a generic type,
 and can be done like this:
 
 ```
-# TODO: this should probably be `is: is~x`
-doSomething(~x): x
-    return x(123)
+doSomething(new~x): x
+    return x(123)   # also can use `new~x(123)`
 
 print(doSomething(dbl)) # returns 123.0
 print(doSomething(u8))  # returns u8(123)
+```
+
+It works similarly for named types as arguments.  Here is an example
+where we also return a type constructor.
+
+```
+# the return type could also be `oneOf(new~x, new~y)`, but this is more idiomatic:
+doSomething(new~x, namedNew: new~y): new~oneOf(x, y)
+    return if random(dbl) < 0.5 ${x} else ${y}
+    # you can also use `new~x` and `namedNew` if desired:
+    # return if random(dbl) < 0.5 ${new~x} else ${namedNew}
+
+print(doSomething(int, namedNew: dbl))  # will print `int` or `dbl` with 50-50 probability
 ```
 
 ## function overloads
@@ -2410,11 +2430,7 @@ The first `renew` method defined in the class is also the default constructor,
 which will be called with default-constructed arguments (if any) if a default
 instance of the class is needed.  It is a compiler error if a `;;renew()` method
 (with no arguments besides `This;`) is defined after other `renew` methods (with arguments).
-TODO: does this actually make sense? do we need `new` here?  if we have the type `t`,
-we can use `t(...)` to create an instance.
-Note that `renew` should be a class instance method (1), i.e., `;;renew(...)`, but we'll
-also define class functions (2) for `new` that correspond to each `renew` method,
-which you can call in the usual way, `x new(123)`, or via an instance, `X new(123)`.
+Note that `renew` should be a class instance method (1), i.e., `;;renew(...)`.
 
 When defining methods or functions of all kinds, note that you can use `this`
 to refer to the current class instance type.  E.g.,
@@ -3048,13 +3064,18 @@ All classes have a few compiler-provided methods which cannot be overridden.
     resetting the current instance to a default instance -- i.e., calling `renew()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
-* `Is: is` provides the class type.  This makes it easy to determine
+* `::as(new~t)?: t` casts the current instance to the new type if possible,
+    otherwise returns null.
+    TODO: this should return `ref~(t, Readonly)` and `ref~(t, Mutable)` for `;;as(new~t)`.
+    refs can be used going into function arguments but that's about it.
+* `::is(T: ~t): bool` returns true if this instance is equal to the passed-in value.
+* `is(new~t): bool` returns true if this instance/class is equal to the passed-in class.
+* `is(): new` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
     ```
     X; oneOf(null, int, dbl_)
     X = [1.2, 3.4]
-    # you can check `X Is`, `X is()`, or `is(X)` (which is equivalent to `X is()`):
-    # TODO: just switch to `what X is` if we switch to `is` being a function.
+    # you can check `X is()` or `is(X)` (which is equivalent to `X is()`):
     what is(X)
         null
             print("X is Null")
@@ -3063,12 +3084,10 @@ All classes have a few compiler-provided methods which cannot be overridden.
         dbl_
             print("X is an array of double")
     ```
-    Note that the `type` type can be created directly from the type
-    constructors, e.g. `null` and `int`, e.g., `type(int) == 5 Is`.
-    Note also, the `type` type also can be printed nicely, e.g.,
-    `print("asdf" Is)` prints "str", and `str(1 Is) == "int"`.
+    Note that the `is()` type can be printed nicely, e.g.,
+    `print("asdf" is())` prints "str", and `str(1 is()) == "int"`.
     TODO: figure out how to get around the problem of an object with
-    a field defined as `is` or `Is`.  Maybe we need to use string access,
+    a field defined as `is`.  Maybe we need to use string access,
     e.g., `Object "MyField" = 3`
 
 ## singletons
@@ -5118,7 +5137,7 @@ parenthesesMatcher := extend(tokenMatcher) {
 
     ::match(Index;, Array: token_): bool
         CurrentToken := Array_Index
-        if CurrentToken Is != parenthesesToken
+        if not CurrentToken is(parenthesesToken)
             return False
 
         InternalIndex; index = 0
