@@ -313,6 +313,9 @@ multiline comment), although this is not recommended.  To qualify as a multiline
 (besides spaces), otherwise an error is thrown.  All characters on all lines in between
 the multiline comment symbols (e.g., `#(#` to `#)#`) are ignored.
 
+Note that `#@` is an end-of-line comment reserved for the compiler, so if you use
+them they may be deleted/updated in unexpected ways.
+
 # overview of types
 
 Standard types whose instances can take up an arbitrary amount of memory:
@@ -3143,8 +3146,6 @@ are useful for gently adjusting programmer expectations.  The hm-lang formatter 
 substitute the preferred name for any aliases found, and the compiler will only
 warn on finding aliases.
 TODO: maybe combine formatter/compiler.
-TODO: maybe even add compiler errors to the code itself, with some special comments
-that will be removed on next compile, e.g., `@compileError("please modify this ^")`.
 
 Aliases can be used for simple naming conventions, e.g.:
 
@@ -4184,8 +4185,7 @@ if the chosen salt doesn't work, however, e.g., in the situation where new cases
 were added to the `what` statement.
 
 ```
-@compiler(Salt: 1234)
-X := what String
+X := what String    #@salt(1234)
     "hello"
         print("hello to you, too!")
         5
@@ -5259,3 +5259,12 @@ TODO: a general purpose "part of your memory is here, part of your memory is the
 TODO: discuss having all instance methods in some special virtual table, e.g., possibly 
 with additional reflection information (for things like `@for method in mutators(myClass)`
 macro code).
+
+# compiling
+
+If your code compiles, we will also format it.
+
+If there are any compile errors, the compiler will add some special
+comments to the code that will be removed on next compile, e.g.,
+`#@compileError("there's a syntax problem here ^")`.
+
