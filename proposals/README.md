@@ -2,8 +2,9 @@
 
 * `x` (function/type-like)
 * `X` (instance-like)
-* `A: x` `A` is an instance of type `x`
-* `fn(): x` `fn` returns an instance of type `x`
+* `A: x` declare `A` as an instance of type `x`
+* `fn(): x` declare `fn` as returning an instance of type `x`
+* `a: new~y` declare `a` as a constructor that builds instances of type `y`
 
 ```
 # declaring a variable:
@@ -15,7 +16,35 @@ MutableVar; int
 # declaring + defining a variable:
 ReadonlyVar := 123
 MutableVar ;= 321
-ArrayVar := [1, 2, 3, 4]
+
+# declaring a mutable array:
+ArrayVar[] ;= [1, 2, 3, 4]
+# also ok to be explicit: `ArrayVar[]; int = [1, 2, 3, 4]`
+# TODO: can we just do `ArrayVar ;= [](1, 2, 3, 4)` or `ArrayVar ;= [1, 2, 3, 4]`?
+ArrayVar[5] = 5     # ArrayVar == [1, 2, 3, 4, 0, 5]
+++ArrayVar[6]       # ArrayVar == [1, 2, 3, 4, 0, 5, 1]
+ArrayVar[0] += 100  # ArrayVar == [101, 2, 3, 4, 0, 5, 1]
+ArrayVar[1]!        # returns 2, zeroes out ArrayVar[1]
+
+# declaring a mutable map:
+VotesMap[str]; int = ["Cake": 5, "Donuts": 10, "Cupcakes": 3]
+# TODO: can we just do `VotesMap ;= ["Cake": 5, ...]`?
+VotesMap["Cake"]        # 5
+++VotesMap["Donuts"]    # 11
+++VotesMap["Ice Cream"] # inserts "Ice Cream" with default value, then increments
+VotesMap["Cupcakes"]!   # deletes from the map
+VotesMap::["Cupcakes"]  # Null
+# now VotesMap == ["Cake": 5, "Donuts": 11, "Ice Cream": 1]
+
+# declaring a mutable set:
+SomeSet[str] ;= ["friends", "family", "fatigue"]
+# TODO: can we just do `SomeSet ;= [str]["friends", ...]`?
+SomeSet::["friends"]    # `Present` (truthy)
+SomeSet::["enemies"]    # Null (falsy)
+SomeSet["fatigue"]!     # removes "fatigue", returns `Present` since it was present.
+                        # SomeSet == [str]("friends", "family").
+SomeSet["spools"]       # adds "spools", returns Null (wasn't in the set)
+                        # SomeSet == [str]("friends", "family", "spools")
 ```
 
 ```
@@ -139,6 +168,8 @@ most importantly in contrast to most other languages, underscores (`_`) are also
 In hm-lang, underscores are considered subscripts, which allow access to an array,
 e.g., `Numbers_3` is equivalent to `Numbers[3]`, which gives the fourth element in the array
 called `Numbers` (since arrays are zero-indexed).
+
+TODO: remove `_` now that we're typing map values *after* the key (`Map[key]: value`).
 
 TODO: also support unicode in identifiers.
 
@@ -1158,6 +1189,9 @@ The compiler is not smart enough to know whether order matters or not, so we nee
 the function with `@orderIndependent` -- otherwise it's a compiler error -- and we need to use namespaces (`First->` and `Second->`)
 in order to distinguish between the two variables inside the function block.  When calling `max`,
 we don't need to use those namespaces, and can't (since they're invisible to the outside world).
+
+TODO: we do need order dependence for certain use cases, like arguments to an array.
+maybe we have a specific `@orderDependent` or `@arrayOrder` annotation.
 
 There is one place where it is not obvious that two arguments might have the same name, and
 that is in method definitions.  Take for example the vector dot product:
@@ -3145,7 +3179,6 @@ Aliases enable writing out logic with semantically similar descriptions, and
 are useful for gently adjusting programmer expectations.  The hm-lang formatter will
 substitute the preferred name for any aliases found, and the compiler will only
 warn on finding aliases.
-TODO: maybe combine formatter/compiler.
 
 Aliases can be used for simple naming conventions, e.g.:
 
@@ -3178,9 +3211,8 @@ MyClass myDeprecatedMethod(DeltaX: 3)   # converts to `MyClass X += 3` on next f
 ```
 
 While it is possible, it is not recommended to use aliases to inline code.
-
-TODO: we probably want to allow `alias`es to stick around, e.g., for extra names
-with options.  maybe use `rewrite` or `inline` instead of `alias`.
+This is because the aliased code will be "inlined" in the source directly,
+so it won't benefit from any future updates to the aliased code.
 
 # modules
 
@@ -3260,7 +3292,7 @@ In order to reduce compile times, you can define scripts to be interpreted in yo
 using files with an `.hms` extension.  After you are satisfied with the script, you can promote
 it to compiled code by converting the `.hms` file to a `.hm` file.
 
-Note that one downside of scripting is that what used to be compile-time errors become runtime errors.
+Note that one downside of scripting is that what could be compile-time errors become runtime errors.
 
 TODO: figure out how we import hm scripts (`.hms` files).  Maybe something like
 `Script := import("../my_scripts/doom.hms"), Script doom()`.
@@ -3430,12 +3462,16 @@ for the type `elementType`, or implicitly with the subscript operator, `_`
 E.g. `MyArray: int_` or `MyArray: array~int` for a readonly integer array.
 The mutable versions of course use `;` instead of `:`.  We can also
 define an array via `value[]` instead of `value_` for type `value`.
+TODO: we should probably switch from `value[]` to `[]: value` to be
+consistent with the way we define functions, e.g., `Array[]: value`
 
 Side note: as we will see, the subscript operator is usually a binary operator, i.e.,
 requiring two operands, `A _ B`, read "A subscript B".  We make an exception for the
 array type not to require a second operand -- in fact, adding one would create a
 different type, the map type.
 
+To define an array quickly (i.e., without a type annotation), use the notation
+`["hi", "hello", "hey"]`.
 The default-named version of an array does not depend on the element type;
 it is always `Array`.  Example usage and declarations:
 
@@ -3471,6 +3507,7 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 
 ```
 # some relevant pieces of the class definition
+# TODO: fix up API based on ideas in intro.
 array~t := extend(container~t) {
     # swapper, sets the value at the index, returning the old value in the reference.
     # if the swapped in value is Null but the array value wasn't Null, the array
@@ -3510,6 +3547,11 @@ array~t := extend(container~t) {
     # non-nullable modifier, which will increase the count of the array (with default values)
     # if you are asking for a value at an index out of bounds of the array.
     ;;_(Index, fn(T;): ~u): u
+
+    # TODO: explain why mooting an index in an array doesn't eject the element but sets it
+    # to a default value, whereas in a map or set it does eject the element completely.
+    # it's to preserve the invariant that `X!` should then make `!X` be true;
+    # we don't want to depend on the next element in the array on whether to eject or not.
 
     ::count(): count
 
@@ -3612,8 +3654,8 @@ fixedCountArray~t := extend(array~t) {
 
 A map can look up, insert, and delete elements by key quickly (ideally amortized
 at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a map, e.g.,
-`VariableName: map~(key: keyType, value: valueType)`,
-or you can use the implicit method with the subscript operator (`_`),
+`VariableName: map~(key: keyType, value: valueType)`, or you can use an implicit method
+with brackets, `VariableName: valueType[keyType]`, or the subscript operator (`_`),
 `VariableName: valueType_keyType`.  You can read the operator `_` as "keyed by",
 e.g., `valueType_keyType` as "`valueType` keyed by `keyType`".  For example,
 for a map from integers to strings, you can use: `MyMap: string_int`.
@@ -3624,6 +3666,8 @@ not an array type.  The array type, `elementType_` would be useful for densely
 packed data (i.e., instances of `elementType` for most indices), while the map
 type `elementType_index` would be useful for sparse data.
 We can also specify a map via `value[key]` instead of `value_key`.
+TODO: we should probably switch from `value[key]` to `[key]: value` to be
+consistent with the way we define functions, e.g., `Map[key]: value`.
 
 To define a map (and its contents) inline, use this notation:
 
@@ -3657,12 +3701,12 @@ EmployeeIds: int_string = [
 # `EmployeeIds := map~(key: string, value: int) [`
 ```
 
-TODO: can we make this super nice with shorthand?  e.g., `EmployeeIds := int_str $( "Jane": 123 )`,
-or do we need `(int_str)("Jane": 123)`?  similarly for arrays `int_ $[1, 2, 3]` or `(int_)(1, 2, 3)`
-and sets `_int $(10, 20, 30)` or `(_int)(10, 20, 30)`, or `_{1, 2, 3}`?
-If we switch to `()` being arguments, and `[]` being arrays, then we could reuse `[]` for maps
-as well because they are insertion ordered, and maybe `_[Value1, Value2]` for sets.
-or maybe `()` for arguments and organization, and `{}` for code execution.
+To define a map quickly (i.e., without a type annotation), use the notation
+`["Jane": 123, "Jim": 456]`.
+
+TODO: 
+If we switch to `()` being arguments, and `[]` being arrays, `{}` for maps and sets, ...
+maybe `()` for arguments and organization, and `{}` for code execution.
 ```
 vector3 := (X: dbl, Y: dbl)
 vector4 := (
@@ -3722,6 +3766,7 @@ change places inside the map and/or collide with an existing key.
 Some relevant pieces of the class definition:
 
 ```
+# TODO: fix up API based on ideas in intro.
 map~(key, value) := extend(container~key, container~{Key, Value}, container~value) {
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
@@ -3859,14 +3904,24 @@ insertionOrderedMap~(key, value) := extend(map) {
 A set contains some elements, and makes checking for the existence of an element within
 fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certain properties
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set~elementType`
-to be explicit or `VariableName: _elementType` using the subscript operator `_` on the
-opposite side of the array type (i.e., the array looks like `arrayElementType_`).
+to be explicit or `VariableName: [elementType]`, or `VariableName: _elementType` using the
+subscript operator `_` on the opposite side of the array type (i.e., the array looks like
+`arrayElementType_` or `arrayElementType[]`).
 The default-named variable name for a set of any type is `Set`.
+TODO: we should probably switch from `: [key]` to `[key]:` to be
+consistent with the way we define functions.  E.g., `Set[key] := [...]`
 
 ```
+presence := oneOf(
+    # TODO: can we use `Null` in this context or should it be `null`?
+    #       if it's too much work, switch to "Absent"
+    Null
+    Present
+)
+
+# TODO: fix up API based on ideas in intro.
 set~t := extend(container~t) {
-    # returns true if the passed-in element is present in the set.
-    ::_(T): bool
+    ::_(T): presence
 
     ::count(): count
 
@@ -3891,9 +3946,8 @@ even if the set variable is mutable.
 
 TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
 
-TODO: there should be a fast way to define a set that doesn't get mistaken for a map
-or an array.  e.g., `{"hello", "world"}` and even `{X, Y}` for predefined `X, Y`.
-maybe `_{X, Y}` but that could get overloaded with something before it.
+To define a set quickly, use the notation `[str]("hello", "world")`, where the
+initial `[str]` should be the type of whatever element is in the set.
 
 TODO: make it easy to pass in a set as an argument and return a map with e.g. those keys.
   maybe this isn't as important as it would be if we had a dedicated object type.
