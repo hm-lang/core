@@ -3,9 +3,9 @@
 * lower camel case identifiers like `x` are function/type-like
 * upper camel case identifiers like `X` are instance-like
 * use `:` for readonly declarations, `;` for mutable declarations
-* `A: x` declare `A` as an instance of type `x`
-* `fn(): x` declare `fn` as returning an instance of type `x`
-* `a: new~y` declare `a` as a constructor that builds instances of type `y`
+* use `A: x` to declare `A` as an instance of type `x`
+* use `fn(): x` to declare `fn` as returning an instance of type `x`
+* use `a: new~y` to declare `a` as a constructor that builds instances of type `y`
 * `[]` are for containers
     * `Container[key]: value` for the general feel of declaring a container instance
     * `Map[key]: value` to declare a map
@@ -4942,12 +4942,7 @@ someFunction(): null
 
 # grammar/syntax
 
-TODO: discussion on parentheses -- we'd like all to be equal () == {} == [], but
-our notation might be difficult to distinguish arrays from arguments.
-Maybe we assume that we're creating an argument object, unless we are explicitly
-casting to an array.
-
-TODO: () or {} or [] are equivalent to Null, or a null object or empty args list.
+TODO: {} is equivalent to Null, or a null object or empty args list.
 
 TODO: can we define the grammar in the terms below, but then create a finite state machine
 which reads in the grammar below, deduces the possible states, then reads tokens in and
@@ -5210,7 +5205,6 @@ Grammar := singleton() {
                 FunctionDefinition
                 FunctionDeclaration
                 # TODO: prefix ! and !!, as well as postfix !
-                # TODO: subscript access _
             ])
         ])
         EndOfInput: tokenMatcher(
@@ -5262,6 +5256,7 @@ sequence := extend(tokenMatcher) {
         return True
 }
 
+# TODO: add an argument to parentheses matcher for the type of parentheses, e.g., () [] {}
 # TODO: make `block` a type of token as well.
 parenthesesMatcher := extend(tokenMatcher) {
     ;;renew(This GrammarMatcher) := Null
