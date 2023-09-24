@@ -1,15 +1,18 @@
 # general syntax
 
-* `x` (function/type-like)
-* `X` (instance-like)
+* lower camel case identifiers like `x` are function/type-like
+* upper camel case identifiers like `X` are instance-like
 * use `:` for readonly declarations, `;` for mutable declarations
 * `A: x` declare `A` as an instance of type `x`
 * `fn(): x` declare `fn` as returning an instance of type `x`
 * `a: new~y` declare `a` as a constructor that builds instances of type `y`
-* `Container[key]: value` for the general feel of declaring a container instance
-* `Map[key]: value` to declare a map
-* `Set[element]:` to declare a set with `element` type instances as elements
-* `Array[]: element` to declare an array with `element` type instances as elements
+* `[]` are for containers
+    * `Container[key]: value` for the general feel of declaring a container instance
+    * `Map[key]: value` to declare a map
+    * `Set[element]:` to declare a set with `element` type instances as elements
+    * `Array[]: element` to declare an array with `element` type instances as elements
+* `{}` for objects/types
+* `()` for organization and function calls
 
 ```
 # declaring a variable:
@@ -139,7 +142,7 @@ myName(): str
     return "World"
 # inline, `myName() := "World"`
 doSomething(you: myName, greet(Name: str): str
-    return "Hello, ${Name}"
+    return "Hello, $(Name)"
 )
 ```
 
@@ -156,9 +159,9 @@ print(counter())    # 124
 # defining a function that takes a type constructor as an argument
 # and returns a type constructor:
 doSomething(new~x, namedNew: new~y): new~oneOf(x, y)
-    return if random(dbl) < 0.5 ${x} else ${y}
+    return if random(dbl) < 0.5 $(x) else $(y)
     # you can also use `new~x` and `namedNew` if desired:
-    # return if random(dbl) < 0.5 ${new~x} else ${namedNew}
+    # return if random(dbl) < 0.5 $(new~x) else $(namedNew)
 
 someType := doSomething(int, namedNew: dbl)
 ```
@@ -275,7 +278,7 @@ declaringAFunctionWithMultilineArguments(
     Greeting: string
     Name: string = "World"
 ): string
-    return "${Greeting}, ${Name}! " * Times
+    return "$(Greeting), $(Name)! " * Times
 ```
 
 You can call or declare functions with arguments at +2 indent, but then you must use commas at the end
@@ -288,7 +291,7 @@ declaringAFunctionWithPlusTwoIndentArguments(
         Greeting: string,
         Name: string = "World",
 ): string
-    return "${Greeting}, ${Name}! " * Times
+    return "$(Greeting), $(Name)! " * Times
 
 SomeLineContinuationExampleVariable :=
         OptionalExpressionExplicitlyAtPlusTwoIndent
@@ -303,8 +306,7 @@ SomeLineContinuationExampleVariable :=
 
 ### block parentheses and commas
 
-You can use `$(` ... `)` to define a block inline, or similarly with the other parentheses
-(i.e., `$[` ... `]` and `${` ... `}`.  The parentheses block "operator" is grammatically
+You can use `$(` ... `)` to define a block inline.  The parentheses block "operator" is grammatically
 the same as a standard block, i.e., going to a new line and indenting to +1.
 This is useful for short `if` statements, e.g., `if SomeCondition $(doSomething())`.
 
@@ -347,13 +349,12 @@ if SomeCondition $(
 
 Comments come in three types: (1) end of line (EOL) comments, (2) mid-line comments,
 and (3) multiline comments.  End of line comments are the hash `#` followed by any
-character that is not `{`, `[`, or `(`.  All characters after an EOL comment are
-ignored; the compiler will start parsing on the next line.  A mid-line comment begins 
-with `#(`, `#[`, or `#{`, followed by any character that is not a `#`, and ends with
-the corresponding parenthesis and hash symbol, `)#`, `]#`, or `}#`, *on the same line*.
+character that is not `(`.  All characters after an EOL comment are ignored; the
+compiler will start parsing on the next line.  A mid-line comment begins with `#(`
+followed by any character that is not a `#`, and ends with `)#` *on the same line*.
 All characters within the parentheses are ignored by the compiler.  Multiline comments
-begin with `#(#`, `#[#`, or `#{#`, and end with the corresponding `#)#`, `#]#`, or `#}#`
-*at the same tab indent*.  This means you can have nested multiline comments, as long as
+begin with `#(#` and end with the corresponding `#)#` *at the same tab indent*.
+This means you can have nested multiline comments, as long as
 the nested symbols are at a new tab stop, and they can even be broken (e.g., an unmatched
 closing operator `#)#` as long as it is indented from the symbols which started the
 multiline comment), although this is not recommended.  To qualify as a multiline comment
@@ -587,8 +588,6 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           |   `or`    | logical OR                | binary: `A or B`  |               |
 |           |  `xor`    | logical XOR               | binary: `A xor B` |               |
 |   10      | `$(   )`  | block parentheses         | grouping: `$(A)`  | ??            |
-|           | `$[   ]`  | block parentheses         | grouping: `$[A]`  |               |
-|           | `${   }`  | block parentheses         | grouping: `${A}`  |               |
 |   11      |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
@@ -678,7 +677,7 @@ readonly/mutable `This` as an argument.
 exampleClass := {
     # this `;;` prefix is shorthand for `renew(This; this, ...): null`:
     ;;renew(This X: int, This Y: dbl): null
-        print("X ${X} Y ${Y}")
+        print("X $(X) Y $(Y)")
 
     # this `::` prefix is shorthand for `multiply(This: this, ...): dbl`:
     ::multiply(Z: dbl): dbl
@@ -876,7 +875,7 @@ xor(X: ~x, Y: ~y)?: oneOf(x, y)
     XIsTrue := bool(X)
     YIsTrue := bool(Y)
     if XIsTrue
-        return if YIsTrue ${Null} else ${X}
+        return if YIsTrue $(Null) else $(X)
     elif YIsTrue
         return Y
     else
@@ -1141,20 +1140,20 @@ v() := int(600)
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
-    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${\\math atan(X, Y)}")
+    print("X = $(X), Y = $(Y), atan(Y, X) = $(\\math atan(X, Y))")
     # Note this could also be defined more concisely using $$,
     # which also prints the expression inside the parentheses with an equal sign and its value,
     # although this will print `\\math atan(X, Y) = ...`, e.g.:
-    # print("$${X}, $${Y}, $${\\math atan(X, Y)}")
+    # print("$$(X), $$(Y), $$(\\math atan(X, Y))")
 
 # Note that it is also ok to use parentheses around a function definition,
 # but you should use the block parentheses notation `$(`.
-excite(Times: int): str ${
+excite(Times: int): str $(
     return "hi!" * Times
-}
+)
 
 # You can also define functions inline with the `$(` ... `)` block operator.
-oh(Really; dbl): dbl ${ Really *= 2.5, return 50 + Really }
+oh(Really; dbl): dbl $( Really *= 2.5, return 50 + Really )
 ```
 
 ## calling a function
@@ -1325,7 +1324,7 @@ q(():
     return X
 )
 # equivalent to `q(() := X)`
-# also equivalent to `q((): ${X})`
+# also equivalent to `q((): $(X))`
 ```
 
 ### types as arguments
@@ -1360,9 +1359,9 @@ where we also return a type constructor.
 ```
 # the return type could also be `oneOf(new~x, new~y)`, but this is more idiomatic:
 doSomething(new~x, namedNew: new~y): new~oneOf(x, y)
-    return if random(dbl) < 0.5 ${x} else ${y}
+    return if random(dbl) < 0.5 $(x) else $(y)
     # you can also use `new~x` and `namedNew` if desired:
-    # return if random(dbl) < 0.5 ${new~x} else ${namedNew}
+    # return if random(dbl) < 0.5 $(new~x) else $(namedNew)
 
 print(doSomething(int, namedNew: dbl))  # will print `int` or `dbl` with 50-50 probability
 ```
@@ -1376,10 +1375,10 @@ argument modifiers (i.e., `;` and `:` are different overloads, as are nullable t
 
 ```
 greetings(String): null
-    print("Hello, ${String}!")
+    print("Hello, $(String)!")
 
 greetings(Say: string, To: string): null
-    print("${Say}, ${To}!")
+    print("$(Say), $(To)!")
 
 greetings(Say: string, To: string, Times: int): null
     for Count: int < Times
@@ -1393,7 +1392,7 @@ greetings(Times: 5, Say: "Hey", To: "Sam")
 # note this is a different overload, since it must be called with `Say;`
 greetings(Say; string): null
     Say += " wow"
-    print("${Say}, world...")
+    print("$(Say), world...")
 
 MySay ;= "hello"
 greetings(Say; MySay)   # prints "hello wow, world..."
@@ -1488,7 +1487,7 @@ someFunction(Y: int): dbl
 
 # nullable argument (case 3):
 someFunction(Y?: int): dbl
-    return if Y != Null ${1.77} else ${Y + 2.71}
+    return if Y != Null $(1.77) else $(Y + 2.71)
 
 # default argument (case 4):
 someFunction(Y := 3): dbl
@@ -1507,7 +1506,7 @@ we define present and missing argument overloads in the following way:
 overloaded(): dbl
     return 123.4
 overloaded(Y: int): string
-    return "hi ${Y}"
+    return "hi $(Y)"
 ```
 
 The behavior that we get when we call `overloaded` will depend on whether we
@@ -1561,7 +1560,7 @@ where we actually don't want to call an overload of the function if the argument
 ```
 # in other languages, you might check for null before calling a function on a value.
 # this is also valid hm-lang but it's not idiomatic:
-X ?:= if Y != Null ${overloaded(Y)} else ${Null}
+X ?:= if Y != Null $(overloaded(Y)) else $(Null)
 
 # instead, you should use the more idiomatic hm-lang version.
 # putting a ? *before* the argument name will check that argument;
@@ -1816,7 +1815,7 @@ myClass~t := {
     # maybe something like this?
     ;;take(X;: t):
         This X = @mootOrCopy(X)
-        # `@mootOrCopy(Z)` can expand to `@if @readonly(Z) ${Z} @else ${Z!}`
+        # `@mootOrCopy(Z)` can expand to `@if @readonly(Z) $(Z) @else $(Z!)`
         # or maybe we can do something like `This X = X!:`
 }
 ```
@@ -1828,8 +1827,8 @@ myClass~t := {
     X; t
 
     # these are added automatically by the compiler since `X; t` is defined.
-    ;;x(T; t): ${ This X<->T }
-    ;;x(T: t): ${ This X = T }
+    ;;x(T; t): $( This X<->T )
+    ;;x(T: t): $( This X = T )
 
     # so `take` would become:
     ;:take(X;: t):
@@ -1917,7 +1916,7 @@ Animals ;= {"hello": cat(), "world": snake(Name: "Woodsy")}
 doSomething(Animal): string
     Result ;= Animal Name
     Animals_"world" = cat()     # overwrites snake with cat
-    Result += " ${Animal speak()}"
+    Result += " $(Animal speak())"
     return Result
 
 print(doSomething(Animals_"world")) # returns "Woodsy hisss!" (snake name + cat speak)
@@ -1930,11 +1929,11 @@ but these are edge cases that might pop up in a complex code base.
 ```
 MyInt ;= 123
 notActuallyConstant(Int): null
-    print("Int before ${Int}")
+    print("Int before $(Int)")
     MyInt += Int
-    print("Int middle ${Int}")
+    print("Int middle $(Int)")
     MyInt += Int
-    print("Int after ${Int}")
+    print("Int after $(Int)")
     # Int += 5  # this would be a compiler error since `Int` is readonly from this scope.
 
 notActuallyConstant(MyInt) # prints "Int before 123", then "Int middle 246", then "Int after 492"
@@ -2227,7 +2226,7 @@ To declare a reassignable function, use `;` after the arguments.
 
 ```
 greetings(Noun: string); null
-    print("Hello, ${Noun}!")
+    print("Hello, $(Noun)!")
 
 # you can use the function:
 greetings(Noun: "World")
@@ -2344,7 +2343,7 @@ I prefer the efficiency of `logger(T: ~t): t`, though.
 
 ```
 logger(T: ~t): t
-    print("got ${T}")
+    print("got $(T)")
     return T
 
 vector3 := (X: dbl, Y: dbl, Z: dbl)
@@ -2886,7 +2885,7 @@ animal := {
     # this method is defined, so it's implemented by the base class.
     # derived classes can still change it, though.
     ::escape(): null
-        print("${This Name} ${This goes()} away!!")
+        print("$(This Name) $(This goes()) away!!")
 
     # a method that returns an instance of whatever the class instance
     # type is known to be.  e.g., an animal returns an animal instance,
@@ -2938,7 +2937,7 @@ Cat escape()    # prints "CAT ESCAPES DARINGLY!"
 We have some functionality to make it easy to pass `renew` arguments to
 a parent class via `@passTo(parentClassName)` in the constructor.
 This way you don't need to add the boiler plate logic inside the
-constructor like this `;;renew(ParentArgument): ${ parent;;renew(ParentArgument) }`,
+constructor like this `;;renew(ParentArgument): $( parent;;renew(ParentArgument) )`,
 you can make it simpler like this instead:
 
 ```
@@ -2975,7 +2974,7 @@ WeirdAnimal := animal(
     ::escape(): null
         # to call the parent method `escape()` in here, we can use this:
         animal::escape()
-        print("${This Name} ${This goes()} back...")
+        print("$(This Name) $(This goes()) back...")
         # or we can use this:
         animal escape(This)
 )
@@ -3160,7 +3159,7 @@ singletons use `UpperCamelCase` since they are defining the variable and what it
 AwesomeService := singleton(parentClass1, parentClass2, #[etc.]#) {
     UrlBase := "http://my/website/address.bazinga"
     ::get(Id: string): awesomeData 
-        Json := Http get("${This UrlBase}/awesome/${Id}") 
+        Json := Http get("$(This UrlBase)/awesome/$(Id)") 
         return awesomeData(Json)
 }
 ```
@@ -3333,7 +3332,7 @@ Tests are written as indented blocks with a `@test` annotation.
 ```
 @private
 privateFunction(X: int, Y: int): {Z: str}
-    return "${X}:${Y}"
+    return "$(X):$(Y)"
 
 @protected
 protectedFunction(X: int, Y: int): {Z: str}
@@ -3389,8 +3388,8 @@ TODO: make it possible to mock out file system access in unit tests.
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
 e.g., `map.hm` has a `map error` type which can be caught using `catch error` or `catch map error`.
-Use `throw errorType("message ${HelpfulVariableToDebug}")` to throw a specific error, or 
-`throw "message ${HelpfulVariableToDebug}"` to automatically use the correct error subclass for
+Use `throw errorType("message $(HelpfulVariableToDebug)")` to throw a specific error, or 
+`throw "message $(HelpfulVariableToDebug)"` to automatically use the correct error subclass for
 whatever context you're in.  Note that you're not able to throw a module-specific error
 from another module (e.g., you can't throw `map error` from the `array.hm` module), but you can
 *catch* module-specific errors from another module (e.g., `catch map error` from the `array.hm`
@@ -3616,7 +3615,7 @@ array~t := extend(container~(key: index, value: t)) {
     ::_(Index, fn(T): ~u): u
 
     # Note: You can use the `;:` const template for function arguments.
-    # e.g., `myArray~t := extend(array~t) ${ ;:_(Index, fn(T;:): ~u) := array_(This;:, Index, fn) }`
+    # e.g., `myArray~t := extend(array~t) $( ;:_(Index, fn(T;:): ~u) := array_(This;:, Index, fn) )`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`T?;`) is null, but you switch to
@@ -3655,7 +3654,7 @@ resizable array if the argument is mutable.  Some examples:
 Int4: int_4 = [-1, 5, 200, 3450]
 # mutable array of fixed-count 3:
 Vector3; dbl_3 = [1.5, 2.4, 3.1]
-print("Vector3 is {${Vector3_0}, ${Vector3_1}, ${Vector3_2}}")
+print("Vector3 is {$(Vector3_0), $(Vector3_1), $(Vector3_2)}")
 
 # a function with a mutable argument:
 doSomething(CopiedArray; dbl_): dbl_2
@@ -3990,6 +3989,9 @@ set~t := extend(container~(key: t, value: presence)) {
 
     # Returns `Present` iff T was in the set, otherwise Null.
     # `Set[X] = Present` and `Set[Y] = Null` could work.
+    # TODO: this might add `X` to the set only to remove it:
+    #       `Set[X] = if Condition $(Present) else {Null}`
+    #       probably should prefer `if Condition $(Set[X]) else $(Set[X]!)
     ;;[T]?: presence
 
     # Adds `T` to the set if it's not already there, and returns `Present`.
@@ -4384,9 +4386,9 @@ for Value: int < 10
 # for-loop whose counter can be modified inside the block.
 # not recommended, since it's a bit harder to reason about.
 for Special; int < 4
-    print("A:${Special}")
+    print("A:$(Special)")
     ++Special
-    print("B:${Special}")
+    print("B:$(Special)")
     ++Special
 # prints "A:0", "B:1", "A:3", "B:4"     # notice skip from B:1 to A:3 as `Special`
 # increments on its own because of the for-loop iteration logic.  Note also the
@@ -4501,9 +4503,9 @@ if Test isFalse()
     print("test is false!")
 
 # get the count (number of enumerated values) of the enum:
-print("bool has ${bool count()} possibilities:")
+print("bool has $(bool count()) possibilities:")
 # get the lowest and highest values of the enum:
-print("starting at ${bool min()} and going to ${bool max()}")
+print("starting at $(bool min()) and going to $(bool max())")
 ```
 
 Because of this, it is a bit confusing to create an enum that has `Count` as an
@@ -4521,8 +4523,8 @@ sign := oneOf(
     Positive: 1
 )
 
-print("sign has ${sign count()} values")   # 3
-print("starting at ${sign min()} and going to ${sign max()}")     # -1 and 1
+print("sign has $(sign count()) values")   # 3
+print("starting at $(sign min()) and going to $(sign max())")     # -1 and 1
 
 weird := oneOf(
     X: 1
@@ -4553,7 +4555,7 @@ option := oneOf(
     NowYouWillBeSadForever
 )
 
-print("number of options should be 7:  ${option count()}")
+print("number of options should be 7:  $(option count())")
 
 Option1 := option ContentWithLife
 
