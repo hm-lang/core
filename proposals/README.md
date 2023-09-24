@@ -8,57 +8,74 @@
 * use `a: new~y` to declare `a` as a constructor that builds instances of type `y`
 * `[]` are for containers
     * `Container[key]: value` for the general feel of declaring a container instance
-    * `Map[key]: value` to declare a map
-    * `Set[element]:` to declare a set with `element` type instances as elements
-    * `Array[]: element` to declare an array with `element` type instances as elements
+    * `Map[key]: value` to declare a map, or `Map: value[key]`
+    * `Set[element]:` or `Set: [element]` to declare a set with `element` type instances as elements
+    * `Array[]: element` or `Array: element[]` to declare an array with `element` type instances as elements
 * `{}` for objects/types
+    * `{X: dbl, Y: dbl}` to declare a class with two double-precision fields, `X` and `Y`
+    * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
 * `()` for organization and function calls
+    * `(W: str = "hello", X: dbl, Y: dbl)` to declare an argument object, `W` is an optional field
+    * `(X: 1.2, Y: 3.4, W: "hi")` to instantiate an argument object
+    * `(Greeting: str, Times: int) = destructureMe()` to do destructuring of a return value
+      TODO search for `} =` to fix
+* all arguments are specified by name, although you can have default-named arguments
+  for the given type which will grab an argument with that type (e.g., `Int` for an `int` type).
+    * `(X: dbl, Int)` can be called with `(1234, X: 5.67)` or even `(Y, X: 5.67)` if `Y` is an `int`
+* variables that are already named after the correct argument can be used without `:`
+    * `(X: dbl, Y: int)` can be called with `(X, Y)` if `X` and `Y` are already defined in the scope
+
+TODO: automatic casting to the argument type will break "pass by reference" logic.
+maybe we return to MMR but use `X; 1` for the notation here.  if done locally, we
+pass by reference to avoid two moves.  alternatively, we could cast into the value
+and then cast back at the end of the function call.
+TODO: maybe we have `as(x)` for reference and `to(x)` for temporaries.
 
 ```
 # declaring a variable:
 ReadonlyVar: int
 MutableVar; int
-```
 
-```
 # declaring + defining a variable:
 ReadonlyVar := 123
 MutableVar ;= 321
+```
 
+```
 # declaring a readonly array
-# TODO: would `MyArray: []: elementType` be equivalent?
-MyArray[]: elementType
+MyArray[]: elementType      # also ok: `MyArray: elementType[]`
 
 # defining a mutable array:
-ArrayVar[] ;= [1, 2, 3, 4]
-# also ok to be explicit: `ArrayVar[]; int = [1, 2, 3, 4]`
-# TODO: can we just do `ArrayVar ;= [](1, 2, 3, 4)` or `ArrayVar ;= [1, 2, 3, 4]`?
+ArrayVar ;= [1, 2, 3, 4]    # also ok: `ArrayVar[]; int = [...]`
+                            # also ok: `ArrayVar; int[] = [...]`
 ArrayVar[5] = 5     # ArrayVar == [1, 2, 3, 4, 0, 5]
 ++ArrayVar[6]       # ArrayVar == [1, 2, 3, 4, 0, 5, 1]
 ArrayVar[0] += 100  # ArrayVar == [101, 2, 3, 4, 0, 5, 1]
 ArrayVar[1]!        # returns 2, zeroes out ArrayVar[1]
+```
 
+```
 # declaring a readonly map
-# TODO: would `MyMap: [keyType]: valueType` be equivalent?
-MyMap[keyType]: valueType
+MyMap[keyType]: valueType   # also ok: `MyMap: valueType[keyType]`
 
 # defining a mutable map:
 VotesMap[str]; int = ["Cake": 5, "Donuts": 10, "Cupcakes": 3]
-# TODO: can we just do `VotesMap ;= ["Cake": 5, ...]`?
+# We can also infer types implicitly via `VotesMap ;= ["Cake": 5, ...]`?
 VotesMap["Cake"]        # 5
 ++VotesMap["Donuts"]    # 11
 ++VotesMap["Ice Cream"] # inserts "Ice Cream" with default value, then increments
 VotesMap["Cupcakes"]!   # deletes from the map
 VotesMap::["Cupcakes"]  # Null
 # now VotesMap == ["Cake": 5, "Donuts": 11, "Ice Cream": 1]
+```
 
+```
 # declaring a readonly set
-# TODO: would `MySet: [keyType]` be equivalent?
-MySet[elementType]:
+MySet[elementType]:     # also ok: `MySet: [elementType]`
 
 # defining a mutable set:
 SomeSet[str] ;= ["friends", "family", "fatigue"]
-# TODO: can we just do `SomeSet ;= [str]["friends", ...]`?
+# Also ok: we can do `SomeSet ;= [str]("friends", ...)`
 SomeSet::["friends"]    # `Present` (truthy)
 SomeSet::["enemies"]    # Null (falsy)
 SomeSet["fatigue"]!     # removes "fatigue", returns `Present` since it was present.
@@ -99,10 +116,10 @@ doSomething(With: Mean, X; MutatedX, Y; MutatedY)
 
 ```
 # declaring a function that returns other values:
-doSomething(X: int, Y: int): (W: int, Z: int)
+doSomething(X: int, Y: int): {W: int, Z: int}
 
 # defining a function that returns other values
-doSomething(X: int, Y: int): (W: int, Z: int)
+doSomething(X: int, Y: int): {W: int, Z: int}
     # option A:
     Z = \\math atan(X, Y)
     W = 123
@@ -112,10 +129,10 @@ doSomething(X: int, Y: int): (W: int, Z: int)
 
 ```
 # declaring a simple class
-vector3 := (X: dbl, Y: dbl, Z: dbl)
+vector3 := {X: dbl, Y: dbl, Z: dbl}
 
 # declaring a "complicated" class
-myClass := (
+myClass := {
     # methods which mutate the class use a `;;` prefix
     ;;renew(This X: int) := Null
 
@@ -123,7 +140,7 @@ myClass := (
     ::doSomething(Y: int): int
         return This X * Y
     # inline: `::doSomething(Y: int) := int(This X * Y)`
-)
+}
 ```
 
 ```
@@ -498,6 +515,8 @@ The reason we need a `new` in between `is()` and the constructor arguments
 for `X is() new(1234)` is that otherwise we grammatically don't know whether
 we're doing an implicit subscript or a function call.  We could use the
 default function name `fn` but `new` is more clear.
+TODO: we probably can distinguish now that we use `[]` for subscript.
+but `X is()(1234)` doesn't look quite right.
 
 Some more examples:
 
@@ -548,16 +567,12 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           | `\\x/y/z` | library module import     | special: `\\a/b`  |               |
 |           | `\/x/y/z` | relative module import    | special: `\/a/b`  |               |
 |   1       |  ` ()`    | function call             | on fn: `a(B)`     | LTR           |
-|           |  ` []`    | function call             | on fn: `a[B]`     |               |
-|           |  ` {}`    | function call             | on fn: `a{B}`     |               |
 |   2       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `->`    | new namespace             | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
-|           |   ` ()`   | parenthetical subscript   | binary: `A(B)`    |               |
 |           |   ` []`   | parenthetical subscript   | binary: `A[B]`    |               |
-|           |   ` {}`   | parenthetical subscript   | binary: `A{B}`    |               |
 |           |   `!`     | postfix moot = move+renew | unary:  `A!`      |               |
 |   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
@@ -995,48 +1010,48 @@ You can declare an object type inline with nested fields.  The nested fields def
 with `:` are readonly, and `;` are mutable.
 
 ```
-Vector; (X: dbl, Y: dbl, Z: dbl) = (X: 4, Y: 3, Z: 1.5)
+Vector; {X: dbl, Y: dbl, Z: dbl} = {X: 4, Y: 3, Z: 1.5}
 Vector X += 4   # COMPILER ERROR, field `X` of object is readonly 
 
 # note however, as defined, Vector is reassignable since it was defined with `;`:
-Vector = (X: 1, Y: 7.2)
+Vector = {X: 1, Y: 7.2}
 # note, missing fields will be default-initialized.
 Vector Z == 0   # should be True.
 
 # to make an object variable readonly, use := when defining:
-Vector2 := (X: 3.75, Y: 3.25)
+Vector2 := {X: 3.75, Y: 3.25}
 # or you can use `:` with an explicit type specifier and then `=`:
-Vector2: (X: dbl, Y: dbl) = (X: 3.75, Y: 3.25)
+Vector2: {X: dbl, Y: dbl} = {X: 3.75, Y: 3.25}
 # then these operations are invalid:
 Vector2 X += 3          # COMPILER ERROR, variable is readonly, field cannot be modified
-Vector2 = (X: 1, Y: 2)  # COMPILER ERROR, variable is readonly, cannot be reassigned
+Vector2 = {X: 1, Y: 2}  # COMPILER ERROR, variable is readonly, cannot be reassigned
 ```
 
 You can define a type/interface for objects you use multiple times.
 
 ```
 # a plain-old-data class with 3 non-reassignable fields, X, Y, Z:
-vector3 := (X: dbl, Y: dbl, Z: dbl)
+vector3 := {X: dbl, Y: dbl, Z: dbl}
 
-# you can use `vector2` now like any other type, e.g.:
+# you can use `vector3` now like any other type, e.g.:
 Vector3 := vector3(X: 5, Y: 10)
 ```
 
-We also allow type definitions with mutable fields, e.g. `(X; int, Y; dbl)`.
+We also allow type definitions with mutable fields, e.g. `{X; int, Y; dbl}`.
 Depending on how the variable is defined, however, you may not be able to change
 the fields once they are set.  If you define the variable with `;`, then you
-can reassign the variable or modify the mutable fields.  But if you define the
-variable with `:`, the object is deeply constant, regardless of the field definitions.
+can reassign the variable and thus modify the mutable fields.  But if you define the
+variable with `:`, the object fields are readonly, regardless of the field definitions.
 Readonly fields on an object are normally deeply constant, unless the instance is
 mutable and is reset (either via `renew` or reassignment).  This allows you to
 effectively change any internal readonly fields, but only in the constructor.
 
 ```
 # mixMatch has one mutable field and one readonly field:
-mixMatch := (Mut; dbl, Imm: dbl)
+mixMatch := {Mut; dbl, Imm: dbl}
 
 # when defined with `;`, the object is mutable and reassignable.
-MutableMix; mixMatch = (Mut: 3, Imm: 4)
+MutableMix; mixMatch = {Mut: 3, Imm: 4}
 MutableMix = mixMatch(Mut: 6, Imm: 3)       # OK, MutableMix is mutable and thus reassignable
 MutableMix renew(Mut: 100, Imm: 300)        # OK, will update `Imm` to 300
 MutableMix Mut += 4                         # OK, MutableMix is mutable and this field is mutable
@@ -1045,7 +1060,7 @@ MutableMix Imm -= 1                         # COMPILE ERROR, MutableMix is mutab
                                             # the variable completely or call `renew`.
 
 # when defined with `:`, the object is readonly, so its fields cannot be changed:
-ImmutableMix: mixMatch = (Mut: 5, Imm: 3)
+ImmutableMix: mixMatch = {Mut: 5, Imm: 3}
 ImmutableMix = mixMatch(Mut: 6, Imm: 4) # COMPILE ERROR, ImmutableMix is readonly, thus non-reassignable
 ImmutableMix renew(Mut: 7, Imm: 5)      # COMPILE ERROR, ImmutableMix is readonly, thus non-renewable
 ImmutableMix Mut += 4                   # COMPILE ERROR, ImmutableMix is readonly
@@ -1071,7 +1086,7 @@ afterwards by other methods... except for the constructor if it's called again (
 ### automatic deep nesting
 
 We can create deeply nested objects by adding valid identifiers with consecutive `:`.  E.g.,
-`(X: Y: 3)` is the same as `{X: {Y: 3}}`.
+`(X: Y: 3)` is the same as `(X: {Y: 3})`.
 
 TODO: this might make overloads more complicated; how do we choose the overload if we are calling
 with e.g., `{X: {Y: 3}}` vs. `{X: {Y: 3, Z: 4}}`.
@@ -1579,7 +1594,7 @@ This can also be used with the `return` function to only return if the value is 
 doSomething(X?: int): int
     Y ?:= ?X * 3    # Y is Null or X*3 if X is not Null.
     return ?Y       # only returns if Y is not Null
-    #[ do some other stuff ]#
+    #( do some other stuff )#
     ...
     return 3
 ```
@@ -1612,7 +1627,6 @@ myOverload(Y: str): {X?: int}
     catch int error
         return {}
 
-
 X := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
 X ?:= myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
 ```
@@ -1643,6 +1657,11 @@ When matching outputs, the fields count as additional arguments, which must
 be matched.  If you want to call an overload with multiple output arguments,
 but you don't need one of the outputs, you can use the `@hide` annotation to
 ensure it's not used afterwards.  E.g., `{@hide X:, Y: str} = myOverload()`.
+
+TODO: discussion for matching null return values and non-null return values>
+`{Y:} = checkThis()` where `checkThis(): {Y: int, X?: str}`.  do we throw
+if `X` is not null??  probably can just ignore it since destructuring is for
+grabbing only the values you want.
 
 We also allow calling functions with any dynamically generated arguments, so that means
 being able to resolve the overload at run-time.
@@ -1900,8 +1919,8 @@ variable reference is mutated.  or maybe `mutated` or `done`.  for debugging, it
 to have both an `open()` and `close()` or `preMutate()` and `postMutate()`.  this should
 be done carefully internally since in the situation of the array element that gets deleted
 and then another array element gets modified, we should call these methods multiple times
-(e.g., `preMutate(index(3), Array_3 #[3]#)`, `postMutate(index(3), Null)`,
-`preMutate(index(3), Array_3 #[4]#)`, `postMutate(index(3), Array_3 #[40]#)`).
+(e.g., `preMutate(index(3), Array_3 #(3)#)`, `postMutate(index(3), Null)`,
+`preMutate(index(3), Array_3 #(4)#)`, `postMutate(index(3), Array_3 #(40)#)`).
 
 Here is an example with a map.  Note that the argument is readonly, but that doesn't mean
 the argument doesn't change, especially when we're doing self-referential logic like this.
@@ -2346,7 +2365,7 @@ logger(T: ~t): t
     print("got $(T)")
     return T
 
-vector3 := (X: dbl, Y: dbl, Z: dbl)
+vector3 := {X: dbl, Y: dbl, Z: dbl}
 Vector3 := vector3(Y: 5)
 Result := logger(Vector3)   # prints "got vector3(X: 0, Y: 5, Z: 0)".
 Vector3 == Result           # equals True
@@ -2760,12 +2779,12 @@ justCopyable := {
     ::someVar(): int
         return 1000
 
-    #{#
+    #(#
     # the following becomes automatically defined:
     ::someVar(fn(Int): ~t): t
         SomeVar := This someVar()
         return fn(SomeVar)
-    #}#
+    #)#
 }
 
 # a class with a getter method gets a copy method automatically:
@@ -2775,11 +2794,11 @@ justGettable := {
 
     ::someVar(fn(Int): ~t) := fn(This SomeVar)
 
-    #{#
+    #(#
     # the following becomes automatically defined:
     ::someVar(): int
         return This someVar(fn(Int) := Int)
-    #}#
+    #)#
 }
 
 # a class with a swapper method gets a modifier and move+reset method automatically:
@@ -3084,7 +3103,7 @@ genericClass~(key, value) := {
     ;;renew(This Key: key, This Value: value): null
 }
 # also equivalent:
-# genericClass := (This Key: ~key, This Value: ~value)
+# genericClass := {Key: ~key, Value: ~value}
 
 # creating an instance using type inference:
 ClassInstance := genericClass(Key: 5, Value: "hello")
@@ -3156,7 +3175,7 @@ arguments inside of `singleton` are the parent classes that the singleton extend
 singletons use `UpperCamelCase` since they are defining the variable and what it does:
 
 ```
-AwesomeService := singleton(parentClass1, parentClass2, #[etc.]#) {
+AwesomeService := singleton(parentClass1, parentClass2, #(etc.)#) {
     UrlBase := "http://my/website/address.bazinga"
     ::get(Id: string): awesomeData 
         Json := Http get("$(This UrlBase)/awesome/$(Id)") 
@@ -3504,14 +3523,10 @@ Or figure out a way to not distinguish between optional and nullable (e.g., allo
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
-define an array explicitly using the notation `array~elementType`
-for the type `elementType`, or implicitly with the subscript operator, `_`
-(AKA "key" or "indexing" operator), using the notation `elementType_`.
-E.g. `MyArray: int_` or `MyArray: array~int` for a readonly integer array.
-The mutable versions of course use `;` instead of `:`.  We can also
-define an array via `value[]` instead of `value_` for type `value`.
-TODO: we should probably switch from `value[]` to `[]: value` to be
-consistent with the way we define functions, e.g., `Array[]: value`
+define an array explicitly using the notation `Array: array~elementType`
+for the type `elementType` or via `Array[]: elementType` or `Array: elementType[]`.
+E.g. `MyArray: int[]` or `MyArray: array~int` for a readonly integer array.
+The mutable versions of course use `;` instead of `:`.
 
 Side note: as we will see, the subscript operator is usually a binary operator, i.e.,
 requiring two operands, `A _ B`, read "A subscript B".  We make an exception for the
@@ -3525,29 +3540,21 @@ it is always `Array`.  Example usage and declarations:
 
 ```
 # this is a readonly array:
-MyArray: dbl_ = [1.2, 3, 4.5]       # converts all to dbl
+MyArray[]: dbl = [1.2, 3, 4.5]      # converts all to dbl
 MyArray append(5)   # COMPILE ERROR: MyArray is readonly
 MyArray_1 += 5      # COMPILE ERROR: MyArray is readonly
 
 # mutable integer array:
-Array; int_    # declaring a mutable, default-named integer array
+Array; int[]        # declaring a mutable, default-named integer array
 Array append(5)     # now Array == [5]
 Array_3 += 30       # now Array == [5, 0, 0, 30]
 Array_4 = 300       # now Array == [5, 0, 0, 30, 300]
 Array_2 -= 5        # now Array == [5, 0, -5, 30, 300]
 
 # mutable string array:
-StringArray; string_ = ["hi", "there"]
+StringArray[]; string = ["hi", "there"]
 print(StringArray pop())    # prints "there".  now StringArray == ["hi"]
 ```
-
-TODO: `StringArray = ("hi")` probably doesn't work from a grammar perspective.
-well, it might be ok as long as we're ok with assigning `StringArray = "hi"` to set
-`StringArray` equal to a one element array (with "hi").
-we should probably require arrays as `[]`.  arguments can be standard parentheses,
-`(X: 1, Y)`.  objects can be `{}`.  it would be nice to have distinct notation
-for maps and sets as well.  maybe arguments, maps, and objects should be `()`,
-and sets should be `{}`?
 
 The default implementation of `array` might be internally a contiguous deque,
 so that we can pop or insert into the beginning at O(1).  We might reserve
@@ -3615,7 +3622,7 @@ array~t := extend(container~(key: index, value: t)) {
     ::_(Index, fn(T): ~u): u
 
     # Note: You can use the `;:` const template for function arguments.
-    # e.g., `myArray~t := extend(array~t) $( ;:_(Index, fn(T;:): ~u) := array_(This;:, Index, fn) )`
+    # e.g., `myArray~t := extend(array~t) { ;:_(Index, fn(T;:): ~u) := array_(This;:, Index, fn) }`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`T?;`) is null, but you switch to
@@ -3716,14 +3723,14 @@ fixedCountArray~t := extend(array~t) {
 A map can look up, insert, and delete elements by key quickly (ideally amortized
 at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a map, e.g.,
 `VariableName: map~(key: keyType, value: valueType)`, or you can use an implicit method
-with brackets, `VariableName[keyType]: valueType`.  For example,
-for a map from integers to strings, you can use: `MyMap[int]: string`.
+with brackets, `VariableName[keyType]: valueType` or `VariableName: valueType[keyType]`.
+For example, for a map from integers to strings, you can use: `MyMap[int]: string`.
 The default name for a map variable is `Map`, regardless of key or value type.
 Note that while an array can be thought of as a map from the `index` type to
-whatever the array element type is, `[index]: elementType` indicates a map type,
-not an array type.  The array type, `[]: elementType` would be useful for densely
+whatever the array element type is, `elementType[index]` indicates a map type,
+not an array type.  The array type, `elementType[]` would be useful for densely
 packed data (i.e., instances of `elementType` for most indices), while the map
-type `[index]: elementType` would be useful for sparse data.
+type `elementType[index]` would be useful for sparse data.
 
 To define a map (and its contents) inline, use this notation:
 
@@ -3731,7 +3738,7 @@ To define a map (and its contents) inline, use this notation:
 Jim1 := "Jim C"
 Jim2 := "Jim D"
 # map from string to ints:
-EmployeeIds: int_string = [
+EmployeeIds: int[str] = [
     # option 1.A: `X: Y` syntax
     "Jane": 123
     # option 1.B: `{Key: X, Value: Y}` syntax
@@ -3759,26 +3766,6 @@ EmployeeIds: int_string = [
 
 To define a map quickly (i.e., without a type annotation), use the notation
 `["Jane": 123, "Jim": 456]`.
-
-TODO: 
-If we switch to `()` being arguments, and `[]` being arrays, `{}` for maps and sets, ...
-maybe `()` for arguments and organization, and `{}` for code execution.
-```
-vector3 := (X: dbl, Y: dbl)
-vector4 := (
-    X: dbl
-    Y: dbl
-    Z: dbl
-    T: dbl
-)
-# code execution in strings:  usually ${} but $() might make more sense (mathematical grouping)
-# function arguments:         usually ()
-# mathematical grouping:      usually ()
-# objects/class definitions:  whatever, might make sense as similar to function arguments or maps
-# arrays:                     usually []
-# maps:                       usually {}, but might make more sense as []
-# sets:                       usually {}
-```
 
 Maps require a key type whose instances can hash to an integer or string-like value.
 E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array~dbl`).
@@ -3894,12 +3881,12 @@ like `unorderedMap`.
 
 ```
 @private
-indexedMapElement~(key, value) := (
+indexedMapElement~(key, value) := {
     NextIndex; index
     PreviousIndex; index
     Key: key
     Value; value
-)
+}
 
 insertionOrderedMap~(key, value) := extend(map) {
     @private 
@@ -3977,7 +3964,7 @@ insertionOrderedMap~(key, value) := extend(map) {
 A set contains some elements, and makes checking for the existence of an element within
 fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certain properties
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set~elementType`
-to be explicit or `VariableName[elementType]:`.
+to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [elementType]`.
 The default-named variable name for a set of any type is `Set`.
 
 ```
@@ -4476,6 +4463,7 @@ For example:
 
 ```
 # TODO: should definitions be `False := 0` and `True := 1` ?
+# TODO: what happens if a variable is already defined (e.g., `oneOf(MyExistingInstanceName, ...)`)?
 # Enums use a similar syntax as maps when being defined,
 # except that the left-hand side must be an UpperCamelCase identifier:
 # TODO: probably `bool` can fit in a `u1`, which we could specify in a struct.
@@ -4598,12 +4586,12 @@ tree := oneOf(
     # but we're really defining `leaf` as the type `(Value; int)`.
     # we probably can distinguish based on `leaf` being lowerCamelCase (means type)
     # and `Leaf` would be the instance of the type.  if so, do we even need
-    # to define classes like `class := (...)` or can we just do `class: (...)`?
-    leaf: (Value; int)
-    branch: (
+    # to define classes like `class := {...}` or can we just do `class: {...}`?
+    leaf: {Value; int}
+    branch: {
         Left; tree
         Right; tree
-    )
+    }
 )
 ```
 
