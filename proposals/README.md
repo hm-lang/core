@@ -2,9 +2,14 @@
 
 * `x` (function/type-like)
 * `X` (instance-like)
+* use `:` for readonly declarations, `;` for mutable declarations
 * `A: x` declare `A` as an instance of type `x`
 * `fn(): x` declare `fn` as returning an instance of type `x`
 * `a: new~y` declare `a` as a constructor that builds instances of type `y`
+* `Container[key]: value` for the general feel of declaring a container instance
+* `Map[key]: value` to declare a map
+* `Set[element]:` to declare a set with `element` type instances as elements
+* `Array[]: element` to declare an array with `element` type instances as elements
 
 ```
 # declaring a variable:
@@ -17,7 +22,11 @@ MutableVar; int
 ReadonlyVar := 123
 MutableVar ;= 321
 
-# declaring a mutable array:
+# declaring a readonly array
+# TODO: would `MyArray: []: elementType` be equivalent?
+MyArray[]: elementType
+
+# defining a mutable array:
 ArrayVar[] ;= [1, 2, 3, 4]
 # also ok to be explicit: `ArrayVar[]; int = [1, 2, 3, 4]`
 # TODO: can we just do `ArrayVar ;= [](1, 2, 3, 4)` or `ArrayVar ;= [1, 2, 3, 4]`?
@@ -26,7 +35,11 @@ ArrayVar[5] = 5     # ArrayVar == [1, 2, 3, 4, 0, 5]
 ArrayVar[0] += 100  # ArrayVar == [101, 2, 3, 4, 0, 5, 1]
 ArrayVar[1]!        # returns 2, zeroes out ArrayVar[1]
 
-# declaring a mutable map:
+# declaring a readonly map
+# TODO: would `MyMap: [keyType]: valueType` be equivalent?
+MyMap[keyType]: valueType
+
+# defining a mutable map:
 VotesMap[str]; int = ["Cake": 5, "Donuts": 10, "Cupcakes": 3]
 # TODO: can we just do `VotesMap ;= ["Cake": 5, ...]`?
 VotesMap["Cake"]        # 5
@@ -36,7 +49,11 @@ VotesMap["Cupcakes"]!   # deletes from the map
 VotesMap::["Cupcakes"]  # Null
 # now VotesMap == ["Cake": 5, "Donuts": 11, "Ice Cream": 1]
 
-# declaring a mutable set:
+# declaring a readonly set
+# TODO: would `MySet: [keyType]` be equivalent?
+MySet[elementType]:
+
+# defining a mutable set:
 SomeSet[str] ;= ["friends", "family", "fatigue"]
 # TODO: can we just do `SomeSet ;= [str]["friends", ...]`?
 SomeSet::["friends"]    # `Present` (truthy)
@@ -424,6 +441,8 @@ or you can do `X as(otherType)` which will return `Null` if it's not, or an inst
 `otherType` if it is.  Due to nullable types being handled specially, you need to be
 explicit about assigning this to another variable to indicate that it could be null:
 
+TODO: we can't use `as(type)` because we use `as` for renaming, e.g., `X as Y` <=> `Y: X`.
+Or we need to remove renaming using `as`.  Could use `aka` instead, or `by`.
 ```
 X: dbl = 1.234
 Y ?:= X as(int)     # `Y` is Null here because `X` was not an integer.
@@ -2677,6 +2696,9 @@ even when accessed/modified within the class.  The getters/setters are methods
 named the `lowerCamelCase` version of the `UpperCamelCase` variable,
 with various arguments to determine the desired action.
 
+TODO: we need to rethink this with container classes letting references escape.
+maybe we just `x(Reference)` to define a reference and `x(Getter)` for the getter.
+
 ```
 # for example, this class:
 example := {
@@ -3431,15 +3453,42 @@ implementations for `X := int(...)` and `Y ?:= int(...)`.
 # standard container classes (and helpers)
 
 ```
-container~t := {
-    # TODO: maybe just use `;;+=(T)`
-    ;;add(T): null
+container~(key, value) := {
+    # Returns `Null` if `Key` is not in this container,
+    # otherwise the `value` instance at that `Key`.
+    # NOTE: the value will be readonly since `This` is readonly.
+    # NOTE: this is a reference to the value in the container,
+    # which will be copied unless it's being passed into a
+    # function's arguments.
+    ::[Key]?: value
 
-    # returns true iff the element was present in the container before being removed:
-    ;;remove(T): bool
+    # Returns `Null` if `Key` is not in this container,
+    # otherwise the `value` instance at that `Key`.
+    # In contrast with the `::[Key]?: value` method, this
+    # returns a *mutable* reference to the value.
+    # If in reference form, you can set this to `Null`
+    # to delete the element from the container.
+    ;;[Key]?: value
 
-    ::contains(T): bool
+    # Returns the value at `Key`, if present, while mooting
+    # it in the container.  This may remove the `key` from
+    # the container or may set its keyed value to the default.
+    # (Which depends on the child container implementation.)
+    # Returns Null if not present.
+    ;;[Key]!?: value
 
+    # Gets the existing value at `Key` if present,
+    # otherwise inserts a default value at `Key`,
+    # and returns a mutable reference to it.
+    # WARNING: the container may add more than one default value,
+    # e.g., in the case of asking for an element at an array
+    # index much higher than the current size of the array.
+    ;;[Key]: value
+    
+    @alias ::has(Key) := This[Key] != Null
+    @alias ::contains(Key) := This[Key] != Null
+
+    # Returns the number of elements in this container.
     ::count(): count
 }
 ```
@@ -3507,19 +3556,52 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 
 ```
 # some relevant pieces of the class definition
-# TODO: fix up API based on ideas in intro.
-array~t := extend(container~t) {
-    # swapper, sets the value at the index, returning the old value in the reference.
-    # if the swapped in value is Null but the array value wasn't Null, the array
-    # will shrink by one, and all later indexed values will move down one index.
-    ;;_(Index, T?;): null
-
+array~t := extend(container~(key: index, value: t)) {
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(This): bool
         return This count() > 0
 
-    # moot notation, with or without This:
-    (This;)!: this  # `;;()!: this` also works, notice `!` after the parentheses.
+    # Returns the value in the array if `Index < This count()`, otherwise Null.
+    # TODO: discuss if Index < 0, do we take from end of the array?
+    #       or do we want a new type, e.g., `fromEnd(-1)`
+    This::[Index]?: t
+
+    # TODO: ref type?  or can we assume it's a ref type because it's a container (e.g., `[]`)
+    # Gets the existing value at `Index` if the array count is larger than `Index`,
+    # otherwise increases the size of the array with default values and returns the
+    # one at `Index`.
+    ;;[Index]: t
+
+    # Returns the value at Array[Index] while resetting it to the default value.
+    # The reason we don't eject the element like we do with a map or a set is that
+    # we need to preserve the invariant that `Array[Index]!` followed by `!Array::[Index]`
+    # should be true, and we don't want to depend on the next element in the array for
+    # the follow-up condition, i.e., if we remove the value and pull every later value down.
+    This;;[Index]!: t
+
+    ::count(): count
+
+    ;;append(T): null
+
+    ;;pop(Index: index = -1): t
+
+    # returns a copy of this array, but sorted:
+    ::sort(): this
+
+    # sorts this array in place:
+    # TODO: a nice way to chain, e.g., `Array; int_, ..., X := Array;;sort() chain [0]`
+    # TODO: maybe use `then` instead of `chain`, or some symbols.  `Y := Array;;sort() then [0]`
+    ;;sort(): null
+    ...
+
+    # TODO: do we want to keep swapper/getter functionality when we're deciding
+    #       to pass by reference in function arguments?
+    #       can we avoid doing `fn(): ref~t` for return values and also allow
+    #       references by default in return values?
+    # swapper, sets the value at the index, returning the old value in the reference.
+    # if the swapped in value is Null but the array value wasn't Null, the array
+    # will shrink by one, and all later indexed values will move down one index.
+    ;;_(Index, T?;): null
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the index into the passed-in function by reference (`;`).
@@ -3547,26 +3629,6 @@ array~t := extend(container~t) {
     # non-nullable modifier, which will increase the count of the array (with default values)
     # if you are asking for a value at an index out of bounds of the array.
     ;;_(Index, fn(T;): ~u): u
-
-    # TODO: explain why mooting an index in an array doesn't eject the element but sets it
-    # to a default value, whereas in a map or set it does eject the element completely.
-    # it's to preserve the invariant that `X!` should then make `!X` be true;
-    # we don't want to depend on the next element in the array on whether to eject or not.
-
-    ::count(): count
-
-    ;;append(T): null
-
-    ;;pop(Index: index = -1): t
-
-    # returns a copy of this array, but sorted:
-    ::sort(): this
-
-    # sorts this array in place:
-    # TODO: a nice way to chain, e.g., `Array; int_, ..., X := Array;;sort() chain [0]`
-    # TODO: maybe use `then` instead of `chain`, or some symbols.  `Y := Array;;sort() then [0]`
-    ;;sort(): null
-    ...
 }
 ```
 
@@ -3655,19 +3717,14 @@ fixedCountArray~t := extend(array~t) {
 A map can look up, insert, and delete elements by key quickly (ideally amortized
 at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a map, e.g.,
 `VariableName: map~(key: keyType, value: valueType)`, or you can use an implicit method
-with brackets, `VariableName: valueType[keyType]`, or the subscript operator (`_`),
-`VariableName: valueType_keyType`.  You can read the operator `_` as "keyed by",
-e.g., `valueType_keyType` as "`valueType` keyed by `keyType`".  For example,
-for a map from integers to strings, you can use: `MyMap: string_int`.
+with brackets, `VariableName[keyType]: valueType`.  For example,
+for a map from integers to strings, you can use: `MyMap[int]: string`.
 The default name for a map variable is `Map`, regardless of key or value type.
 Note that while an array can be thought of as a map from the `index` type to
-whatever the array element type is, `elementType_index` indicates a map type,
-not an array type.  The array type, `elementType_` would be useful for densely
+whatever the array element type is, `[index]: elementType` indicates a map type,
+not an array type.  The array type, `[]: elementType` would be useful for densely
 packed data (i.e., instances of `elementType` for most indices), while the map
-type `elementType_index` would be useful for sparse data.
-We can also specify a map via `value[key]` instead of `value_key`.
-TODO: we should probably switch from `value[key]` to `[key]: value` to be
-consistent with the way we define functions, e.g., `Map[key]: value`.
+type `[index]: elementType` would be useful for sparse data.
 
 To define a map (and its contents) inline, use this notation:
 
@@ -3766,8 +3823,29 @@ change places inside the map and/or collide with an existing key.
 Some relevant pieces of the class definition:
 
 ```
-# TODO: fix up API based on ideas in intro.
-map~(key, value) := extend(container~key, container~{Key, Value}, container~value) {
+map~(key, value) := extend(container~{key, value}) {
+    # Returns Null if `Key` is not in the map.
+    This::[Key]?: value
+
+    # Gets the existing value at `Key` if present,
+    # otherwise inserts a default `value` into the map and returns it.
+    This;;[Key]: value
+
+    # Ejects the possibly null value at `This[Key]` and returns it.
+    # A subsequent, immediate call to `This::[Key]` returns Null.
+    This;;[Key]!?: value
+
+    ::count(): count
+
+    # Returns the last element added to the map if the map is
+    # insertion ordered, otherwise returns any convenient element.
+    # The element is removed from the map.
+    # Throws if there is no element available.
+    ;;pop(): {key, value}
+
+    @alias ;;pop(Key) ?:= This;;[Key]!
+
+    # TODO: do we want to keep swapper/getter functionality?
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at key, too.
@@ -3804,10 +3882,6 @@ map~(key, value) := extend(container~key, container~{Key, Value}, container~valu
 
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
     ;:_(Key, fn(Value?;:): ~t): t
-
-    ::count(): count
-
-    ;;pop(Key): value
 }
 ```
 
@@ -3904,39 +3978,40 @@ insertionOrderedMap~(key, value) := extend(map) {
 A set contains some elements, and makes checking for the existence of an element within
 fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certain properties
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set~elementType`
-to be explicit or `VariableName: [elementType]`, or `VariableName: _elementType` using the
-subscript operator `_` on the opposite side of the array type (i.e., the array looks like
-`arrayElementType_` or `arrayElementType[]`).
+to be explicit or `VariableName[elementType]:`.
 The default-named variable name for a set of any type is `Set`.
-TODO: we should probably switch from `: [key]` to `[key]:` to be
-consistent with the way we define functions.  E.g., `Set[key] := [...]`
 
 ```
-presence := oneOf(
-    # TODO: can we use `Null` in this context or should it be `null`?
-    #       if it's too much work, switch to "Absent"
-    Null
-    Present
-)
+presence := oneOf(Present := 1)
 
-# TODO: fix up API based on ideas in intro.
-set~t := extend(container~t) {
-    ::_(T): presence
+set~t := extend(container~(key: t, value: presence)) {
+    # Returns `Present` iff T is in the set, otherwise Null.
+    ::[T]?: presence
+
+    # Returns `Present` iff T was in the set, otherwise Null.
+    # `Set[X] = Present` and `Set[Y] = Null` could work.
+    ;;[T]?: presence
+
+    # Adds `T` to the set if it's not already there, and returns `Present`.
+    ;;[T]: presence
+
+    # Ejects `T` if it was present in the set, returning `Present` if true
+    # and `Null` if not.
+    # A subsequent, immediate call to `This::[T]` returns Null.
+    ;;[T]!?: presence
 
     ::count(): count
 
-    # add an element to the set:
-    ;; += (T;): null
-
     # TODO: generalize with iterator or container:
-    # union this set with another set:
-    ;; += (Set: set~t): null
+    # Unions this set with another set:
+    ;;[Set: set~t]: null
 
-    # remove an element from the set, if present
-    ;; -= (T): null
-
+    # Removes the last element added to the set if this set is
+    # insertion ordered, otherwise returns any convenient element.
+    # Throws if there is no element available.
     ;;pop(): t
 
+    @alias ;;pop(Key) ?:= This;;[Key]!
     ...
 }
 ```
