@@ -1,7 +1,7 @@
 # general syntax
 
-* lower camel case identifiers like `x` are function/type-like
-* upper camel case identifiers like `X` are instance-like
+* `lowerCamelCase` identifiers like `x` are function/type-like
+* `UpperCamelCase` identifiers like `X` are instance-like
 * use `:` for readonly declarations, `;` for mutable declarations
 * use `A: x` to declare `A` as an instance of type `x`
 * use `fn(): x` to declare `fn` as returning an instance of type `x`
@@ -1925,19 +1925,15 @@ Here is an example with a map.  Note that the argument is readonly, but that doe
 the argument doesn't change, especially when we're doing self-referential logic like this.
 
 ```
-# TODO: do we want to use underscores `{_"hello" = cat()}` to indicate a map instead of an object?
-# maybe only if there's an equivalent nice way to do sets, e.g., `{_"hi", _"hey"}`
-# without the extra underscores, it's nicer, so if we can distinguish those grammatically,
-# we should keep the simpler approach.
-Animals ;= {"hello": cat(), "world": snake(Name: "Woodsy")}
+Animals ;= ["hello": cat(), "world": snake(Name: "Woodsy")]
 
 doSomething(Animal): string
     Result ;= Animal Name
-    Animals_"world" = cat()     # overwrites snake with cat
+    Animals["world"] = cat()        # overwrites snake with cat
     Result += " $(Animal speak())"
     return Result
 
-print(doSomething(Animals_"world")) # returns "Woodsy hisss!" (snake name + cat speak)
+print(doSomething(Animals["world"]))    # returns "Woodsy hisss!" (snake name + cat speak)
 ```
 
 Here is an example without a container, which is still surprising, because
@@ -2092,19 +2088,17 @@ call can do just about anything (including fetching data from a remote server).
 # TODO: reconcile with MMR vs. mutable/readonly refs for arguments.
 #       probably want to proceed like MMR, with the Input/Output values matched.
 call := {
-    Input; any_str
-    Output; any_str
+    Input[str]; any
+    Output[str]; any
     Info?; string
     Warning?; string
     Error?; error
 
-    # note you can have an arbitrary variable name here via `~Name`,
-    # and the variable name string can be accessed via `@~Name`.
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
-    ;;io(~Name; ~t): null
-        This Output_@~Name = t()
-        This Input_@~Name = Name!
+    ;;io(Name: str, T; ~t): null
+        This Output[Name] = t()
+        This Input[Name] = T!
 }
 ```
 
@@ -2138,21 +2132,20 @@ someFunction(X: string): int
 
 MyString: string = someFunction(X: 100)     # uses the first overload
 MyInt: int = someFunction(X: "cow")         # uses the second overload
-# TODO: we probably can check names first, then types second, so we could determine
-#       that this will call the second overload.
-WhatIsThis := someFunction(X: "asdf")       # WARNING! calls first overload
+CheckType := someFunction(X: "asdf")        # uses the second overload since the type is `string`
+WhatIsThis := someFunction(X: 123.4)        # WARNING! calls first overload
 
 # example which will use the default overload:
 Call; call
-Call Input_"X" = 2
+Call Input["X"] = 2
 # use `Call` with `;` so that `Call;;Output` can be updated.
 someFunction(Call;)
 print(Call Output)  # prints {"String": "hihi"}
 
 # define a value for the object's Output field to get the other overload:
 Call; call
-Call Input_"X" = "hello"
-Call Output_"Int" = -1
+Call Input["X"] = "hello"
+Call Output["Int"] = -1
 someFunction(Call;)
 print(Call Output)  # prints {"Int": 5}
 
@@ -2357,8 +2350,6 @@ Child optionalMethod(1.45)  # returns Null
 For functions that accept multiple types as input/output, we define template types
 inline, e.g., `logger(T: ~t): t`, using `~` the first time you see the type in the
 definition (reading left to right).
-TODO: could do `logger(T: @infer t): t` if we don't want `~` for it.
-I prefer the efficiency of `logger(T: ~t): t`, though.
 
 ```
 logger(T: ~t): t
