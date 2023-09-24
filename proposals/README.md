@@ -14,11 +14,10 @@
 * `{}` for objects/types
     * `{X: dbl, Y: dbl}` to declare a class with two double-precision fields, `X` and `Y`
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
+    * `{Greeting: str, Times: int} = destructureMe()` to do destructuring of a return value
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y: dbl)` to declare an argument object, `W` is an optional field
     * `(X: 1.2, Y: 3.4, W: "hi")` to instantiate an argument object
-    * `(Greeting: str, Times: int) = destructureMe()` to do destructuring of a return value
-      TODO search for `} =` to fix
 * all arguments are specified by name, although you can have default-named arguments
   for the given type which will grab an argument with that type (e.g., `Int` for an `int` type).
     * `(X: dbl, Int)` can be called with `(1234, X: 5.67)` or even `(Y, X: 5.67)` if `Y` is an `int`
@@ -1977,7 +1976,10 @@ we should avoid using `:` or `;` in the destructuring;
 be previously declared as mutable if we are reassigning them via destructuring,
 otherwise it's a compiler error.  We can also get the remaining fields in their
 own object, e.g., `{Field1:, ...OtherFields:} = doStuff()`, which will have
-`OtherFields` as type `{Field2: field2, ...}`.
+`OtherFields` as type `{Field2: field2, ...}`.  Note you can also do
+`{Field1, Field2} := doStuff()` to define `Field1` and `Field2` as readonly,
+or `{Field1, Field2} ;= doStuff()` to define `Field1` and `Field2` as mutable;
+in these cases, both `Field1` and `Field2` must not be already declared.
 
 This notation is a bit more flexible than JavaScript, since we're
 allowed to reassign existing variables while destructuring.  In JavaScript,
@@ -2026,10 +2028,8 @@ print(Result RoundDown)
 ```
 
 Note that destructuring looks different than defining a lambda function due
-to the extra `:` after the parentheses.  e.g., `(X: int, Y: str) = someFunction(Z)` is
+to the difference in parentheses type.  E.g., `{X: int, Y: str} = someFunction(Z)` is
 destructuring, but `(X: int, Y: str) := someFunction(Z)` is defining a lambda.
-It is a compiler error to do something like `X: int := someFunction(Z)`, since it
-looks somewhat ambiguous -- is it a lambda or a declaration?
 
 Note, you can also have nullable output arguments.  These will be discussed
 more in the function overload section, but here are some examples.
@@ -4182,7 +4182,7 @@ TODO: more discussion about how `return` works vs. putting a RHS statement on a 
 Of course you can get two values out of a conditional expression, e.g., via destructuring:
 
 ```
-{X, Y} := if Condition
+{X:, Y:} = if Condition
     {X: 3, Y: doSomething()}
 else
     {X: 1, Y: DefaultValue}
