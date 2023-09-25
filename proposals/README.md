@@ -7,7 +7,6 @@
 * use `fn(): x` to declare `fn` as returning an instance of type `x`
 * use `a: new~y` to declare `a` as a constructor that builds instances of type `y`
 * `[]` are for containers
-    * `Container[key]: value` for the general feel of declaring a container instance
     * `Map[key]: value` to declare a map, or `Map: value[key]`
     * `Set[element]:` or `Set: [element]` to declare a set with `element` type instances as elements
     * `Array[]: element` or `Array: element[]` to declare an array with `element` type instances as elements
@@ -27,8 +26,9 @@
 TODO: automatic casting to the argument type will break "pass by reference" logic.
 maybe we return to MMR but use `X; 1` for the notation here.  if done locally, we
 pass by reference to avoid two moves.  alternatively, we could cast into the value
-and then cast back at the end of the function call.
-TODO: maybe we have `as(x)` for reference and `to(x)` for temporaries.
+and then cast back at the end of the function call.  third option: we could do a
+compile error if the type isn't compatible; i.e., the instance being passed in
+should be the type or a child of the type.
 
 ```
 # declaring a variable:
@@ -206,8 +206,7 @@ e.g., `Numbers_3` is equivalent to `Numbers[3]`, which gives the fourth element 
 called `Numbers` (since arrays are zero-indexed).
 
 TODO: remove `_` now that we're typing map values *after* the key (`Map[key]: value`).
-
-TODO: also support unicode in identifiers.
+TODO: use `_` for e.g., placement in numbers `1_000_000`, and maybe something else.
 
 ## blocks
 
@@ -399,20 +398,16 @@ Other types which have a fixed amount of memory:
 * `rune`: a utf8 character, presumably held within an `i32`
 * `u8`: unsigned byte (can hold values from 0 to 255, inclusive)
 * `u16` : unsigned integer which can hold values from 0 to 65535, inclusive
-* `u32` : unsigned integer which can hold values from 0 to 2^32 - 1, inclusive
-* `u64` : unsigned integer which can hold values from 0 to 2^64 - 1, inclusive
-* `u128` : unsigned integer which can hold values from 0 to 2^128 - 1, inclusive
-* `u256` : unsigned integer which can hold values from 0 to 2^256 - 1, inclusive
-* `u512` : unsigned integer which can hold values from 0 to 2^512 - 1, inclusive
+* `u32` : unsigned integer which can hold values from 0 to `2^32 - 1`, inclusive
+* `u64` : unsigned integer which can hold values from 0 to `2^64 - 1`, inclusive
+* `uXYZ` : unsigned integer which can hold values from 0 to `2^XYZ - 1`, inclusive,
+    where `XYZ` is 128 to 512 in steps of 64
 * `count` : `i64` under the hood, intended to be >= 0 to indicate the amount of something.
 * `index` : signed integer, `i64` under the hood.  for indexing arrays starting at 0.
 * `ordinal` : signed integer, `i64` under the hood.  for indexing arrays starting at 1.
 
 and similarly for `i8` to `i512`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
-
-TODO: we probably also can support any number of 64 bits in an integral type,
-instead of just x2 all the time (e.g., `u192`).
 
 Note that the `ordinal` type behaves exactly like a number but can be used
 to index arrays starting at 1.  E.g., `Array_ordinal(1)` corresponds to `Array_index(0)`
@@ -453,31 +448,24 @@ B: u8 = A & 255                     # OK, communicates intent and puts `A` into 
 C: u8 = A clamp(Min: 0, Max: 255)   # OK, communicates a different intent.
 ```
 
-If you want to verify if some value is representable as another type, you can do a try-catch,
-or you can do `X as(otherType)` which will return `Null` if it's not, or an instance of
-`otherType` if it is.  Due to nullable types being handled specially, you need to be
-explicit about assigning this to another variable to indicate that it could be null:
+If you want to verify if some value is representable as another type,
+you can make your variable nullable when casting:
 
-TODO: we can't use `as(type)` because we use `as` for renaming, e.g., `X as Y` <=> `Y: X`.
-Or we need to remove renaming using `as`.  Could use `aka` instead, or `by`.
 ```
 X: dbl = 1.234
-Y ?:= X as(int)     # `Y` is Null here because `X` was not an integer.
+Y ?:= int(X)        # `Y` is Null here because `X` was not an integer.
 Z: dbl = 2.0
-W ?:= Z as(u8)      # `W` is not Null here because `Z` was an integer between 0 and 255
-                    # but we still need to use `?:=` since the `dbl` might not have been
+W ?:= u8(Z)         # `W` is not Null here because `Z` was an integer between 0 and 255
+                    # but we can still use `?:=` since the `dbl` might not have been
                     # representable as a `u8`, so `W` might have been Null.
 ```
-TODO: we probably can also do `Y?: int = X`.
-TODO:  Double check if `as` makes sense as a method.  If so, there should be some
-reciprocity between `x := { ;;renew(Y): null }` and `y := { ::as(new~t): t }`.
 
 In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
 is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
 Numbers are truthy only if they are non-zero, so `bool(0)` is `False` but `bool(100)` or `bool(0.5)`
 is `True`.
 
-Casting to a complex type, e.g., `SomeValue as(oneOf(int, str))` will pass through `SomeValue`
+Casting to a complex type, e.g., `oneOf(int, str)(SomeValue)` will pass through `SomeValue`
 if it is an `int` or a `str`, otherwise try `int(SomeValue)` if that is allowed, and finally
 `str(SomeValue)` if that is allowed.  If none of the above are allowed, the compiler will
 throw an error.
@@ -2634,7 +2622,7 @@ for an instance of the class, use this notation:
     ... other class methods ...
 }
 
-# Now we can use `Örsted` to mean a default-named variable of the class örsted:
+# Now we can use `Örsted` to mean a default-named variable of the class `örsted`:
 doSomething(Örsted): bool
     return ...
 ```
@@ -3132,10 +3120,6 @@ All classes have a few compiler-provided methods which cannot be overridden.
     resetting the current instance to a default instance -- i.e., calling `renew()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
-* `::as(new~t)?: t` casts the current instance to the new type if possible,
-    otherwise returns null.
-    TODO: this should return `ref~(t, Readonly)` and `ref~(t, Mutable)` for `;;as(new~t)`.
-    refs can be used going into function arguments but that's about it.
 * `::is(T: ~t): bool` returns true if this instance is equal to the passed-in value.
 * `is(new~t): bool` returns true if this instance/class is equal to the passed-in class.
 * `is(): new` provides the class type.  This makes it easy to determine
