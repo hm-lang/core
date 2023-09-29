@@ -470,6 +470,34 @@ if it is an `int` or a `str`, otherwise try `int(SomeValue)` if that is allowed,
 `str(SomeValue)` if that is allowed.  If none of the above are allowed, the compiler will
 throw an error.
 
+To define a conversion from one class to another, you can define a global function
+or a class method, like this:
+
+```
+scaled8 := {
+    @private
+    Value: u8
+
+    @private
+    # TODO: talk about class variables (not instance):
+    this Scale := 32
+
+    # method to convert to `flt`; can be called like `flt(Scaled8)`
+    # just as well as `Scaled8 flt()`.
+    ::flt(): flt
+        return This Value / this Scale
+
+    ;;=(Flt): null
+        This Value = Flt round() clamp(0, 255)
+}
+
+# global function; can also be called like `Scaled8 dbl()`.
+dbl(Scaled8): dbl
+    return Scaled8 Value / scaled8 Scale
+
+# TODO: discussion about how defining `;;renew(Flt): null` defines a global `scaled8(Flt): scaled8` function.
+```
+
 ## types of types
 
 Every variable has a reflexive type which describes the object/primitive that is held
@@ -2505,6 +2533,11 @@ exampleClass := {
     # class instance variables can be defined here:
     X; int
 
+    # TODO: we probably should have a way to have class variables (e.g., static variables)
+    #       would it make sense to do `;;X; int` or `This X; int`?
+    #       that would make defining objects more painful, e.g., `{X: dbl}` -> `{This X: dbl}`.
+    #       maybe we can use `this X` for a class variable.
+
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `renew` function.  this is true even
     # if the class instance variables are defined as readonly.
@@ -3106,11 +3139,26 @@ generic~t := {
 Generic := generic~string
 Generic Value = "hello"
 print(Generic method(i32(2)))    # prints ("3" * 7)
+
+specific~t := extends(generic~t) {
+    ;;renew(This Scale; t = 1) := Null
+
+    ::method(U: ~u): u
+        ParentResult := generic~t::method(U)
+        return ParentResult * This Scale 
+}
 ```
 
 Since we switch methods to global functions, we're probably ok.
 E.g., `::method(U: ~u): u` becomes `globalMethod(Generic: generic~t, U: ~u): u`
 becomes `template <class t, class u> u globalMethod(readonlyRef<generic<t>> Generic, readonlyRef<u> U)`
+TODO: actually probably not ok, since we need to tell if generic is a child class before proceeding
+with its implementation.  maybe we need to do a switch-case on the actual instance being held
+inside the `Generic` type, and look up that type's instance's method.  e.g., define also
+`template <class t, class u> u globalMethod(readonlyRef<specific<t>> Specific, readonlyRef<u> U)`,
+then inside `globalMethod(...<generic<t>>...)` we ensure to call.  we'll need to do this in
+such a way that we don't need to know all the child class definitions when we write the parent
+class definition; e.g., build it into the type's vtable.
 
 ## common class methods
 
@@ -5357,3 +5405,16 @@ If there are any compile errors, the compiler will add some special
 comments to the code that will be removed on next compile, e.g.,
 `#@compileError("there's a syntax problem here ^")`.
 
+# implementation
+
+```
+# hm-lang
+myClass := {
+    ::readonlyMethod(Int): null
+    ;;mutatingMethod(Int): null
+}
+
+# C++
+void hm::global::readonlyMethod(readonlyRef<hm::myClass> MyClass, readonlyRef<bigInt> Int);
+void hm::global::mutatingMethod(mutatingRef<hm::myClass> MyClass, readonlyRef<bigInt> Int);
+```
