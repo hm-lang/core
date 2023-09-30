@@ -919,6 +919,14 @@ xor(X: ~x, Y: ~y)?: oneOf(x, y)
         return Null
 ```
 
+Note that `xor` will thus return a nullable value, unless you do an assert.
+Warning: asserting `not~null` will throw in the runtime, if the result was null.
+
+```
+NullableXor ?:= X xor Y
+NonNullXor: not~null = X xor Y      # will throw if `X xor Y` is null
+```
+
 ## assignment operators
 
 TODO: `??=`.
@@ -4167,7 +4175,7 @@ array~t := {
     # mutability template for both of the above:
     ;:forEach(fn(T;:): loop): bool
         for Index: index < This count()
-            if fn(This_Index;:) isBreak()
+            if fn(This_Index;:) == Break
                 return True
         return False
 }
@@ -4489,35 +4497,39 @@ If desired, you can specify the underlying enum type using `oneOf~i8(...)` inste
 of `oneOf(...)`, but this will be a compile error if the type is not big enough to
 handle all options.
 
-For example:
+Here is an example enum with some values that aren't specified.  Even though
+the values aren't specified, they are deterministically chosen.
 
 ```
-# TODO: should definitions be `False := 0` and `True := 1` ?
-# TODO: what happens if a variable is already defined (e.g., `oneOf(MyExistingInstanceName, ...)`)?
-# Enums use a similar syntax as maps when being defined,
-# except that the left-hand side must be an UpperCamelCase identifier:
-# TODO: probably `bool` can fit in a `u1`, which we could specify in a struct.
-bool := oneOf(
-    False: 0
-    True: 1
+myEnum := oneOf(
+    FirstValueDefaultsToZero
+    SecondValueIncrements
+    ThirdValueIsSpecified: 123
+    FourthValueIncrements
 )
+assert myEnum FirstValueDefaultsToZero == 0
+assert myEnum SecondValueIncrements == 1
+assert myEnum ThirdValueIsSpecified == 123
+assert myEnum FourthValueIncrements == 124
+```
+
+Here is an example enum with just specified values, all inline:
+
+```
+# TODO: probably `bool` can fit in a `u1`, which we could specify in a struct.
+bool := oneOf(False: 0, True: 1)
 ```
 
 Enums provide a few extra additional properties for free as well, including
-the number of values that are enumerated via the method `count(): count`,
-the min and max values `min(): enumType`, `max(): enumType`, and some
-convenience methods on any instance of the enumeration.
+the number of values that are enumerated via the class function `count(): count`,
+and the min and max values `min(): enumType`, `max(): enumType`.
 
 ```
 Test: bool = False  # or `Test := bool False`
 
-# use `isUpperCamelCaseName()` to check for equality:
-# TODO: is this necessary? `Test isTrue()`
-#  is technically shorter: `Test == True`   
-# maybe we can infer enum types where necessary to save time.
-if Test isTrue()
+if Test == True
     print("test is true :(")
-if Test isFalse()
+if Test == False
     print("test is false!")
 
 # get the count (number of enumerated values) of the enum:
@@ -4578,10 +4590,9 @@ print("number of options should be 7:  $(option count())")
 Option1 := option ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
-# TODO: do we want the `isOptionX` method here??
-if Option1 isNotAGoodOption()
+if Option1 == NotAGoodOption
     print("oh no")
-elif Option1 isOopsYouMissedIt()
+elif Option1 == OopsYouMissedIt
     print("whoops")
 ...
 
@@ -4611,12 +4622,6 @@ If no value is zero, then the first specified value is default.
 
 ```
 tree := oneOf(
-    # TODO: this maybe makes a case for `:=` instead of `:` in a oneOf.
-    # this looks like we're defining `leaf` to be an instance of type `(Value; int)`
-    # but we're really defining `leaf` as the type `(Value; int)`.
-    # we probably can distinguish based on `leaf` being lowerCamelCase (means type)
-    # and `Leaf` would be the instance of the type.  if so, do we even need
-    # to define classes like `class := {...}` or can we just do `class: {...}`?
     leaf: {Value; int}
     branch: {
         Left; tree
@@ -4652,7 +4657,7 @@ default-named, it's recommended to give specific names to each `oneOf`, e.g.,
 
 ```
 intOrString := oneOf(int, str)
-weirdNumber := oneOf(dbl, u8, i32)
+weirdNumber := oneOf(u8, i32, dbl)
 
 myFunction(IntOrString, WeirdNumber): dbl
     return dbl(IntOrString) * WeirdNumber
@@ -4660,6 +4665,9 @@ myFunction(IntOrString, WeirdNumber): dbl
 
 Again, this fans out into multiple function overloads for each of the cases
 of compile-time known and compile-time unknown arguments.
+
+TODO: ensure that we can use `Call` or similar to create our own version
+of a `oneOf` with metaprogramming or whatever.
 
 ## masks
 
