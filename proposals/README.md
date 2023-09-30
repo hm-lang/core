@@ -889,7 +889,18 @@ cast to boolean implicitly (i.e., `if bool(X or Y)` explicitly).
 Similarly, the `and` operation `X and Y` also has type `oneOf(x, y)`.  If `X` is falsey,
 then the return value will be `X`.  If `X` is truthy, the return value will be `Y`.
 Again, in a conditional, we'll cast `X and Y` to a boolean.
+
 Thus, `and` and `or` act the same as JavaScript `&&` and `||`, for ease of transition.
+However, to make things more consistent with the `xor` operator, if your return value
+is nullable, `X or Y` will be `oneOf(null, x, y)` and `X and Y` will be `oneOf(null, y)`.
+The result will be `Null` if both (either) operands are falsey for `or` (`and`).
+
+```
+NonNullOr := X or Y         # NonNullOr := if X ${X} else ${Y}
+NonNullAnd := X and Y       # NonNullAnd := if !X ${X} else ${Y}
+NullableOr ?:= X or Y       # NullableOr ?:= if X ${X} elif Y ${Y} else ${Null}
+NullableAnd ?:= X and Y     # NullableAnd ?:= if !!X and !!Y ${Null} else ${Y}
+```
 
 The exclusive-or operation `X xor Y` has type `oneOf(null, x, y)`, and will return `Null`
 if both `X` and `Y` are truthy or if they are both falsy.  If just one of the operands
