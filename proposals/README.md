@@ -23,6 +23,9 @@
 * variables that are already named after the correct argument can be used without `:`
     * `(X: dbl, Y: int)` can be called with `(X, Y)` if `X` and `Y` are already defined in the scope
 
+TODO: `fn(): x` inline has been historically `fn: (): x` but we should get rid of the extra `:`
+and do `fn: x()` to line up with `Array[]: a` becoming `Array: a[]`.
+
 TODO: automatic casting to the argument type will break "pass by reference" logic.
 maybe we return to MMR but use `X; 1` for the notation here.  if done locally, we
 pass by reference to avoid two moves.  alternatively, we could cast into the value
@@ -5485,6 +5488,8 @@ comments to the code that will be removed on next compile, e.g.,
 
 # implementation
 
+## global functions via class methods
+
 ```
 # hm-lang
 myClass := {
@@ -5496,3 +5501,13 @@ myClass := {
 void hm::global::readonlyMethod(readonlyRef<hm::myClass> MyClass, readonlyRef<bigInt> Int);
 void hm::global::mutatingMethod(mutatingRef<hm::myClass> MyClass, readonlyRef<bigInt> Int);
 ```
+
+## types specified locally or remotely
+
+We'll want to support types (a `u64`) being declared remotely or locally.
+E.g., when creating an array of `i64`, we don't want to take up room in the array
+for the same `i64` type on each array element.  Conversely, if the array element type
+has child classes, then we need to keep track of the type on each array element.
+(We need to do this unless the array has an `@only` annotation on the internal type.)
+
+TODO: more discussion
