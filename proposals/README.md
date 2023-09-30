@@ -4513,6 +4513,24 @@ assert myEnum ThirdValueIsSpecified == 123
 assert myEnum FourthValueIncrements == 124
 ```
 
+You can even pass in existing variable(s) to the enum, although they should be
+compile-time constants.  This uses the same logic as function arguments to
+determine what the name of the enum value is.
+
+```
+Super := 12
+Crazy := 15
+# the following will define
+# `otherEnum OtherValue1 = 0`,
+# `otherEnum Super = 12`,
+# and `otherEnum OtherValue2 = 15`.
+otherEnum := oneOf(
+    OtherValue1
+    Super
+    OtherValue2: Crazy
+)
+```
+
 Here is an example enum with just specified values, all inline:
 
 ```
