@@ -4053,6 +4053,7 @@ initial `[str]` should be the type of whatever element is in the set.
 
 TODO: make it easy to pass in a set as an argument and return a map with e.g. those keys.
   maybe this isn't as important as it would be if we had a dedicated object type.
+
 ```
 fn(PickFrom: ~t_str, Fields: _str): t_str
     return Fields map((Field: str) := mapElement(Field, PickFrom_Field))
@@ -4803,10 +4804,36 @@ TODO: this syntax isn't quite right for function arguments.
 Masks can also include shortcuts for various combinations using the `:=` operator, e.g.:
 
 ```
+# option 1
 myMask := anyOrNoneOf(
     X
     Y
     XAndY := X | Y
+)
+# option 2
+myMask := anyOrNoneOf(
+    X
+    Y
+) with { XAndY := X | Y }
+# option 3
+myMask := anyOrNoneOf(
+    X
+    Y
+) { XAndY := X | Y }
+# option 4
+myMask := anyOrNoneOf(X, Y)
+myMask XAndY: myMask = X | Y    # or `myMask XAndY := myMask X | myMask Y`
+# option 5
+myMask := anyOrNoneOf(
+    X
+    Y
+    this XAndY := X | Y
+)
+# option 6
+myMask := anyOrNoneOf(
+    X
+    Y
+    XAndY: X | Y
 )
 ```
 
