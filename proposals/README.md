@@ -881,21 +881,17 @@ so `Q := X < Y > Z` instantiates `Q` as a boolean, not as this internal class.
 
 ## and/or/xor operators
 
-The `or` operation `X or Y` technically has type `oneOf(null, x, y)` (for `X: x` and `Y: y`).
+The `or` operation `X or Y` has type `oneOf(x, y)` (for `X: x` and `Y: y`).
 If `X` evaluates to truthy (i.e., `!!X == True`), then the return value of `X or Y` will be `X`.
-Otherwise, if `Y` evaluates to truthy (i.e., `!!Y == True`), then the return value will be `Y`.
-Otherwise, the return will be `Null`.  Note in a conditional, e.g., `if X or Y`, we'll always
+Otherwise, the return value will be `Y`.  Note in a conditional, e.g., `if X or Y`, we'll always
 cast to boolean implicitly (i.e., `if bool(X or Y)` explicitly).
 
-Similarly, the `and` operation `X and Y` also has type `oneOf(null, y)`.  If `X` or `Y` is falsey,
-then the return value will be `Null`.  If both are truthy, the return value will be `Y`.
+Similarly, the `and` operation `X and Y` also has type `oneOf(x, y)`.  If `X` is falsey,
+then the return value will be `X`.  If `X` is truthy, the return value will be `Y`.
 Again, in a conditional, we'll cast `X and Y` to a boolean.
+Thus, `and` and `or` act the same as JavaScript `&&` and `||`, for ease of transition.
 
-This is a bit different than the JavaScript `||` and `&&`, which don't return `Null` unless
-one of `X` or `Y` is null, but the null choice makes the language consistent for `xor`.
-TODO: maybe make it simpler and avoid passing back null except for xor.
-
-The `xor` operation `X >< Y` has type `oneOf(null, x, y)`, and will return `Null`
+The exclusive-or operation `X xor Y` has type `oneOf(null, x, y)`, and will return `Null`
 if both `X` and `Y` are truthy or if they are both falsy.  If just one of the operands
 is truthy, the result will be the truthy operand.  An example implementation:
 
