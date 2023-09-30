@@ -3261,7 +3261,7 @@ warn on finding aliases.
 Aliases can be used for simple naming conventions, e.g.:
 
 ```
-options := mask(
+options := anyOrNoneOf(
     oneOf(AlignInheritX := 0, AlignCenterX, AlignLeft, AlignRight)
     @alias InheritAlignX := AlignInheritX
 )
@@ -4689,12 +4689,6 @@ of a `oneOf` with metaprogramming or whatever.
 
 ## masks
 
-TODO: switch to `anyOf` or `anyCombinationOf`.  `allOf` should be reserved for a type
-that is the combination of two or more types, e.g., `allOf(interface1, interface2)`.
-`any` implies one or more, which misses `none`.  maybe `option` is better here,
-or `anyOrNoneOf`, or `zeroOrMoreOf`.  `anyOrNoneOf` has the benefit that it
-describes one of the values (`None`).
-
 Masks are generalized from enumerations to allow multiple values held simultaneously.
 Each value can also be thought of as a flag or option, which are bitwise OR'd together
 (i.e., `|`) for the variable instance.  Under the hood, these are unsigned integer types.
@@ -4704,29 +4698,52 @@ Like with enums, you can specify the integer type that backs the mask, but in th
 it must be an unsigned type, e.g., `mask~u32`.  Note that by default, the `maskType`
 is exactly as many bits as it needs to be to fit the desired options, rounded up to
 the nearest standard unsigned type (`u8`, `u16`, `u32`, `u64`, `u128`, etc.).
-TODO: We probably should warn if the user is getting into the `u128+` territory.
+We will add a warning if the user is getting into the `u128+` territory.
 
 TODO: is there a good generalization of "any type in an enum" functionality
 that rust provides, for masks?
 
+Since masks can be any or none of the options specified, they are created using
+the `anyOrNoneOf` function.  Like with `oneOf` enumerations, masks don't need
+to specify their values; but unlike `oneOf` enumerations, if you do specify them,
+they must be powers of two.
+
+```
+food := anyOrNoneOf(
+    Carrots
+    Potatoes
+    Tomatoes
+)
+# this creates a mask with `food Carrots == 1`,
+# `food Potatoes == 2`, and `food Tomatoes == 4`.
+# there is also a default `food None == 0`.
+
+Food: food = Carrots | Tomatoes
+Food hasCarrots()   # true
+Food hasPotatoes()  # false
+Food hasTomatoes()  # true
+```
+
+And here is an example with specified values.
+
 ```
 # the mask is required to specify types that are powers of two:
-nonMutuallyExclusiveType := mask(
+nonMutuallyExclusiveType := anyOrNoneOf(
     X: 1
     Y: 2
     Z: 4
-    T: 8
+    T: 32
 )
-# it is a compile error if a mask has a power of two that is not the next one higher,
-# since that makes the number of values and how to lay them out harder to reason about
+# `nonMutuallyExclusiveType None` is automatically defined as 0.
 
 # has all the same static methods as enum, though perhaps they are a bit surprising:
 nonMutuallyExclusiveType count() == 16
 nonMutuallyExclusiveType min() == 0
-nonMutuallyExclusiveType max() == 15   # = X | Y | Z | T
+nonMutuallyExclusiveType max() == 39   # = X | Y | Z | T
 
 Options ;= nonMutuallyExclusiveType()
-Options == 0        # True; masks start at 0.
+Options == 0        # True; masks start at 0, or `None`,
+                    # so `Options == None` is also true.
 Options |= X        # TODO: make sure it's ok to implicitly add the mask type here.
 Options |= nonMutuallyExclusiveType Z   # explicit mask type
 
@@ -4741,7 +4758,7 @@ Options hasT()  # False
 We can also create a mask with one or more `oneOf` fields, e.g.:
 
 ```
-options := mask(
+options := anyOrNoneOf(
     oneOf(AlignCenterX, AlignLeft, AlignRight)
     oneOf(AlignCenterY, AlignTop, AlignBottom)
 
@@ -4782,10 +4799,11 @@ name can thus be chosen for each `oneOf`, e.g., `oneOf(..., WhateverName := 0, .
 
 ## named value-combinations
 
+TODO: this syntax isn't quite right for function arguments.
 Masks can also include shortcuts for various combinations using the `:=` operator, e.g.:
 
 ```
-myMask := mask(
+myMask := anyOrNoneOf(
     X
     Y
     XAndY := X | Y
