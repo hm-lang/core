@@ -5,7 +5,12 @@ hm-lang tries to achieve **consistency** above all else.  Some examples follow.
 In most languages, primitive types have different casing than class types that are
 created by end-user developers.  This is usually an inconsistency by convention,
 e.g., `PascalCase` for class names and `snake_case` for primitive types in C++.
-In hm-lang, all types are `lowerCamelCase`.
+In hm-lang, all types are `lowerCamelCase`, like functions.  Variables and identifiers
+like `True` or `False` are `UpperCamelCase`.
+
+In some languages, e.g., JavaScript, objects are passed by reference and primitives
+are passed by value when calling a function with these arguments.  In hm-lang,
+arguments are passed by reference by default.  See [passing by reference](#passing-by-reference). 
 
 In hm-lang, `Array[3] = 5` will work even if `Array` is not already at least size 4;
 hm-lang will resize the array if necessary, populating it with default values,
