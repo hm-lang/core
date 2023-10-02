@@ -1703,8 +1703,9 @@ being able to resolve the overload at run-time.
 
 Functions can be defined with mutable or readonly arguments, e.g., via
 `MutableArgument; mutableType` and `ReadonlyArgument: readonlyType` in the
-arguments list.  This choice has two important effects: (1) you can modify
-mutable argument variables inside the function definition and (2) any
+arguments list.  This choice has three important effects: (1) readonly variables
+may not be deeply constant (see section on [passing by reference](#passing-by-reference)),
+(2) you can modify mutable argument variables inside the function definition, and (3) any
 modifications to a mutable argument variable inside the function block persist
 in the outer scope.  In C++ terms, arguments declared as `:` are passed as
 constant reference, while arguments declared as `;` are passed as reference
@@ -2267,6 +2268,11 @@ myFunction(Cool: {DidIDefineThis: True, X: 5})
 TODO: a consistent object API.  e.g., `Object count()` might be overridden.
 
 ## redefining a function
+
+TODO: i think we should consider nixing the ability to reassign functions
+in this way.  We could make `fn(); int` return a reference to an int;
+`fn; (): int` could be a reassignable function.  It would be nice to have
+a "returns a reference" syntax, unless we switch back to swappers.
 
 To declare a reassignable function, use `;` after the arguments.
 
