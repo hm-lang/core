@@ -1,6 +1,8 @@
 # why
 
-hm-lang tries to achieve **consistency** above all else.  Some examples follow.
+hm-lang tries to achieve **consistency** above all else.  
+**Convenience** is the next most important goal.
+Some examples follow.
 
 In most languages, primitive types have different casing than class types that are
 created by end-user developers.  This is usually an inconsistency by convention,
@@ -19,10 +21,19 @@ other container types, e.g., maps, where `Map["Key"] = 50` works as well.
 In some standard libraries (e.g., C++), `Array[3] = 5` is undefined behavior
 if the array is not already at least size 4.
 
+Similarly, when referencing `Array[10]` or `Map["Key"]`, a default will be provided
+if necessary, so that e.g. `++Array[10]` and `++Map["Key"]` don't need to be guarded
+as `Array[10] = if count(Array) > 10 ${Array[10] + 1} else {Array count(11), 1}` or
+`Map["Key"] = if Map["Key"] != Null ${Map["Key"] + 1} else ${1}`.  This is done
+for the sake of convenience.
+
 In hm-lang, determining the number of elements in a container uses the same
 method name for all container types; `count(Container)` or `Container count()`,
 which works for `Array`, `Map`, `Set`, etc.  In some languages, e.g., JavaScript,
 arrays use a property (`Array.length`) and maps use a different property (`Map.size`).
+
+TODO: being explicit as the third goal; descriptive but concise.  e.g.,
+nullables using `?:`, casting for pass-by-reference, etc.
 
 # general syntax
 
@@ -760,13 +771,13 @@ Some examples:
 someClass := {X: dbl, Y: dbl, I; str_}
 SomeClass ;= someClass(X: 1, Y: 2.3, I: ["hello", "world"])
 print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints ["hello", "world"]
-print(SomeClass::I_1)   # prints "world"
-print(SomeClass I_1)    # also prints "world", ` ` (member access) and `_` bind LTR.
-SomeClass;;I_4 = "love" # the fifth element is love.
-SomeClass::I_7 = "oops" # COMPILE ERROR, `::` means the array should be readonly.
+print(SomeClass::I[1])  # prints "world"
+print(SomeClass I[1])   # also prints "world", ` ` (member access) and `_` bind LTR.
+SomeClass;;I[4] = "love"    # the fifth element is love.
+SomeClass::I[7] = "oops"    # COMPILE ERROR, `::` means the array should be readonly.
 SomeClass;;I[7] = "no problem"
 
-NestedClass; someClass_ = []
+NestedClass; someClass[] = []
 NestedClass_1 X = 1.234     # creates a default [0] and [1], sets [1]'s X to 1.234
 NestedClass_3 I_4 = "oops"  # creates a default [2] and [3], sets [3]'s I to ["", "", "", "", "oops"]
 ```
@@ -1925,7 +1936,7 @@ by value, and this is possible in hm-lang but not the default.
 For example, this function call passes `Array[3]` by reference, even if `Array[3]` is a primitive.
 
 ```
-Array; int_ = [0, 1, 2, 3, 4]
+Array; int[] = [0, 1, 2, 3, 4]
 myFunction(Array[3];)   # passed as mutable reference
 myFunction(Array[3])    # passed as readonly reference
 ```
@@ -2195,7 +2206,7 @@ someFunction(X: string): int
 MyString: string = someFunction(X: 100)     # uses the first overload
 MyInt: int = someFunction(X: "cow")         # uses the second overload
 CheckType := someFunction(X: "asdf")        # uses the second overload since the type is `string`
-WhatIsThis := someFunction(X: 123.4)        # WARNING! calls first overload
+WhatIsThis := someFunction(X: 123.4)        # WARNING! calls first overload, will throw at runtime.
 
 # example which will use the default overload:
 Call; call
@@ -4477,7 +4488,7 @@ for OtherIndex := index(3), OtherIndex < 7
 
 # for-loop iterating over non-number elements:
 vector2 := {X: dbl, Y: dbl}
-Array: vector2_ = [{X: 5, Y: 3}, {X: 10, Y: 17}]
+Array: vector2[] = [{X: 5, Y: 3}, {X: 10, Y: 17}]
 for (Vector2: vector2) in Array     # `for (Vector2:) in Array` also works.
     print(Vector2)
 
@@ -4993,7 +5004,7 @@ duration of the function call/scope.  We use some syntax sugar in order
 to make this not look clumsy.
 
 ```
-ArrayArray; int__ = [[1,2,3], [5]]
+ArrayArray; int[][] = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
 ArrayArray_0 append(4)  # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
