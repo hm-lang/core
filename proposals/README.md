@@ -1,8 +1,10 @@
 # why
 
 hm-lang tries to achieve **consistency** above all else.  
-**Convenience** is the next most important goal.
-Some examples follow.
+**Convenience** is the next most important goal. 
+**Clarity** and **concision** come next.
+
+## consistency
 
 In most languages, primitive types have different casing than class types that are
 created by end-user developers.  This is usually an inconsistency by convention,
@@ -13,9 +15,17 @@ like `True` or `False` are `UpperCamelCase`.
 
 In some languages, e.g., JavaScript, objects are passed by reference and primitives
 are passed by value when calling a function with these arguments.  In hm-lang,
-arguments are passed by reference by default.  See [passing by reference](#passing-by-reference). 
+arguments are passed by reference by default, for consistency.
+See [passing by reference](#passing-by-reference). 
 
-In hm-lang, `Array[3] = 5` will work even if `Array` is not already at least size 4;
+In hm-lang, determining the number of elements in a container uses the same
+method name for all container types; `count(Container)` or `Container count()`,
+which works for `Array`, `Map`, `Set`, etc.  In some languages, e.g., JavaScript,
+arrays use a property (`Array.length`) and maps use a different property (`Map.size`).
+
+## convenience
+
+For convenience, `Array[3] = 5` will work even if `Array` is not already at least size 4;
 hm-lang will resize the array if necessary, populating it with default values,
 until finally setting the fourth element to 5.  This is to be consistent with
 other container types, e.g., maps, where `Map["Key"] = 50` works as well.
@@ -25,16 +35,26 @@ if the array is not already at least size 4.
 Similarly, when referencing `Array[10]` or `Map["Key"]`, a default will be provided
 if necessary, so that e.g. `++Array[10]` and `++Map["Key"]` don't need to be guarded
 as `Array[10] = if count(Array) > 10 $(Array[10] + 1) else $(Array count(11), 1)` or
-`Map["Key"] = if Map["Key"] != Null $(Map["Key"] + 1) else $(1)`.  This is done
-for the sake of convenience.
+`Map["Key"] = if Map["Key"] != Null $(Map["Key"] + 1) else $(1)`.
 
-In hm-lang, determining the number of elements in a container uses the same
-method name for all container types; `count(Container)` or `Container count()`,
-which works for `Array`, `Map`, `Set`, etc.  In some languages, e.g., JavaScript,
-arrays use a property (`Array.length`) and maps use a different property (`Map.size`).
+## clarity
 
 TODO: being explicit as the third goal; descriptive but concise.  e.g.,
 nullables using `?:`, casting for pass-by-reference, etc.
+
+## concision
+
+Variable arguments that use the default name for a type can elide the type name;
+e.g., `myFunction(Int): str` will declare a function that takes an instance of `int`.
+See [default-named arguments](#default-name-arguments-in-functions).  We can also
+avoid the readonly declaration (`:`) since it is the default, but you can use
+`myFunction(Int;): str` for a function which can mutate the passed-in integer.
+
+Class methods technically take an argument for `This` everywhere, but instead of
+writing `myMethod(This, X: int): str`, we can write `::myMethod(X: int): str`.
+This parallels `myClass::myMethod` in C++, but in hm-lang we can analogously use
+`myClass;;myMutatingMethod` for a method that can mutate `This`, i.e.,
+`myMutatingMethod(This;, X: int): str` becomes `;;myMutatingMethod(X: int): str`.
 
 # general syntax
 
@@ -1364,7 +1384,7 @@ detect(greet(Int): string
 
 ### default-name arguments in functions
 
-For functions with a single argument where the variable name doesn't matter,
+For functions with one argument (per type) where the variable name doesn't matter,
 you can use default-named variables.  For standard ASCII identifiers, the default-name identifier
 is just the `UpperCamelCase` version of the `lowerCamelCase` type.
 
