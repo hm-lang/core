@@ -23,8 +23,8 @@ if the array is not already at least size 4.
 
 Similarly, when referencing `Array[10]` or `Map["Key"]`, a default will be provided
 if necessary, so that e.g. `++Array[10]` and `++Map["Key"]` don't need to be guarded
-as `Array[10] = if count(Array) > 10 ${Array[10] + 1} else {Array count(11), 1}` or
-`Map["Key"] = if Map["Key"] != Null ${Map["Key"] + 1} else ${1}`.  This is done
+as `Array[10] = if count(Array) > 10 $(Array[10] + 1) else $(Array count(11), 1)` or
+`Map["Key"] = if Map["Key"] != Null $(Map["Key"] + 1) else $(1)`.  This is done
 for the sake of convenience.
 
 In hm-lang, determining the number of elements in a container uses the same
@@ -47,13 +47,17 @@ nullables using `?:`, casting for pass-by-reference, etc.
     * `Map[key]: value` to declare a map, or `Map: value[key]`
     * `Set[element]:` or `Set: [element]` to declare a set with `element` type instances as elements
     * `Array[]: element` or `Array: element[]` to declare an array with `element` type instances as elements
+    * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
 * `{}` for objects/types
     * `{X: dbl, Y: dbl}` to declare a class with two double-precision fields, `X` and `Y`
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
     * `{Greeting: str, Times: int} = destructureMe()` to do destructuring of a return value
+    * `"My String Interpolation is ${X, Y: Z}"` to add `{X: *value-of-X*, Y: *value-of-Z*}` to the string.
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y: dbl)` to declare an argument object, `W` is an optional field
     * `(X: 1.2, Y: 3.4, W: "hi")` to instantiate an argument object
+    * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
+        Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
 * all arguments are specified by name, although you can have default-named arguments
   for the given type which will grab an argument with that type (e.g., `Int` for an `int` type).
     * `(X: dbl, Int)` can be called with `(1234, X: 5.67)` or even `(Y, X: 5.67)` if `Y` is an `int`
@@ -936,10 +940,10 @@ is nullable, `X or Y` will be `oneOf(null, x, y)` and `X and Y` will be `oneOf(n
 The result will be `Null` if both (either) operands are falsey for `or` (`and`).
 
 ```
-NonNullOr := X or Y         # NonNullOr := if X ${X} else ${Y}
-NonNullAnd := X and Y       # NonNullAnd := if !X ${X} else ${Y}
-NullableOr ?:= X or Y       # NullableOr ?:= if X ${X} elif Y ${Y} else ${Null}
-NullableAnd ?:= X and Y     # NullableAnd ?:= if !!X and !!Y ${Null} else ${Y}
+NonNullOr := X or Y         # NonNullOr := if X $(X) else $(Y)
+NonNullAnd := X and Y       # NonNullAnd := if !X $(X) else $(Y)
+NullableOr ?:= X or Y       # NullableOr ?:= if X $(X) elif Y $(Y) else $(Null)
+NullableAnd ?:= X and Y     # NullableAnd ?:= if !!X and !!Y $(Null) else $(Y)
 ```
 
 The exclusive-or operation `X xor Y` has type `oneOf(null, x, y)`, and will return `Null`
@@ -1295,6 +1299,8 @@ we don't need to use those namespaces, and can't (since they're invisible to the
 
 TODO: we do need order dependence for certain use cases, like arguments to an array.
 maybe we have a specific `@orderDependent` or `@arrayOrder` annotation.
+order dependence also occurs for cross product (e.g., `Vector3 cross(Other->Vector3)`),
+and it would be a pain to name this other vector (`Vector3 cross(With: Other->Vector3)`).
 
 There is one place where it is not obvious that two arguments might have the same name, and
 that is in method definitions.  Take for example the vector dot product:
@@ -1410,6 +1416,9 @@ q(():
 )
 # equivalent to `q(() := X)`
 # also equivalent to `q((): $(X))`
+# TODO: should this also work as a definition for `MyVariable`?
+MyVariable; value       # with or without `value`
+    myInitialization + OfMyVariable
 ```
 
 ### types as arguments
@@ -1713,6 +1722,9 @@ no need to assert a non-null return value in that case.
 # special call for case 3; if X is null, this will throw a run-time error,
 # otherwise will define a non-null X:
 {X: not~null} = myOverload(Y: "123")
+
+# make a default for case 3, in case X comes back as null from the function
+{X := -1} = myOverload(Y: "123")
 ```
 
 If there are multiple return arguments, i.e., via an output type data class,
