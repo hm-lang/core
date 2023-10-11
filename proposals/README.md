@@ -6,7 +6,8 @@ Some examples follow.
 
 In most languages, primitive types have different casing than class types that are
 created by end-user developers.  This is usually an inconsistency by convention,
-e.g., `PascalCase` for class names and `snake_case` for primitive types in C++.
+e.g., `PascalCase` for class names and `snake_case` for primitive types in C++,
+but Rust requires this inconsistency by fiat.
 In hm-lang, all types are `lowerCamelCase`, like functions.  Variables and identifiers
 like `True` or `False` are `UpperCamelCase`.
 
@@ -37,11 +38,12 @@ nullables using `?:`, casting for pass-by-reference, etc.
 
 # general syntax
 
-* `lowerCamelCase` identifiers like `x` are function/type-like
-* `UpperCamelCase` identifiers like `X` are instance-like
+* `lowerCamelCase` identifiers like `x` are function/type-like, see [here](#variable-and-function-names)
+* `UpperCamelCase` identifiers like `X` are instance-like, see [here](#variable-and-function-names)
+* use `#` for [comments](#comments)
 * use `:` for readonly declarations, `;` for mutable declarations
-* use `A: x` to declare `A` as an instance of type `x`
-* use `fn(): x` to declare `fn` as returning an instance of type `x`
+* use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
+* use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
 * use `a: new~y` to declare `a` as a constructor that builds instances of type `y`
 * `[]` are for containers
     * `Map[key]: value` to declare a map, or `Map: value[key]`
@@ -118,13 +120,13 @@ MySet[elementType]:     # also ok: `MySet: [elementType]`
 
 # defining a mutable set:
 SomeSet[str] ;= ["friends", "family", "fatigue"]
-# Also ok: we can do `SomeSet ;= [str]("friends", ...)`
+# Also ok: we can do `SomeSet ;= [str]["friends", ...]`
 SomeSet::["friends"]    # `Present` (truthy)
 SomeSet::["enemies"]    # Null (falsy)
 SomeSet["fatigue"]!     # removes "fatigue", returns `Present` since it was present.
-                        # SomeSet == [str]("friends", "family").
+                        # SomeSet == [str]["friends", "family"].
 SomeSet["spools"]       # adds "spools", returns Null (wasn't in the set)
-                        # SomeSet == [str]("friends", "family", "spools")
+                        # SomeSet == [str]["friends", "family", "spools"]
 ```
 
 ```
@@ -977,7 +979,7 @@ TODO: `??=`.
 TODO: discussion on `<->` being swap.  swap as a function would have required `swap(X;, Y;)`
 to be consistent.
 
-# declaring and using variables
+# variables
 
 Variables are named using `UpperCamelCase` identifiers.  The `:` symbol is used
 to declare deeply constant, non-reassignable variables, and `;` is used to declare
@@ -4107,7 +4109,7 @@ even if the set variable is mutable.
 
 TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
 
-To define a set quickly, use the notation `[str]("hello", "world")`, where the
+To define a set quickly, use the notation `[str]["hello", "world"]`, where the
 initial `[str]` should be the type of whatever element is in the set.
 
 TODO: make it easy to pass in a set as an argument and return a map with e.g. those keys.
