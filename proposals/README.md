@@ -83,6 +83,7 @@ for variables; we can easily distinguish intent without additional verbs.
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
     * `{Greeting: str, Times: int} = destructureMe()` to do destructuring of a return value
     * `"My String Interpolation is ${X, Y: Z}"` to add `{X: *value-of-X*, Y: *value-of-Z*}` to the string.
+    * `A {x(), y()}` to call `A x()` then `A y()` via [sequence building](#sequence-building).
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y: dbl)` to declare an argument object, `W` is an optional field
     * `(X: 1.2, Y: 3.4, W: "hi")` to instantiate an argument object
@@ -981,8 +982,8 @@ if both `X` and `Y` are truthy or if they are both falsy.  If just one of the op
 is truthy, the result will be the truthy operand.  An example implementation:
 
 ```
-# you can define it as nullable via `xor(X: ~x, Y: ~y): oneOf(null, x, y)` or like this:
-xor(X: ~x, Y: ~y)?: oneOf(x, y)
+# you can define it as nullable via `xor(~X, ~Y): oneOf(null, x, y)` or like this:
+xor(~X, ~Y)?: oneOf(x, y)
     XIsTrue := bool(X)
     YIsTrue := bool(Y)
     if XIsTrue
@@ -1458,7 +1459,7 @@ which infers the types based on instances of the type.
 
 ```
 # generic function taking an instance of `x` and returning one.
-doSomething(X: ~x): x
+doSomething(~X): x
     return X * 2
 
 doSomething(123)    # returns 246
@@ -2211,7 +2212,7 @@ call := {
 
     # i.e., for MMR-style input -> output variables.
     # NOTE: use before the function call
-    ;;io(Name: str, T; ~t): null
+    ;;io(Name: str, ~T;): null
         This Output[Name] = t()
         This Input[Name] = T!
 }
@@ -2467,12 +2468,45 @@ Child optionalMethod(1.45)  # returns Null
 
 ## function templates/generics
 
+We can have arguments with generic types, but we can also have arguments
+with generic names.
+
+TODO: do generic names need a different syntax than generic values, e.g.,
+`fixedArray~(N: count, t)` for a fixed-count array with `t` elements?
+
+### argument type generics
+
 For functions that accept multiple types as input/output, we define template types
-inline, e.g., `logger(T: ~t): t`, using `~` the first time you see the type in the
-definition (reading left to right).
+inline, e.g., `copy(Value: ~t): t`, using `~` the first time you see the type in the
+definition (reading left to right).  You can use any unused identifier for the new
+type, e.g., `~q` or `~sandwichType`.
 
 ```
-logger(T: ~t): t
+copy(Value: ~t): t
+    print("got $(Value)")
+    return Value
+
+vector3 := {X: dbl, Y: dbl, Z: dbl}
+Vector3 := vector3(Y: 5)
+Result := copy(Value: Vector3)    # prints "got vector3(X: 0, Y: 5, Z: 0)".
+Vector3 == Result           # equals True
+```
+
+### argument *name* generics: with associated generic type
+
+TODO: restrictions here, do we need to only have a single argument, so that
+argument names are unique?
+
+For an example where the name and type are both generic, which is probably
+the most common: `logger(~T): t`, where `~T` is shorthand for `T: t` with a 
+new template type `t`.  For contrast, `logger(T: ~t): t` might appear to be doing
+the same thing, but this will be a compile error since you probably don't want to
+call this function like `logger(T: "whatever")`.
+TODO: the compile error is probably "cannot use a template type `~t` when there is
+an existing named instance `T`; you probably meant `~T`, not `T: ~t`."
+
+```
+logger(~T): t
     print("got $(T)")
     return T
 
@@ -2487,6 +2521,24 @@ IntResult := logger(5)    # prints "got 5" and returns the integer 5.
 # explicit type request:
 DblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
 ```
+
+Note that you can use `myFunction(~T;)` for a mutable argument.
+
+### argument name generics: with different type
+
+You can also define an argument with a known type, but an unknown name.
+
+```
+thisFunction(~TheName: int): null
+    # TODO: come up with a good way to get the name, if this isn't the best:
+    ArgumentName: str = @(TheName)
+    print("calling thisFunction with $(ArgumentName): $(TheName)")
+```
+
+We cannot define an argument name and an argument type to both be
+generic and different.  `myFunction(~MyName: ~anotherType)` (COMPILE ERROR)
+is needlessly verbose; if the type should be generic, just rely on what
+is passed in: `myFunction(~MyName: myName)` or `myFunction(~MyName) for short.
 
 ## pure functions and functions with side effects
 
@@ -4100,7 +4152,7 @@ insertionOrderedMap~(key, value) := extend(map) {
     ::forEach(Loop->fn(Key, Value): loop): null
         Index ;= This IndexedMap_0 NextIndex
         while Index != 0
-            {Value:, Key:} = ~not~null(This IndexedMap_Index)
+            {Value:, Key:} = not~null(This IndexedMap_Index)
             ForLoop := Loop->fn(Key, Value)
             if ForLoop == loop Break
                 break
@@ -4510,15 +4562,21 @@ myHashableClass := {
     # we allow a generic hash builder so we can do cryptographically secure hashes
     # or fast hashes in one definition, depending on what is required.
     # This should automatically be defined for classes with precise fields (e.g., int, u32, string, etc.)!
-    ::hash(Builder; ~builder):
+    ::hash(~Builder;):
         # TODO: consider if we should hash the class' internal type ID,
         #       i.e., in order to avoid collisions if multiple types have the same internal fields.
         Builder hash(This Id)       # you can use `hash` via the builder or...
         This Name hash(Builder;)    # you can use `hash` via the field.
+
+    # consider doing sequence building for the hash builder:
+    ::hash(~Builder;) := Builder {
+        hash(This Id)
+        hash(This Name)
+    }
 }
 
 # note that defining `::hash(~Builder;)` automatically defines a `fastHash` like this:
-# fastHash(MyHashableClass, Salt: ~salt): salt
+# fastHash(MyHashableClass, ~Salt): salt
 #   Builder := \\hash fast(Salt)
 #   Builder hash(MyHashableClass)
 #   return Builder build()
