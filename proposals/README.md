@@ -11,7 +11,10 @@ created by end-user developers.  This is usually an inconsistency by convention,
 e.g., `PascalCase` for class names and `snake_case` for primitive types in C++,
 but Rust requires this inconsistency by fiat.
 In hm-lang, all types are `lowerCamelCase`, like functions.  Variables and identifiers
-like `True` or `False` are `UpperCamelCase`.
+like `True` or `False` are `UpperCamelCase`.  hm-lang doesn't recommend distinguishing
+between constant identifiers and non-constant identifiers with casing,
+e.g., like `UPPER_SNAKE_CASE` in other languages; you can rely on the compiler
+to stop you if you try to change a constant variable.
 
 In some languages, e.g., JavaScript, objects are passed by reference and primitives
 are passed by value when calling a function with these arguments.  In hm-lang,
@@ -56,6 +59,11 @@ This parallels `myClass::myMethod` in C++, but in hm-lang we can analogously use
 `myClass;;myMutatingMethod` for a method that can mutate `This`, i.e.,
 `myMutatingMethod(This;, X: int): str` becomes `;;myMutatingMethod(X: int): str`.
 
+Class getters/setters do not use `::getX(): dbl` or `;;setX(Dbl): null`, but rather
+just `::x(): dbl` and `;;x(Dbl): null` for a private variable `X; dbl`.  This is one
+of the benefits of using `lowerCamelCase` for functions/methods and `UpperCamelCase`
+for variables; we can easily distinguish intent without additional verbs.
+
 # general syntax
 
 * `lowerCamelCase` identifiers like `x` are function/type-like, see [here](#variable-and-function-names)
@@ -80,7 +88,7 @@ This parallels `myClass::myMethod` in C++, but in hm-lang we can analogously use
     * `(X: 1.2, Y: 3.4, W: "hi")` to instantiate an argument object
     * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
         Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
-* all arguments are specified by name, although you can have default-named arguments
+* all arguments are specified by name so order doesn't matter, although you can have default-named arguments
   for the given type which will grab an argument with that type (e.g., `Int` for an `int` type).
     * `(X: dbl, Int)` can be called with `(1234, X: 5.67)` or even `(Y, X: 5.67)` if `Y` is an `int`
 * variables that are already named after the correct argument can be used without `:`
@@ -3332,6 +3340,62 @@ Screen clear color(R: 50, G: 0, B: 100)
 You get a run-time error if multiple child-class singletons are imported/instantiated
 at the same time.
 
+## sequence building
+
+Some languages use a builder pattern, e.g., Java, where you add fields to an object
+using setters.  For example, `MyBuilder.setX(123).setY(456).setZ("great").build()` [Java].
+In hm-lang, this is mostly obviated by named arguments: `myClass(X: 123, Y: 456, Z: "great")`
+will do the same thing.  However, there are still situations where it's useful to sequence
+methods on the same class instance, and hm-lang lacks the ability to return a reference to
+the class instance from a method like in other languages.  Instead, we use `{}` with all the
+method calls inside.  For example, if we were to implement a builder pattern with setters,
+we could combine a bunch of mutations like this:
+
+```
+myBuilder := {
+    ;;set(String, Int): null
+}
+
+# Note, inside the `{}` we infer that mutating methods are desired.
+# The resulting variable will be readonly after this definition + mutation chain,
+# due to being defined with `:=`.
+MyBuilder := myBuilder() {
+    set("Abc", 123)
+    set("Lmn", 456)
+    set("Xyz", 789)
+    # etc.
+}
+
+# You can also do inline, but you should use commas here.
+# Note that this variable can still be mutated after this line due to `;=`.
+MyBuilder2 ;= myBuilder() { set("Def", 987), set("Uvw", 321) }
+```
+
+In fact, `{}` acts like bash sequence builders (which also use `{}`).  E.g.,
+
+```
+# Example method sequence builder:
+MyClass {
+    myMethod() {nextMethod(), nextMethod2(), NestedField}
+    otherMethod()
+    SomeField
+}
+
+# Is equivalent to this sequence:
+Result := MyClass myMethod()
+Result nextMethod()
+Result nextMethod2()
+Result NestedField
+MyClass otherMethod()
+MyClass SomeField
+
+# But you can destructure the result as if it were this object:
+{ MyMethod: {NextMethod, NextMethod2, NestedField}, OtherMethod, SomeField }
+```
+
+When two sequence builders combine, e.g.,, `{A B} {C D}`, they execute in a deterministic
+order, e.g., `A C, A D, B C, B D`, and can be dereferenced via `{A: {C, D}, B: {C, D}}`.
+
 # aliases
 
 Aliases enable writing out logic with semantically similar descriptions, and 
@@ -3714,8 +3778,6 @@ array~t := extend(container~(key: index, value: t)) {
     ::sort(): this
 
     # sorts this array in place:
-    # TODO: a nice way to chain, e.g., `Array; int_, ..., X := Array;;sort() chain [0]`
-    # TODO: maybe use `then` instead of `chain`, or some symbols.  `Y := Array;;sort() then [0]`
     ;;sort(): null
     ...
 
