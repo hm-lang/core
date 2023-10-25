@@ -99,9 +99,7 @@ TODO: `fn(): x` inline has been historically `fn: (): x` but we should get rid o
 and do `fn: x()` to line up with `Array[]: a` becoming `Array: a[]`.
 
 TODO: automatic casting to the argument type will break "pass by reference" logic.
-maybe we return to MMR but use `X; 1` for the notation here.  if done locally, we
-pass by reference to avoid two moves.  alternatively, we could cast into the value
-and then cast back at the end of the function call.  third option: we could do a
+we could do a
 compile error if the type isn't compatible; i.e., the instance being passed in
 should be the type or a child of the type.
 
@@ -275,13 +273,12 @@ which are function-like but will consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 
 Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
-most importantly in contrast to most other languages, underscores (`_`) are also not allowed.
-In hm-lang, underscores are considered subscripts, which allow access to an array,
-e.g., `Numbers_3` is equivalent to `Numbers[3]`, which gives the fourth element in the array
-called `Numbers` (since arrays are zero-indexed).
+most importantly in contrast to most other languages, underscores (`_`) are ignored within identifiers.
+E.g., `1_000_000` is the same as `1000000` and `my_Function` is the same as `myFunction`.
 
-TODO: remove `_` now that we're typing map values *after* the key (`Map[key]: value`).
-TODO: use `_` for e.g., placement in numbers `1_000_000`, and maybe something else.
+TODO: we probably could make `_` effectively capitalize the next character.
+TODO: we probably can use `_` at the end of a numeric identifier to give the type, e.g., `1234_i32`.
+Some examples:
 
 ## blocks
 
@@ -485,8 +482,8 @@ and similarly for `i8` to `i512`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
 
 Note that the `ordinal` type behaves exactly like a number but can be used
-to index arrays starting at 1.  E.g., `Array_ordinal(1)` corresponds to `Array_index(0)`
-(which is equivalent to other numeric but non-index types, e.g., `Array_0`).
+to index arrays starting at 1.  E.g., `Array[ordinal(1)]` corresponds to `Array[index(0)]`
+(which is equivalent to other numeric but non-index types, e.g., `Array[0]`).
 There is an automatic delta by +-1 when converting from `index` to `ordinal`
 or vice versa, e.g., `ordinal(index(1)) == 2` and `index(ordinal(1)) == 0`.
 Note however, that there's a bit of asymmetry here; non-index, numeric types
@@ -661,7 +658,6 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
 |           |   `->`    | new namespace             | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
-|           |   `_`     | subscript/index/key       | binary: `A_B`     |               |
 |           |   ` []`   | parenthetical subscript   | binary: `A[B]`    |               |
 |           |   `!`     | postfix moot = move+renew | unary:  `A!`      |               |
 |   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
@@ -731,9 +727,7 @@ add descriptive variables as intermediate steps.
 Deep dive!  Function calls are higher priority than member access because `someMethod() FinalField`
 would compile as `someMethod( ()::FinalField )` otherwise, which would evaluate to `someMethod(Null)`
 since `()::FinalField` is accessing the `FinalField` field on the object `()`, for which there is
-no field value (i.e, a null field value).  In addition, `X_someFunction[3]` would compile as
-`(X_someFunction)[3]`, which is almost certainly not what is desired, unless `X` is a map with
-*function* keys.
+no field value (i.e, a null field value).  
 
 TODO: if you don't supply all the arguments, you should get a new function that prefills
 all the arguments you supplied and keeps as its own arguments the ones you didn't.
@@ -767,7 +761,7 @@ as long as the variable names don't overlap.  You can also use the namespace ope
 of functions to declare new variables, but its utility is mostly to avoid argument renaming.
 Like the member access operators below, the namespace operator binds left to right.
 
-## member access operators `::`, `;;`, and ` ` as well as subscripts `_`
+## member access operators `::`, `;;`, and ` `
 
 We use `::`, `;;`, and ` ` (member access) for accessing variables or functions that belong to
 another object.  The `::` operator ensures that the RHS operand is read only, not write,
@@ -790,31 +784,20 @@ exampleClass := {
 }
 ```
 
-Subscripts `_` are not an allowed character for identifiers (e.g., variable or function names);
-a subscript acts as an operator for indexing containers like arrays, sets, maps, and tensors.
-E.g., for a map `Database; int_str`, then `Database_"Fred" = 3` sets the value at key "Fred" to 3.
-Or if we declare an array `Array; int_`, then `Array_3 = 100` sets the fourth value of the array
-to 100 (arrays are zero-indexed), so that `Array == [0, 0, 0, 100]`.  When an expression
-is used to key the index, you may also use an implicit subscript, which occurs when we have
-a non-function LHS followed by parentheses, e.g., `Array[Some + Expression / Here]`.
-TODO: probably can use `_` inside numeric identifiers without confusion, e.g., `1_000_000`.
-we might even want `1[000][000]` to work in a similar way (if `_X` == `[X]`).
-TODO: we probably can use `_` at the end of a numeric identifier to give the type, e.g., `1234_i32`.
-Some examples:
 
 ```
-someClass := {X: dbl, Y: dbl, I; str_}
+someClass := {X: dbl, Y: dbl, I; str[]}
 SomeClass ;= someClass(X: 1, Y: 2.3, I: ["hello", "world"])
 print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints ["hello", "world"]
 print(SomeClass::I[1])  # prints "world"
-print(SomeClass I[1])   # also prints "world", ` ` (member access) and `_` bind LTR.
+print(SomeClass I[1])   # also prints "world", using ` ` (member access)
 SomeClass;;I[4] = "love"    # the fifth element is love.
 SomeClass::I[7] = "oops"    # COMPILE ERROR, `::` means the array should be readonly.
 SomeClass;;I[7] = "no problem"
 
 NestedClass; someClass[] = []
-NestedClass_1 X = 1.234     # creates a default [0] and [1], sets [1]'s X to 1.234
-NestedClass_3 I_4 = "oops"  # creates a default [2] and [3], sets [3]'s I to ["", "", "", "", "oops"]
+NestedClass[1] X = 1.234        # creates a default [0] and [1], sets [1]'s X to 1.234
+NestedClass[3] I[4] = "oops"    # creates a default [2] and [3], sets [3]'s I to ["", "", "", "", "oops"]
 ```
 
 For class methods, `;;` (`::`) selects the overload that mutates (keeps constant) the class
@@ -830,8 +813,6 @@ getMedianSlow(Array: array~int): int
         throw "no elements in array, can't get median."
     # make a copy of the array, but no longer allow access to it (via `@hide`):
     Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is readonly.
-    # note that we need parentheses here around the desired array index
-    # since `//` binds less strongly than `_`:
     return Sorted->Array[Sorted->Array count() // 2]
 
 # sorts the array and returns the median.
@@ -839,7 +820,7 @@ getMedianSlow(Array; array~int): int
     if Array count() == 0
         throw "no elements in array, can't get median."
     Array sort()    # same as `Array;;sort()` since `Array` is mutable.
-    return Array _ (Array count() // 2)
+    return Array[Array count() // 2]
 ```
 
 Note that if the LHS is readonly, you will not be able to use a `;;` method.
@@ -847,18 +828,13 @@ To sum up, if the LHS is mutable, you can use `;;` or `::`, and ` ` (member acce
 effectively be `;;`.  If the LHS is readonly, you can only use `::` and ` `, which are equivalent.
 
 Subscripts have the same binding strength as member access operators since they are conceptually
-similar operations.  This allows for operations like `++A_3` meaning `++(A_3)` and
-`--A B C_3` equivalent to `--(((A;;B);;C)_3)`.  Member access binds stronger than exponentation
-so that operations like `A B_C^3` mean `((A::B)_C)^3`.  Note that parentheses break up implicit
-member access, so that we can distinguish between implicit member access, e.g., `Object Field`,
-and implicit subscript, e.g., `Array(Index)`.  The former becomes `Object::Field` (or
-`Object;;Field` depending on the context), while the latter becomes `Array_Index`.
+similar operations.  This allows for operations like `++A[3]` meaning `++(A[3])` and
+`--A B C[3]` equivalent to `--(((A;;B);;C)[3])`.  Member access binds stronger than exponentation
+so that operations like `A B[C]^3` mean `((A::B)[C])^3`.
 
 Note that `something() NestedField` becomes `(something())::NestedField` due to
 the function call having higher precedence.  (You can also use destructuring if you want
 to keep a variable for multiple uses: `{NestedField} := something()`.)
-Similarly, using a function on the RHS of a subscript operation will call the function
-since it has higher priority.  E.g., `Array_someFunction(3)` becomes `Array_(someFunction(3))`.
 
 ## prefix and postfix exclamation points `!`
 
@@ -882,8 +858,8 @@ that would make things like `!!!` ambiguous.
 ## superscripts/exponentiation
 
 Note that exponentiation -- `^` and `**` which are equivalent --
-binds less strongly than function calls and member access.  So something like `A_B^2` will be
-equivalent to `(A_B)^2`.
+binds less strongly than function calls and member access.  So something like `A[B]^2` will be
+equivalent to `(A[B])^2` and `A B^3` is equivalent to `(A::B)^3`.
 
 ## bitshifts `<<` and `>>`
 
@@ -1006,6 +982,7 @@ NonNullXor: not~null = X xor Y      # will throw if `X xor Y` is null
 
 TODO: `??=`.
 TODO: discussion on `<->` being swap.  swap as a function would have required `swap(X;, Y;)`
+TODO: we probably can use `swap(X;, Y;)` as what you need to define for `<->` to work.
 to be consistent.
 
 # variables
@@ -2016,26 +1993,8 @@ so that we don't delete the value at `Array[3]` and thus invalidate the referenc
 Containers of containers (and further nesting) require key arrays for the pointers.
 E.g., `MyMap["Ginger"][1]["Soup"]` would be a struct which contains `&MyMap`, plus the tuple `("Ginger", 1, "Soup")`.
 
-TODO: discussion on `Array_5` being a reference.  this might break old hm-lang assumptions (based on MMR),
-since we normally do `array~t := { ::_(Index): t, ;;_(Index, T;): null }`.  but because we ask for it in an argument,
-the `:` and `;` get the readonly/mutable reference version?  to get the swap semantics correct, do we do
-`TmpInt ;= Array[3]!, sawOffBranch(TmpInt;), Array[3] = TmpInt!`?  this would give `[0, 1, 2, 30]` above.
-BUT if someone accesses `Array[3]` inside the function, is it alright that it has become 0?  otherwise
-we need to copy `Array[3]` and that's against the spirit here (we want to avoid copy, just do moves).
-This would be great for mutable arguments, and it avoids weird nested pointer dynamics, but the same thing
-wouldn't work for readonly arguments.  It'd be great to keep the solution the same for readonly and mutable arguments,
-and with the weird 0 mutable argument issue while inside the function, it might be nice to use pointer to container + offset.
-But then we would be straying from getter/swapper logic of hm-lang which makes it easy to check on the changes to a value
-before putting it back into a container (in case there are any invariants/etc. that need to be restored).
-TODO: we want to make it consistent with what's happening with `This;` inside class methods;
-we shouldn't moot the class instance into `This` for the method; it should be a reference.
-TODO: maybe instead of getter/swapper methods, we need `finalize()` methods for after a
-variable reference is mutated.  or maybe `mutated` or `done`.  for debugging, it might be nice
-to have both an `open()` and `close()` or `preMutate()` and `postMutate()`.  this should
-be done carefully internally since in the situation of the array element that gets deleted
-and then another array element gets modified, we should call these methods multiple times
-(e.g., `preMutate(index(3), Array_3 #(3)#)`, `postMutate(index(3), Null)`,
-`preMutate(index(3), Array_3 #(4)#)`, `postMutate(index(3), Array_3 #(40)#)`).
+TODO: discussion on how `Array[5]` gets passed by reference when used as an argument.
+e.g., `myFunction(X; Array[5])` will do something like `Array[5, (T;) := myFunction(X; T)]`.
 
 Here is an example with a map.  Note that the argument is readonly, but that doesn't mean
 the argument doesn't change, especially when we're doing self-referential logic like this.
@@ -3329,7 +3288,7 @@ All classes have a few compiler-provided methods which cannot be overridden.
 * `is(): new` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
     ```
-    X; oneOf(null, int, dbl_)
+    X; oneOf(null, int, dbl[])
     X = [1.2, 3.4]
     # you can check `X is()` or `is(X)` (which is equivalent to `X is()`):
     what is(X)
@@ -3337,7 +3296,7 @@ All classes have a few compiler-provided methods which cannot be overridden.
             print("X is Null")
         int
             print("X is an integer")
-        dbl_
+        dbl[]
             print("X is an array of double")
     ```
     Note that the `is()` type can be printed nicely, e.g.,
@@ -3761,12 +3720,9 @@ An array contains a list of elements in contiguous memory.  You can
 define an array explicitly using the notation `Array: array~elementType`
 for the type `elementType` or via `Array[]: elementType` or `Array: elementType[]`.
 E.g. `MyArray: int[]` or `MyArray: array~int` for a readonly integer array.
-The mutable versions of course use `;` instead of `:`.
-
-Side note: as we will see, the subscript operator is usually a binary operator, i.e.,
-requiring two operands, `A _ B`, read "A subscript B".  We make an exception for the
-array type not to require a second operand -- in fact, adding one would create a
-different type, the map type.
+The mutable versions of course use `;` instead of `:`.  Note that arrays
+are keyed by an `index` type, but using `MyVar[index]: elementType` would
+create a [map](#maps).
 
 To define an array quickly (i.e., without a type annotation), use the notation
 `["hi", "hello", "hey"]`.
@@ -3777,14 +3733,14 @@ it is always `Array`.  Example usage and declarations:
 # this is a readonly array:
 MyArray[]: dbl = [1.2, 3, 4.5]      # converts all to dbl
 MyArray append(5)   # COMPILE ERROR: MyArray is readonly
-MyArray_1 += 5      # COMPILE ERROR: MyArray is readonly
+MyArray[1] += 5     # COMPILE ERROR: MyArray is readonly
 
 # mutable integer array:
 Array; int[]        # declaring a mutable, default-named integer array
 Array append(5)     # now Array == [5]
-Array_3 += 30       # now Array == [5, 0, 0, 30]
-Array_4 = 300       # now Array == [5, 0, 0, 30, 300]
-Array_2 -= 5        # now Array == [5, 0, -5, 30, 300]
+Array[3] += 30      # now Array == [5, 0, 0, 30]
+Array[4] = 300      # now Array == [5, 0, 0, 30, 300]
+Array[2] -= 5       # now Array == [5, 0, -5, 30, 300]
 
 # mutable string array:
 StringArray[]; string = ["hi", "there"]
@@ -3833,29 +3789,29 @@ array~t := extend(container~(key: index, value: t)) {
     ;;sort(): null
     ...
 
-    # TODO: do we want to keep swapper/getter functionality when we're deciding
-    #       to pass by reference in function arguments?
-    #       can we avoid doing `fn(): ref~t` for return values and also allow
-    #       references by default in return values?
     # swapper, sets the value at the index, returning the old value in the reference.
     # if the swapped in value is Null but the array value wasn't Null, the array
-    # will shrink by one, and all later indexed values will move down one index.
-    ;;_(Index, T?;): null
+    # will shrink by one, and any later indexed values will move down one index.
+    # USAGE: `T ?; = t(...), This[Index] <-> T`
+    # TODO: is there better notation here?, e.g., `;;[Index] <-> (T?;): null` or something with `swap`?
+    ;;[Index, T?;]: null
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the index into the passed-in function by reference (`;`).
     # if Index >= the current count(), then the array count is increased (to Index + 1)
     # and filled with default values so that a valid reference can be passed into the callback.
-    ;;_(Index, fn(T;): ~u): u
+    # USAGE: `This[Index] += 5` compiles to `This[Index, (T;): $(T += 5)]`
+    # TODO: we can probably determine `$T += 5` as `(T;): $(T += 5)` because `$T += 5` requires mutability
+    ;;[Index, fn(T;): ~u]: u
 
     # getter, which returns a Null if index is out of bounds of the array:
-    ::_(Index, fn(T?): ~u): u
+    ::[Index, fn(T?): ~u]: u
 
     # getter, which never returns Null, but will throw if index is out of bounds of the array:
-    ::_(Index, fn(T): ~u): u
+    ::[Index, fn(T): ~u]: u
 
     # Note: You can use the `;:` const template for function arguments.
-    # e.g., `myArray~t := extend(array~t) { ;:_(Index, fn(T;:): ~u) := array_(This;:, Index, fn) }`
+    # e.g., `myArray~t := extend(array~t) { ;:[Index, fn(T;:): ~u] := array;:[Index, fn] }`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`T?;`) is null, but you switch to
@@ -3863,18 +3819,18 @@ array~t := extend(container~(key: index, value: t)) {
     # in between, if necessary).  if you set the reference to Null and it wasn't
     # Null before, then the array will shrink by one, and all later index values
     # will move down one.
-    ;;_(Index, fn(T?;): ~u): u
+    ;;[Index, fn(T?;): ~u]: u
 
     # non-nullable modifier, which will increase the count of the array (with default values)
     # if you are asking for a value at an index out of bounds of the array.
-    ;;_(Index, fn(T;): ~u): u
+    ;;[Index, fn(T;): ~u]: u
 }
 ```
 
 ### fixed-count arrays
 
 We declare an array with a fixed number of elements using the notation
-`elementType_FixedCount`, where `FixedCount` is a constant integer expression (e.g., 5)
+`elementType[Count]`, where `Count` is a constant integer expression (e.g., 5)
 or a variable that can be converted to the `count` type.  Fixed-count array elements
 will be initialized to the default value of the element type, e.g., 0 for number types.
 
@@ -3883,7 +3839,7 @@ operation that changes the array count.  hm-lang attempts to throw compiler erro
 possible (i.e., by deleting methods like `pop` or `append`), but there may be runtime
 errors (e.g., `Array[X] = 3` where `X` is unknown by the compiler).  Like regular arrays,
 fixed-count arrays are zero-indexed, so the first element in a fixed-count array
-`Array` is `Array_0`.
+`Array` is `Array[0]`.
 
 Fixed-count arrays can be passed in without a copy to functions taking
 an array as a readonly argument, but will be of course copied into a 
@@ -3891,21 +3847,21 @@ resizable array if the argument is mutable.  Some examples:
 
 ```
 # readonly array of count 4
-Int4: int_4 = [-1, 5, 200, 3450]
+Int4: int[4] = [-1, 5, 200, 3450]
 # mutable array of fixed-count 3:
-Vector3; dbl_3 = [1.5, 2.4, 3.1]
-print("Vector3 is {$(Vector3_0), $(Vector3_1), $(Vector3_2)}")
+Vector3; dbl[3] = [1.5, 2.4, 3.1]
+print("Vector3 is {$(Vector3[0]), $(Vector3[1]), $(Vector3[2])}")
 
 # a function with a mutable argument:
-doSomething(CopiedArray; dbl_): dbl_2
+doSomething(CopiedArray; dbl[]): dbl[2]
     # you wouldn't actually use a mutable array argument, unless you did
     # some computations using the array as a workspace.
     # PRETENDING TO DO SOMETHING USEFUL WITH CopiedArray:
     return [CopiedArray pop(), CopiedArray pop()]
 
 # a function with a readonly argument:
-doSomething(ConstArray: dbl_): dbl_2
-    return [ConstArray_-1, ConstArray_-2]
+doSomething(ConstArray: dbl[]): dbl[2]
+    return [ConstArray[-1], ConstArray[-2]]
 
 # copies Vector3, of course:
 print(doSomething(CopiedArray: Vector3))    # prints [3.1, 2.4]
@@ -3920,10 +3876,10 @@ count is unknown at compile time, the fixed-count array will be defined on the h
 ```
 # note you can use an input argument to define the return type's
 # fixed-array count, which is something like a generic:
-range(Count): int_Count
-    Result; int_Count
+range(Count): int[Count]
+    Result; int[Count]
     for I: index < Count
-        Result_I = I
+        Result[I] = I
     return Result
 
 print(range(10))    # prints [0,1,2,3,4,5,6,7,8,9]
@@ -4004,30 +3960,28 @@ Maps require a key type whose instances can hash to an integer or string-like va
 E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array~dbl`).
 
 ```
-DblDatabase; dbl_int       # OK, int is an OK key type
-DblDblDatabase; dbl_dbl    # COMPILE ERROR, dbl is an invalid key type.
+DblDatabase; dbl[int]      # OK, int is an OK key type
+DblDblDatabase; dbl[dbl]   # COMPILE ERROR, dbl is an invalid key type.
 ```
 
 However, we allow casting from these prohibited types to allowed key types.  For example:
 
 ```
-NameDatabase; string_int
-NameDatabase_123 = "John"
-NameDatabase_124 = "Jane"
-print(NameDatabase_123.4)   # RUNTIME ERROR, 123.4 is not representable as an `int`.
-print(NameDatabase_123.4 round(Stochastically))     # prints "John" with 60% probability, "Jane" with 40%.
+NameDatabase; string[int]
+NameDatabase[123] = "John"
+NameDatabase[124] = "Jane"
+print(NameDatabase[123.4])  # RUNTIME ERROR, 123.4 is not representable as an `int`.
+print(NameDatabase[123.4 round(Stochastically)])    # prints "John" with 60% probability, "Jane" with 40%.
 
 # note that the definition of the key is a readonly array:
-StackDatabase; string_(int_)    # parentheses are grammatically unnecessary,
-                                # since subscripts go right to left.
-                                # i.e., `StackDatabase; string_int_` would be ok too.
-StackDatabase_[1,2,3] = "stack123"
-StackDatabase_[1,2,4] = "stack124"
+StackDatabase; string[int[]]
+StackDatabase[[1,2,3]] = "stack123"
+StackDatabase[[1,2,4]] = "stack124"
 # prints "stack123" with 90% probability, "stack124" with 10%:
-print(StackDatabase_map([1.0, 2.0, 3.1], $Dbl round(Stochastically))
+print(StackDatabase[map([1.0, 2.0, 3.1], $Dbl round(Stochastically))])
 # things get more complicated, of course, if all array elements are non-integer.
 # the array is cast to the key type (integer array) first.
-StackDatabase_[2.2, 3.5, 4.8] map($Dbl round(Stochastically))
+StackDatabase[[2.2, 3.5, 4.8] map($Dbl round(Stochastically))]
 # result could be stored in [2, 3, 4], [2, 3, 5], [2, 4, 4], [2, 4, 5],
 #                           [3, 3, 4], [3, 3, 5], [3, 4, 4], [3, 4, 5]
 # but the key is decided first, then the map is added to.
@@ -4064,43 +4018,42 @@ map~(key, value) := extend(container~{key, value}) {
 
     @alias ;;pop(Key) ?:= This;;[Key]!
 
-    # TODO: do we want to keep swapper/getter functionality?
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at key, too.
-    ;;_(Key): value
+    ;;[Key]: value
 
     # getter, which will create a default value instance if it's not present at Key.
-    ;;_(Key, fn(Value): ~t): t
+    ;;[Key, fn(Value): ~t]: t
 
     # returns a Null if key is not in the map.
-    ::_(Key)?: value
+    ::[Key]?: value
 
     # getter, which will pass back a Null if the key is not in the map.
-    ::_(Key, fn(Value?): ~t): t
+    ::[Key, fn(Value?): ~t]: t
 
     # sets the value at the key, returning the old value:
-    ;;_(Key, Value;): value
+    ;;[Key, Value;]: value
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the key into the passed-in function by reference (`;`).
     # the return value of the passed-in function will become the new value at the key.
     # if a value at `Key` is not already present, a default `Value` will be created.
-    ;;_(Key, fn(Value;): ~t): t
+    ;;[Key, fn(Value;): ~t]: t
 
     # nullable modifier, which returns a Null if the key is not in the map.
     # if the Value wasn't Null, but becomes Null via the passed-in function,
     # the key will be deleted from the map.  conversely, if the value was Null, but
     # the passed-in function turns it into something non-null, the key/value will be added
     # to the map.
-    ;;_(Key, fn(Value?;): ~t): t
+    ;;[Key, fn(Value?;): ~t]: t
 
     # getter and modifier in one definition, with the `;:` "template mutability" operator:
     # will throw for the const map (`This:`) if Key is not in the map.
-    ;:_(Key, fn(Value;:): ~t): t
+    ;:[Key, fn(Value;:): ~t]: t
 
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
-    ;:_(Key, fn(Value?;:): ~t): t
+    ;:[Key, fn(Value?;:): ~t]: t
 }
 ```
 
@@ -4132,63 +4085,63 @@ insertionOrderedMap~(key, value) := extend(map) {
     NextAvailableIndex; @private index = 1
 
     # creates a default value if not present at the key to pass in to the modifier:
-    ;;_(Key;:, fn(Value;): ~t): t
-        Index ?:= This KeyIndices_Key
+    ;;[Key;:, fn(Value;): ~t]: t
+        Index ?:= This KeyIndices[Key]
         return if Index != Null
             This modifyAlreadyPresent(Index, fn)
         else
             This needToInsertThenModify(Key;:, fn)
 
-    ::_(Key, fn(Value?): ~t): t
-        Index ?:= This KeyIndices_Key
+    ::[Key, fn(Value?): ~t]: t
+        Index ?:= This KeyIndices[Key]
         return if Index != Null
             assert Index != 0
-            This IndexedMap_(Index, (IndexedMapElement): t
+            This IndexedMap[Index, (IndexedMapElement): t
                 return fn(IndexedMapElement Value)
-            )
+            ]
         else
             fn(Null)
     
     ::forEach(Loop->fn(Key, Value): loop): null
-        Index ;= This IndexedMap_0 NextIndex
+        Index ;= This IndexedMap[0] NextIndex
         while Index != 0
-            {Value:, Key:} = not~null(This IndexedMap_Index)
+            {Value:, Key:} = not~null(This IndexedMap[Index])
             ForLoop := Loop->fn(Key, Value)
             if ForLoop == loop Break
                 break
-            Index = This IndexedMap_Index NextIndex
+            Index = This IndexedMap[Index] NextIndex
         # mostly equivalent to using nested functions to avoid copies:
-        #   ForLoop := This IndexedMap_(Index, (IndexedMapElement?):
+        #   ForLoop := This IndexedMap[Index, (IndexedMapElement?):
         #       if IndexedMapElement == Null
         #           error("insertion-ordered map invariant was broken")
         #       Index = IndexedMapElement NextIndex
         #       return Loop->fn(IndexedMapElement Key, IndexedMapElement Value)
-        #   )
+        #   ]
 
     # modifier for a keyed value not yet in the map, need to insert a default first:
     @private
     ;;needToInsertThenModify(Key;:, fn(Value;): ~t): t
         NewIndex := This NextAvailableIndex++ or reshuffle()
-        PreviouslyLastIndex := This IndexedMap_0 PreviousIndex
-        This IndexedMap_NewIndex = {
+        PreviouslyLastIndex := This IndexedMap[0] PreviousIndex
+        This IndexedMap[NewIndex] = {
             PreviousIndex: PreviouslyLastIndex
             NextIndex: 0
             Key
             Value: value()
         }
-        This KeyIndices_@mootOrCopy(Key) = NewIndex
-        This IndexedMap_0 PreviousIndex = NewIndex
-        This IndexedMap_PreviouslyLastIndex NextIndex = NewIndex
+        This KeyIndices[@mootOrCopy(Key)] = NewIndex
+        This IndexedMap[0] PreviousIndex = NewIndex
+        This IndexedMap[PreviouslyLastIndex] NextIndex = NewIndex
         return This modifyAlreadyPresent(NewIndex, fn)
 
     # modifier for an already indexed value in the map:
     @private
     ;;modifyAlreadyPresent(Index, fn(Value;): ~t): t
         debug assert Index != 0
-        return This IndexedMap_(Index, (IndexedMapElement?;): t
+        return This IndexedMap[Index, (IndexedMapElement?;): t
             assert IndexedMapElement != Null
             return fn(IndexedMapElement Value;)
-        )
+        ]
 }
 ```
 
@@ -4250,8 +4203,8 @@ TODO: make it easy to pass in a set as an argument and return a map with e.g. th
   maybe this isn't as important as it would be if we had a dedicated object type.
 
 ```
-fn(PickFrom: ~t_str, Fields: _str): t_str
-    return Fields map((Field: str) := mapElement(Field, PickFrom_Field))
+fn(PickFrom: ~t[str], Fields: [str]): t[str]
+    return Fields map((Field: str) := mapElement(Field, PickFrom[Field]))
 
 fn~{o, k from keys(o)}(PickFrom: o, Keys: k): pick(o, k)
     return pick(PickFrom, Keys)
@@ -4351,9 +4304,9 @@ array~t := {
         for Index: index < This count()
             # use the no-copy getter, here:
             # explicit:
-            ForLoop := This_(Index, fn)
+            ForLoop := This[Index, fn]
             # implicit:
-            ForLoop := fn(This_Index)
+            ForLoop := fn(This[Index])
             if ForLoop == loop Break
                 break
 
@@ -4362,16 +4315,16 @@ array~t := {
         for Index: index < This count()
             # do a swap on the value based on the passed in function:
             # explicit:
-            ForLoop := This_(Index, fn)
+            ForLoop := This[Index, fn]
             # implicit:
-            ForLoop := fn(This_Index;)
+            ForLoop := fn(This[Index;])
             if ForLoop == loop Break
                 break
 
     # mutability template for both of the above:
     ;:forEach(fn(T;:): loop): bool
         for Index: index < This count()
-            if fn(This_Index;:) == Break
+            if fn(This[Index;:]) == Break
                 return True
         return False
 }
@@ -4550,8 +4503,8 @@ X := what String    #@salt(1234)
 
 Similarly, any class that supports a compile-time fast hash with a salt can be
 put into a `what` statement.  Floating point classes or containers thereof
-(e.g., `dbl` or `flt_`) are not considered *exact* enough to be hashable, but
-hm-lang will support fast hashes for classes like `int`, `i32`, and `u64_`,
+(e.g., `dbl` or `flt[]`) are not considered *exact* enough to be hashable, but
+hm-lang will support fast hashes for classes like `int`, `i32`, and `u64[]`,
 and other containers of precise types, as well as recursive containers thereof.
 
 ```
@@ -5160,11 +5113,11 @@ to make this not look clumsy.
 ```
 ArrayArray; int[][] = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
-ArrayArray_0 append(4)  # now ArrayArray == [[1,2,3,4], [5]]
+ArrayArray[0] append(4)     # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
-ArrayArray_(0, (Array; int_): null
-    Array append(4)
-)
+ArrayArray[0, (Nested->Array; int[]): null
+    Nested->Array append(4)
+]
 ```
 
 This function approach avoids lifetime issues that can arise with pointers,
@@ -5192,7 +5145,7 @@ internally, so that the `caller` will no longer call the `callee`.
 ```
 variableAccess := oneOf(Mutable, Readonly)
 caller~(t, VariableAccess) := {
-    Callees; _(ptr~callee~(t, VariableAccess))
+    Callees[ptr~callee~(t, VariableAccess)];
     @if VariableAccess == Readonly
         ::runCallbacks(T: t) := for (Ptr) in Callees $(Ptr call(T)) 
     @if VariableAccess == Mutable
@@ -5201,7 +5154,7 @@ caller~(t, VariableAccess) := {
     # ::runCallbacks(@access(T, VariableAccess) t): null
     #       for (Ptr) in Callees $(Ptr call(@access(T, VariableAccess)))
 }
-audio := singleton(caller~(sample_, Mutable)) {
+audio := singleton(caller~(sample[], Mutable)) {
     # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
@@ -5209,13 +5162,13 @@ audio := singleton(caller~(sample_, Mutable)) {
     DeltaT: flt
 }
 
-audioCallee := extend(callee~(sample_;)) {
+audioCallee := extend(callee~(sample[];)) {
     Frequency; flt = 440
     Phase; flt = 0
 
-    ;;call(Array; @fixedCount sample_): null
+    ;;call(Array; @fixedCount sample[]): null
         for Index: index < Array count()
-            Array_Index = sample(Mono: \\math sin(2 * \\math Pi * This Phase))
+            Array[Index] = sample(Mono: \\math sin(2 * \\math Pi * This Phase))
             Phase += This Frequency * Audio DeltaT
 
     # automatically defined by the callee class:
@@ -5287,7 +5240,7 @@ tokenMatcher := {
     # through "Grammar match(...)" in order to restore the Index
     # in case of a bad match.  @private so that only Grammar can call.
     @private
-    ::match(Index;, Array: token_): bool
+    ::match(Index;, Array: token[]): bool
 }
 
 singleTokenMatcher := extend(tokenMatcher) (
@@ -5295,7 +5248,7 @@ singleTokenMatcher := extend(tokenMatcher) (
 
     # we automatically inherit the @visibility of the parent class method
     # unless we specifically provide one.
-    ;;match(Index;, Array: token_): bool
+    ;;match(Index;, Array: token[]): bool
         return Index < Array count() and Array[Index++] == This Token
 )
 
@@ -5303,7 +5256,7 @@ grammarMatcher := oneOf(tokenMatcher, grammarElement, token)
 
 Grammar := singleton() {
     @private
-    Elements: tokenMatcher_grammarElement = [
+    Elements: tokenMatcher[grammarElement] = [
         TypeElement: oneOfMatcher([
             FunctionType
             NonFunctionType
@@ -5430,19 +5383,21 @@ Grammar := singleton() {
         ])
         # TODO: templates, but see above.
         NonFunctionType: oneOfMatcher([
-            sequenceMatcher([
-                # set types, e.g., `_int` or `_str` and even
-                # nested set types e.g., `__int` or `___str`.
-                operatorMatcher("_")
+            bracketMatcher(
+                # set types, e.g., `[int]` or `[str]` and even
+                # nested set types e.g., `[[int]]` or `[[[str]]]`.
                 TypeElement
-            ])
+            )
             sequenceMatcher([
-                # map types, e.g., `str_int` or `dbl_str`
-                # as well as array types, e.g., `str_` or `dbl_`.
+                # map types, e.g., `str[int]` or `dbl[str]`
+                # as well as array types, e.g., `str[]` or `dbl[]`.
+                # TODO: i don't think this works for more complicated types, e.g.,
+                #       str[][int] which should be a map of `int` to `str[]` 
                 LowerCamelCase
-                repeatMatcher(operatorMatcher("_"), AtLeastTimes: 1)
-                # present if we're a map type, absent if an array type:
-                optionalMatcher(TypeElement)
+                bracketMatcher(
+                    # present if we're a map type, absent if an array type:
+                    optionalMatcher(TypeElement)
+                )
             ])
             # simple type, e.g., `int` or `dbl` or `myClassType`
             LowerCamelCase
@@ -5498,18 +5453,18 @@ Grammar := singleton() {
             ])
         ])
         EndOfInput: tokenMatcher(
-            ::match(Index;, Array: token_) := Index >= Array count()
+            ::match(Index;, Array: token[]) := Index >= Array count()
         )
     ]
 
-    ::match(Index;, Array: token_, GrammarMatcher): bool
+    ::match(Index;, Array: token[], GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
         Matched := what is(GrammarMatcher)
             tokenMatcher
                 GrammarMatcher match(Index;, Array)
             grammarElement
-                This Elements_GrammarMatcher match(Index;, Array)
+                This Elements[GrammarMatcher] match(Index;, Array)
             token
                 Index < Array count() and Array[Index++] == GrammarMatcher
         if not Matched
@@ -5535,11 +5490,11 @@ listMatcher(GrammarMatcher) := parenthesesMatcher(repeatMatcher([
 ])
 
 sequence := extend(tokenMatcher) {
-    Uninterruptible: grammarMatcher_
-    ;;renew(Array; grammarMatcher_):
+    Uninterruptible: grammarMatcher[]
+    ;;renew(Array; grammarMatcher[]):
         This Uninterrutible = Array!
 
-    ::match(Index;, Array: token_): bool
+    ::match(Index;, Array: token[]): bool
         for (GrammarMatcher) in This Uninterruptible
             if not Grammar match(Index;, Array, GrammarMatcher)
                 return False
@@ -5551,8 +5506,8 @@ sequence := extend(tokenMatcher) {
 parenthesesMatcher := extend(tokenMatcher) {
     ;;renew(This GrammarMatcher) := Null
 
-    ::match(Index;, Array: token_): bool
-        CurrentToken := Array_Index
+    ::match(Index;, Array: token[]): bool
+        CurrentToken := Array[Index]
         if not CurrentToken is(parenthesesToken)
             return False
 
@@ -5572,16 +5527,16 @@ parenthesesMatcher := extend(tokenMatcher) {
 # TODO: make this a function which returns either `repeatInterruptible` and `repeatTimes`
 # this is essentially the definition for repeatInterruptible:
 repeatMatcher := extend(tokenMatcher) {
-    Interruptible: GrammarMatcher_
+    Interruptible: GrammarMatcher[]
     # until `Until` is found, checks matches through `Interruptible` repeatedly.
     # note that `Until` can be found at any point in the array;
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Interruptible`.
-    ;;renew(This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher_):
+    ;;renew(This Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher[]):
         This Interruptible = Array!
 
-    ::match(Index;, Array: token_): bool
+    ::match(Index;, Array: token[]): bool
         if Index >= Array count()
             return False
 
