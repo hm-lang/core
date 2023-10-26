@@ -2145,39 +2145,57 @@ encountered when calling the function.  These fields are named to imply that the
 call can do just about anything (including fetching data from a remote server).
 
 ```
-# TODO: reconcile with MMR vs. mutable/readonly refs for arguments.
-#       probably want to proceed like MMR, with the Input/Output values matched.
 call := {
-    Input[str]; any
-    Output[str]; any
+    # TODO: need to distinguish between readonly and mutable references.
+    #       this can be done on the pointer (e.g., ptr::mutable()) or here somehow.
+    Input[str]; ptr~any
+    # we need to distinguish between the caller asking for specific fields
+    # versus asking for the whole output.
+    Output?; oneOf(fields: any[str], unified: any)
     Info?; string
     Warning?; string
     Error?; error
 
-    # i.e., for MMR-style input -> output variables.
-    # NOTE: use before the function call
-    ;;io(Name: str, ~T;): null
-        This Output[Name] = t()
-        This Input[Name] = T!
+    # adds an argument to the function call.
+    # e.g., `Call input(Name: "Cave", Value: "Story")`
+    ;;input(Name: str, Value: ptr~any): null
+        This Input[Name] = Value
+
+    # adds an argument to the function call.
+    # e.g., `Call input(Cave: "Story")`
+    ;;input(~Name: ptr~any): null
+        This Input[@(Name)] = Name
+
+    # adds a single-value return type
+    ;;output(Any): null
+        assert This Output == Null
+        This Output = unified(Any)
+
+    # adds a field to the return type with a default value.
+    # e.g., `Call output(FieldName: 123)` will ensure
+    # `{FieldName}` is defined in the return value, with a
+    # default of 123 if `FieldName` is not set in the function.
+    ;;output(~Name: any) := This output(Name: @(Name), Value: Name)
+
+    # adds a field to the return type with a default value.
+    # e.g., `Call output(Name: "FieldName", Value: 123)` will ensure
+    # `{FieldName}` is defined in the return value, with a
+    # default of 123 if `FieldName` is not set in the function.
+    ;;output(Name: string, Value: any): null
+        if This Output == Null
+            This Output = fields()
+        assert This Output is(fields)
+        This Output[Name] = Value 
 }
 ```
 
-TODO: should we even have `object` type with all the pain it comes with (e.g., keys that
-might override important hm-lang methods on `object`).
-Now, `call` is very generic, so `Input` and `Output` can be filled with any fields (or none),
-and this logic is encapsulated in the type `object`.  The `object` type can be thought of as
-a collection of nullable fields; if all fields are null, then the object acts like a null.
-The fields have keys that are symbols (they can be identified by letters/words in code,
-like `Object FieldKey`), and values that have any type.
-
 When passing in a `call` instance to actually call a function, the `Input` field will be treated
-as constant/read-only after being cast to the field types specified by the chosen function overload.
-(E.g., if an argument type is `string` but a number is passed in, it will be converted to a string.)
-The `Output` field will be considered "write-only", except for the fact that we'll read what fields
-are defined in `Output` to determine which overload to use.  This allows you to define "default
-values" for the output fields, which won't get overwritten if the function doesn't write to them.
-TODO: fields defined in both input and output might not be read-only inputs, they probably will get
-moved over to output for MMR purposes.  so we probably don't want to guarantee that `Input` is read-only
+as constant/read-only.  The `Output` field will be considered "write-only", except for the fact
+that we'll read what fields are defined in `Output` (if any) to determine which overload to use.
+This call structure allows you to define "default values" for the output, which won't get
+overwritten if the function doesn't write to them.  To make things easier to reason about, you
+can't influence the function overload by requesting nested fields in the output (e.g., `{X: {Y: Z}}`);
+only fields directly attached to the `Output` (e.g., `{X, T}`) can influence the function overload.
 
 Let's try an example:
 
@@ -2185,70 +2203,60 @@ Let's try an example:
 # define some function to call:
 someFunction(X: int): string
     return "hi" * X
-# this is an ok overload because the return type is different.
-# however, this is not recommended, since the arguments are named the same.
-# note that the earliest overload that matches will be default.
+# second overload:
 someFunction(X: string): int
     return X countBytes()
 
 MyString: string = someFunction(X: 100)     # uses the first overload
 MyInt: int = someFunction(X: "cow")         # uses the second overload
-CheckType := someFunction(X: "asdf")        # uses the second overload since the type is `string`
-WhatIsThis := someFunction(X: 123.4)        # WARNING! calls first overload, will throw at runtime.
+CheckType1 := someFunction(X: 123)          # uses the first overload since the type is `int`
+CheckType2 := someFunction(X: "asdf")       # uses the second overload since the type is `string`
+Invalid := someFunction(X: 123.4)           # COMPILE ERROR: 123.4 is not referenceable as `int` or `string`
 
 # example which will use the default overload:
 Call; call
-Call Input["X"] = 2
+Call input(X: 2)
 # use `Call` with `;` so that `Call;;Output` can be updated.
 someFunction(Call;)
-print(Call Output)  # prints {"String": "hihi"}
+print(Call Output)  # prints "hihi"
 
 # define a value for the object's Output field to get the other overload:
 Call; call
-Call Input["X"] = "hello"
-Call Output["Int"] = -1
+Call input(X: "hello")
 someFunction(Call;)
-print(Call Output)  # prints {"Int": 5}
+print(Call Output)  # prints 5
 
 # dynamically determine the function overload:
-Call; call = if someCondition()
-    {Input: X: 5, Output; String; "?"}
+Call; call
+if someCondition()
+    Call {input(X: 5), output("?")}
 else
-    {Input: X: "hey", Output; Int; -1}
+    Call {input(X: "hey"), output(-1)}
 
 someFunction(Call;)
-print(Call Output)  # will print {"String": "hihihihihi"} or {"Int": 3} depending on `someCondition()`.
+print(Call Output)  # will print "hihihihihi" or 3 depending on `someCondition()`.
 ```
 
 Note that `call` is so generic that you can put any fields that won't actually
-be used in the function call.  This can be dangerous, since errors won't be thrown
-if you have more fields defined than needed to call the function.  For example,
-with the above `someFunction` overloads, the first one is default, so it will cast
-a string value of the input field `X` to an integer if both (or neither) output
-fields are defined (`Int` and `String`), like this:
+be used in the function call.  In this, hm-lang will throw at run-time.
 
 ```
-Call ;= call(Input: X: "4", Output: {Int: 0, String: ""})
-someFunction(Call;)
-print(Call)  # prints {Input: {X: 4}, Output: {Int: 0, String: "hihihihi"}}
+Call ;= call() { input(X: "4"), output(Value1: 123), output(Value2: 456) }
+someFunction(Call;) # RUNTIME ERROR since there are no overloads with {Value1, Value2}
 ```
 
-If run-time checks and throwing errors are desired, one should use the more specific
+If compile-time checks are desired, one should use the more specific
 `myFn call` type, with `myFn` the function you want arguments checked against.
 
 ```
-# throws a compile-time error (if input and output are completely specified at the same time)
-# or a run-time error (if input and output are separately defined):
-Call ;= someFunction call(Input: X: "4", Output: {Int: 0, String: ""})  # error!!
-# the above will throw a compile-time error, since two values for Output are defined.
+# throws a compile-time error:
+Call ;= someFunction call() { input(X: "4"), output(Value1: 123), output(Value2: 456) }
+# the above will throw a compile-time error, since two unexpected fields are defined for Output.
 
-# this is ok:
-Call2 ;= someFunction call(Input: X: "4", Output: Int: 0)
-# this is also ok, but will cast X to int right away, and will throw an error when defining `Call3`
-# if `X` is not a integer-like string rather than when calling someFunction (like `call` would).
-Call3 ;= someFunction call(Input: X: "4", Output: String: "")
-# also ok:
-Call4 ;= someFunction call(Input: X: 4, Output: String: "")
+# this is ok (calls first overload):
+Call2 ;= someFunction call() { input(X: "4"), output(0) }
+# also ok (calls second overload):
+Call3 ;= someFunction call() { input(X: 4), output("") }
 ```
 
 Note that it's also not allowed to define an overload for the `call` type yourself.
@@ -2257,7 +2265,7 @@ This will give a compile error, e.g.:
 ```
 # COMPILE ERROR!!  you cannot define a function overload with a default-named `call` argument!
 someFunction(Call;): null
-    print(Call Input X)
+    print(Call Input["X"])
 ```
 
 This is because all overloads need to be representable by `Call; call`, including any
@@ -2266,39 +2274,10 @@ overloads you would create with `call`.  Instead, you can create an overload wit
 
 ```
 someFunction(MyCall; call): null
-    print(Call Input X) # OK
+    print(Call Input["X"]) # OK
 ```
-
-TODO: discuss the `object` type, which allows you to build up function arguments.
-e.g., `Object; object = {Hello: "World"}`.
-TODO: the `object` type is recursive, too.  need to think of a good way to handle weird stuff here,
-or requesting subfields of a field that was not an object.
-
-Note: You *can* create your own overload of a function with the `object` type as
-input, but it *cannot* be default-named `Object`.  This is for the same reason that we don't
-allow overloading a function with a `call` argument.  For example:
-
-```
-myFunction(Object):             # COMPILER ERROR, this is not allowed.
-    print(Object DidIDefineThis)
-    print(Object MaybeThisToo)
-
-myFunction(Cool: object):       # OK
-    print(Cool DidIDefineThis)
-    print(Cool MaybeThisToo)
-
-# prints "True" and then "Null" since `Cool MaybeThisToo` is not defined.
-myFunction(Cool: {DidIDefineThis: True, X: 5})
-```
-
-TODO: a consistent object API.  e.g., `Object count()` might be overridden.
 
 ## redefining a function
-
-TODO: i think we should consider nixing the ability to reassign functions
-in this way.  We could make `fn(); int` return a reference to an int;
-`fn; (): int` could be a reassignable function.  It would be nice to have
-a "returns a reference" syntax, unless we switch back to swappers.
 
 To declare a reassignable function, use `;` after the arguments.
 
@@ -3385,13 +3364,13 @@ Result nextMethod2()
 Result NestedField
 MyClass otherMethod()
 MyClass SomeField
-
-# But you can destructure the result as if it were this object:
-{ MyMethod: {NextMethod, NextMethod2, NestedField}, OtherMethod, SomeField }
+MyClass  # for a return value, if needed as a temporary.
 ```
 
 When two sequence builders combine, e.g.,, `{A B} {C D}`, they execute in a deterministic
-order, e.g., `A C, A D, B C, B D`, and can be dereferenced via `{A: {C, D}, B: {C, D}}`.
+order, e.g., `A C, A D, B C, B D`.
+
+TODO: are classes some sort of unevaluated sequence builder?
 
 # aliases
 
