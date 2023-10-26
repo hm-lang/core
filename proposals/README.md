@@ -94,9 +94,6 @@ for variables; we can easily distinguish intent without additional verbs.
 * variables that are already named after the correct argument can be used without `:`
     * `(X: dbl, Y: int)` can be called with `(X, Y)` if `X` and `Y` are already defined in the scope
 
-TODO: `fn(): x` inline has been historically `fn: (): x` but we should get rid of the extra `:`
-and do `fn: x()` to line up with `Array[]: a` becoming `Array: a[]`.
-
 TODO: automatic casting to the argument type will break "pass by reference" logic.
 we could do a
 compile error if the type isn't compatible; i.e., the instance being passed in
@@ -1048,6 +1045,7 @@ prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a comp
 if a declared variable is nullable but `?` is not used, since we want the programmer to be
 aware of the fact that the variable could be null, even though the program will take care
 of null checks automatically and safely.
+TODO: we probably can look for things like `X: int?` and convert to `X?: int` automatically.
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The executable will automatically
@@ -2109,10 +2107,11 @@ wow(Lives: int)?: cat
 ```
 
 For nested object return types, there is some syntactic sugar for dealing with them.
+Note, however, that nested fields won't help the compiler determine the function overload.
 
 ```
-nest(X: int, Y: str): (W: (Z: (A: int), B: str, C: str))
-    return (W: (Z: (A: X), B: Y, C: Y * X))
+nest(X: int, Y: str): {W: {Z: {A: int}, B: str, C: str}}
+    return {W: {Z: {A: X}, B: Y, C: Y * X}}
 
 # defines `A`, `B`, and `C` in the outside scope:
 {W: Z: A:, W: B:, W: C:} = nest(X: 5, Y: "hi")
@@ -2312,23 +2311,25 @@ A nullable function has `?` before the argument list; a `?` after the argument l
 means that the return type is nullable.  The possible combinations are therefore the following:
 
 * `normalFunction(...Args): returnType` is a non-null function
-  returning a non-null `returnType` instance.
+  returning a non-null `returnType` instance.  You can also
+  declare this as `normalFunction: returnType(...Args)`.
 
 * `nullableFunction?(...Args): returnType` is a nullable function,
   which, if non-null, will return a non-null `returnType` instance.
   Conversely, if `nullableFunction` is null, trying to call it will return null.
-  You can also declare this as `nullableFunction?: (...Args): returnType`.
+  You can also declare this as `nullableFunction?: returnType(...Args)`.
 
 * `nullableReturnFunction(...Args)?: returnType` is a non-null function
   which can return a nullable instance of `returnType`.  You can declare
-  this as `nullableReturnFunction(...Args): oneOf(null, returnType)` as well.
+  this as `nullableReturnFunction: oneOf(null, returnType)(...Args)` as well.
+  TODO: is `returnType?(...Args)` ok as well?
 
 * `superNullFunction?(...Args)?: returnType` is a nullable function
   which can return a null `returnType` instance, even if the function is non-null.
   I.e., if `superNullFunction` is null, trying to call it will return null,
   but even if it's not null `superNullFunction` can still return null.
-  You can also declare this as `superNullFunction?: (...Args)?: returnType`
-  or `superNullFunction?: (...Args): oneOf(null, returnType))`.
+  You can also declare this as `superNullFunction?: oneOf(null, returnType)(...Args)`.
+  TODO: is `returnType?(...Args)` ok as well?
 
 
 Some examples:
