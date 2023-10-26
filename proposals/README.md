@@ -641,6 +641,8 @@ TODO: types of functions, shouldn't really have `new`.
 Operator priority.
 
 TODO: add : , ; ?? postfix/prefix ?
+TODO: add ... for dereferencing.  maybe we also allow it for spreading out an object into function arguments,
+e.g., `myFunction(A: 3, B: 2, ...MyObject)` will call `myFunction(A: 3, B: 4, C: 5)` if `MyObject == {B: 4, C: 5}`.
 TODO: add `as`.  `X as Y` is equivalent to `Y: X` but `as` binds less strongly than the type `:`/`;`
 declaration, so that we can do things like `X: int as Y` for output destructuring which will declare
 `X` as an `int` variable and then be used for the return value of `Y` from the function.
@@ -1558,11 +1560,6 @@ default-named `Dbl: dbl` type output, then any non-null, default-named output ov
 For calls like`X := calling(InputArgs...) Dbl`, we will explicitly pick a default-named
 `Dbl: dbl` output overload or throw a compiler error if none exists.
 
-TODO: reconsider SFO logic (i.e., `{Int}` being equivalent to `int`).  Then the rules
-for the above might not be as confusing.  Depends on if we want to keep MMR or not,
-since `fn(Int;): dbl` needs to be equivalent to `fn(Int): {Dbl, Int}` in that case,
-in which case we need SFO for convenience.
-
 ### nullable input arguments
 
 When you call a function with an argument that is null, conceptually we choose the
@@ -2065,47 +2062,39 @@ but `{Field1, Field2} = doStuff()`, i.e., reassignment in hm-lang, is an error.
 Some worked examples follow, including field renaming.
 
 ```
-fraction(In: string, Io; dbl): (RoundDown: int)
+fraction(In: string, Io; dbl): {RoundDown: int, RoundUp: int}
     print(In)
     RoundDown := Io round(Down)
+    RoundUp := Io round(Up)
     Io -= RoundDown
-    return {RoundDown}
+    return {RoundDown, RoundUp}
 
 # destructuring
 Io ;= 1.234
 {RoundDown:} = fraction(In: "hello", Io;)
 
 # === calling the function with variable renaming ===
-# with pre-existing variables, using MMR syntax:
 Greeting := "hello!"
 InputOutput ;= 1.234     # note `;` so it's mutable.
 # just like when we define an argument for a function, the newly scoped variable goes on the left,
 # so too for destructuring return arguments.  this one uses the default type of `RoundDown`:
 {IntegerPart; RoundDown} = fraction(In: Greeting, Io; InputOutput)
 # or if you want to put it on the right, you use the following TypeScript-friendly syntax:
-{RoundDown as IntegerPart;} = fraction(In: Greeting, Io; InputOutput)
-# you can specify the return type of the renamed variable like this:
+{RoundDown as IntegerPart;} = fraction(Greeting as In, InputOutput as Io;)
+# you can specify the return type of the renamed variable like this to do casting:
 {RoundDown as IntegerPart; int} = fraction(In: Greeting, Io; InputOutput)
 
-# automatic de-nesting or automatic destructuring
-# when there is a single-field object (SFO) with the correct name, we can do automatic de-nesting,
-# which is equivalent to the `{RoundDown:} = ...` syntax above:
-Io ;= 1.234
-RoundDown := fraction(In: "hello", Io;)
-
-# if the field name doesn't match, we won't do automatic de-nesting:
+# there is no automatic de-nesting.
 Io ;= 1.234
 Result := fraction(In: "hello", Io;)
-# `Result` is an object because the output variables were named, so we'll get `RoundDown` like this:
-print(Result RoundDown)
-
-# TODO: think about what overload matching means with SFOs, or with return variables whose names
-# don't match any return fields.
+# `Result` is an object with these fields:
+print(Result RoundDown, Result RoundUp)
 ```
 
 Note that destructuring looks different than defining a lambda function due
-to the difference in parentheses type.  E.g., `{X: int, Y: str} = someFunction(Z)` is
-destructuring, but `(X: int, Y: str) := someFunction(Z)` is defining a lambda.
+to the difference in parentheses type and an extra `:=` with lambda functions.
+E.g., `{X: int, Y: str} = someFunction(Z)` is destructuring,
+but `(X: int, Y: str) := someFunction(Z)` is defining a lambda.
 
 Note, you can also have nullable output arguments.  These will be discussed
 more in the function overload section, but here are some examples.
@@ -2126,35 +2115,26 @@ nest(X: int, Y: str): (W: (Z: (A: int), B: str, C: str))
     return (W: (Z: (A: X), B: Y, C: Y * X))
 
 # defines `A`, `B`, and `C` in the outside scope:
-(W: Z: A:, W: B:, W: C:) = nest(X: 5, Y: "hi")
+{W: Z: A:, W: B:, W: C:} = nest(X: 5, Y: "hi")
 print(A)    # 5
 print(B)    # "hi"
 
 # equivalently:
-(W: (Z: A:, B:, C:)) = nest(X: 5, Y: "hi")
+{W: {Z: A:, B:, C:}} = nest(X: 5, Y: "hi")
 
 # for renaming the variables, you can do something like this:
 Q; int
 R; str
 S: str
-(Q as W: Z: A, R as W: B, S as W: C) = nest(X: 3, Y: "whoa")
+{Q as W: Z: A, R as W: B, S as W: C} = nest(X: 3, Y: "whoa")
 
 # or, defining the variables inline:
-(
+{
     Q; int as W: Z: A
     R; str as W: B
     S: str as W: C
-) = nest(X: 3, Y: "whoa")
+} = nest(X: 3, Y: "whoa")
 ```
-
-TODO: make return values part of an `object`.  If return is null, then `Output` is Null (empty object). 
-if return is a single variable (e.g., `hello(Int): str`), then `Output` populates a default-named field
-with the instance (e.g., `Output Str`).  If the return is multiple variables, `Output` has all those fields.
-Casting `object` to boolean, e.g., via `if Output $( doSomething() )` will check first to see if `Output` is a
-single-field object (SFO).  If so, then we'll cast that field to boolean.  Otherwise, we'll throw a compile error,
-requesting users to be more specific.
-Don't actually use `object` behind the scenes, except in dynamic programming or cases where it's ambiguous,
-since creating objects will incur overhead, but just for organization.
 
 ### dynamically determining arguments for a function
 
@@ -2182,12 +2162,13 @@ call := {
 }
 ```
 
+TODO: should we even have `object` type with all the pain it comes with (e.g., keys that
+might override important hm-lang methods on `object`).
 Now, `call` is very generic, so `Input` and `Output` can be filled with any fields (or none),
 and this logic is encapsulated in the type `object`.  The `object` type can be thought of as
 a collection of nullable fields; if all fields are null, then the object acts like a null.
-If only one field is defined, it is a "single field object", or `sfo` type.  The fields have
-keys that are symbols (they can be identified by letters/words in code, like `Object FieldKey`),
-and values that have any type.
+The fields have keys that are symbols (they can be identified by letters/words in code,
+like `Object FieldKey`), and values that have any type.
 
 When passing in a `call` instance to actually call a function, the `Input` field will be treated
 as constant/read-only after being cast to the field types specified by the chosen function overload.
@@ -5631,6 +5612,7 @@ for scripts that extend a class, we might fit in as much as we can to the wrappe
 memory but then use a pointer to the rest.  it's ok if scripts take a performance hit (pointer dereference).
 
 TODO: a general purpose "part of your memory is here, part of your memory is there" class
+almost sounds like virtual memory with mappings.  that should probably be non-standard/non-core.
 
 TODO: discuss having all instance methods in some special virtual table, e.g., possibly 
 with additional reflection information (for things like `@for method in mutators(myClass)`
@@ -5642,7 +5624,7 @@ If your code compiles, we will also format it.
 
 If there are any compile errors, the compiler will add some special
 comments to the code that will be removed on next compile, e.g.,
-`#@compileError("there's a syntax problem here ^")`.
+`#@!$("there's a syntax problem here ^")`
 
 # implementation
 
@@ -5656,8 +5638,8 @@ myClass := {
 }
 
 # C++
-void hm::global::readonlyMethod(readonlyRef<hm::myClass> MyClass, readonlyRef<bigInt> Int);
-void hm::global::mutatingMethod(mutatingRef<hm::myClass> MyClass, readonlyRef<bigInt> Int);
+void hm::user::readonlyMethod(readonlyRef<hm::myClass> MyClass, readonlyRef<bigInt> Int);
+void hm::user::mutatingMethod(mutatingRef<hm::myClass> MyClass, readonlyRef<bigInt> Int);
 ```
 
 ## types specified locally or remotely
