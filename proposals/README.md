@@ -1,8 +1,7 @@
 # why
 
 hm-lang tries to achieve **consistency** above all else.  
-**Convenience** is the next most important goal. 
-**Clarity** and **concision** come next.
+**Convenience**, **clarity**, and **concision** come next.
 
 ## consistency
 
@@ -30,8 +29,8 @@ arrays use a property (`Array.length`) and maps use a different property (`Map.s
 
 For convenience, `Array[3] = 5` will work even if `Array` is not already at least size 4;
 hm-lang will resize the array if necessary, populating it with default values,
-until finally setting the fourth element to 5.  This is to be consistent with
-other container types, e.g., maps, where `Map["Key"] = 50` works as well.
+until finally setting the fourth element to 5.  This is also to be consistent with
+other container types, e.g., maps, where `Map["Key"] = 50` works conveniently.
 In some standard libraries (e.g., C++), `Array[3] = 5` is undefined behavior
 if the array is not already at least size 4.
 
@@ -1763,12 +1762,12 @@ Functions can be defined with mutable or readonly arguments, e.g., via
 arguments list, and are passed by reference.  This choice has three important
 effects: (1) readonly variables may not be deeply constant (see section on
 [passing by reference](#passing-by-reference)), (2) you can modify
-mutable argument variables inside the function definition and (3) any
+mutable argument variables inside the function definition, and (3) any
 modifications to a mutable argument variable inside the function block persist
 in the outer scope.  In C++ terms, arguments declared as `:` are passed as
-constant reference, while arguments declared as `;` are passed as reference
-(or as temporaries).  Overloads can be defined for both, since it is clear which
-is desired based on the caller using `:` or `;`.  Some examples:
+constant reference, while arguments declared as `;` are passed as reference.
+Overloads can be defined for both, since it is clear which is desired
+based on the caller using `:` or `;`.  Some examples:
 
 ```
 # this function passes by reference and will modify the external variable
@@ -2033,6 +2032,12 @@ it may only be not-writeable from your scope's reference to the variable.
 
 For performance optimization, we could have a `@noNewKeys` or `@fixedCount` annotation on a container class,
 so that passed-in arrays/maps are kept at the same size/count inside the function block.
+
+In cases where we know the function won't do self-referential logic,
+we can try to optimize and pass by value automatically.  However, we
+do want to support closures like `nextGenerator(Int; int) := () := ++Int`,
+which returns a function which increments the passed-in, referenced integer,
+so we can never pass a temporary (i.e., pass by value) into `nextGenerator`.
 
 ### destructuring
 
