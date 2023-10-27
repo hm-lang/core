@@ -88,6 +88,10 @@ for variables; we can easily distinguish intent without additional verbs.
     * `(X: 1.2, Y: 3.4, W: "hi")` to instantiate an argument object
     * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
         Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
+* `$` for inline block and lambda arguments
+    * `if Condition $(doThing()) else $(doOtherThing())` for [inline blocks](#block-parentheses-and-commas)
+    * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
+        which will iterate over e.g., `MyArray = [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
 * all arguments are specified by name so order doesn't matter, although you can have default-named arguments
   for the given type which will grab an argument with that type (e.g., `Int` for an `int` type).
     * `(X: dbl, Int)` can be called with `(1234, X: 5.67)` or even `(Y, X: 5.67)` if `Y` is an `int`
@@ -724,8 +728,8 @@ add descriptive variables as intermediate steps.
 
 Deep dive!  Function calls are higher priority than member access because `someMethod() FinalField`
 would compile as `someMethod( ()::FinalField )` otherwise, which would evaluate to `someMethod(Null)`
-since `()::FinalField` is accessing the `FinalField` field on the object `()`, for which there is
-no field value (i.e, a null field value).  
+since `()::FinalField` is accessing the `FinalField` field on the null argument object `()`, for
+which there is no field value (i.e, a null field value).  
 
 TODO: if you don't supply all the arguments, you should get a new function that prefills
 all the arguments you supplied and keeps as its own arguments the ones you didn't.
@@ -1339,7 +1343,9 @@ equivalent to `+=(This;, Vector2)`, where the first argument is mutable.
 ### functions as arguments
 
 A function can have a function as an argument, and there are a few different ways to call
-it in that case.
+it in that case.  This is usually a good use-case for lambda functions, which define
+an inline function to pass into the other function.
+
 ```
 # finds the integer input that produces "hello, world!" from the passed-in function, or -1
 # if it can't find it.
@@ -1365,7 +1371,25 @@ detect(greet: sayHi)    # returns 1
 detect(greet(Int): string
     return "hello, world!!!!" substring(Length: Int)
 )   # returns 13
+
+detect(greet: ["hi", "hey", hello"][$Int % 3] + ", world!") # returns 2
 ```
+
+Note that the last example builds a lambda function using lambda arguments;
+`$Int` attaches an `Int` argument to the nearest function that's being defined.
+You can define a lambda function with multiple arguments using multiple lambda
+arguments.  The lambda argument names should match the arguments that the
+input function declares.
+
+```
+runAsdf(fn(J: int, K: str, L: dbl): null): null
+    print(fn(J: 5, K: "hay", L: 3.14))
+
+runAsdf($K * $J + str($L))   # prints "hayhayhayhayhay3.14"
+```
+
+TODO: how to determine that `$L` in the above expression isn't being used
+as a lambda inside of `str`?
 
 ### default-name arguments in functions
 
@@ -2331,7 +2355,6 @@ means that the return type is nullable.  The possible combinations are therefore
   You can also declare this as `superNullFunction?: oneOf(null, returnType)(...Args)`.
   TODO: is `returnType?(...Args)` ok as well?
 
-
 Some examples:
 
 ```
@@ -3174,13 +3197,10 @@ SomeExample := someExample(5)
 # you can use type inference here based on variable taking the return value:
 ToString: string = SomeExample to()
 
-# or you can explicitly ask for the type
-ToDbl := SomeExample to() Dbl
-
 # or you can explicitly ask like this:
 To64 := i64(SomeExample to())
 
-# this should probably not work, if the type isn't specified:
+# but you can't implicitly ask for the type.
 Unspecified := SomeExample to()     # COMPILER ERROR, specify a type for `Unspecified`
 ```
 
