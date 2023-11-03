@@ -148,9 +148,9 @@ MySet[elementType]:     # also ok: `MySet: [elementType]`
 # defining a mutable set:
 SomeSet[str] ;= ["friends", "family", "fatigue"]
 # Also ok: we can do `SomeSet ;= [str]["friends", ...]`
-SomeSet::["friends"]    # `Present` (truthy)
+SomeSet::["friends"]    # `True`
 SomeSet::["enemies"]    # Null (falsy)
-SomeSet["fatigue"]!     # removes "fatigue", returns `Present` since it was present.
+SomeSet["fatigue"]!     # removes "fatigue", returns `True` since it was present.
                         # SomeSet == [str]["friends", "family"].
 SomeSet["spools"]       # adds "spools", returns Null (wasn't in the set)
                         # SomeSet == [str]["friends", "family", "spools"]
@@ -4140,26 +4140,33 @@ to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [el
 The default-named variable name for a set of any type is `Set`.
 
 ```
-presence := oneOf(Present := 1)
+set~t := extend(container~(key: t, value: true)) {
+    # Returns `True` iff T is in the set, otherwise Null.
+    # NOTE: the `true` type is only satisfied by the instance `True`;
+    # this is not a boolean return value.
+    ::[T]?: true
 
-set~t := extend(container~(key: t, value: presence)) {
-    # Returns `Present` iff T is in the set, otherwise Null.
-    ::[T]?: presence
+    # Adds `T` to the set and returns `True` if
+    # `T` was already in the set, otherwise `Null`.
+    ;;[T]?: true 
 
-    # Returns `Present` iff T was in the set, otherwise Null.
-    # `Set[X] = Present` and `Set[Y] = Null` could work.
-    # TODO: this might add `X` to the set only to remove it:
-    #       `Set[X] = if Condition $(Present) else {Null}`
-    #       probably should prefer `if Condition $(Set[X]) else $(Set[X]!)
-    ;;[T]?: presence
-
-    # Adds `T` to the set if it's not already there, and returns `Present`.
-    ;;[T]: presence
-
-    # Ejects `T` if it was present in the set, returning `Present` if true
+    # Ejects `T` if it was present in the set, returning `True` if true
     # and `Null` if not.
     # A subsequent, immediate call to `This::[T]` returns Null.
-    ;;[T]!?: presence
+    ;;[T]!?: true 
+
+    # Modifier for whether `T` is in the set or not.
+    # The current value is passed into the callback and can be modified;
+    # if the value was `Null` and is converted to `True` inside the function,
+    # then the set will get `T` added to itself.  Example:
+    #   `Set[X] = if Condition $(True) else {Null}` becomes
+    #   `Set[X, fn(Maybe->True?;): $(Maybe->True = if Condition $(True) else $(Null))]`
+    # TODO: if we used `True?` as the identifier everywhere we wouldn't need to do `Maybe->True`, e.g.,
+    #   `Set[X, fn(True?;): $(True? = if Condition $(True) else $(Null))]`
+    ;;[T, fn(Maybe->True?; true): ~t]: t
+
+    # Fancy getter for whether `T` is in the set or not.
+    ::[T, fn(Maybe->True?): ~t]: t
 
     ::count(): count
 
