@@ -4171,15 +4171,17 @@ set~t := extend(container~(key: t, value: true)) {
     ::count(): count
 
     # TODO: generalize with iterator or container:
-    # Unions this set with another set:
-    ;;[Set: set~t]: null
+    # Unions this set with another set, returning True if all the elements
+    # in the other set were already in this set, otherwise False.
+    ;;[Set: set~t]: bool
 
     # Removes the last element added to the set if this set is
-    # insertion ordered, otherwise returns any convenient element.
+    # insertion ordered, otherwise any convenient element.
     # Throws if there is no element available.
     ;;pop(): t
 
     @alias ;;pop(Key) ?:= This;;[Key]!
+    @alias ;;remove(Key) ?:= This;;[Key]!
     ...
 }
 ```
@@ -4196,15 +4198,13 @@ TODO: make it easy to pass in a set as an argument and return a map with e.g. th
   maybe this isn't as important as it would be if we had a dedicated object type.
 
 ```
-fn(PickFrom: ~t[str], Fields: [str]): t[str]
+fn(Fields: [~k], PickFrom: ~t[~q extends k]): t[k]
     return Fields map((Field: str) := mapElement(Field, PickFrom[Field]))
 
-fn~{o, k from keys(o)}(PickFrom: o, Keys: k): pick(o, k)
+fn(PickFrom: ~o, Keys: ~k from keys(o)): pick(o, k)
     return pick(PickFrom, Keys)
 ```
 
-TODO: dedicated object type and convenience methods.  e.g., `keys(O)` and `keys(o)`,
-`pick(o, k)` and `pick(O, K)`, as well as `addMethod`, `addField`, etc.
 TODO: discuss how `in` sounds like just one key from the set of keys (e.g., `k in keys(o)`)
 and `from` selects multiple (or no) keys from the set (`k from keys(o)`).
 
@@ -4257,31 +4257,36 @@ assert Iterator peak(Array) == Null
 The way we achieve that is through using an array iterator:
 
 ```
-# TODO: some notation for switching to a child class when calling the parent class method.
-#       does this work, or is there a better way to do it? (see below in arrayIterator class)
-# TODO: there should be a way to determine if the parent class is `@only` and therefore
-#       cannot be switched to another class.  maybe just throw an error.
-# TODO: add an annotation, e.g., `@becomes(arrayIterator~t)` on the parent type here.
-#       that way we could compile-time check `@only` classes for modifications.
-#       e.g., `next(Iterator; iterator~t @becomes(arrayIterator~t), Array: Array~t): null`
-# TODO: a way to check if we're switching from `Array` to `Map` or something else
-#       do we throw an error, do we just start iterating on that thing?
-#       what happens if we come back to the original Array?  probably can just start from 0
-#       we shouldn't be expected to remember things if the user resets to another container.
-iterator~t;;next(Array: Array~t): null
-    This = arrayIterator~t()
-    return This;;next(Array)
+# by requesting the `next()` value of an array with this generic iterator,
+# the iterator will become an array iterator.  this allows us to check for
+# `@only` annotations (e.g., if `Iterator` was not allowed to change) and
+# throw a compile error.
+next(Iterator; iterator~t @becomes(arrayIterator~t), Array: Array~t)?: t
+    Iterator = arrayIterator~t()
+    Iterator;;next(Array)
 
 arrayIterator~t := extend(iterator~t) {
-    NextIndex; index
-    ;;renew(StartIndex: index = 0):
-        This NextIndex = StartIndex
+    Next; index
+    ;;renew(Start: index = 0):
+        This Next = Start
 
-    ;;next(Array: array~t)?: t
-        if NextIndex < Array count()
-            return Array[NextIndex++]
-        return Null
-    ...
+    ;;next(Array: array~t) ?:= if This Next < Array count()
+        Array[This Next++]
+    else
+        Null
+
+    ::peak(Array: array~t) ?:= if This Next < Array count()
+        Array[This Next]
+    else
+        Null
+    
+    # note that this function doesn't technically need to modify this
+    # `arrayIterator`, but we keep it as `;;` since other container
+    # iterators will generally need to update their index/key.
+    ;;remove(Array; array~t) ?:= if This Next < Array count()
+        Array remove(This Next)
+    else
+        Null
 }
 ```
 
