@@ -1,26 +1,94 @@
 @include(<vector>)
 
-inBounds := index
-
 array~t := extend(indexable) {
     @private
     Allocation; allocation
+
+    # TODO: convert this into a deque, add `Start: count`
 
     @private
     Count; count = 0
 
     ::count() := This Count
+    ;;count(Count): 
+        assert Count >= 0
+        if Count == This Count
+            return
+        if Count > This Count
+            This allocate(Count)
+            while This Count < Count
+                Allocation defaultConstruct(This Count++)
+        else
+            while This Count > Count
+                Allocation deconstruct(--This Count)
+
+    @private
+    ;;allocate(Count): null
+        assert Count >= 0
+        if DesiredAllocation < 0
+            throw error("cannot allocate +$(Delta) from $(This Count): overflow")
+        if DesiredAllocation <= Allocation Count
+            return
+
+        # we should at least try to double the storage
+        TryToAllocate ;= This roughlyDoubleAllocation()
+        if DesiredAllocation >= TryToAllocate
+            Allocation count(DesiredAllocation)
+            return
+
+        while True
+            try
+                Allocation count(TryToAllocate)
+            except
+                TryToAllocate = (TryToAllocate + DesiredAllocation) // 2
 
     ;;append(T): null
-        This ensureAllocationDelta(1)
+        debug->assert This Count < count::Max
+        This allocate(This Count + 1)
         Allocation copyConstruct(This Count++, T)
 
     ;;append(T;): null
-        This ensureAllocationDelta(1)
+        debug->assert This Count < count::Max
+        This allocate(This Count + 1)
         Allocation moveConstruct(This Count++, T;)
 
+    ::[Index]?: t
+        PositiveIndex := This ensurePositive(@hide Index)
+        if PositiveIndex >= This count()
+            Null
+        else
+            This[InBounds: PositiveIndex]
+
     # getter
-    ::[Index]: t
+    ;;[Index]: t
+        PositiveIndex := This ensurePositive(@hide Index)
+        if PositiveIndex >= This count()
+            This count(PositiveIndex + 1)
+        This[InBounds: PositiveIndex]
+   
+    # in-bounds getter, which is unsafe to call unless `InBounds` is 
+    # within the range `[0, This count())`.
+    ::[InBounds]: t
+        debug->assert InBounds < This count()
+        Allocation[InBounds]
+
+    # no-copy getter/setter; it can resize the array to return a value.
+    ;;[Index, fn(T;:): ~u]: u
+        PositiveIndex := This ensurePositive(@hide Index)
+        if PositiveIndex >= This count()
+            This count(PositiveIndex + 1)
+        This[InBounds: PositiveIndex, fn]
+
+    # no-copy getter/setter which is unsafe to call unless `InBounds`
+    # is within the range `[0, This count())`.
+    ;;[InBounds, fn(T;:): ~u]: u
+        debug->assert InBounds < This count()
+        Allocation[InBounds, fn]
+   
+    # no-copy getter that keeps
+    ::[Index, fn(T?): u]: u
+        debug->assert InBounds < This count()
+        Allocation[InBounds]
 
     # returns a non-null value of the array element at the specified index,
     # or the end of the array if not specified.  throws an error if the element
@@ -29,10 +97,12 @@ array~t := extend(indexable) {
         This pop(This inBounds(Index))
 
     ;;pop(InBounds): t
-        debug->assert InBounds >= 0 and InBounds < This count()
         Result := This[InBounds: Index]!
         This erase(InBounds)
         Result
+
+    ;;erase(Index): null
+        This erase(This inBounds(Index))
 
     ;;erase(InBounds): null
         debug->assert InBounds >= 0 and InBounds < This count()
@@ -59,8 +129,7 @@ array~t := extend(indexable) {
     # resetting the array element to a default `t()` if so.
     # otherwise, throws an out-of-bounds error.
     ;;[Index]!: t
-        This inBounds(@@Index)
-        return mootInBounds(Index)
+        return This moot(This inBounds(Index))
 
     @private
     # returns the value at Index, resetting the array elements value to a default value.
@@ -147,4 +216,13 @@ array~t := extend(indexable) {
         assert Index >= 0 and Index < count()
             "Index $(Incoming->Index) was invalid"
         inBounds(Index)
+
+    @private
+    ::roughlyDoubleAllocation(): count
+        if This Allocation Count == 0
+            return 4
+        Doubled := 2 * This Allocation Count
+        if Doubled >= 0
+            return Doubled
+        # if we're at this point, we're in insane territory
 }

@@ -1,0 +1,11 @@
+# count is stored as an i64 so that wrap around occurs and is obvious.
+count := distinct~i64
+
+# `index` is stored as an i64 so that negative numbers can be used to
+# index from the back side of an array.  e.g., `Array[-1]` is the last element.
+# it's not `distinct` so that we can implicitly cast from `i64` to `index`.
+index := i64
+
+# `inBounds` is a promise that you've checked and this index falls within
+# the size of the container, from `0` to `Container count() - 1`.
+inBounds := distinct~index
