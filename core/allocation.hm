@@ -1,57 +1,68 @@
+inBounds := index
+
 # A class that handles low-level contiguous memory access.
 # You must handle initializing/constructing and destructing elements in this class;
 # which elements are initialized *must be known* by the class instance which
 # uses the allocation.  E.g., a stack is initialized in the range [0, `Stack size()`).
-# This class is only allowed to be used inside other core classes.
-@protected @final
+@final
 allocation~t := {
     @protected
-    Size; index = 0
+    Count; count = 0
 
-    @cc{
+    ::count() := This Count
+    ;;count(New->Count): Old->count
+        if New->Count == This Count
+            return
+        Bytes := countBytes(New->Count)
+        # make sure to construct any new elements after calling this.
+        @cc(
+            @hm(t) *New_Memory = (@hm(t) *)realloc(Memory, @hm(Bytes));
+            if (New_Memory == Null) {
+                throw (@hm(string)("out of memory; cannot reallocate to size: ") + @hm(New_Count)).error(AT);
+            }
+            Memory = New_Memory;
+        )
+        This Count = New->Count
+
+    @cc(
     private:
-        hm(t) *Memory = Null;
+        @hm(t) *Memory = Null;
 
     public:
-        hm(allocation)(hm(index) _Size) {
-            if (_Size > 0) {
-                if ( _Size > (size_t)(-1) / sizeof( hm(t) ) ) {
-                    throw hm(allocationError)(hm(string)("cannot allocate enormous size: ") + _Size, AT);
-                }
-                size_t Bytes = _Size * sizeof( hm(t) );
-                Memory = (hm(t) *)malloc(Bytes);
-                if (Memory == Null) {
-                    throw hm(allocationError)(hm(string)("out of memory; cannot allocate size: ") + _Size, AT);
-                }
-                hm(Size) = _Size;
-            } else if (_Size < 0) {
-                throw hm(allocationError)(hm(string)("invalid allocation size: ") + _Size, AT);
+        @hm(allocation)(@hm(count) _Count) {
+            size_t Bytes = This.@hm(countBytes)(_Count);
+            Memory = (@hm(t) *)malloc(Bytes);
+            if (Memory == Null) {
+                throw (@hm(string)("out of memory; cannot allocate size: ") + _Count).error(AT);
             }
+            @hm(Count) = _Count;
         }
 
         void reset() {
             free(Memory);
             Memory = Null;
-            hm(Size) = 0;
+            @hm(Count) = 0;
         }
 
-        ~hm(allocation) {
+        ~@hm(allocation) {
             reset();
         }
 
+        // TODO: if we are serious about no pointers, then we should
+        // be able to support copy constructors here.
         // no copy constructor:
-        hm(allocation)(const hm(allocation) &Allocation) = delete;
+        @hm(allocation)(const @hm(allocation) &Allocation) = delete;
 
         // no copy assignment:
-        hm(allocation) &operator = (const hm(allocation) &Allocation) = delete;
+        @hm(allocation) &operator = (const @hm(allocation) &Allocation) = delete;
 
         // move constructor:
-        hm(allocation)(hm(allocation) &&Allocation) {
+        @hm(allocation)(@hm(allocation) &&Allocation) {
             take(std::move(Allocation));
         }
 
         // move assignment:
-        hm(allocation) &operator = (hm(allocation) &&Allocation) {
+        @hm(allocation) &operator = (@hm(allocation) &&Allocation) {
             if (&Allocation != this) {
                 take(std::move(Allocation));
             }
@@ -59,34 +70,52 @@ allocation~t := {
         }
 
     private:
-        inline void take(hm(allocation) &&Allocation) {
+        inline void take(@hm(allocation) &&Allocation) {
             reset();
-            std::swap(hm(Size), Allocation.hm(Size));
-            std::swap(hm(Memory), Allocation.hm(Memory));
+            std::swap(@hm(Count), Allocation.@hm(Count));
+            std::swap(Memory, Allocation.Memory);
         }
-    }
+    )
 
-    ;;defaultConstructInBounds(Index): null
-        debug->assert Index >= 0 and Index < Size
-        @cc{
-            new (Memory + hm(Index)) hm(t)();
-        }
+    // TODO: getters/setters for the values at index after they're constructed
 
-    ;;moveConstructInBounds(Index, T!): null
-        debug->assert Index >= 0 and Index < Size
-        @cc{
-            new (Memory + hm(Index)) hm(t)(std::move(hm(T)));
-        }
+    ;;defaultConstruct(InBounds): null
+        debug->assert InBounds >= 0 and InBounds < Count
+        @cc(
+            new (Memory + @hm(InBounds)) @hm(t)();
+        )
+        # pure C? `hm(t)_default(Memory + @hm(InBounds))`
 
-    ;;copyConstructInBounds(Index, T): null
-        debug->assert Index >= 0 and Index < Size
-        @cc{
-            new (Memory + hm(Index)) hm(t)(hm(T));
-        }
+    ;;moveConstruct(InBounds, T;): null
+        debug->assert InBounds >= 0 and InBounds < Count
+        @cc(
+            new (Memory + @hm(InBounds)) @hm(t)(std::move(@hm(T)));
+        )
+        # pure C? `hm(t)_moot(Memory + @hm(InBounds), @hm(T))`
 
-    ;;deconstructInBounds(Index): null
-        debug->assert Index >= 0 and Index < Size
-        @cc{
-            (Memory + hm(Index))->~hm(t)();
-        }
+    ;;copyConstruct(InBounds, T): null
+        debug->assert InBounds >= 0 and InBounds < Count
+        @cc(
+            new (Memory + @hm(InBounds)) @hm(t)(@hm(T));
+        )
+        # pure C? `hm(t)_copy(Memory + @hm(InBounds))`
+
+    ;;deconstruct(InBounds): null
+        debug->assert InBounds >= 0 and InBounds < Count
+        @cc(
+            (Memory + @hm(InBounds))->~@hm(t)();
+        )
+        # pure C? `hm(t)_descope(Memory + @hm(InBounds))`
+
+    @private
+    ::countBytes(Count): @cc(size_t)
+        if Count == 0
+            return 0
+        if Count < 0
+            throw error("invalid count: $(Count)");
+        MaxBytes: @cc(size_t) = -1
+        TBytes: @cc(size_t) = @cc(sizeof(@hm(t)))
+        if Count > MaxBytes // TBytes
+            throw error("cannot allocate $(Count) elements of size $(TBytes) each");        
+        return Count * TBytes
 }

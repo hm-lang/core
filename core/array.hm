@@ -1,68 +1,71 @@
 @include(<vector>)
 
-array~t := extend(indexable) {
-    @cc{
-        # TODO: include a push+pop system for cc visibility, e.g., @visibilityPush(private) and @visibilityPop()
-        private:
-        std::vector<t> Internal;
-    }
+inBounds := index
 
-    ::size(): index = @cc{Internal.size()}
+array~t := extend(indexable) {
+    @private
+    Allocation; allocation
+
+    @private
+    Count; count = 0
+
+    ::count() := This Count
+
+    ;;append(T): null
+        This ensureAllocationDelta(1)
+        Allocation copyConstruct(This Count++, T)
 
     ;;append(T;): null
-   
-    # TODO: figure out a nice way to do null/non-null overloads in one go.
-    # e.g., `;;pop(Index)@?: t = @hm{if @? [* tryToBePositive(@@Index) ... ] else  ...}`
-    ;;pop(Index; index = -1)?: t
-        tryToBePositive(@@Index)
-        if Index < 0 or Index >= size()
-            return Null
-        Result := mootInBounds(Index)
-        eraseInBounds(Index)
-        return Result
+        This ensureAllocationDelta(1)
+        Allocation moveConstruct(This Count++, T;)
+
+    # getter
+    ::[Index]: t
 
     # returns a non-null value of the array element at the specified index,
     # or the end of the array if not specified.  throws an error if the element
-    # would be out of bounds (e.g., `Index >= size()` or no elements present).
-    ;;pop(Index; index = -1): t
-        ensureInBounds(@@Index)
-        Result := mootInBounds(Index)
-        eraseInBounds(Index)
-        return Result
+    # would be out of bounds (e.g., `Index >= This count()` or no elements present).
+    ;;pop(Index = -1): t
+        This pop(This inBounds(Index))
 
-    @private
-    ;;eraseInBounds(Index): null
-        debug->assert Index >= 0 and Index < size()
-        for DestinationIndex := Index, DestinationIndex < size() - 1
-            This_DestinationIndex = This[DestinationIndex + 1]!
-        size(size() - 1)
+    ;;pop(InBounds): t
+        debug->assert InBounds >= 0 and InBounds < This count()
+        Result := This[InBounds: Index]!
+        This erase(InBounds)
+        Result
+
+    ;;erase(InBounds): null
+        debug->assert InBounds >= 0 and InBounds < This count()
+        for DestinationIndex := InBounds, DestinationIndex < This count() - 1
+            This[DestinationIndex] = This[DestinationIndex + 1]!
+        This count(This count() - 1)
 
     ::!!This: bool
-        return size() > 0
+        return This count() > 0
 
     # getter, which passes a Null into the callback if index is out of bounds in the array:
-    ::_(Index, fn(T?): ~u): u
+    ::[Index, fn(T?): ~u]: u
 
     # moves the value at Index into the return value if Index is within the size of the array,
     # resetting the array element to a default `t()` if so.
     # otherwise, returns Null if Index was too big and doesn't reset any array elements.
-    ;;_(Index)!?: t
-        tryToBePositive(@@Index)
-        if Index < 0 or Index >= size()
+    ;;[Index]!?: t
+        InBounds := This tryToBePositive(@hide Index)
+        if InBounds < 0 or InBounds >= This count()
             return Null
-        return mootInBounds(Index)
+        return This[InBounds: Index]!
 
     # moves the value at Index into the return value if Index is within the size of the array,
     # resetting the array element to a default `t()` if so.
     # otherwise, throws an out-of-bounds error.
-    ;;_(Index)!: t
-        ensureInBounds(@@Index)
+    ;;[Index]!: t
+        This inBounds(@@Index)
         return mootInBounds(Index)
 
     @private
     # returns the value at Index, resetting the array elements value to a default value.
     ;;mootInBounds(Index): t
-        debug->assert Index >= 0 and Index < size()
+        debug->assert Index >= 0 and Index < This count()
         T; t
         @cc{
             hm(T) = std::move(Internal[hm(Index)]);
@@ -74,54 +77,74 @@ array~t := extend(indexable) {
     # if the swapped in value is Null but the array value wasn't Null, the array
     # will shrink by one, and all later indexed values will move down one index.
     ;;swap(Index;, @@T?): null
-        tryToBePositive(@@Index)
+        This tryToBePositive(@@Index)
         if T == Null
             T = pop(Index)
         else
-            New->T ?:= This_Index!
-            This_Index = T!
+            New->T ?:= This[Index]!
+            This[Index] = T!
             T = New->T!
 
-    ;;_(Index, @@T?) := swap(Index, @@T)
+    ;;[Index, @@T?] := swap(Index, @@T)
 
     # allows access to modify the nullable internal value via MMR (`@@`).
     # passes the current value at the index into the passed-in modifier function.
-    # if Index >= the current size(), a Null is passed into the modifier.
+    # if Index >= the current This count(), a Null is passed into the modifier.
     # if the modifier changes T from Null to a non-null instance, but Index was too large,
     # then the array size is increased (to Index + 1) and filled with default values up
     # to Index, then set to the new value determined by the modifier.
     # if the modifier switches T from non-null to Null, then the array will shrink
     # by one and all later indexed values move down one.
     ;;modify(Index;, fn(@@T?): ~u): u
-        ensurePositive(@@Index)
-        T?; t = This_Index!
+        This ensurePositive(@@Index)
+        T?; t = This[Index]!
         Result := fn(@@T)
         if T != Null
-            This_Index = T!
+            This[Index] = T!
         else
             pop(Index)
         return Result
 
-    ;;_(Index, fn(@@T?): ~u) := modify(Index, fn)
+    ;;[Index, fn(@@T?): ~u] := modify(Index, fn)
 
     # allows access to modify the internal value via MMR (`@@`).
     # passes the current value at the index into the passed-in modifier function.
-    # if Index >= the current size(), then the array size is increased (to Index + 1)
+    # if Index >= the current This count(), then the array size is increased (to Index + 1)
     # and filled with default values so that a non-null instance can be passed into the modifier.
     ;;modify(Index, fn(@@T): ~u): u
-        ensurePositive(@@Index)
-        if Index >= size()
-            size(Index + 1)
-        T; t = This_Index!
+        This ensurePositive(@@Index)
+        if Index >= This count()
+            This count(Index + 1)
+        T; t = This[Index]!
         Result := fn(@@T)
-        This_Index = T!
+        This[Index] = T!
         return Result
 
-    ;;_(Index, fn(@@T): ~u) := modify(Index, fn)
+    ;;[Index, fn(@@T): ~u] := modify(Index, fn)
 
     # returns a copy of this array, but sorted:
     ::sort(): this
 
     # sorts this array in place:
     ;;sort(): null
+
+    @private
+    ::tryToBePositive(Index) := if Index < 0
+        Index + This count()
+    else
+        Index
+
+    @private
+    ::ensurePositive(Incoming->Index): index
+        Index := This tryToBePositive(Incoming->Index)
+        assert Index >= 0
+            "Index $(Incoming->Index) was invalid"
+        Index
+
+    @private
+    ::inBounds(Incoming->Index): inBounds
+        Index := This tryToBePositive(Incoming->Index)
+        assert Index >= 0 and Index < count()
+            "Index $(Incoming->Index) was invalid"
+        inBounds(Index)
 }
