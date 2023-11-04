@@ -1,0 +1,50 @@
+mutable := oneOf(
+    # immutable type
+    No
+    # mutable type
+    Yes
+)
+
+# this is the underlying type that is used for all arguments in hm-lang
+# when they are passed by reference.
+# TODO: should types be specified in an object (e.g., reference~{t, Mutable})?
+reference~(t, Mutable) := oneOf(
+    # a literal C pointer.  if Mutable == Yes, `t *`, else `const t *`.
+    ptr~(t, Mutable)
+
+    # an element of another container.  note this is defined recursively
+    # in terms of `reference` so that nested containers work out to be
+    # a chain of references by key.  e.g., `Map["hello"][5];` becomes 
+    # `{Container: {Container: ptr~(mutable Yes)(Map), Key: "hello"}, Key: 5}`
+    element~key: {
+        Key: key
+        Container: reference~(container~(key, value: t), Mutable)
+    }
+)
+
+# Updates a reference to the passed-in value, updating the
+# passed-in external variable with the old value.
+# Example usage.
+#   X ;= 12345
+#   Reference := ptr~(mutable Yes)(X)
+#   Y ;= 678
+#   swap(Reference, Y;)
+#   print(Y) # should be 12345
+#   print(X) # should be 678
+swap(Reference: reference~(t, mutable Yes), T;): null
+    cc(std::swap(dereference(@hm(Reference)), @hm(T));)
+
+get(Reference: reference~(t, Mutable)): t
+    cc(return dereference(@hm(Reference));)
+
+@private cc(
+    template <class t>
+    t &dereference(@hm(reference)<t, @hm(mutable)::@hm(Yes)> Reference) {
+        # TODO: 
+    }
+
+    template <class t, @hm(mutable) Mutable>
+    const t &dereference(@hm(reference)<t, Mutable> Reference) {
+        # TODO: 
+    }
+)
