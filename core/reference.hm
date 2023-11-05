@@ -31,20 +31,19 @@ reference~(t, Mutable) := oneOf(
 #   swap(Reference, Y;)
 #   print(Y) # should be 12345
 #   print(X) # should be 678
-swap(Reference: reference~(t, mutable Yes), T;): null
-    cc(std::swap(dereference(@hm(Reference)), @hm(T));)
+# TODO: figure out a good way to choose other options for the
+#       `:;` template, e.g., `mutable {No, Yes}`.
+[Reference: reference~(t, mutable {Yes, No}), fn(T;:): ~u]: u
+    what Reference
+        # TODO: Rust-like here?
+        (Ptr) := fn(Ptr)
+        (Element) := Element Container[Element Key, fn]
 
-get(Reference: reference~(t, Mutable)): t
-    cc(return dereference(@hm(Reference));)
-
-@private cc(
-    template <class t>
-    t &dereference(@hm(reference)<t, @hm(mutable)::@hm(Yes)> Reference) {
-        # TODO: 
-    }
-
-    template <class t, @hm(mutable) Mutable>
-    const t &dereference(@hm(reference)<t, Mutable> Reference) {
-        # TODO: 
-    }
-)
+# TODO: it feels like we should be wrapping `fn` when passing into a container.
+#       the above doesn't seem quite right.  e.g.,
+#       Reference := reference(Map["hello"][5];)
+#       Reference[superCool(T;) := T += 3] # should effectively call this:
+#       Map["hello", fn(Array;) := Array[5, superCool]]
+# but it seems to call something like this:
+#       Element0.Container[5, superCool]        # Element0 = `Map["hello"]` reference
+#       Element1.Container["hello", superCool]  # Element1 = `Map` reference

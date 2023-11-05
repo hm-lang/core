@@ -4454,6 +4454,10 @@ for Quality: in AirQualityForecast
             ++MehDays
 ```
 
+TODO: discuss Rust-like matching via functions, if we want them.
+
+### what implementation details
+
 Implementation details:  For strings, at compile time we do a fast hash of each 
 string case, and at run time we do a switch-case on the fast hash of the considered
 string.  (If the hashes of any two string cases collide, we redo all hashes with a
@@ -5458,13 +5462,23 @@ Grammar := singleton() {
     ::match(Index;, Array: token[], GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
-        Matched := what is(GrammarMatcher)
-            tokenMatcher
-                GrammarMatcher match(Index;, Array)
-            grammarElement
-                This Elements[GrammarMatcher] match(Index;, Array)
-            token
-                Index < Array count() and Array[Index++] == GrammarMatcher
+        Matched := what GrammarMatcher
+            # TODO: discuss this if we want to do Rust-like matching here.
+            #       just finding the type and passing it in would be simple;
+            #       e.g., `switch (GrammarMatcher.hm_Is) {
+            #           case tokenMatcher::hm_Is:
+            #               tokenMatcher &TokenMatcher = (tokenMatcher &)GrammarMatcher.hm_Value;
+            #               // whatever function entry
+            #           ... }`
+            #       as long as we can distinguish this usage of `what` from the
+            #       standard switch-like usage (with constants), which i think we can do
+            #       because these are functions.
+            (TokenMatcher):
+                TokenMatcher match(Index;, Array)
+            (GrammerElement):
+                This Elements[GrammarElement] match(Index;, Array)
+            (Token):
+                Index < Array count() and Array[Index++] == Token
         if not Matched
             Index = Snapshot
         return Matched
