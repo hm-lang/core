@@ -4454,7 +4454,68 @@ for Quality: in AirQualityForecast
             ++MehDays
 ```
 
-TODO: discuss Rust-like matching via functions, if we want them.
+The `what` operation is also useful for narrowing in on `oneOf` variable types.
+E.g., suppose we have the following:
+
+```
+status := oneOf(Unknown, Alive, Dead)
+vector3 := {X; dbl, Y; dbl, Z; dbl}
+
+update := oneOf(
+    status
+    position: vector3
+    velocity: vector3
+)
+# example usage:
+Update0 := update status Alive
+Update1 := update position(X: 5.0, Y: 7.0, Z: 3.0)
+Update2 := update velocity(X: -3.0, Y: 4.0, Z: -1.0)
+```
+
+We can determine what the instance is internally by using `what` with lambda
+functions that have an argument with the `oneOf` type and named as the
+`oneOf` name.  We can do this alongside standard `switch`-like values (i.e.,
+not functions), like so:
+
+```
+...
+# checking what `Update` is:
+what Update
+    status Unknown
+        print("unknown update")
+    (Status):
+        # match all other statuses by defining this function-like.
+        print("known status: $(Status)")
+    # can also define inline.
+    (Position: vector3) := print("got position update: $(Position)")
+    (Velocity: vector3) := print("got velocity update: $(Velocity)")
+```
+
+Earlier `what` cases will take precedence.
+
+```
+# The implementation can be pretty simple.
+switch (Update.hm_Is) {
+    case update::status::hm_Is:
+        DEFINE_CAST(update::status *, Status, &Update.hm_Value);
+        if (*Status == status::Unknown) {
+            // print("unknown update")
+            ...
+        } else {
+            // print("known status: $(Status)")
+            ...
+        }
+        break;
+    case update::position::hm_Is:
+        DEFINE_CAST(update::position *, Position, &Update.hm_Value);
+        // print("got position update: $(Position))
+        break;
+    ...
+}
+```
+
+TODO: should the notation be more similar between function-like and
+non-function-like values (e.g., `status Unknown` above)?
 
 ### what implementation details
 
@@ -5463,16 +5524,6 @@ Grammar := singleton() {
         # ensure being able to restore the current token index if we don't match:
         Snapshot := Index
         Matched := what GrammarMatcher
-            # TODO: discuss this if we want to do Rust-like matching here.
-            #       just finding the type and passing it in would be simple;
-            #       e.g., `switch (GrammarMatcher.hm_Is) {
-            #           case tokenMatcher::hm_Is:
-            #               tokenMatcher &TokenMatcher = (tokenMatcher &)GrammarMatcher.hm_Value;
-            #               // whatever function entry
-            #           ... }`
-            #       as long as we can distinguish this usage of `what` from the
-            #       standard switch-like usage (with constants), which i think we can do
-            #       because these are functions.
             (TokenMatcher):
                 TokenMatcher match(Index;, Array)
             (GrammerElement):
