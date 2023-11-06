@@ -22,13 +22,14 @@ reference~(t, Mutable) := oneOf(
     }
 )
 
-# Updates a reference to the passed-in value, updating the
-# passed-in external variable with the old value.
+# No-copy getter/modifier for the value inside the reference.
 # Example usage.
 #   X ;= 12345
 #   Reference := ptr~(mutable Yes)(X)
 #   Y ;= 678
-#   swap(Reference, Y;)
+#   Reference[fn(Int;): null
+#       Int <=> Y
+#   ]
 #   print(Y) # should be 12345
 #   print(X) # should be 678
 # TODO: figure out a good way to choose other options for the
@@ -38,6 +39,11 @@ reference~(t, Mutable) := oneOf(
         (Ptr) := fn(Ptr)
         (Element) := Element Container[Element Key, fn]
 
+[Reference: reference~(container~(key, value), mutable {Yes, No}), Key: key, fn(Value;:): ~t]: t
+    what Reference
+        (Ptr) := Ptr[Key, fn]
+        (Element) := TODO!
+
 # TODO: it feels like we should be wrapping `fn` when passing into a container.
 #       the above doesn't seem quite right.  e.g.,
 #       Reference := reference(Map["hello"][5];)
@@ -45,4 +51,5 @@ reference~(t, Mutable) := oneOf(
 #       Map["hello", fn(Array;) := Array[5, superCool]]
 # but it seems to call something like this:
 #       Element0 Container[5, superCool]        # Element0 = `Map["hello"]` reference
+#       # `Element0 Container` should get interpreted as `Map` reference, so
 #       Element1 Container["hello", superCool]  # Element1 = `Map` reference

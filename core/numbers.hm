@@ -8,4 +8,6 @@ index := i64
 
 # `inBounds` is a promise that you've checked and this index falls within
 # the size of the container, from `0` to `Container count() - 1`.
+# note that `inBounds` should be non-negative, so `Container count() > 0`
+# should be true.
 inBounds := distinct~index
