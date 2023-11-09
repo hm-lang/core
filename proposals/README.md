@@ -3342,7 +3342,7 @@ at the same time.
 Some languages use a builder pattern, e.g., Java, where you add fields to an object
 using setters.  For example, `MyBuilder.setX(123).setY(456).setZ("great").build()` [Java].
 In hm-lang, this is mostly obviated by named arguments: `myClass(X: 123, Y: 456, Z: "great")`
-will do the same thing.  However, there are still situations where it's useful to sequence
+will do the same thing.  However, there are still situations where it's useful to chain 
 methods on the same class instance, and hm-lang lacks the ability to return a reference to
 the class instance from a method like in other languages.  Instead, we use `{}` with all the
 method calls inside.  For example, if we were to implement a builder pattern with setters,
@@ -3388,7 +3388,7 @@ MyClass SomeField
 MyClass  # for a return value, if needed as a temporary.
 ```
 
-When two sequence builders combine, e.g.,, `{A B} {C D}`, they execute in a deterministic
+When two sequence builders combine, e.g., `{A B} {C D}`, they execute in a deterministic
 order, e.g., `A C, A D, B C, B D`.
 
 TODO: are classes some sort of unevaluated sequence builder?
