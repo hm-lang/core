@@ -67,7 +67,7 @@ reference~(t, Mutable) := oneOf(
 # and we want to do this to the final element:
 #   Reference[superCool(T;) := T += 3]
 # which should effectively call this:
-#   MyArray[77, fn(Map;) := Map["hello", fn(Array;) := Array[5, superCool]]]
+#   MyArray[77, (Map;) := Map["hello", (Array;) := Array[5, superCool]]]
 # this occurs because we hit the `parentFn` inside the dereference method above
 #   ArrayContainer[5, superCool] 
 # which will call this on the parent container.
@@ -78,3 +78,4 @@ reference~(t, Mutable) := oneOf(
 
 # TODO: can we write this "forwards" instead of backwards?
 #       e.g., `reference~t := oneOf(ptr~t, element: {ptr~chain~t, Key[]: keyChain})`
+#       probably need `reference~(t, element) := oneOf(ptr~t, element)`

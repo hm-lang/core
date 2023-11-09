@@ -4703,6 +4703,8 @@ command triggers a stop at any point, then abort (and stop calling the method)
 
 ## enumerations
 
+TODO: `Null` should never be used in a `oneOf` since `fn(Null)` is equivalent to `fn()`.
+
 We can create a new type that exhaustively declares all possible values it can take.
 The syntax is `lowerCamelCase := oneOf` followed by a list of named values
 (each an `UpperCamelCase` identifier), with optional values they take.  Enumerations
