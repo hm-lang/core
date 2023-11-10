@@ -85,7 +85,7 @@ for variables; we can easily distinguish intent without additional verbs.
     * `A {x(), y()}` to call `A x()` then `A y()` via [sequence building](#sequence-building).
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y: dbl)` to declare an argument object, `W` is an optional field
-    * `(X: 1.2, Y: 3.4, W: "hi")` to instantiate an argument object
+    * `(X: 1.2, SomeInstance y(), W: "hi")` to instantiate an argument object with `X`, `Y`, `W` fields.
     * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
         Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
 * `$` for inline block and lambda arguments
@@ -1278,119 +1278,6 @@ v(X, Y)     # equivalent to `v(X: X, Y: Y)` but the redundancy is not idiomatic.
 v(Y, X)     # equivalent
 ```
 
-### function arguments
-
-Arguments must have unique names; e.g., you must not declare a function with two arguments
-that have the same name.  This is obvious because we wouldn't be able to distinguish between
-the two arguments inside the function body.
-
-```
-myFun(X: int, X: dbl): oneOf(int, dbl) = X      # COMPILER ERROR.  duplicate identifiers
-```
-
-However, there are times where it is useful for a function to have two arguments with the same
-name, and that's for default-named arguments in a function where *order doesn't matter.*
-This is true, for example, in a function like `max`:
-
-```
-@orderIndependent
-max(First->Int, Second->Int): int
-    return if First->Int > Second->Int
-        First->Int
-    else
-        Second->Int
-
-max(5, 3) == max(3, 5)
-```
-
-The compiler is not smart enough to know whether order matters or not, so we need to annotate
-the function with `@orderIndependent` -- otherwise it's a compiler error -- and we need to use namespaces (`First->` and `Second->`)
-in order to distinguish between the two variables inside the function block.  When calling `max`,
-we don't need to use those namespaces, and can't (since they're invisible to the outside world).
-
-TODO: we do need order dependence for certain use cases, like arguments to an array.
-maybe we have a specific `@orderDependent` or `@arrayOrder` annotation.
-order dependence also occurs for cross product (e.g., `Vector3 cross(Other->Vector3)`),
-and it would be a pain to name this other vector (`Vector3 cross(With: Other->Vector3)`).
-
-There is one place where it is not obvious that two arguments might have the same name, and
-that is in method definitions.  Take for example the vector dot product:
-
-```
-vector2 := {
-    ;;renew(This X; dbl, This Y; dbl) := Null
-
-    @orderIndependent
-    ::dot(Vector2): dbl
-        return This X * Vector2 X + This Y * Vector2 Y
-}
-Vector2 := vector2(1, 2)
-OtherVector2 := vector2(3, -4)
-print(Vector2 dot(OtherVector2))    # prints -5
-print(dot(Vector2, OtherVector2))   # equivalent, prints -5
-```
-
-The method `::dot(Vector2): dbl` has a function signature `dot(This, Vector2): dbl`,
-where `This` is an instance of `vector2`, so ultimately this function looks like
-`dot(Vector2, Vector2): dbl`, and can be called thus.  Therefore this function
-*must* be order independent and should be annotated as such.  Otherwise it is
-a compiler error.
-
-Note that operations like `+` should be order independent, whereas `+=` should be
-order dependent, since the method would look like this: `;;+=(Vector2)`, which is
-equivalent to `+=(This;, Vector2)`, where the first argument is writeable.
-
-### functions as arguments
-
-A function can have a function as an argument, and there are a few different ways to call
-it in that case.  This is usually a good use-case for lambda functions, which define
-an inline function to pass into the other function.
-
-```
-# finds the integer input that produces "hello, world!" from the passed-in function, or -1
-# if it can't find it.
-detect(greet(Int): string): int
-    for Check: int < 100
-        if greet(Check) == "hello, world!"
-            return Check
-    return -1
-
-# if your function is named the same as the function argument, you can use it directly:
-greet(Int): string
-    return "hay"
-detect(greet)       # returns -1
-
-# if your function is not named the same, you can do argument renaming;
-# internally this does not create a new function:
-sayHi(Int): string
-    return "hello, world" + "!" * Int
-detect(greet: sayHi)    # returns 1
-
-# you can also create a lambda function named correctly inline -- the function
-# will not be available outside, after this call (it's scoped to the function arguments).
-detect(greet(Int): string
-    return "hello, world!!!!" substring(Length: Int)
-)   # returns 13
-
-detect(greet: ["hi", "hey", hello"][$Int % 3] + ", world!") # returns 2
-```
-
-Note that the last example builds a lambda function using lambda arguments;
-`$Int` attaches an `Int` argument to the nearest function that's being defined.
-You can define a lambda function with multiple arguments using multiple lambda
-arguments.  The lambda argument names should match the arguments that the
-input function declares.
-
-```
-runAsdf(fn(J: int, K: str, L: dbl): null): null
-    print(fn(J: 5, K: "hay", L: 3.14))
-
-runAsdf($K * $J + str($L))   # prints "hayhayhayhayhay3.14"
-```
-
-TODO: how to determine that `$L` in the above expression isn't being used
-as a lambda inside of `str`?
-
 ### default-name arguments in functions
 
 For functions with one argument (per type) where the variable name doesn't matter,
@@ -1452,6 +1339,95 @@ MyVariable; value       # with or without `value`
     myInitialization + OfMyVariable
 ```
 
+### the name of a called function in an argument object
+
+Calling a function with one argument being defined by a nested function will use
+the nested function's name as a default name.
+
+```
+value(): int
+    return 1234 + 5
+
+whatIsThis(Value: int): null
+    print(Value)
+
+whatIsThis(Value: 10)   # prints 10
+whatIsThis(value())     # prints 1239
+```
+
+You can still use `value()` as an argument for a default-named `Int` argument,
+or some other named argument by renaming.
+
+```
+takesDefault(Int): string
+    return string(Int)
+
+takesDefault(value())   # OK.  we try `Value: value()`
+                        # and then the type of `value()` next
+
+otherFunction(NotValue: int): string
+    return "!" * NotValue
+
+otherFunction(value())              # ERROR! no overload for `Value` or for `Int`.
+otherFunction(NotValue: value())    # OK
+```
+
+This works the same for plain-old-data objects, e.g., `{value()}` corresponds to
+`{Value: value()}`.  In case class methods are being called, the class name
+and the class instance variable name are ignored, e.g., `{MyClassInstance myFunction()}`
+is short-hand for `{MyFunction: MyClassInstance myFunction()}`.
+
+### functions as arguments
+
+A function can have a function as an argument, and there are a few different ways to call
+it in that case.  This is usually a good use-case for lambda functions, which define
+an inline function to pass into the other function.
+
+```
+# finds the integer input that produces "hello, world!" from the passed-in function, or -1
+# if it can't find it.
+detect(greet(Int): string): int
+    for Check: int < 100
+        if greet(Check) == "hello, world!"
+            return Check
+    return -1
+
+# if your function is named the same as the function argument, you can use it directly:
+greet(Int): string
+    return "hay"
+detect(greet)       # returns -1
+
+# if your function is not named the same, you can do argument renaming;
+# internally this does not create a new function:
+sayHi(Int): string
+    return "hello, world" + "!" * Int
+detect(greet: sayHi)    # returns 1
+
+# you can also create a lambda function named correctly inline -- the function
+# will not be available outside, after this call (it's scoped to the function arguments).
+detect(greet(Int): string
+    return "hello, world!!!!" substring(Length: Int)
+)   # returns 13
+
+detect(greet: ["hi", "hey", hello"][$Int % 3] + ", world!") # returns 2
+```
+
+Note that the last example builds a lambda function using lambda arguments;
+`$Int` attaches an `Int` argument to the nearest function that's being defined.
+You can define a lambda function with multiple arguments using multiple lambda
+arguments.  The lambda argument names should match the arguments that the
+input function declares.
+
+```
+runAsdf(fn(J: int, K: str, L: dbl): null): null
+    print(fn(J: 5, K: "hay", L: 3.14))
+
+runAsdf($K * $J + str($L))   # prints "hayhayhayhayhay3.14"
+```
+
+TODO: how to determine that `$L` in the above expression isn't being used
+as a lambda inside of `str`?
+
 ### types as arguments
 
 Generally speaking you can use generic/template programming for this case,
@@ -1490,6 +1466,68 @@ doSomething(new~x, namedNew: new~y): new~oneOf(x, y)
 
 print(doSomething(int, namedNew: dbl))  # will print `int` or `dbl` with 50-50 probability
 ```
+
+### unique argument names
+
+Arguments must have unique names; e.g., you must not declare a function with two arguments
+that have the same name.  This is obvious because we wouldn't be able to distinguish between
+the two arguments inside the function body.
+
+```
+myFun(X: int, X: dbl): oneOf(int, dbl) = X      # COMPILER ERROR.  duplicate identifiers
+```
+
+However, there are times where it is useful for a function to have two arguments with the same
+name, and that's for default-named arguments in a function where *order doesn't matter.*
+This is true, for example, in a function like `max`:
+
+```
+@orderIndependent
+max(First->Int, Second->Int): int
+    return if First->Int > Second->Int
+        First->Int
+    else
+        Second->Int
+
+max(5, 3) == max(3, 5)
+```
+
+The compiler is not smart enough to know whether order matters or not, so we need to annotate
+the function with `@orderIndependent` -- otherwise it's a compiler error -- and we need to use namespaces (`First->` and `Second->`)
+in order to distinguish between the two variables inside the function block.  When calling `max`,
+we don't need to use those namespaces, and can't (since they're invisible to the outside world).
+
+TODO: we do need order dependence for certain use cases, like arguments to an array.
+maybe we have a specific `@orderDependent` or `@arrayOrder` annotation.
+order dependence also occurs for cross product (e.g., `Vector3 cross(Other->Vector3)`),
+and it would be a pain to name this other vector (`Vector3 cross(With: Other->Vector3)`).
+
+There is one place where it is not obvious that two arguments might have the same name, and
+that is in method definitions.  Take for example the vector dot product:
+
+```
+vector2 := {
+    ;;renew(This X; dbl, This Y; dbl) := Null
+
+    @orderIndependent
+    ::dot(Vector2): dbl
+        return This X * Vector2 X + This Y * Vector2 Y
+}
+Vector2 := vector2(1, 2)
+OtherVector2 := vector2(3, -4)
+print(Vector2 dot(OtherVector2))    # prints -5
+print(dot(Vector2, OtherVector2))   # equivalent, prints -5
+```
+
+The method `::dot(Vector2): dbl` has a function signature `dot(This, Vector2): dbl`,
+where `This` is an instance of `vector2`, so ultimately this function looks like
+`dot(Vector2, Vector2): dbl`, and can be called thus.  Therefore this function
+*must* be order independent and should be annotated as such.  Otherwise it is
+a compiler error.
+
+Note that operations like `+` should be order independent, whereas `+=` should be
+order dependent, since the method would look like this: `;;+=(Vector2)`, which is
+equivalent to `+=(This;, Vector2)`, where the first argument is writeable.
 
 ## function overloads
 
