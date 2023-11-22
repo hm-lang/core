@@ -71,7 +71,7 @@ array~t := extend(indexable) {
     # within the range `[0, This count())`.
     ::[InBounds]: t
         debug assert InBounds < This count()
-        Allocation[InBounds]
+        Allocation[InBoundsAndConstructed: InBounds]
 
     # no-copy getter/setter; it can resize the array to return a value.
     ;;[Index, fn(T;:): ~u]: u
@@ -84,12 +84,12 @@ array~t := extend(indexable) {
     # is within the range `[0, This count())`.
     ;;[InBounds, fn(T;:): ~u]: u
         debug assert InBounds < This count()
-        Allocation[InBounds, fn]
+        Allocation[InBoundsAndConstructed: InBounds, fn]
    
     # no-copy getter that keeps
     ::[Index, fn(T?): u]: u
         debug assert InBounds < This count()
-        Allocation[InBounds]
+        Allocation[InBoundsAndConstructed: InBounds]
 
     # returns a non-null value of the array element at the specified index,
     # or the end of the array if not specified.  throws an error if the element
