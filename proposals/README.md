@@ -3661,6 +3661,20 @@ TODO: make it possible to mock out file system access in unit tests.
 TODO: should we switch to Rust-style errors (`result~(ok, err)`) which would be easier to use in C?
 it does make error handling explicit which is nice.
 
+```
+result~(ok, err) := oneOf(ok, err)
+
+Result := if X $( Ok(3) ) else $( Err("oh no") )
+if Result isOk()
+    print("ok")
+
+# but it'd be nice to transform `Result` into the `Ok` value along the way.
+if Ok ?:= Result
+    print("Ok is not null here: ", Ok)
+if Err ?:= Result
+    print("Err is not null here: ", Err)
+```
+
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
 e.g., `map.hm` has a `map error` type which can be caught using `catch error` or `catch map error`.
 Use `throw errorType("message $(HelpfulVariableToDebug)")` to throw a specific error, or 
@@ -4834,16 +4848,18 @@ Here is an example enum with just specified values, all inline:
 bool := oneOf(False: 0, True: 1)
 ```
 
-Enums provide a few extra additional properties for free as well, including
+Enums provide a few extra additional methods for free as well, including
 the number of values that are enumerated via the class function `count(): count`,
-and the min and max values `min(): enumType`, `max(): enumType`.
+and the min and max values `min(): enumType`, `max(): enumType`.  You can also
+check if an enum instance `Enum` is a specific value `ThisValue` via
+`Enum isThisValue()` which will return true iff so.
 
 ```
 Test: bool = False  # or `Test := bool False`
 
-if Test == True
+if Test == True     # OK
     print("test is true :(")
-if Test == False
+if Test isFalse()   # also OK
     print("test is false!")
 
 # get the count (number of enumerated values) of the enum:
@@ -4904,9 +4920,9 @@ print("number of options should be 7:  $(option count())")
 Option1 := option ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
-if Option1 == NotAGoodOption
+if Option1 isNotAGoodOption()   # OK
     print("oh no")
-elif Option1 == OopsYouMissedIt
+elif Option1 == OopsYouMissedIt # also OK
     print("whoops")
 ...
 
@@ -4942,6 +4958,46 @@ tree := oneOf(
         Right; tree
     }
 )
+```
+
+When checking a `tree` type for its internal structure, you can use `isLeaf()` or `isBranch()`
+if you just need a boolean, but if you need to manipulate one of the internal types, you should
+cast to the internal type via `InternalType?: internalType = Tree`, where `internalType` is
+`leaf` or `branch`.  For example:
+
+```
+Tree; tree = if Abc
+    leaf(Value: 3)
+else
+    branch(Left: leaf(Value: 1), Right: leaf(Value: 5))
+
+if Tree isLeaf()
+    # no type narrowing, not ideal.
+    print(Tree)
+
+# narrowing to a `leaf` type that is readonly.
+# TODO: we probably can simplify this to `if Leaf := Tree`
+if Leaf ?:= Tree
+    # type narrowing, `Leaf` is actually not null here due to checking before entering this block.
+    # this is shorthand for `Leaf ?:= Tree, if Leaf != Null $( this-block ), @hide Leaf`
+    print(Leaf)
+
+# narrowing to a `branch` type that is writeable.  `Tree` was writeable, so `Branch` can be.
+if Branch ?;= Tree
+    # type narrowing, `Branch` is actually not null here due to checking before entering this block.
+    print(Branch Left, " ", Branch Right)
+    Branch Left someOperation()
+```
+
+If you need to manipulate most of the internal types, use `what` to narrow the type
+and handle all the different cases.
+
+```
+what Tree
+    (Leaf) := print(Leaf)
+    (Branch;)
+        print(Branch Left, " ", Branch Right)
+        Branch Left someOperation()
 ```
 
 TODO: how can we tell when we're creating a new `oneOf` value (e.g., `oneOf(X, Y)`)
