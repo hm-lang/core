@@ -77,41 +77,41 @@ allocation~t := {
 
     # Only call this if you've already constructed a value here.
     ::[InBounds]: t
-        debug->assert InBounds >= 0 and InBounds < This count()
+        debug assert InBounds >= 0 and InBounds < This count()
         @cc(
             return Memory[@hm(InBounds)];
         )
 
     # Only call this if you've already constructed a value here.
     ;:[InBounds, fn(T;:): ~u]: u
-        debug->assert InBounds >= 0 and InBounds < This count()
+        debug assert InBounds >= 0 and InBounds < This count()
         @cc(
             return @hm(fn)(&Memory[@hm(InBounds)]);
         )
 
     ;;defaultConstruct(InBounds): null
-        debug->assert InBounds >= 0 and InBounds < Count
+        debug assert InBounds >= 0 and InBounds < Count
         @cc(
             new (Memory + @hm(InBounds)) @hm(t)();
         )
         # pure C? `hm(t)_default(Memory + @hm(InBounds))`
 
     ;;moveConstruct(InBounds, T;): null
-        debug->assert InBounds >= 0 and InBounds < Count
+        debug assert InBounds >= 0 and InBounds < Count
         @cc(
             new (Memory + @hm(InBounds)) @hm(t)(std::move(@hm(T)));
         )
         # pure C? `hm(t)_moot(Memory + @hm(InBounds), @hm(T))`
 
     ;;copyConstruct(InBounds, T): null
-        debug->assert InBounds >= 0 and InBounds < Count
+        debug assert InBounds >= 0 and InBounds < Count
         @cc(
             new (Memory + @hm(InBounds)) @hm(t)(@hm(T));
         )
         # pure C? `hm(t)_copy(Memory + @hm(InBounds))`
 
     ;;deconstruct(InBounds): null
-        debug->assert InBounds >= 0 and InBounds < Count
+        debug assert InBounds >= 0 and InBounds < Count
         @cc(
             (Memory + @hm(InBounds))->~@hm(t)();
         )

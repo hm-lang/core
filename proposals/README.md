@@ -3658,6 +3658,9 @@ TODO: make it possible to mock out file system access in unit tests.
 
 # errors and asserts
 
+TODO: should we switch to Rust-style errors (`result~(ok, err)`) which would be easier to use in C?
+it does make error handling explicit which is nice.
+
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
 e.g., `map.hm` has a `map error` type which can be caught using `catch error` or `catch map error`.
 Use `throw errorType("message $(HelpfulVariableToDebug)")` to throw a specific error, or 

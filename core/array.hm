@@ -15,7 +15,7 @@ array~t := extend(indexable) {
         if Count == This Count
             return
         if Count > This Count
-            This allocate(Count)
+            This allocate(AtLeast: Count)
             while This Count < Count
                 Allocation defaultConstruct(This Count++)
         else
@@ -23,32 +23,33 @@ array~t := extend(indexable) {
                 Allocation deconstruct(--This Count)
 
     @private
-    ;;allocate(Count): null
-        assert Count >= 0
-        if DesiredAllocation < 0
-            throw error("cannot allocate +$(Delta) from $(This Count): overflow")
-        if DesiredAllocation <= Allocation Count
+    ;;allocate(AtLeast: count): null
+        debug assert AtLeast >= 0
+        if AtLeast <= This Allocation Count
             return
 
         # we should at least try to double the storage
         TryToAllocate ;= This roughlyDoubleAllocation()
-        if DesiredAllocation >= TryToAllocate
-            Allocation count(DesiredAllocation)
-            return
-
-        while True
+        while TryToAllocate > AtLeast
             try
                 Allocation count(TryToAllocate)
+                return
             except
-                TryToAllocate = (TryToAllocate + DesiredAllocation) // 2
+                # but in case we can't allocate that much, we can back down.
+                TryToAllocate = (TryToAllocate + AtLeast) // 2
+            # OR Rust-like:
+            if Allocation count(TryToAllocate) ok() $( return )
+            TryToAllocate = (TryToAllocate + AtLeast) // 2
+
+        Allocation count(AtLeast)
 
     ;;append(T): null
-        debug->assert This Count < count::Max
+        debug assert This Count < count::Max
         This allocate(This Count + 1)
         Allocation copyConstruct(This Count++, T)
 
     ;;append(T;): null
-        debug->assert This Count < count::Max
+        debug assert This Count < count::Max
         This allocate(This Count + 1)
         Allocation moveConstruct(This Count++, T;)
 
@@ -69,7 +70,7 @@ array~t := extend(indexable) {
     # in-bounds getter, which is unsafe to call unless `InBounds` is 
     # within the range `[0, This count())`.
     ::[InBounds]: t
-        debug->assert InBounds < This count()
+        debug assert InBounds < This count()
         Allocation[InBounds]
 
     # no-copy getter/setter; it can resize the array to return a value.
@@ -82,12 +83,12 @@ array~t := extend(indexable) {
     # no-copy getter/setter which is unsafe to call unless `InBounds`
     # is within the range `[0, This count())`.
     ;;[InBounds, fn(T;:): ~u]: u
-        debug->assert InBounds < This count()
+        debug assert InBounds < This count()
         Allocation[InBounds, fn]
    
     # no-copy getter that keeps
     ::[Index, fn(T?): u]: u
-        debug->assert InBounds < This count()
+        debug assert InBounds < This count()
         Allocation[InBounds]
 
     # returns a non-null value of the array element at the specified index,
@@ -105,7 +106,7 @@ array~t := extend(indexable) {
         This erase(This inBounds(Index))
 
     ;;erase(InBounds): null
-        debug->assert InBounds >= 0 and InBounds < This count()
+        debug assert InBounds >= 0 and InBounds < This count()
         for DestinationIndex := InBounds, DestinationIndex < This count() - 1
             This[DestinationIndex] = This[DestinationIndex + 1]!
         This count(This count() - 1)
@@ -134,7 +135,7 @@ array~t := extend(indexable) {
     @private
     # returns the value at Index, resetting the array elements value to a default value.
     ;;mootInBounds(Index): t
-        debug->assert Index >= 0 and Index < This count()
+        debug assert Index >= 0 and Index < This count()
         T; t
         @cc{
             hm(T) = std::move(Internal[hm(Index)]);
