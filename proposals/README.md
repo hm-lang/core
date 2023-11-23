@@ -3667,9 +3667,23 @@ TODO: should we switch to Rust-style errors (`result~(ok, err)`) which would be 
 it does make error handling explicit which is nice.
 TODO: OR it might be nice to have only one "optional"/"error" like abstraction; can we make nulls like errors?
 e.g., `A?: int = dbl(1.2345 * 1004)`, `@whyNull(A)` to get the error message, or maybe some other symbol.
+however, that will be difficult to pull off for void-returning functions.  e.g., how could we distinguish
+error from success in `fn(Int): null`?  we'd need to switch to a `void` or `ok` type, e.g., `fn(Int)?: ok`
+`fn(3) assertOk()`, but that will require changing how `Null myMethod()` works.
+i think there's too much of a difference here between optional (null) and error, however;
+but we could automatically convert a `result~(ok, err)` type into a `oneOf(ok, null)` type.
 
 ```
-result~(ok, err) := oneOf(ok, err)
+result~(ok, err) := extend(oneOf(ok, err)) {
+    ..assertOk(Str: str): ok
+        # TODO: how to return this type?  should `oneOf` fields have
+        # `Enum ThisValue` as nullable boolean/struct, non-null if it's present?
+        # it probably should live in a union (C/C++), so we should check first.
+        if This isOk()
+            return This Ok!
+        # exits program
+        panic(Str)
+}
 
 Result := if X $( ok(3) ) else $( err("oh no") )
 if Result isOk()
