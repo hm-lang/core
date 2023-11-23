@@ -5058,7 +5058,14 @@ that rust provides, for masks?
 Since masks can be any or none of the options specified, they are created using
 the `anyOrNoneOf` function.  Like with `oneOf` enumerations, masks don't need
 to specify their values; but unlike `oneOf` enumerations, if you do specify them,
-they must be powers of two.
+they must be powers of two.  Like enums, they have an `isThisValue()` method
+for a `ThisValue` option, which is true if the mask is exactly equal to `ThisValue`
+and nothing else.  You can use `hasThisValue()` to see if it contains `ThisValue`,
+but may contain other values besides `ThisValue`.
+
+TODO: should this be `containsThisValue()` to be consistent with containers?
+
+TODO: is there a way to make this `anyOf` and use 0 as the `Null` value?
 
 ```
 food := anyOrNoneOf(
@@ -5074,6 +5081,7 @@ Food: food = Carrots | Tomatoes
 Food hasCarrots()   # true
 Food hasPotatoes()  # false
 Food hasTomatoes()  # true
+Food isCarrots()    # false, since `Food` is not just `Carrots`.
 ```
 
 And here is an example with specified values.
@@ -5103,6 +5111,10 @@ Options hasX()  # True
 Options hasY()  # False
 Options hasZ()  # True
 Options hasT()  # False
+
+Options = T
+Options isT()   # True
+Options hasT()  # True
 ```
 
 ## interplay with `oneOf`
