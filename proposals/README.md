@@ -636,6 +636,8 @@ SomeThing := someType(X: 5, Y: 6, Z: -7)
 ```
 
 TODO: types of functions, shouldn't really have `new`.
+TODO: ensure that `::is(fn(InternalType): null): bool` is ok, otherwise we need a different
+type narrowing method.
 
 # operators and precedence
 
@@ -1965,6 +1967,9 @@ internal scope.  Cases (2) and (3) make more sense for class methods than standa
 as there is likely an instance variable that could be renewed (case 2) or swapped out (case 3).
 We could document the behavior using annotations, e.g., `@modifying`, `@taking`, or `@swapping`,
 e.g., `over(@modifying Load; int)` in the above example.
+
+TODO: maybe use `.` for temporaries; e.g., `fn(B. int, C: str)` for a temporary B.
+moots would automatically use the temporary overload.
 
 If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
@@ -3660,19 +3665,19 @@ TODO: make it possible to mock out file system access in unit tests.
 
 TODO: should we switch to Rust-style errors (`result~(ok, err)`) which would be easier to use in C?
 it does make error handling explicit which is nice.
+TODO: OR it might be nice to have only one "optional"/"error" like abstraction; can we make nulls like errors?
+e.g., `A?: int = dbl(1.2345 * 1004)`, `@whyNull(A)` to get the error message, or maybe some other symbol.
 
 ```
 result~(ok, err) := oneOf(ok, err)
 
-Result := if X $( Ok(3) ) else $( Err("oh no") )
+Result := if X $( ok(3) ) else $( err("oh no") )
 if Result isOk()
     print("ok")
 
 # but it'd be nice to transform `Result` into the `Ok` value along the way.
-if Ok ?:= Result
-    print("Ok is not null here: ", Ok)
-if Err ?:= Result
-    print("Err is not null here: ", Err)
+Result is((Ok) := print("Ok: ", Ok))
+Result is((Err) := print("Err: ", Err))
 ```
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
@@ -3789,6 +3794,7 @@ we should use the `optional` type.
 
 TODO: clean up usage of "optional" when we really mean "nullable", so that we can distinguish between the two.
 Or figure out a way to not distinguish between optional and nullable (e.g., allow null in Map or Array??).
+Ideally we can think of nullable types as optional.
 
 ## arrays
 
@@ -4962,8 +4968,8 @@ tree := oneOf(
 
 When checking a `tree` type for its internal structure, you can use `isLeaf()` or `isBranch()`
 if you just need a boolean, but if you need to manipulate one of the internal types, you should
-cast to the internal type via `InternalType?: internalType = Tree`, where `internalType` is
-`leaf` or `branch`.  For example:
+use `::is(fn(InternalType): null): bool` or `;;is(fn(InternalType;): null)` if you need to modify
+it, where `internalType` is either `leaf` or `branch` in this case.  For example:
 
 ```
 Tree; tree = if Abc
@@ -4975,18 +4981,18 @@ if Tree isLeaf()
     # no type narrowing, not ideal.
     print(Tree)
 
-# narrowing to a `leaf` type that is readonly.
-# TODO: we probably can simplify this to `if Leaf := Tree`
-if Leaf ?:= Tree
-    # type narrowing, `Leaf` is actually not null here due to checking before entering this block.
-    # this is shorthand for `Leaf ?:= Tree, if Leaf != Null $( this-block ), @hide Leaf`
-    print(Leaf)
+# narrowing to a `leaf` type that is readonly, while retaining a reference
+# to the original `Tree` variable.  the nested function only executes if
+# `Tree` is internally of type `leaf`:
+Tree is((Leaf) := print(Leaf))
 
 # narrowing to a `branch` type that is writeable.  `Tree` was writeable, so `Branch` can be.
-if Branch ?;= Tree
-    # type narrowing, `Branch` is actually not null here due to checking before entering this block.
+# the nested function only executes if `Tree` is internally of type `branch`:
+Tree is((Branch;):
     print(Branch Left, " ", Branch Right)
+    # this operation can affect/modify the `Tree` variable.
     Branch Left someOperation()
+)
 ```
 
 If you need to manipulate most of the internal types, use `what` to narrow the type
@@ -4999,6 +5005,13 @@ what Tree
         print(Branch Left, " ", Branch Right)
         Branch Left someOperation()
 ```
+
+Since function arguments are references by default, the above options are useful
+when you want to modify the `Tree` variable by changing its internals whether
+selectively it's a `leaf` or a `branch`.  If you want to make a copy, you can do so
+via type casting: `NewLeaf?; leaf = Tree` or `MyBranch?; branch = Tree`; these
+variables will be null if the `Tree` is not of that type, but they will also be
+a copy and any changes to the new variables will not be reflected in `Tree`.
 
 TODO: how can we tell when we're creating a new `oneOf` value (e.g., `oneOf(X, Y)`)
 vs. using an existing type `oneOf(x, y)`?  probably depends on what's in scope;
