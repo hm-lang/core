@@ -111,6 +111,7 @@ array~t := extend(indexable) {
             This[DestinationIndex] = This[DestinationIndex + 1]!
         This count(This count() - 1)
 
+    # TODO: we can probably use `!!This: bool` instead of `::!!This: bool`
     ::!!This: bool
         return This count() > 0
 

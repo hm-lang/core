@@ -1969,7 +1969,15 @@ We could document the behavior using annotations, e.g., `@modifying`, `@taking`,
 e.g., `over(@modifying Load; int)` in the above example.
 
 TODO: maybe use `.` for temporaries; e.g., `fn(B. int, C: str)` for a temporary B.
-moots would automatically use the temporary overload.
+moots would automatically use the temporary overload.  hm, `!` still seems best for this.
+do we need a new calling syntax? `fn(X: MyX, Y; MyY, Z! MyZ)` appears not to associate the reference
+with the passed-in variable (e.g., MyX or MyY).  ideally we could do something like
+`fn(X MyX:, Y MyY;, Z MyZ!)` or `fn(MyX: as X, MyY; as Y, MyZ! as Z)`
+or `fn(X<-MyX, Y<-MyY;, Z<-MyZ!)`.  these are all a bit messy and would break other syntax
+(`Y MyY;` would look like we're trying to get `MyY` on a struct `Y`).  it probably would be
+better to use `fn(X: MyX, Y; MyY, Z. MyZ!)`.  this also ensures that we don't use
+`!!myTempMethod(): x` in classes which might look like we're trying to define an overload
+for `!!This`, especially in conjunction: `!!!!(): bool`; `..!!(): bool` would be better.
 
 If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
@@ -3692,6 +3700,10 @@ if Result isOk()
 # but it'd be nice to transform `Result` into the `Ok` value along the way.
 Result is((Ok) := print("Ok: ", Ok))
 Result is((Err) := print("Err: ", Err))
+
+# or if you're sure it's that thing, or want the program to terminate if not:
+# TODO: should this be `Result ok("for sure")` for brevity?
+Ok := Result assertOk("for sure")
 ```
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
