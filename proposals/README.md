@@ -65,6 +65,7 @@ for variables; we can easily distinguish intent without additional verbs.
 
 # general syntax
 
+* `print(...)` to echo some values (in ...) to stdout, `error(...)` to echo to stderr
 * `lowerCamelCase` identifiers like `x` are function/type-like, see [here](#variable-and-function-names)
 * `UpperCamelCase` identifiers like `X` are instance-like, see [here](#variable-and-function-names)
 * use `#` for [comments](#comments)
@@ -206,6 +207,7 @@ vector3 := {X: dbl, Y: dbl, Z: dbl}
 # declaring a "complicated" class
 myClass := {
     # methods which mutate the class use a `;;` prefix
+    # TODO: should we switch to `from` so we have `from` and `to` as conversions back/forth?
     ;;renew(This X: int) := Null
 
     # methods which keep the class readonly use a `::` prefix
@@ -268,7 +270,7 @@ another class's instance, like `int(MyNumberString)` which converts `MyNumberStr
 (presumably a `string` type) into a big integer.
 
 There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
-`assert`, `throw`, `catch`, `what`,
+`what`,
 which are function-like but will consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 
@@ -1760,17 +1762,14 @@ myOverload(Y: str): null
 
 # case 2, present output:
 myOverload(Y: str): {X: int}
-    # note, this will throw if `Y` is not convertible to an `int`.
-    return {X: int(Y)}
+    return {X: int(Y) panic("should be an integer")}
 
 # case 3, nullable output (not compatible with case 1):
 myOverload(Y: str): {X?: int}
     # this is essentially an implementation of `X ?:= int(Y), return {X}`
-    try
-        X := int(Y)
-        return {X}
-    catch int error
-        return {}
+    what int(Y)
+        (Ok) := {X: Ok}
+        (Err) := {}
 
 X := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
 X ?:= myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
@@ -1981,7 +1980,7 @@ for `!!This`, especially in conjunction: `!!!!(): bool`; `..!!(): bool` would be
 but adding another specifier (`.`) will be confusing since it could become valid elsewhere,
 e.g., `myClass := {X. int, Y: dbl, Z; str}`.  readonly (:) is const ref, read-write (;) is mutable ref;
 `.` would be temporary.  maybe we stick with `;` to avoid confusion.  we can still do
-`assertOk(Result; result~(ok, err), Str): ok` and document that `Result` will be consumed.
+`assert(Result; result~(ok, err), Str): ok` and document that `Result` will be consumed.
 
 If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
@@ -3677,24 +3676,49 @@ TODO: make it possible to mock out file system access in unit tests.
 
 TODO: should we switch to Rust-style errors (`result~(ok, err)`) which would be easier to use in C?
 it does make error handling explicit which is nice.
-TODO: OR it might be nice to have only one "optional"/"error" like abstraction; can we make nulls like errors?
-e.g., `A?: int = dbl(1.2345 * 1004)`, `@whyNull(A)` to get the error message, or maybe some other symbol.
-however, that will be difficult to pull off for void-returning functions.  e.g., how could we distinguish
-error from success in `fn(Int): null`?  we'd need to switch to a `void` or `ok` type, e.g., `fn(Int)?: ok`
-`fn(3) assertOk()`, but that will require changing how `Null myMethod()` works.
 i think there's too much of a difference here between optional (null) and error, however;
 but we could automatically convert a `result~(ok, err)` type into a `oneOf(ok, null)` type.
 
+TODO: `assert` should never panic but should return an error from the current scope.
+this includes for methods defined by classes, like `result::assert` below.
+maybe use `err` inside the function instead of `panic`.
+
+TODO: maybe use `ew`, `no`, `bad` or `ill` instead of `err`. `error` would be ideal, but it's a bit long.
+
 ```
 result~(ok, err) := extend(oneOf(ok, err)) {
-    ;;assertOk(Str: str): ok
+    ;;assert(Str: str = ""): ok
         # TODO: how to return this type?  should `oneOf` fields have
         # `Enum ThisValue` as nullable boolean/struct, non-null if it's present?
         # it probably should live in a union (C/C++), so we should check first.
         if This isOk()
             return This! Ok
-        # exits program
-        panic(Str)
+        error(This Err)
+        # `panic` exits program
+        # TODO: remove
+        panic(Str || This Err)
+
+    ;;panic(Str: str = ""): ok
+        if This isOk()
+            return This! Ok
+        error(This Err)
+        # `panic` exits program
+        panic(Str || This Err)
+
+    # maps an `Ok` result to a different type of `ok`, consuming `This`.
+    ;;map(fn(Ok): ~t): result~(ok: t, err)
+
+    # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `This`.
+    ;;map(fn(Ok): result~(ok: t, err)): result~(ok: t, err)
+
+    # passes through any `Ok` result, but maps an `Err` to the desired `ok` result
+    # via the passed-in function.
+    ;;map(fn(Err): ok): ok
+
+    # TODO: should we use `to` here or is there a better way to indicate casting?
+    # it's technically something like `oneOf(ok, null)(Result: result~(ok, err)): oneOf(ok, null)`
+    # which is pretty verbose.
+    ;;to(): oneOf(ok, null)
 }
 
 Result := if X $( ok(3) ) else $( err("oh no") )
@@ -3706,8 +3730,7 @@ Result is((Ok) := print("Ok: ", Ok))
 Result is((Err) := print("Err: ", Err))
 
 # or if you're sure it's that thing, or want the program to terminate if not:
-# TODO: should this be `Result ok("for sure")` for brevity?
-Ok := Result assertOk("for sure")
+Ok := Result assert("for sure")
 ```
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
@@ -3724,14 +3747,14 @@ The built-in `assert` statement will throw if the rest of the statement does not
 As a bonus, when throwing, all values will be logged to stderr as well for debugging purposes.
 
 ```
-assert SomeVariable == ExpectedValue    # throws if `SomeVariable != ExpectedValue`,
+assert(SomeVariable == ExpectedValue)   # throws if `SomeVariable != ExpectedValue`,
                                         # printing to stderr the values of both `SomeVariable`
                                         # and `ExpectedValue` if so.
 
-assert SomeClass method(100)        # throws if `SomeClass method(100)` is not truthy,
+assert(SomeClass method(100))       # throws if `SomeClass method(100)` is not truthy,
                                     # printing value of `SomeClass` and `SomeClass method(100)`.
 
-assert SomeClass otherMethod("hi") > 10     # throws if `SomeClass otherMethod("hi") <= 10`,
+assert(SomeClass otherMethod("hi") > 10)    # throws if `SomeClass otherMethod("hi") <= 10`,
                                             # printing value of `SomeClass` as well as
                                             # `SomeClass otherMethod("hi")`.
 ```
@@ -3745,17 +3768,19 @@ indent here, since that would mean line continuation (i.e., of the `assert` stat
 
 ```
 # custom error:
-assert This Might Not Be Self Explanatory
-    myCustomError("should have tried X instead of Y")
+assert(This Might Not Be Self Explanatory, customError("should have tried X instead of Y"))
 
 # default error:
-assert SomeString endsWith(")")
+assert(
+    SomeString endsWith(")")
     `expected nothing else on the line
      after the parenthetical.`
+)
 
 # WARNING! probably not intentional, parses as `Whatever Expression "this is a ..."`:
-assert WhateverExpression
+assert(WhateverExpression
         "this is a double indented line, doesn't count as the assert error message"
+)
 ```
 
 Note that `assert` logic is always run, even in non-debug code.  To only check statements
@@ -3765,13 +3790,19 @@ methods.  For public methods, `assert` should always be used to check arguments.
 that `assert` will throw the correct error subclass for the module that it is in;
 `debug assert` will throw a `debug error` to help indicate that it is not a production error.
 
-TODO: try/catch/finally 
-
 ## automatically converting errors to null
 
-TODO: if a function `myFunction(...): q` throws an error, should we let `Q ?:= myFunction(...)`
-automatically catch the error and return null instead?  then we wouldn't need to have separate
-implementations for `X := int(...)` and `Y ?:= int(...)`.
+If a function returns a `result` type, e.g., `myFunction(...): result~(ok, err)`,
+then we can automatically convert its return value into a `oneOf(ok, null)`, i.e.,
+a nullable version of the `ok` type.  This is helpful for things like type casting;
+instead of `MyInt := what int(MyDbl) $((Ok) := Ok) $((Err) := -1)` you can do
+`MyInt := int(MyDbl) ?? -1`.  Although, there is also a less verbose option,
+like `int(MyDbl) map((Err) := -1)`.
+
+TODO: should this be valid if `ok` is already a nullable type?  e.g.,
+`myFunction(): result~(ok: oneOf(null, int), err: str)`.
+we probably should compile-error-out on casting to `Int ?:= myFunction()` since
+it's not clear whether `Int` is null due to an error or due to the return value.
 
 # standard container classes (and helpers)
 
@@ -4162,6 +4193,7 @@ map~(key, value) := extend(container~{key, value}) {
 
     # getter and modifier in one definition, with the `;:` "template mutability" operator:
     # will throw for the const map (`This:`) if Key is not in the map.
+    # TODO: switch to `result~(ok: t, err: ??)` here and nearby.
     ;:[Key, fn(Value;:): ~t]: t
 
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
