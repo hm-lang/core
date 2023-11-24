@@ -1978,6 +1978,10 @@ or `fn(X<-MyX, Y<-MyY;, Z<-MyZ!)`.  these are all a bit messy and would break ot
 better to use `fn(X: MyX, Y; MyY, Z. MyZ!)`.  this also ensures that we don't use
 `!!myTempMethod(): x` in classes which might look like we're trying to define an overload
 for `!!This`, especially in conjunction: `!!!!(): bool`; `..!!(): bool` would be better.
+but adding another specifier (`.`) will be confusing since it could become valid elsewhere,
+e.g., `myClass := {X. int, Y: dbl, Z; str}`.  readonly (:) is const ref, read-write (;) is mutable ref;
+`.` would be temporary.  maybe we stick with `;` to avoid confusion.  we can still do
+`assertOk(Result; result~(ok, err), Str): ok` and document that `Result` will be consumed.
 
 If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
@@ -3683,12 +3687,12 @@ but we could automatically convert a `result~(ok, err)` type into a `oneOf(ok, n
 
 ```
 result~(ok, err) := extend(oneOf(ok, err)) {
-    ..assertOk(Str: str): ok
+    ;;assertOk(Str: str): ok
         # TODO: how to return this type?  should `oneOf` fields have
         # `Enum ThisValue` as nullable boolean/struct, non-null if it's present?
         # it probably should live in a union (C/C++), so we should check first.
         if This isOk()
-            return This Ok!
+            return This! Ok
         # exits program
         panic(Str)
 }
