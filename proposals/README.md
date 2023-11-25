@@ -18,7 +18,7 @@ to stop you if you try to change a constant variable.
 In some languages, e.g., JavaScript, objects are passed by reference and primitives
 are passed by value when calling a function with these arguments.  In hm-lang,
 arguments are passed by reference by default, for consistency.
-See [passing by reference](#passing-by-reference). 
+See [passing by reference and by value](#pass-by-reference-or-pass-by-value). 
 
 In hm-lang, determining the number of elements in a container uses the same
 method name for all container types; `count(Container)` or `Container count()`,
@@ -69,9 +69,9 @@ for variables; we can easily distinguish intent without additional verbs.
 * `lowerCamelCase` identifiers like `x` are function/type-like, see [here](#variable-and-function-names)
 * `UpperCamelCase` identifiers like `X` are instance-like, see [here](#variable-and-function-names)
 * use `#` for [comments](#comments)
-* use `:` for readonly declarations, `;` for writeable declarations
+* outside of arguments, use `:` for readonly declarations and `;` for writeable declarations
 * for an argument, `:` is a readonly reference, `;` is a writeable reference, and `.` is a temporary
-    (i.e., passed by value)
+    (i.e., passed by value), see [pass-by-reference or pass-by-value](#pass-by-reference-or-pass-by-value)
     TODO: should `.` be the default argument type?  (i.e., for `fn(Int): null` and similarly for calls).
     TODO: `.` should use an explicit copy, e.g., `X. int(MyValue)` instead of `X. MyValue`,
     at least where such copies are expensive (i.e., for large types or heap-allocated types).
@@ -1821,49 +1821,85 @@ grabbing only the values you want.
 We also allow calling functions with any dynamically generated arguments, so that means
 being able to resolve the overload at run-time.
 
-### readonly versus writeable arguments
+### pass-by-reference or pass-by-value
 
-Functions can be defined with writeable or readonly arguments, e.g., via
-`MutableArgument; writeableType` and `ReadonlyArgument: readonlyType` in the
-arguments list, and are passed by reference.  This choice has three important
+Functions can be defined with arguments that are passed-by-value, e.g., via
+`TemporaryValue. typeOfTheTemporary`.  This argument type can be called with
+temporaries, e.g., `fn(ArgName. "my temp string")`, or with easily-copyable
+types like `dbl` or `i32` like `MyI32: i32 = 5, fn(MyArg. MyI32)`, or
+with larger-allocation types like `int` or `str` with an explicit copy:
+`MyStr := "asdf...", fn(TmpArg. str(MyStr))`.  In any case, the passed-by-value
+argument, if changed inside the function block, will have no effect on the
+things outside the function block.  Inside the function block, pass-by-value
+arguments are mutable, and can be reassigned or modified as desired.
+TODO: should we make pass-by-value arguments the default?  (e.g., this:)
+Pass-by-value arguments are the default, so `fn(Int): null` is the same as
+`fn(Int.): null`.
+TODO: is this ideal?  `print(X)` should probably be passed-by-constant-reference
+to avoid a copy.  we could always require it to be explicit, e.g., `print(X:)`
+but that's a bit annoying.
+
+Functions can also be defined with writeable or readonly reference arguments, e.g., via
+`MutableArgument; typeOfTheWriteable` and `ReadonlyArgument: typeOfTheReadonly` in the
+arguments list, which are passed by reference.  This choice has three important
 effects: (1) readonly variables may not be deeply constant (see section on
-[passing by reference](#passing-by-reference)), (2) you can modify
+[passing by reference gotchas](#passing-by-reference-gotchas)), (2) you can modify
 writeable argument variables inside the function definition, and (3) any
 modifications to a writeable argument variable inside the function block persist
-in the outer scope.  In C++ terms, arguments declared as `:` are passed as
-constant reference, while arguments declared as `;` are passed as reference.
-Overloads can be defined for both, since it is clear which is desired
-based on the caller using `:` or `;`.  Some examples:
+in the outer scope.  Note that pass-by-constant-reference arguments are the default,
+so `fn(Int): null` is the same as `fn(Int: int): null`.
+
+Note that return types are never references, so one secondary difference between
+`fn(Int.) := ++Int` and `fn(Int;) := ++Int` is that a copy/temporary is required
+before calling the former and a copy is made for the return type in the latter.
+The primary difference is that the latter will modify the passed-in variable in
+the outer scope.  To avoid dangling references, any calls of `fn(Int;)` with a
+temporary will actually create a hidden `int` before the function call.  E.g.,
+`fn(Int; 12345)` will essentially become `UniquelyNamedInt ;= 12345` then
+`fn(Int; @hide UniquelyNamedInt)`, so that `UniquelyNamedInt` is hidden from the
+rest of the block.  See also [lifetimes and closures](#lifetimes-and-closures).
+
+In C++ terms, arguments declared as `.` are passed as temporaries (`t &&`),
+arguments declared as `:` are passed as constant reference (`const t &)`,
+and arguments declared as `;` are passed as reference (`t &`).
+Overloads can be defined for all three, since it is clear which is desired
+based on the caller using `.`, `:`, or `;`.  Some examples:
 
 ```
+# this function passes by value and won't modify the external variable
+check(Arg123. string): string
+    Arg123 += "-tmp"    # OK since Arg123 is defined as writeable, implicit in `.`
+    return Arg123
+
 # this function passes by reference and will modify the external variable
 check(Arg123; string): string
-    Arg123 += "!!??"    # OK since Arg123 is defined as writeable via `;`.
-    print(Arg123)
+    Arg123 += "-writeable"  # OK since Arg123 is defined as writeable via `;`.
     return Arg123
 
 # this function passes by constant reference and won't allow modifications
 check(Arg123: string): string
-    print(Arg123)
-    return Arg123 + "??!!"
+    return Arg123 + "-readonly"
 
-MyValue; string = "readonly"
-check(Arg123; MyValue)  # prints "readonly!!??"
-print(MyValue)          # prints "readonly!!??"
-check(Arg123: MyValue)  # prints "readonly??!!"
-print(MyValue)          # prints "readonly"
+MyValue; string = "great"
+check(Arg123. MyValue)  # returns "great-tmp"
+print(MyValue)          # prints "great"
+check(Arg123: MyValue)  # returns "great-readonly"
+print(MyValue)          # prints "great"
+check(Arg123; MyValue)  # returns "great-writeable"
+print(MyValue)          # prints "great-writeable"
 ```
 
-Note that if you try to call a function with a readonly variable argument,
+Note that if you try to call a function with a readonly reference argument,
 but there is no overload defined for it, this will be an error.  Similarly
-for writeable variable arguments.
+for writeable-reference or temporary variable arguments.
 
 ```
 onlyReadonly(A: int): str
     return str(A) * A
 
 MyA ;= 10
-onlyReadonly(A; MyA)    # COMPILE ERROR, no writeable overload for `onlyReadonly(A;)`
+onlyReadonly(A; MyA)        # COMPILE ERROR, no writeable overload for `onlyReadonly(A;)`
+onlyReadonly(A. int(MyA))   # COMPILE ERROR, no temporary overload for `onlyReadonly(A.)`
 
 print(onlyReadonly(A: 3))       # OK, prints "333"
 print(onlyReadonly(A: MyA))     # OK, prints "10101010101010101010"
@@ -1874,11 +1910,26 @@ onlyMutable(B; int): str
     return Result
 
 MyB ;= 10
-onlyMutable(B: MyB)             # COMPILE ERROR, no readonly overload for `onlyMutable(B:)`
-# same for something like `onlyMutable(B: 10)`.
+onlyMutable(B: MyB)         # COMPILE ERROR, no readonly overload for `onlyMutable(B:)`
+onlyMutable(B. int(MyB))    # COMPILE ERROR, no temporary overload for `onlyMutable(B.)`
 
-print(onlyMutable(B; MyB))      # OK, prints "10101010101010101010"
-print(onlyMutable(B; MyB))      # OK, prints "55555"
+print(onlyMutable(B; MyB))  # OK, prints "10101010101010101010"
+print(onlyMutable(B; MyB))  # OK, prints "55555"
+
+onlyTemporary(C. int): str
+    Result ;= ""
+    while C != 0
+        Result append(str(C % 3))
+        C /= 3
+    Result reverse()
+    Result
+
+MyC ;= 5
+onlyTemporary(C: MyC)       # COMPILE ERROR, no readonly overload for `onlyTemporary(C:)`
+onlyTemporary(C; MyC)       # COMPILE ERROR, no temporary overload for `onlyTemporary(C;)`
+
+print(onlyTemporary(C. 3))      # OK, prints "10"
+print(onlyTemporary(C. MyC!))   # OK, prints "12"
 ```
 
 Note there is an important distinction between variables defined as writeable inside a block
@@ -1888,6 +1939,7 @@ For a full example:
 
 ```
 referenceThis(A; int): int
+    # TODO: should we make the copy explicit?
     B ;= A  # B is a copy of A
     A *= 2
     B *= 3
@@ -1898,10 +1950,9 @@ print(referenceThis(A;))    # prints 30, not 60.
 print(A)                    # A is now 20, not 60.
 ```
 
-You are allowed to have default parameters for writeable arguments, and a suitable temporary
-will be created for each function call so that a reference type is suitable.  In the same
-way, you can call the writeable overload for a function with a temporary, e.g., via `B; 17`,
-and the temporary variable will be discarded after the function call.
+You are allowed to have default parameters for reference arguments, and a suitable
+block-scoped (but hidden) variable will be created for each function call so that
+a reference type is allowed.
 
 ```
 fn(B ;= int(3)): int
@@ -1924,32 +1975,34 @@ print(MyB)          # MyB is now 13 as well.
 print(fn(B; 17))    # MyB is unchanged, prints 20
 ```
 
-Note that a mooted variable will automatically be considered a writeable argument
-unless otherwise specified.  However, this will create a temporary and not modify
-the variable in the external scope.
+Note that a mooted variable will automatically be considered a temporary argument
+unless otherwise specified.
 
 ```
 over(Load: int): str
     return str(Load)
 
 over(Load; int): str
+    return str(Load++)
+
+over(Load. int): str
     return str(++Load)
 
 Load ;= 100
-print(over(Load!))  # calls `fn(Load; Load!)` with a temporary, prints 101
+print(over(Load!))  # calls `over(Load.)` with a temporary, prints 101
 print(Load)         # Load = 0 because it was mooted, and was not modified inside the function
 
 Load = 100
-print(over(Load: Load!))    # calls `fn(Load)` with a const temporary, prints 100
+print(over(Load: Load!))    # calls `over(Load)` with a const temporary, prints 100
 print(Load)                 # Load = 0 because it was mooted
 
 Load = 100
-print(over(Load; Load!))    # calls `fn(Load;)` with a temporary, prints 101
+print(over(Load; Load!))    # calls `over(Load;)` with a temporary, prints 100
 print(Load)                 # Load = 0 because it was mooted
 
 # for reference, without mooting:
 Load = 100
-print(over(Load;))          # calls `fn(Load;)` with the reference, prints 101
+print(over(Load;))          # calls `over(Load;)` with the reference, prints 100
 print(Load)                 # Load = 101 because it was passed by reference
 ```
 
@@ -1958,46 +2011,19 @@ The implementation in C++ might look something like this:
 ```
 // these function overloads are defined for `fn(Str;)` and `fn(Str)`:
 void fn(string &String);        // reference overload for `fn(Str;)`
-void fn(string &&String);       // temporary overload for `fn(Str;)`
+void fn(string &&String);       // temporary overload for `fn(Str.)`
 void fn(const string &String);  // constant reference just for `fn(Str:)`
 ```
-
-The reason why we don't want to enable a third overload option for temporaries (i.e., `t &&T`)
-is that the calling syntax would be confusing.  You might declare the function like this,
-`over(Load! int): str`, but then calling `over(Load: ALoad!)` or `over(Load; BLoad!)`
-would look like you're trying to call `over(Load:;)` respectively.  When you're not
-trying to rename, `over(Load!)` looks fine, but `over(Load! ALoad!)` looks busy.
-Instead, documentation should make it clear what the writeable argument is being mutated for;
-is it (1) being modified for use outside the function, (2) being taken by the internal scope
-(and thus mooted in the outside scope), or (3) being swapped with some other value in the
-internal scope.  Cases (2) and (3) make more sense for class methods than standard functions,
-as there is likely an instance variable that could be renewed (case 2) or swapped out (case 3).
-We could document the behavior using annotations, e.g., `@modifying`, `@taking`, or `@swapping`,
-e.g., `over(@modifying Load; int)` in the above example.
-
-TODO: maybe use `.` for temporaries; e.g., `fn(B. int, C: str)` for a temporary B.
-moots would automatically use the temporary overload.  hm, `!` still seems best for this.
-do we need a new calling syntax? `fn(X: MyX, Y; MyY, Z! MyZ)` appears not to associate the reference
-with the passed-in variable (e.g., MyX or MyY).  ideally we could do something like
-`fn(X MyX:, Y MyY;, Z MyZ!)` or `fn(MyX: as X, MyY; as Y, MyZ! as Z)`
-or `fn(X<-MyX, Y<-MyY;, Z<-MyZ!)`.  these are all a bit messy and would break other syntax
-(`Y MyY;` would look like we're trying to get `MyY` on a struct `Y`).  it probably would be
-better to use `fn(X: MyX, Y; MyY, Z. MyZ!)`.  this also ensures that we don't use
-`!!myTempMethod(): x` in classes which might look like we're trying to define an overload
-for `!!This`, especially in conjunction: `!!!!(): bool`; `..!!(): bool` would be better.
-but adding another specifier (`.`) will be confusing since it could become valid elsewhere,
-e.g., `myClass := {X. int, Y: dbl, Z; str}`.  readonly (:) is const ref, read-write (;) is mutable ref;
-`.` would be temporary.  maybe we stick with `;` to avoid confusion.  we can still do
-`assert(Result; result~(ok, err), Str): ok` and document that `Result` will be consumed.
-We could also use `@` for references and `#xyz` for compiler directives (`# abc` for comments).
-`@X: int` or `X: @int`.  but i'd prefer not to introduce change-value or change-reference semantics...
 
 Implementation detail: while `.` corresponds to finality as a sentence ender, and thus might
 appear to relate most closely to a readonly type, we choose to use `:` as readonly and `;` as
 writeable references due to the similarity between `:` and `;`; therefore `.` can be the
 odd-one-out corresponding to a non-reference, pass-by-value type.
 
-If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
+TODO: some discussion below with `.` templates.  `;.` makes a lot of sense, and we probably
+can support `;:.` as well.
+
+If you want to define multiple overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
 e.g., `@writeable`/`@readonly` to determine if the variable is writeable or not.
 
@@ -2034,30 +2060,32 @@ myClass~t := {
 }
 ```
 
-### passing by reference
-
-In hm-lang, all arguments are effectively passed by reference; this is to make things
-consistent between primitives and non-primitives.  Most programming languages pass primitives
-by value, and this is possible in hm-lang but not the default.
+### passing by reference gotchas
 
 For example, this function call passes `Array[3]` by reference, even if `Array[3]` is a primitive.
 
 ```
 Array; int[] = [0, 1, 2, 3, 4]
 myFunction(Array[3];)   # passed as writeable reference
-myFunction(Array[3])    # passed as readonly reference
+myFunction(Array[3]:)   # passed as readonly reference
+myFunction(Array[3])    # also passed as readonly reference, it's the default.
 ```
 
-You can switch to passing by value by constructing a new temporary:
+TODO: should the `.;:` be on the other side for function calls?  e.g., `fn(:Array[10])`?
+for function definitions, the right side makes sense `fn(Int:): null` since it's short-hand
+for `fn(Int: int): null`, but when calling, `fn(:Array[10])` would be shorthand for
+`fn(ArrayElementType: Array[10])`.
+
+You can switch to passing by value by using `.` or making an explicit copy:
 
 ```
 Array; int = [0, 1, 2, 3, 4]
-myFunction(int(Array[3]);)  # passed by value, it's writeable inside
-myFunction(int(Array[3]))   # passed by value, readonly inside
+myFunction(int(Array[3]))   # passed by value (e.g., `myFunction(Int.)`):
 ```
 
-Normally this distinction of passing by reference or value does not matter.
-The situations where it does matter is when the function modifies the outside variable
+Normally this distinction of passing by reference or value does not matter except
+for optimization considerations.  The abnormal situations where it does matter in
+a more strange way is when the function modifies the outside variable
 in a self-referential way.  While this is allowed, it's not recommended!  Here is
 an example with an array:
 
@@ -2118,6 +2146,7 @@ notActuallyConstant(MyInt) # prints "Int before 123", then "Int middle 246", the
 Because of this, one should be careful about assuming that a readonly argument is deeply constant;
 it may only be not-writeable from your scope's reference to the variable.
 
+TODO: does this even make sense.
 For performance optimization, we could have a `@noNewKeys` or `@fixedCount` annotation on a container class,
 so that passed-in arrays/maps are kept at the same size/count inside the function block.
 
@@ -2125,7 +2154,7 @@ In cases where we know the function won't do self-referential logic,
 we can try to optimize and pass by value automatically.  However, we
 do want to support closures like `nextGenerator(Int; int) := () := ++Int`,
 which returns a function which increments the passed-in, referenced integer,
-so we can never pass a temporary (i.e., pass by value) into `nextGenerator`.
+so we can never pass a temporary argument (e.g., `Arg. str`) into `nextGenerator`.
 
 ### destructuring
 
@@ -5338,7 +5367,7 @@ expectation that `liveItUp("no")` will return 14 outside of the block.
 We actually don't want `liveItUp("no")` to return 2 here, either; we want this
 code to fail at compilation.  We want to detect when users are trying to do
 closures (popular in garbage-collected languages) and let them know this is
-not allowed.
+not allowed; at least, not like this.
 
 You can define variables and use them inside impure functions
 but they must be defined *before* the impure function is first declared.  So this
