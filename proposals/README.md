@@ -1981,6 +1981,8 @@ but adding another specifier (`.`) will be confusing since it could become valid
 e.g., `myClass := {X. int, Y: dbl, Z; str}`.  readonly (:) is const ref, read-write (;) is mutable ref;
 `.` would be temporary.  maybe we stick with `;` to avoid confusion.  we can still do
 `assert(Result; result~(ok, err), Str): ok` and document that `Result` will be consumed.
+We could also use `@` for references and `#xyz` for compiler directives (`# abc` for comments).
+`@X: int` or `X: @int`.  but i'd prefer not to introduce change-value or change-reference semantics...
 
 If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
@@ -3679,41 +3681,49 @@ it does make error handling explicit which is nice.
 i think there's too much of a difference here between optional (null) and error, however;
 but we could automatically convert a `result~(ok, err)` type into a `oneOf(ok, null)` type.
 
+Note that technically, `assert` doesn't panic; it will return an error from the
+current function block, i.e., as an `ew` in a `result`.
+
 TODO: `assert` should never panic but should return an error from the current scope.
 this includes for methods defined by classes, like `result::assert` below.
 maybe use `err` inside the function instead of `panic`.
 
 TODO: maybe use `ew`, `no`, `bad` or `ill` instead of `err`. `error` would be ideal, but it's a bit long.
+maybe `uh`.
 
 ```
 result~(ok, err) := extend(oneOf(ok, err)) {
+    # The API is `Ok := Result assert("custom error message if not `ok`")`.
+    # This will moot `This` and shortcircuit a failure (i.e., if `result`
+    # is `err`) to the calling block.  For example,
+    #   ```
+    #   myFunction(Dbl): result~(ok: int, err: str)
+    #       Result := 
+    #   ```
     ;;assert(Str: str = ""): ok
-        # TODO: how to return this type?  should `oneOf` fields have
-        # `Enum ThisValue` as nullable boolean/struct, non-null if it's present?
-        # it probably should live in a union (C/C++), so we should check first.
-        if This isOk()
-            return This! Ok
-        error(This Err)
-        # `panic` exits program
-        # TODO: remove
-        panic(Str || This Err)
+        what This!
+            (Ok.) := Ok
+            (Err):
+                error(Err)
+                assertFail(Str || Err)
 
-    ;;panic(Str: str = ""): ok
-        if This isOk()
-            return This! Ok
-        error(This Err)
-        # `panic` exits program
-        panic(Str || This Err)
+    ;;okOrPanic(Str: str = ""): ok
+        what This!
+            (Ok.) := Ok
+            (Err):
+                error(Err)
+                # `panic` exits program
+                panic(Str || Err)
 
     # maps an `Ok` result to a different type of `ok`, consuming `This`.
-    ;;map(fn(Ok): ~t): result~(ok: t, err)
+    ;;map(fn(Ok.): ~t): result~(ok: t, err)
 
     # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `This`.
-    ;;map(fn(Ok): result~(ok: t, err)): result~(ok: t, err)
+    ;;map(fn(Ok.): result~(ok: t, err)): result~(ok: t, err)
 
     # passes through any `Ok` result, but maps an `Err` to the desired `ok` result
     # via the passed-in function.
-    ;;map(fn(Err): ok): ok
+    ;;map(fn(Err.): ok): ok
 
     # TODO: should we use `to` here or is there a better way to indicate casting?
     # it's technically something like `oneOf(ok, null)(Result: result~(ok, err)): oneOf(ok, null)`
@@ -3730,7 +3740,7 @@ Result is((Ok) := print("Ok: ", Ok))
 Result is((Err) := print("Err: ", Err))
 
 # or if you're sure it's that thing, or want the program to terminate if not:
-Ok := Result assert("for sure")
+Ok := Result okOrPanic("for sure")
 ```
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
