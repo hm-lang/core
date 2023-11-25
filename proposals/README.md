@@ -70,6 +70,11 @@ for variables; we can easily distinguish intent without additional verbs.
 * `UpperCamelCase` identifiers like `X` are instance-like, see [here](#variable-and-function-names)
 * use `#` for [comments](#comments)
 * use `:` for readonly declarations, `;` for writeable declarations
+* for an argument, `:` is a readonly reference, `;` is a writeable reference, and `.` is a temporary
+    (i.e., passed by value)
+    TODO: should `.` be the default argument type?  (i.e., for `fn(Int): null` and similarly for calls).
+    TODO: `.` should use an explicit copy, e.g., `X. int(MyValue)` instead of `X. MyValue`,
+    at least where such copies are expensive (i.e., for large types or heap-allocated types).
 * use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
 * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
 * use `a: new~y` to declare `a` as a constructor that builds instances of type `y`
@@ -85,8 +90,11 @@ for variables; we can easily distinguish intent without additional verbs.
     * `"My String Interpolation is ${X, Y: Z}"` to add `{X: *value-of-X*, Y: *value-of-Z*}` to the string.
     * `A {x(), y()}` to call `A x()` then `A y()` via [sequence building](#sequence-building).
 * `()` for organization and function calls
-    * `(W: str = "hello", X: dbl, Y: dbl)` to declare an argument object, `W` is an optional field
-    * `(X: 1.2, SomeInstance y(), W: "hi")` to instantiate an argument object with `X`, `Y`, `W` fields.
+    * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object, `W` is an optional field
+        passed by readonly reference, `X` is a readonly reference, `Y` is a writeable reference,
+        and `Z` is passed by value.
+    * `(SomeInstance x(), SomeInstance Y;, W: "hi", Z. 1.23)` to instantiate an argument object
+        with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
     * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
         Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
 * `$` for inline block and lambda arguments
@@ -1984,6 +1992,11 @@ e.g., `myClass := {X. int, Y: dbl, Z; str}`.  readonly (:) is const ref, read-wr
 We could also use `@` for references and `#xyz` for compiler directives (`# abc` for comments).
 `@X: int` or `X: @int`.  but i'd prefer not to introduce change-value or change-reference semantics...
 
+Implementation detail: while `.` corresponds to finality as a sentence ender, and thus might
+appear to relate most closely to a readonly type, we choose to use `:` as readonly and `;` as
+writeable references due to the similarity between `:` and `;`; therefore `.` can be the
+odd-one-out corresponding to a non-reference, pass-by-value type.
+
 If you want to define both overloads, you can use the template `;:` (or `:;`) declaration
 syntax.  There will be some annotation/macros which can be used while before compiling,
 e.g., `@writeable`/`@readonly` to determine if the variable is writeable or not.
@@ -3700,35 +3713,35 @@ result~(ok, err) := extend(oneOf(ok, err)) {
     #   myFunction(Dbl): result~(ok: int, err: str)
     #       Result := 
     #   ```
-    ;;assert(Str: str = ""): ok
-        what This!
-            (Ok.) := Ok
+    ..assert(Str: str = ""): ok
+        what This
+            (Ok) := Ok
             (Err):
                 error(Err)
                 assertFail(Str || Err)
 
-    ;;okOrPanic(Str: str = ""): ok
-        what This!
-            (Ok.) := Ok
+    ..okOrPanic(Str: str = ""): ok
+        what This
+            (Ok) := Ok
             (Err):
                 error(Err)
                 # `panic` exits program
                 panic(Str || Err)
 
     # maps an `Ok` result to a different type of `ok`, consuming `This`.
-    ;;map(fn(Ok.): ~t): result~(ok: t, err)
+    ..map(fn(Ok): ~t): result~(ok: t, err)
 
     # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `This`.
-    ;;map(fn(Ok.): result~(ok: t, err)): result~(ok: t, err)
+    ..map(fn(Ok): result~(ok: t, err)): result~(ok: t, err)
 
     # passes through any `Ok` result, but maps an `Err` to the desired `ok` result
     # via the passed-in function.
-    ;;map(fn(Err.): ok): ok
+    ..map(fn(Err): ok): ok
 
     # TODO: should we use `to` here or is there a better way to indicate casting?
     # it's technically something like `oneOf(ok, null)(Result: result~(ok, err)): oneOf(ok, null)`
     # which is pretty verbose.
-    ;;to(): oneOf(ok, null)
+    ..to(): oneOf(ok, null)
 }
 
 Result := if X $( ok(3) ) else $( err("oh no") )
