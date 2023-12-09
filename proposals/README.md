@@ -205,7 +205,7 @@ doSomething(X: int, Y: int): {W: int, Z: int}
     Z = \\math atan(X, Y)
     W = 123
     # option B:
-    return (Z: \\math atan(X, Y), W: 123)
+    {Z: \\math atan(X, Y), W: 123}
 ```
 
 ```
@@ -220,7 +220,7 @@ myClass := {
 
     # methods which keep the class readonly use a `::` prefix
     ::doSomething(Y: int): int
-        return This X * Y
+        This X * Y
     # inline: `::doSomething(Y: int) := int(This X * Y)`
 }
 ```
@@ -234,21 +234,21 @@ aAndB := allOf(a, b)
 ```
 # defining a function with some lambda functions as arguments
 doSomething(you(): str, greet(Name: str): str): str
-    return greet(Name: you())
+    greet(Name: you())
 
 # calling a function with some functions as arguments
 myName(): str
-    return "World"
+    "World"
 # inline, `myName() := "World"`
 doSomething(you: myName, greet(Name: str): str
-    return "Hello, $(Name)"
+    "Hello, $(Name)"
 )
 ```
 
 ```
 # defining a function that returns a lambda function
 makeCounter(Counter; int): fn(): int
-    return fn() := ++Counter
+    fn() := ++Counter
 Counter ;= 123
 counter := makeCounter(Counter;)
 print(counter())    # 124
@@ -258,9 +258,9 @@ print(counter())    # 124
 # defining a function that takes a type constructor as an argument
 # and returns a type constructor:
 doSomething(new~x, namedNew: new~y): new~oneOf(x, y)
-    return if random(dbl) < 0.5 $(x) else $(y)
+    if random(dbl) < 0.5 $(x) else $(y)
     # you can also use `new~x` and `namedNew` if desired:
-    # return if random(dbl) < 0.5 $(new~x) else $(namedNew)
+    # if random(dbl) < 0.5 $(new~x) else $(namedNew)
 
 someType := doSomething(int, namedNew: dbl)
 ```
@@ -375,7 +375,8 @@ declaringAFunctionWithMultilineArguments(
     Greeting: string
     Name: string = "World"
 ): string
-    return "$(Greeting), $(Name)! " * Times
+    # "return" is optional for the last line of the block:
+    "$(Greeting), $(Name)! " * Times
 ```
 
 You can call or declare functions with arguments at +2 indent, but then you must use commas at the end
@@ -567,7 +568,7 @@ scaled8 := {
     # method to convert to `flt`; can be called like `flt(Scaled8)`
     # just as well as `Scaled8 flt()`.
     ::flt(): flt
-        return This Value / this Scale
+        This Value / this Scale
 
     ;;=(Flt): null
         This Value = Flt round() clamp(0, 255)
@@ -575,7 +576,7 @@ scaled8 := {
 
 # global function; can also be called like `Scaled8 dbl()`.
 dbl(Scaled8): dbl
-    return Scaled8 Value / scaled8 Scale
+    Scaled8 Value / scaled8 Scale
 
 # TODO: discussion about how defining `;;renew(Flt): null` defines a global `scaled8(Flt): scaled8` function.
 ```
@@ -760,7 +761,7 @@ someFunction(Input->Index): null
     # `Input->Index` is a default-named variable of type `index`, but we refer to it
     # within this scope using `Input->Index`.
     even(Index): bool
-        return Index % 2 == 0
+        Index % 2 == 0
     # you can define other namespaces inline as well, like `Another` here:
     for Another->Index: index < Input->Index
         if even(Another->Index)
@@ -794,7 +795,7 @@ exampleClass := {
 
     # this `::` prefix is shorthand for `multiply(This: this, ...): dbl`:
     ::multiply(Z: dbl): dbl
-        return X * Y * Z
+        X * Y * Z
 }
 ```
 
@@ -827,14 +828,14 @@ getMedianSlow(Array: array~int): int
         throw "no elements in array, can't get median."
     # make a copy of the array, but no longer allow access to it (via `@hide`):
     Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is readonly.
-    return Sorted->Array[Sorted->Array count() // 2]
+    Sorted->Array[Sorted->Array count() // 2]
 
 # sorts the array and returns the median.
 getMedianSlow(Array; array~int): int
     if Array count() == 0
         throw "no elements in array, can't get median."
     Array sort()    # same as `Array;;sort()` since `Array` is writeable.
-    return Array[Array count() // 2]
+    Array[Array count() // 2]
 ```
 
 Note that if the LHS is readonly, you will not be able to use a `;;` method.
@@ -977,11 +978,11 @@ xor(~X, ~Y)?: oneOf(x, y)
     XIsTrue := bool(X)
     YIsTrue := bool(Y)
     if XIsTrue
-        return if YIsTrue $(Null) else $(X)
+        if YIsTrue $(Null) else $(X)
     elif YIsTrue
-        return Y
+        Y
     else
-        return Null
+        Null
 ```
 
 Note that `xor` will thus return a nullable value, unless you do an assert.
@@ -1239,7 +1240,9 @@ v(): int
 
 # setting/defining/initializing the function usually requires an indent+1 block following:
 v(): int
-    return 600
+    # `return` is optional for the last line in a block.
+    # e.g., the following could have been `return 600`.
+    600
 
 # but in simple cases like this you can also define inline:
 v() := 600
@@ -1260,8 +1263,9 @@ v(X: dbl, Y: dbl): null
 
 # Note that it is also ok to use parentheses around a function definition,
 # but you should use the block parentheses notation `$(`.
+# TODO: should this be ${} instead?  or should we just allow `{}` plainly?
 excite(Times: int): str $(
-    return "hi!" * Times
+    "hi!" * Times
 )
 
 # You can also define functions inline with the `$(` ... `)` block operator.
@@ -1332,7 +1336,7 @@ q(anotherTestFunction)  # should print "function returned false!"
 
 # or you can create a default-named function yourself:
 q(fn(): bool
-    return random() > 0.5
+    random() > 0.5
 )   # will print one of the above due to randomness.
 # equivalent to `q(() := random() > 0.5)`
 
@@ -1372,7 +1376,7 @@ or some other named argument by renaming.
 
 ```
 takesDefault(Int): string
-    return string(Int)
+    string(Int)
 
 takesDefault(value())   # OK.  we try `Value: value()`
                         # and then the type of `value()` next
@@ -1831,12 +1835,6 @@ with larger-allocation types like `int` or `str` with an explicit copy:
 argument, if changed inside the function block, will have no effect on the
 things outside the function block.  Inside the function block, pass-by-value
 arguments are mutable, and can be reassigned or modified as desired.
-TODO: should we make pass-by-value arguments the default?  (e.g., this:)
-Pass-by-value arguments are the default, so `fn(Int): null` is the same as
-`fn(Int.): null`.
-TODO: is this ideal?  `print(X)` should probably be passed-by-constant-reference
-to avoid a copy.  we could always require it to be explicit, e.g., `print(X:)`
-but that's a bit annoying.
 
 Functions can also be defined with writeable or readonly reference arguments, e.g., via
 `MutableArgument; typeOfTheWriteable` and `ReadonlyArgument: typeOfTheReadonly` in the
@@ -1938,7 +1936,6 @@ For a full example:
 
 ```
 referenceThis(A; int): int
-    # TODO: should we make the copy explicit?
     B ;= A  # B is a copy of A
     A *= 2
     B *= 3
@@ -2145,10 +2142,6 @@ notActuallyConstant(MyInt) # prints "Int before 123", then "Int middle 246", the
 Because of this, one should be careful about assuming that a readonly argument is deeply constant;
 it may only be not-writeable from your scope's reference to the variable.
 
-TODO: does this even make sense.
-For performance optimization, we could have a `@noNewKeys` or `@fixedCount` annotation on a container class,
-so that passed-in arrays/maps are kept at the same size/count inside the function block.
-
 In cases where we know the function won't do self-referential logic,
 we can try to optimize and pass by value automatically.  However, we
 do want to support closures like `nextGenerator(Int; int) := () := ++Int`,
@@ -2273,9 +2266,10 @@ call := {
     # we need to distinguish between the caller asking for specific fields
     # versus asking for the whole output.
     Output?; oneOf(fields: any[str], unified: any)
-    Info?; string
-    Warning?; string
-    Error?; error
+    # things printed to stdout via `print`:
+    Print[]; string
+    # things printed to stderr via `error`:
+    Error[]; string
 
     # adds an argument to the function call.
     # e.g., `Call input(Name: "Cave", Value: "Story")`
@@ -4685,6 +4679,12 @@ We can determine what the instance is internally by using `what` with lambda
 functions that have an argument with the `oneOf` type and named as the
 `oneOf` name.  We can do this alongside standard `switch`-like values (i.e.,
 not functions), like so:
+
+TODO: explain what happens with a `return` inside a `what` statement.
+to be consistent with non-function based matches, we probably want it
+to return from the enclosing function, not just the internal matching what block.
+but this will break the sense that it is a standard lambda function, where
+`return` will just return from the function.
 
 ```
 ...
