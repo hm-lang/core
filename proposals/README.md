@@ -1264,6 +1264,7 @@ v(X: dbl, Y: dbl): null
 # Note that it is also ok to use parentheses around a function definition,
 # but you should use the block parentheses notation `$(`.
 # TODO: should this be ${} instead?  or should we just allow `{}` plainly?
+#       We can't allow `{}` because it's being used for sequence building.
 excite(Times: int): str $(
     "hi!" * Times
 )
@@ -1780,8 +1781,9 @@ myOverload(Y: str): {X: int}
 myOverload(Y: str): {X?: int}
     # this is essentially an implementation of `X ?:= int(Y), return {X}`
     what int(Y)
-        (Ok) := {X: Ok}
-        (Err) := {}
+        # TODO: can we do `${X: Ok}` here as shorthand for `$({X: Ok})`?
+        Ok: $({X: Ok})
+        Err: $({})
 
 X := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
 X ?:= myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
@@ -3737,15 +3739,15 @@ result~(ok, err) := extend(oneOf(ok, err)) {
     #   ```
     ..assert(Str: str = ""): ok
         what This
-            (Ok) := Ok
-            (Err):
+            Ok: $(Ok)
+            Err:
                 error(Err)
                 assertFail(Str || Err)
 
     ..okOrPanic(Str: str = ""): ok
         what This
-            (Ok) := Ok
-            (Err):
+            Ok: $(Ok)
+            Err:
                 error(Err)
                 # `panic` exits program
                 panic(Str || Err)
@@ -3840,9 +3842,9 @@ that `assert` will throw the correct error subclass for the module that it is in
 If a function returns a `result` type, e.g., `myFunction(...): result~(ok, err)`,
 then we can automatically convert its return value into a `oneOf(ok, null)`, i.e.,
 a nullable version of the `ok` type.  This is helpful for things like type casting;
-instead of `MyInt := what int(MyDbl) $((Ok) := Ok) $((Err) := -1)` you can do
-`MyInt := int(MyDbl) ?? -1`.  Although, there is also a less verbose option,
-like `int(MyDbl) map((Err) := -1)`.
+instead of `MyInt := what int(MyDbl) $(Ok. $(Ok), Err: $(-1))` you can do
+`MyInt := int(MyDbl) ?? -1`.  Although, there is another less-verbose option that
+doesn't use nulls:  `int(MyDbl) map((Err) := -1)`.
 
 TODO: should this be valid if `ok` is already a nullable type?  e.g.,
 `myFunction(): result~(ok: oneOf(null, int), err: str)`.
@@ -4675,16 +4677,10 @@ Update1 := update position(X: 5.0, Y: 7.0, Z: 3.0)
 Update2 := update velocity(X: -3.0, Y: 4.0, Z: -1.0)
 ```
 
-We can determine what the instance is internally by using `what` with lambda
-functions that have an argument with the `oneOf` type and named as the
-`oneOf` name.  We can do this alongside standard `switch`-like values (i.e.,
-not functions), like so:
-
-TODO: explain what happens with a `return` inside a `what` statement.
-to be consistent with non-function based matches, we probably want it
-to return from the enclosing function, not just the internal matching what block.
-but this will break the sense that it is a standard lambda function, where
-`return` will just return from the function.
+We can determine what the instance is internally by using `what` with
+variable declarations that match the `oneOf` type and field name.
+We can do this alongside standard `switch`-like values, like so,
+with earlier `what` cases taking precedence.  
 
 ```
 ...
@@ -4692,15 +4688,51 @@ but this will break the sense that it is a standard lambda function, where
 what Update
     status Unknown
         print("unknown update")
-    (Status):
-        # match all other statuses by defining this function-like.
+    Status:
+        # match all other statuses:
         print("known status: $(Status)")
-    # can also define inline.
-    (Position: vector3) := print("got position update: $(Position)")
-    (Velocity: vector3) := print("got velocity update: $(Velocity)")
+    Position: vector3
+        print("got position update: $(Position)")
+    Velocity: vector3
+        print("got velocity update: $(Velocity)")
 ```
 
-Earlier `what` cases will take precedence.
+We don't use function style here, e.g.,
+`what Update $( (Position: vector3) := print("got position update: $(Position)") )`,
+because a `return` from such a function should technically only get you out of the `what`
+block and not out of the function that has `what` inside.
+
+Note that variable declarations can be argument style, i.e., including
+temporary declarations (`.`), readonly references (`:`), and writeable
+references (`;`), since we can avoid copies if we wish.  This is only
+really useful for allocated values like `str`, `int`, etc.
+
+```
+whatever := oneOf(
+    str
+    card: {Name: str, Id: u64}
+)
+
+Whatever ;= whatever str("this could be a very long string, don't copy if you don't need to")
+
+what Whatever!      # ensure passing as a temporary by mooting here.
+    Str.
+        print("can do something with temporary here: $(Str)")
+        doSomething(Str!)
+    Card.
+        print("can do something with temporary here: $(Card)")
+        doSomethingElse(Card!)
+```
+
+TODO: does it make sense to use `Str;` above? we'd need to pass the variable
+as a mutable reference, e.g., `what Whatever;`, but then that almost makes it look
+like it should be a function argument, like `what (Whatever;)`.  we could do
+`what Whatever;` if we really wanted to.  we probably could also infer whether
+the user wants to pass `Whatever` as mutable or readonly based on the declarations,
+so we don't need to explicitly use `;` or `:`.  if it's temporary, then we can
+use `;`, `:`, or `.`.
+
+### what implementation details
 
 ```
 # The implementation can be pretty simple.
@@ -4723,12 +4755,7 @@ switch (Update.hm_Is) {
 }
 ```
 
-TODO: should the notation be more similar between function-like and
-non-function-like values (e.g., `status Unknown` above)?
-
-### what implementation details
-
-Implementation details:  For strings, at compile time we do a fast hash of each 
+Implementation details for strings: at compile time we do a fast hash of each 
 string case, and at run time we do a switch-case on the fast hash of the considered
 string.  (If the hashes of any two string cases collide, we redo all hashes with a
 different salt.)  Of course, at run-time, there might be collisions, so before we
@@ -4762,7 +4789,7 @@ if the chosen salt doesn't work, however, e.g., in the situation where new cases
 were added to the `what` statement.
 
 ```
-X := what String    #@salt(1234)
+X := what String    #salt(1234)
     "hello"
         print("hello to you, too!")
         5
@@ -4813,6 +4840,8 @@ what MyHashableClass
         print("5 OK")
     myHashableClass(Id: 123, Name: "Whatever")
         print("great!")
+    MyHashableClass:
+        print("it was something else: $(MyHashableClass)")
 ```
 
 Note that if your `fastHash` implementation is terrible (e.g., `fastHash(Salt) := Salt`),
@@ -5113,8 +5142,9 @@ and handle all the different cases.
 
 ```
 what Tree
-    (Leaf) := print(Leaf)
-    (Branch;)
+    Leaf: 
+        print(Leaf)
+    Branch;
         print(Branch Left, " ", Branch Right)
         Branch Left someOperation()
 ```
@@ -5974,6 +6004,11 @@ If your code compiles, we will also format it.
 If there are any compile errors, the compiler will add some special
 comments to the code that will be removed on next compile, e.g.,
 `#@!$("there's a syntax problem here ^")`
+
+## metaprogramming
+
+TODO: we'd like to provide ways to define custom block functions like `if X $(...)`,
+e.g., `whenever Q $(...)`.
 
 # implementation
 
