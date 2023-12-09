@@ -1802,21 +1802,20 @@ no need to assert a non-null return value in that case.
 
 If there are multiple return arguments, i.e., via an output type data class,
 e.g., `{X: dbl, Y: str}`, then we support destructuring to help nail down
-which overload should be used.  E.g., `A := myOverload()` will first look
-for an overload with an output named `A`, and `{X:, Y:} = myOverload()` will
-look for an overload with outputs named `X` and `Y`.  Note that for hm-lang,
-`A := myOverload()` is equivalent to `{A:} = myOverload()`.  Thus the declarations
-`fn(): {Int}` and `fn(): int` are the same overload.
+which overload should be used.  E.g., `{X:, Y:} = myOverload()` will
+look for an overload with outputs named `X` and `Y`.  However, `X := myOverload()`
+is not equivalent to `{X} := myOverload()`; if there is no destructuring
+on the left-hand side, it will take the default return value.  You can also
+explicitly type the return value, e.g., `Int := myOverload()` or `R: dbl = myOverload()`,
+which will look for an overload with an `int` or `dbl` return type.
 
 When matching outputs, the fields count as additional arguments, which must
 be matched.  If you want to call an overload with multiple output arguments,
 but you don't need one of the outputs, you can use the `@hide` annotation to
 ensure it's not used afterwards.  E.g., `{@hide X:, Y: str} = myOverload()`.
-
-TODO: discussion for matching null return values and non-null return values>
-`{Y:} = checkThis()` where `checkThis(): {Y: int, X?: str}`.  do we throw
-if `X` is not null??  probably can just ignore it since destructuring is for
-grabbing only the values you want.
+You can also just not include it, e.g., `{Y: str} = myOverload()`, which is
+preferred, in case the function has an optimization which doesn't need to
+calculate `X`.
 
 We also allow calling functions with any dynamically generated arguments, so that means
 being able to resolve the overload at run-time.
