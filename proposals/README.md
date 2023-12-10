@@ -72,7 +72,6 @@ for variables; we can easily distinguish intent without additional verbs.
 * outside of arguments, use `:` for readonly declarations and `;` for writeable declarations
 * for an argument, `:` is a readonly reference, `;` is a writeable reference, and `.` is a temporary
     (i.e., passed by value), see [pass-by-reference or pass-by-value](#pass-by-reference-or-pass-by-value)
-    TODO: should `.` be the default argument type?  (i.e., for `fn(Int): null` and similarly for calls).
     TODO: `.` should use an explicit copy, e.g., `X. int(MyValue)` instead of `X. MyValue`,
     at least where such copies are expensive (i.e., for large types or heap-allocated types).
 * use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
@@ -5153,11 +5152,15 @@ via type casting: `NewLeaf?; leaf = Tree` or `MyBranch?; branch = Tree`; these
 variables will be null if the `Tree` is not of that type, but they will also be
 a copy and any changes to the new variables will not be reflected in `Tree`.
 
-TODO: how can we tell when we're creating a new `oneOf` value (e.g., `oneOf(X, Y)`)
-vs. using an existing type `oneOf(x, y)`?  probably depends on what's in scope;
-check if `X`, `Y`, `x`, or `y` is defined.
-TODO: does something like `oneOf(X, someType)` make sense?  no, let's not do this,
-because it would require a mixed-case variable name (`X|someType`).
+```
+# TODO: not sure this notation is the best.
+#       this probably needs to be a macro.
+oneOf(...new~t) := {
+    # returns true if this `oneOf` is of type `T`, also allowing access
+    # to the underlying value by passing it into the function.
+    ;:is(fn(T;:): null): bool
+}
+```
 
 ## `oneOf`s as function arguments
 
