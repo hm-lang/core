@@ -4705,7 +4705,11 @@ block and not out of the function that has `what` inside.
 Note that variable declarations can be argument style, i.e., including
 temporary declarations (`.`), readonly references (`:`), and writeable
 references (`;`), since we can avoid copies if we wish.  This is only
-really useful for allocated values like `str`, `int`, etc.
+really useful for allocated values like `str`, `int`, etc.  However, note
+that temporary declarations via `.` can only be used if the argument to
+`what` is a temporary, e.g., `what MyValue!` or `what SomeClass value()`.
+There is no need to pass a value as a mutable reference, e.g., `what MyValue;`;
+since we can infer this if any internal matching block uses `;`.
 
 ```
 whatever := oneOf(
@@ -4723,14 +4727,6 @@ what Whatever!      # ensure passing as a temporary by mooting here.
         print("can do something with temporary here: $(Card)")
         doSomethingElse(Card!)
 ```
-
-TODO: does it make sense to use `Str;` above? we'd need to pass the variable
-as a mutable reference, e.g., `what Whatever;`, but then that almost makes it look
-like it should be a function argument, like `what (Whatever;)`.  we could do
-`what Whatever;` if we really wanted to.  we probably could also infer whether
-the user wants to pass `Whatever` as mutable or readonly based on the declarations,
-so we don't need to explicitly use `;` or `:`.  if it's temporary, then we can
-use `;`, `:`, or `.`.
 
 ### what implementation details
 
@@ -5145,6 +5141,7 @@ what Tree
     Leaf: 
         print(Leaf)
     Branch;
+        # this operation can affect/modify the `Tree` variable.
         print(Branch Left, " ", Branch Right)
         Branch Left someOperation()
 ```
