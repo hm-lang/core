@@ -3469,18 +3469,25 @@ writeable.  You can explicitly ask for the readonly (or writeable) version of a
 method using `::` (or `;;`) like this, although it will be a compile-error if
 you are trying to write a readonly variable.
 
+The return value of the sequence builder also depends on the LHS.
+If it is a temporary, the return value will be the temporary after it has been called
+with all the methods in the RHS of the sequence builder.  E.g., from the above example,
+a `myBuilder` instance with all the `set` methods called.  Otherwise, if the LHS
+is a reference (either readonly or writeable), the return value of the sequence
+builder will be an object with all the fields built out of the RHS methods.
+Some examples of the LHS being a reference follow:
+
 ```
 ReadonlyArray := [0, 100, 20, 30000, 4000]
 Results := ReadonlyArray {
     [2]             # returns 20
-    ::sort()        # returns a sorted copy of the array
+    ::sort()        # returns a sorted copy of the array; `::` is unnecessary
     ::print()       # prints unsorted array; `::` is unnecessary
     # this will throw a compile-error, but we'll discuss results
     # as if this wasn't here.
     ;;[3, ++$Int]   # compile error, `ReadonlyArray` is readonly
 }
 # should print [0, 100, 20, 30000, 4000]
-# TODO: consider SFO a bit more; does this require it?
 # Results = {Int: 20, Sort: [0, 20, 100, 4000, 30000]}
 
 WriteableArray ;= [0, 100, 20, 30000, 4000]
@@ -3512,11 +3519,12 @@ Result nextMethod2()
 Result NestedField
 MyClass otherMethod()
 MyClass SomeField
-MyClass  # for a return value, if needed as a temporary.
 ```
 
-When two sequence builders combine, e.g., `{A B} {C D}`, they execute in a deterministic
-order, e.g., `A C, A D, B C, B D`.
+When two sequence builders combine, e.g., `{A, B} {c(), d()}`, they execute in a deterministic
+order, e.g., `A c(), A d(), B c(), B d()`.  In this case, when the LHS is itself a sequence,
+it acts like a temporary, so that the return value is an object with fields `A` and `B`,
+i.e., `{A, B}`, where `A` and `B` have already had the methods `c()` and `d()` called on them.
 
 TODO: are classes some sort of unevaluated sequence builder?
 
