@@ -2657,14 +2657,16 @@ variables, and functions defined within the class body can have three types:
 methods in C++), and (3) instance functions.
 
 Class methods (1) can access instance variables and call other class methods,
-and require a `This: this` or `This; this` argument to indicate that it's an instance method.
+and require a `This: this`, `This; this`, or `This. this` argument to indicate that it's an instance method.
 Mutating methods -- i.e., that modify the class instance, `This`, i.e., by modifying
 its values/variables -- must be defined with `This;` in the arguments.
 Non-mutating methods must be defined with `This:` and can access variables but not modify them.
-We'll use the notation `SomeClass;;someMutatingMethod()` to refer to mutating methods
-and `SomeClass::someMethod()` to refer to non-mutating methods, with an implicit `This` due
+Methods defined with `This.` indicate that the instance is temporary.
+We'll use the notation `SomeClass..temporaryMethod()` to refer to a temporary instance method,
+`SomeClass;;someMutatingMethod()` to refer to a mutable instance methods
+and `SomeClass::someMethod()` to refer to readonly instance methods, with an implicit `This` due
 to the class instance `SomeClass` being present.  Calling a class method does not require
-the `;;` or `::` prefix, but it is allowed, e.g.,
+the `..`, `;;`, or `::` prefix, but it is allowed, e.g.,
 
 ```
 SomeClass ;= someClass("hello!")
@@ -2672,13 +2674,19 @@ SomeClass someMethod()      # ok
 SomeClass::someMethod()     # also ok
 SomeClass someMutatingMethod()  # ok
 SomeClass;;someMutatingMethod() # also ok
+# you can get a temporary by using moot (!):
+MyResult1 := SomeClass!..temporaryMethod()
+# or you can get a temporary by creating a new class instance:
+MyResult2 := someClass("temporary")..temporaryMethod()
 ```
 
-Note that you can overload a class method with both constant `::` and writeable `;;` versions;
-in that case it's recommended to be explicit and use `::` or `;;` instead of ` ` (member access).
+Note that you can overload a class method with readonly instance `::`, writeable
+instance `;;` versions, and temporary instance versions `..`.
+Callers are recommended to be explicit and use `::`, `;;`, or `..` instead of ` ` (member access).
 See the section on member access operators for how resolution of ` ` works in this case.
-You can also call a class method via an inverted syntax, e.g., `someMethod(SomeClass)` and
-`someMutatingMethod(SomeClass;)`, with any other arguments to the method added as well.
+You can also call a class method via an inverted syntax, e.g., `someMethod(SomeClass)`,
+`someMutatingMethod(SomeClass;)`, or `temporaryMethod(SomeClass!)`,
+with any other arguments to the method added as well.
 This is useful to overload e.g., the printing of your class instance, via defining
 `print(This)` as a method, so that `print(SomeClass)` will then call `SomeClass::print()`.
 Similarly, you can do `count(SomeClass)` if `SomeClass` has a `count(This)` method, which
@@ -2729,11 +2737,6 @@ might have the same name as a class instance variable.
 exampleClass := {
     # class instance variables can be defined here:
     X; int
-
-    # TODO: we probably should have a way to have class variables (e.g., static variables)
-    #       would it make sense to do `;;X; int` or `This X; int`?
-    #       that would make defining objects more painful, e.g., `{X: dbl}` -> `{This X: dbl}`.
-    #       maybe we can use `this X` for a class variable.
 
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `renew` function.  this is true even
@@ -3602,9 +3605,17 @@ vector2 := {
 Vector2Module: hm = \/vector2    # .hm extension must be left off.
 Vector2 := Vector2Module vector2(X: 3, Y: 4)
 print(Vector2)
-# TODO, support destructuring in the future:
-# {vector2} := \/vector2
+# you can also destructure imports like this:
+{vector2} := \/vector2
 ```
+
+TODO: how to import functions, i.e., to distinguish from classes?
+e.g., is `{vector2} := \/vector2` a function or a class definition?
+we probably want to force importing the overload to ensure that we can
+determine if it's a function or a class in the importing file.  e.g.,
+`{myFunction(MyArg1: int, MyArg2: dbl): str} = \/util`.
+we can always come up with a solution to "grab all overloads" like
+`{myFunction: ...(...)} = \/util`. -- TODO something better.
 
 You can use this `\/` notation inline as well, which is recommended
 for avoiding unnecessary imports.  It will be a language feature to
