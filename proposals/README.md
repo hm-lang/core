@@ -2819,11 +2819,8 @@ ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is readonly.
 ```
 
 You can also define your own custom methods/functions on a class outside of the class body.
-These definitions will only be visible to files importing this code, and not to all files
-that import the original class.
-
-TODO: figure out a way to make new methods visible to other files if they import the file.
-maybe they need to import everything from the file.
+Note that we do not allow adding instance functions or instance variables outside
+of the class definition, as that would change the memory footprint of each class instance.
 
 ```
 # static function
@@ -2844,8 +2841,11 @@ exampleClass;;anotherMethod(PlusK: int): null
     This X += PlusK * 1000
 ```
 
-Note that we do not allow adding instance functions or instance variables outside
-of the class definition, as that would change the memory footprint of each class instance.
+If they are public, you can import these custom methods/functions in other files in two
+ways: (1) import the full module via `import \/relative/path/to/file` or `import \\library/module`,
+or (2) import the specific method/function via e.g.,
+`{exampleClass myAddedClassFunction(K: int): exampleClass} = \/relative/path/to/file`
+or `{exampleClass::myAddedMethod(Y: int): int} = \\library/module`.
 
 Note that we recommend using named fields for constructors rather than static
 class functions to create new instances of the class.  This is because named fields
