@@ -2695,13 +2695,19 @@ all container classes have.  This also should work for multiple argument methods
 
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
-Class functions (2) can't depend on the instance, i.e., `This`, but are declared
-like other instance methods, just without `This` as an argument.  They must be declared
-as readonly.  They can be called from the class name, e.g., `x myClassFunction()`, or
+Class functions (2) can't depend on the instance, i.e., `This`, and must be declared
+with a `this` before the function name in order to distinguish from class methods
+(and instance functions), e.g., `this myStaticFunction() := print("hi")`.  They can
+be called from the class name, e.g., `x myClassFunction()`, or
 from an instance of the class, e.g., `X myClassFunction()`.  Note that because of this,
-we're not allowed to define class functions with the same name as instance methods.
+we're not allowed to define class functions with the same overload as instance methods.
+Similar to class functions are class variables, which are defined in an analogous way:
+`this MyStaticVariable := 123`, and which cannot shadow any class instance variables,
+since `X MyStaticVariable` and `x MyStaticVariable` should do the same thing.
 
-Instance functions (3) can't depend on any instance variables, but they can be different from instance to instance.
+Instance functions (3) normally can't depend on any instance variables, but are declared
+like instance methods, just without `This` as an argument.
+Instance functions can be different from instance to instance.
 They cannot be overridden by child classes but they can be overwritten.  I.e.,
 if a child class defines the instance function of a parent class, it overwrites the parent's
 instance function; calling one calls the other.  To declare an instance function, we simply
@@ -2756,6 +2762,7 @@ exampleClass := {
     ;;addSomething(Int): null
         This X += Int
 
+    # TODO: either use `:;myMethod(); null` for virtual methods or don not allow redefinable methods.
     # TODO: should we distinguish between virtual (overridable) and non-virtual (non-overridable)
     #       methods?  if so, we can use `myFn();` for virtual and `myFn():` for non-virtual.
     # this reassignable method is defined on a per-instance basis. changing it on one class instance
@@ -2771,26 +2778,32 @@ exampleClass := {
 
     # some examples of class functions (2):
     # this pure function does not require an instance, and cannot use instance variables:
-    someStaticFunction(Y; int): int
+    this someStaticFunction(Y; int): int
         Y /= 2
         return Y!
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read/write global variables (or other files):
-    someStaticImpureFunctionWithSideEffects(Y: int): null
+    this someStaticImpureFunctionWithSideEffects(Y: int): null
         write(Y, File: "Y")
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read (but not write) global variables (or other files):
-    someStaticImpureFunction(): int
+    this someStaticImpureFunction(): int
         YString := read(File: "Y")
         return int(?YString) ?? 7
 
     # class instance functions (3) can be defined here; this is a *pure function*
     # that cannot depend on instance variables, however.  it can be set 
     # individually for each class instance, unlike a static class function.
-    somePureFunction(); null
+    somePureFunction(): null
         print("hello!")
+
+    # this class instance function (3) can be changed after the instance
+    # has been created, as long as the instance is mutable.
+    someMutablePureFunction(); null
+        print("hello!")
+
 }
 
 Example; exampleClass = (X: 5)  # also equivalent, `Example ;= exampleClass(X: 5)`
@@ -2829,8 +2842,10 @@ exampleClass::myAddedMethod(Y: int): int
 # this could also be defined as `exampleClass anotherMethod(This;, PlusK: int): null`.
 exampleClass;;anotherMethod(PlusK: int): null
     This X += PlusK * 1000
-
 ```
+
+Note that we do not allow adding instance functions or instance variables outside
+of the class definition, as that would change the memory footprint of each class instance.
 
 Note that we recommend using named fields for constructors rather than static
 class functions to create new instances of the class.  This is because named fields
