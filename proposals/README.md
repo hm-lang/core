@@ -2865,8 +2865,6 @@ for an instance of the class, use this notation:
 örsted := {
     # define a custom default name:
     This := Örsted
-    # TODO: this should probably be a macro, e.g.,
-    @defaultName(Örsted)
     ... other class methods ...
 }
 
@@ -2941,9 +2939,6 @@ even when accessed/modified within the class.  The getters/setters are methods
 named the `lowerCamelCase` version of the `UpperCamelCase` variable,
 with various arguments to determine the desired action.
 
-TODO: we need to rethink this with container classes letting references escape.
-maybe we just `x(Reference)` to define a reference and `x(Getter)` for the getter.
-
 ```
 # for example, this class:
 example := {
@@ -2969,6 +2964,12 @@ example := {
     @visibility
     ::x() := This X
 
+    # move X from this temporary; no-copy
+    # TODO: this should probably also be defined along with
+    #           ;;x()! := This X!
+    #       i.e., they shouldn't need to both be defined.
+    ..x() := This X!
+
     # move+reset (moot)
     @visibility
     ;;x()!: str
@@ -2977,13 +2978,17 @@ example := {
     # swapper: swaps the value of X with whatever is passed in
     #          returns the old value of X.
     @visibility
-    ;;x(Str;):
+    ;;x(Str;.):
         This X <-> Str
 
     # modifier: allows the user to modify the value of X
     #           without copying it, using references.
     @visibility
     ;;x(fn(Str;): ~t) := fn(This X;)
+
+    # note that the no-copy getter and modifier can be 
+    # read/write-template  defined like this:
+    ;:x(fn(Str;:): ~t) := fn(This X;:)
 }
 W = example()
 W x(fn(Str;)
@@ -3054,6 +3059,10 @@ justSwappable := {
         This someVar(Temporary;)
         return T!
 
+    # the following temp value modifier becomes automatically defined
+    ;;someVar(Int.): null
+        This someVar(Int;)
+
     # and the following move+reset method becomes automatically defined:
     ;;someVar()!: t
         Temporary; int
@@ -3079,6 +3088,12 @@ justModdable := {
     ;;someVar(Int;): null
         This someVar((Old->Int;): null
             Int <-> Old->Int
+        )
+
+    # the following temp modifier becomes automatically defined:
+    ;;someVar(Int.): null
+        This someVar((Old->Int;): null
+            Old->Int = Int!
         )
 
     # and the following move+reset method becomes automatically defined:
