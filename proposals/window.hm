@@ -1,0 +1,81 @@
+window := {
+
+    ;;l2(fn(L2;): ~t): t
+        fn(This L2;)
+
+    @private {
+        L2; l2
+    }
+}
+
+font := {
+    ::draw(String, FontOptions, Coordinates2i, Texture;): null
+
+    # TODO: `;;draw(..., Mask)` for scissor operations
+
+    ;;renew(
+        # texture that holds all the drawn runes (glyphs)
+        @private This Glyphs: texture
+        # vector for each rune in the texture.
+        @private This Coordinates[rune]: vector2i
+        # size of each glyph in the texture.
+        @private This GlyphSize: size2i
+    ) := null
+}
+
+fontOptions := {
+    GlyphSize: size2i
+    Foreground: color
+    Background: color
+    Style: fontStyle
+}
+
+fontStyle := anyOrNoneOf(
+    Bold
+    Italic
+    Underline
+    Invert # foreground/background color is inverted
+    Chaos # add pseudorandom jitter to drawn runes
+)
+
+l2 := {
+    # font size needs to be constant while we're drawing on
+    # this L2 because we won't get consistent offsets if we
+    # change size midway through.  if you want to render
+    # different font sizes, render into a different l2,
+    # or just draw the font directly to the texture.
+    GlyphSize: size2i
+    FontOptions; omit(from: fontOptions, Field: @symbol(GlyphSize))
+
+    # returns the size of the rectangle in columns (Width) and rows (Height).
+    ::size(): size2i
+        This Rectangle size()
+
+    ;;renew(FontOptions: fontOptions, @private This Texture, @private This Rectangle): null
+        This RuneSize = FontOptions RuneSize
+        This FontOptions = omit(From: FontOptions, Field: @symbol(RuneSize))
+
+    # this position tracks along where you are on the l2 (row/column),
+    # and will be used for the next draw command as the starting point.
+    # the actual coordinates come from this position, the l2 offset, and
+    # the glyph size.
+    Position ;= index2i(X: 0, Y: 0)
+
+    ;;draw(String, Texture;): null
+
+    @private {
+        Offset: vector2i
+    }
+}
+
+vector2~t := {X; t, Y; t}
+vector2i := vector2~i32
+vector2f := vector2~f32
+
+size2~t := {Width; t, Height; t}
+size2i := size2~i32
+size2f := size2~f32
+
+index2~t := {Column; t, Row; t}
+index2i := index2~i32
+index2f := index2~f32

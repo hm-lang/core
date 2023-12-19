@@ -1309,6 +1309,7 @@ Z := 3
 f(Z)        # ok
 f(int(4.3)) # ok
 f(5)        # ok
+f(Int: 7)   # ok but overly verbose
 ```
 
 If passing functions as an argument where the function name doesn't matter,
@@ -4314,14 +4315,16 @@ indexedMapElement~(key, value) := {
 }
 
 insertionOrderedMap~(key, value) := extend(map) {
-    @private 
-    KeyIndices; @only unorderedMap~(key, value: index)
-    @private 
-    IndexedMap; @only unorderedMap~(
-        key: index
-        value: indexedMapElement~(key, value)
-    ) = [{Key: 0, Value: {NextIndex: 0, key(), value(), PreviousIndex: 0}}]
-    NextAvailableIndex; @private index = 1
+    # due to sequence building, we can use @private {...} to set @private for
+    # each of the fields inside this block.
+    @private {
+        KeyIndices; @only unorderedMap~(key, value: index)
+        IndexedMap; @only unorderedMap~(
+            key: index
+            value: indexedMapElement~(key, value)
+        ) = [{Key: 0, Value: {NextIndex: 0, key(), value(), PreviousIndex: 0}}]
+        NextAvailableIndex; index = 1
+    }
 
     # creates a default value if not present at the key to pass in to the modifier:
     ;;[Key;:, fn(Value;): ~t]: t
