@@ -1880,12 +1880,13 @@ check(Arg123: string): string
     return Arg123 + "-readonly"
 
 MyValue; string = "great"
-check(Arg123. MyValue)  # returns "great-tmp"
-print(MyValue)          # prints "great"
-check(Arg123: MyValue)  # returns "great-readonly"
-print(MyValue)          # prints "great"
-check(Arg123; MyValue)  # returns "great-writeable"
-print(MyValue)          # prints "great-writeable"
+check(Arg123. MyValue copy())   # returns "great-tmp".  needs `copy` since
+                                # `.` requires a temporary.
+print(MyValue)                  # prints "great"
+check(Arg123: MyValue)          # returns "great-readonly"
+print(MyValue)                  # prints "great"
+check(Arg123; MyValue)          # returns "great-writeable"
+print(MyValue)                  # prints "great-writeable"
 ```
 
 Note that if you try to call a function with a readonly reference argument,

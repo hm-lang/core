@@ -9,32 +9,35 @@ window := {
 }
 
 font := {
-    ::draw(String, FontOptions, Coordinates2i, Texture;): null
-
-    # TODO: `;;draw(..., Mask)` for scissor operations
-
     ;;renew(
-        # texture that holds all the drawn runes (glyphs)
-        @private This Glyphs: texture
+        # textures that hold all the drawn runes (glyphs)
+        @private This NormalGlyphs: texture
+        @private This BoldGlyphs: texture
+        @private This ItalicGlyphs: texture
+        @private This UnderlinedGlyphs: texture
         # vector for each rune in the texture.
         @private This Coordinates[rune]: vector2i
         # size of each glyph in the texture.
         @private This GlyphSize: size2i
     ) := null
+
+    ::draw(String, FontOptions, Coordinates2i, Texture;): null
+
+    # TODO: `;;draw(..., Mask)` for scissor operations
 }
 
 fontOptions := {
-    GlyphSize: size2i
-    Foreground: color
-    Background: color
-    Style: fontStyle
+    GlyphSize; size2i
+    Foreground; color
+    Background; color
+    Style; fontStyle
 }
 
 fontStyle := anyOrNoneOf(
     Bold
     Italic
-    Underline
-    Invert # foreground/background color is inverted
+    Underlined
+    Inverted # foreground/background color is inverted
     Chaos # add pseudorandom jitter to drawn runes
 )
 
@@ -51,20 +54,28 @@ l2 := {
     ::size(): size2i
         This Rectangle size()
 
-    ;;renew(FontOptions: fontOptions, @private This Texture, @private This Rectangle): null
-        This RuneSize = FontOptions RuneSize
-        This FontOptions = omit(From: FontOptions, Field: @symbol(RuneSize))
+    ;;renew(FontOptions: fontOptions, @private This Texture, Rectangle): null
+        This GlyphSize = FontOptions GlyphSize
+        This FontOptions = omit(From: FontOptions, Field: @symbol(GlyphSize))
+        # TODO: offer an option to center This Rectangle in Rectangle
+        #       in case GlyphSize is off.
+        This Rectangle = {
+            X0: Rectangle X0
+            Y0: Rectangle Y0
+            Width: (Rectangle Width // GlyphSize Width) * GlyphSize Width
+            Height: (Rectangle Height // GlyphSize Height) * GlyphSize Height
+        }
 
     # this position tracks along where you are on the l2 (row/column),
     # and will be used for the next draw command as the starting point.
-    # the actual coordinates come from this position, the l2 offset, and
-    # the glyph size.
+    # the actual coordinates come from this position, the l2 rectangle
+    # offset, and the glyph size.
     Position ;= index2i(X: 0, Y: 0)
 
     ;;draw(String, Texture;): null
 
     @private {
-        Offset: vector2i
+        Rectangle: rectangle
     }
 }
 
