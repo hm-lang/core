@@ -27,6 +27,12 @@ arrays use a property (`Array.length`) and maps use a different property (`Map.s
 
 ## convenience
 
+hm-lang also prioritizes convenience; class methods can be called like a function with
+the instance as an argument or as a method on the instance, e.g., `myMethod(MyClass)`
+or `Class myMethod()`.  This extends to functions with definitions like
+`myTwoInstanceFunction(A->MyClass, B->MyClass, Width: int, Height: int)` which
+can be called as `(MyClass1, MyClass2) myTwoInstanceFunction(Width: 5, Height: 10)`.
+
 For convenience, `Array[3] = 5` will work even if `Array` is not already at least size 4;
 hm-lang will resize the array if necessary, populating it with default values,
 until finally setting the fourth element to 5.  This is also to be consistent with
@@ -40,6 +46,9 @@ as `Array[10] = if count(Array) > 10 $(Array[10] + 1) else $(Array count(11), 1)
 `Map["Key"] = if Map["Key"] != Null $(Map["Key"] + 1) else $(1)`.
 
 ## clarity
+
+Functions are called with named arguments always, although names can be omitted in
+certain circumstances [when calling a function](#calling-a-function).
 
 TODO: being explicit as the third goal; descriptive but concise.  e.g.,
 nullables using `?:`, casting for pass-by-reference, etc.

@@ -52,7 +52,8 @@ l2 := {
 
     # returns the size of the rectangle in columns (Width) and rows (Height).
     ::size(): size2i
-        This Rectangle size()
+        Size := This Rectangle size()
+        {Size Width // GlyphSize Width, Size Height // GlyphSize Height}
 
     ;;renew(FontOptions: fontOptions, @private This Texture, Rectangle): null
         This GlyphSize = FontOptions GlyphSize
@@ -70,7 +71,7 @@ l2 := {
     # and will be used for the next draw command as the starting point.
     # the actual coordinates come from this position, the l2 rectangle
     # offset, and the glyph size.
-    Position ;= index2i(X: 0, Y: 0)
+    Position ;= index2i(Column: 0, Row: 0)
 
     ;;draw(String, Texture;): null
 
