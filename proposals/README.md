@@ -30,8 +30,11 @@ arrays use a property (`Array.length`) and maps use a different property (`Map.s
 hm-lang also prioritizes convenience; class methods can be called like a function with
 the instance as an argument or as a method on the instance, e.g., `myMethod(MyClass)`
 or `Class myMethod()`.  This extends to functions with definitions like
-`myTwoInstanceFunction(A->MyClass, B->MyClass, Width: int, Height: int)` which
-can be called as `(MyClass1, MyClass2) myTwoInstanceFunction(Width: 5, Height: 10)`.
+`myTwoInstanceFunction(A->MyClassA, B->MyClassB, Width: int, Height: int)` which
+can be called as `(MyClassA, MyClassB) myTwoInstanceFunction(Width: 5, Height: 10)`,
+or by calling it as a method on either one of the instances, e.g.,
+`MyClassA myTwoInstanceFunction(MyClassB, Width: 5, Height: 10)`, without needing to
+define, e.g., `MyClassB myTwoInstanceFunction(MyClassA, Width: 5, Height: 10)` as well.
 
 For convenience, `Array[3] = 5` will work even if `Array` is not already at least size 4;
 hm-lang will resize the array if necessary, populating it with default values,
