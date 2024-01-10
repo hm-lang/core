@@ -38,21 +38,38 @@ pixels := {
         # Row-major order, with rows being rows of pixels across the screen left->right,
         # with `Pixels[0]` being the top row and `Pixels[Height - 1]` the bottom row.
         # Invariant: if `State != GpuOnly`,
-        # `Pixels[Y] size() == This size() Width` for all `Y` in bounds
-        # and `Pixels size() == This size() Height`.
+        # `Pixels[Y] size() == This Size Width` for all `Y` in bounds
+        # and `Pixels size() == This Size Height`.
         Pixels[][]; color
     }
 }
 
 vertices~data := {
+    vertex := allOf({Position: vector4f}, data)
+
+    # TODO: we should have an hm-lang idiom for this dereference-like behavior.
+    #       `modify` works, or maybe something else?
+    ;;modify(fn(Array[]; data): ~t): try~(ok: t, uh)
+        assert !This State isGpuOnly()
+
+        Result := fn(This Vertices;)
+
+        This State is((Committed):
+            This State = needsCommit(PreviousId: Committed Id)
+        )
+
+        ok(Result)
+
     # Returns the Buffer ID to use for the GPU to draw these pixels
     # TODO: probably should be @protected
     ;;commit(): verticesId
 
+    # TODO: `..transfer(): vertices~data` to become `GpuOnly`
+
     @private {
         State ;= state~verticesId CpuOnly
 
-        Vertices[]; data
+        Vertices[]; vertex
     }
 }
 
@@ -61,16 +78,40 @@ vertices~data := {
     CpuOnly
     # This object is not represented on the CPU at all;
     # it is effectively "write-only" to the GPU; CPU cannot get this data back.
-    GpuOnly
+    GpuOnly: {Id: t}
     # The GPU version of this object is out of sync with the CPU version.
-    # The CPU version should sync (may be expensive).
-    NeedsCommit: {PreviousCommit: t}
+    # The CPU version should sync to the GPU (may be expensive).
+    NeedsCommit: {PreviousId: t}
     # The GPU version of this object is in sync with the CPU version.
-    Committed: {Commit: t}
+    Committed: {Id: t}
 )
+
+triangle := {
+    VertexIndices[3]; u32
+}
+
+shader~(globalData := null, vertexData := null, fragmentData := null) := {
+    vertexInputData := allOf({Position: vector4f}, vertexData)
+    vertexOutputData := allOf({Position: vector4f}, fragmentData)
+
+    # Vertex shader, which returns the position of the vertex
+    # plus any fragment data (for the fragment shader).
+    # TODO: needs to be a pure function.
+    # TODO: needs to have super-reflection so that we can parse this into shader language.
+    shade(GlobalData, VertexInputData): vertexOutputData
+
+    # Fragment shader, which returns the color to use for this pixel,
+    # based on GlobalData and FragmentData from the triangle's vertices.
+    # If returning null, the result is equivalent to a `discard`,
+    # and can be used for 100% transparency.
+    shade(GlobalData, FragmentData)?: color4f
+
+    # TODO: something like `::bind(GlobalData): shaderId` to actually use this shader.
+}
 
 font := {
     ;;renew(
+        # TODO: switch to Vertices
         # textures that hold all the drawn runes (glyphs)
         @private This NormalGlyphs: texture
         @private This BoldGlyphs: texture

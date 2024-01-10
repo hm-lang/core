@@ -240,6 +240,7 @@ myClass := {
 # combining two classes
 aOrB := oneOf(a, b)
 aAndB := allOf(a, b)
+# TODO: should we do `allOf` as union?  e.g., `union(a, b)` or `a union(b)` would be nice.
 ```
 
 ```
