@@ -8,6 +8,44 @@ window := {
     }
 }
 
+pixels := {
+    # Current size of the image.
+    ::size(): size2i
+    # Tries to resize the image.  Can fail if the new size is too large (OOM)
+    # or if the size is invalid (e.g., negative values).
+    ;;size(New->Size2i): try~(ok: size2i, uh)
+
+    # Color getter via coordinates.  Can fail if the coordinates are out of bounds (OOB).
+    ::[Coordinates2i, fn(Color): ~t]: try~(ok: t, uh)
+
+    # Color setter via coordinates.
+    ;;[Coordinates2i, fn(Color;): ~t]: try~(ok: t, uh)
+
+    # Returns the Buffer ID to use for the GPU to draw these pixels.
+    # This can be expensive as we upload the entire image from CPU to GPU, if it has changed.
+    # TODO: probably should be @protected
+    ;;commit(): pixelsId
+
+    # TODO: line-drawing API.  e.g., `;;draw(Line, Color): null`
+    #       probably want a pixel-perfect one, plus a thickness based one.
+
+    @private {
+        # Row-major order, with row being X-coordinates.
+        # invariant: `Pixels[Y] size() == This size() Width` for all `Y` in bounds
+        # and `Pixels size() == This size() Height`.
+        Pixels[][]; color
+
+        # True if the CPU version is different than the GPU version of these pixels.
+        NeedsCommitting ;= True
+    }
+}
+
+vertices~data := {
+    # Returns the Buffer ID to use for the GPU to draw these pixels
+    # TODO: probably should be @protected
+    ;;commit(): verticesId
+}
+
 font := {
     ;;renew(
         # textures that hold all the drawn runes (glyphs)

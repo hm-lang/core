@@ -3777,8 +3777,11 @@ TODO: make it possible to mock out file system access in unit tests.
 
 TODO: should we switch to Rust-style errors (`result~(ok, err)`) which would be easier to use in C?
 it does make error handling explicit which is nice.
+TODO: switch to `try~(ok, hm)` (or hm -> ew) instead of `result`.
 i think there's too much of a difference here between optional (null) and error, however;
 but we could automatically convert a `result~(ok, err)` type into a `oneOf(ok, null)` type.
+TODO: we should maybe have a method to flatten things like `try~(ok: try~(ok: t, uh: u), uh: v)`
+into `try~(ok: t, uh: oneOf(u, v))`.
 
 Note that technically, `assert` doesn't panic; it will return an error from the
 current function block, i.e., as an `ew` in a `result`.
