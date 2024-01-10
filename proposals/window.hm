@@ -30,13 +30,17 @@ pixels := {
     #       probably want a pixel-perfect one, plus a thickness based one.
 
     @private {
-        # Row-major order, with row being X-coordinates.
-        # invariant: `Pixels[Y] size() == This size() Width` for all `Y` in bounds
+        State ;= state~pixelsId CpuOnly
+
+        # The current image size.
+        Size; size2i
+
+        # Row-major order, with rows being rows of pixels across the screen left->right,
+        # with `Pixels[0]` being the top row and `Pixels[Height - 1]` the bottom row.
+        # Invariant: if `State != GpuOnly`,
+        # `Pixels[Y] size() == This size() Width` for all `Y` in bounds
         # and `Pixels size() == This size() Height`.
         Pixels[][]; color
-
-        # True if the CPU version is different than the GPU version of these pixels.
-        NeedsCommitting ;= True
     }
 }
 
@@ -44,7 +48,26 @@ vertices~data := {
     # Returns the Buffer ID to use for the GPU to draw these pixels
     # TODO: probably should be @protected
     ;;commit(): verticesId
+
+    @private {
+        State ;= state~verticesId CpuOnly
+
+        Vertices[]; data
+    }
 }
+
+@private state~t := oneOf(
+    # This object is not represented on the GPU at all.
+    CpuOnly
+    # This object is not represented on the CPU at all;
+    # it is effectively "write-only" to the GPU; CPU cannot get this data back.
+    GpuOnly
+    # The GPU version of this object is out of sync with the CPU version.
+    # The CPU version should sync (may be expensive).
+    NeedsCommit: {PreviousCommit: t}
+    # The GPU version of this object is in sync with the CPU version.
+    Committed: {Commit: t}
+)
 
 font := {
     ;;renew(
