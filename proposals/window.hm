@@ -94,19 +94,30 @@ shader~(globalData := null, vertexData := null, fragmentData := null) := {
     vertexInputData := allOf({Position: vector4f}, vertexData)
     vertexOutputData := allOf({Position: vector4f}, fragmentData)
 
-    # Vertex shader, which returns the position of the vertex
-    # plus any fragment data (for the fragment shader).
-    # TODO: needs to be a pure function.
-    # TODO: needs to have super-reflection so that we can parse this into shader language.
-    shade(GlobalData, VertexInputData): vertexOutputData
+    ;;renew(
+        # Vertex shader, which returns the position of the vertex
+        # plus any fragment data (for the fragment shader).
+        # TODO: needs to be a pure function.
+        # TODO: needs to have super-reflection so that we can parse this into shader language.
+        @private This shade(GlobalData, VertexInputData): vertexOutputData
 
-    # Fragment shader, which returns the color to use for this pixel,
-    # based on GlobalData and FragmentData from the triangle's vertices.
-    # If returning null, the result is equivalent to a `discard`,
-    # and can be used for 100% transparency.
-    shade(GlobalData, FragmentData)?: color4f
+        # Fragment shader, which returns the color to use for this pixel,
+        # based on GlobalData and FragmentData from the triangle's vertices.
+        # If returning null, the result is equivalent to a `discard`,
+        # and can be used for 100% transparency.
+        @private This shade(GlobalData, FragmentData)?: color4f
+    ): null
 
-    # TODO: something like `::bind(GlobalData): shaderId` to actually use this shader.
+    # Actually use this shader to draw to some GPU pixels.
+    # E.g.,
+    #   Shader shade({
+    #       My: 12.3
+    #       Global: vector2f(X: 5.0)
+    #       Data: matrix4f(Translation: vector3f(X: 4.0, Y: 1.0, Z: 7.5))
+    #   }, draw(Shading):
+    #       Pixels draw(Shading, MyVertices, MyTriangles)
+    #   )
+    ::shade(GlobalData, Draw->fn(Shading): null): null
 }
 
 font := {
