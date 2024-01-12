@@ -24,7 +24,9 @@ pixels := {
     # Saves the image.
     ::save(FilePath): null
 
-    # TODO: load
+    # Loads an image from a file.
+    ;;load(FilePath) := This renew(FilePath)
+    ;;renew(FilePath): null
 
     # Returns the Buffer ID to use for the GPU to draw these pixels.
     # This can be expensive as we upload the entire image from CPU to GPU, if it has changed.
@@ -50,12 +52,14 @@ pixels := {
 }
 
 vertices~data := {
-    vertex := union({Position: vector4f}, data)
+    vertex := union({Position: vector3f}, data)
 
     # Saves the vertices to a file.
     ::save(FilePath): null
 
-    # TODO: load
+    # Loads vertices from a file.
+    ;;load(FilePath) := This renew(FilePath)
+    ;;renew(FilePath): null
 
     # TODO: we should have an hm-lang idiom for this dereference-like behavior.
     #       `modify` works, or maybe something else?
@@ -110,8 +114,10 @@ triangle := {
     VertexIndices[3]; u32
 }
 
-shader~(globalData := null, vertexData := null, fragmentData := null) := {
-    vertexInputData := union({Position: vector4f}, vertexData)
+# Warning!  Ensure that any fields to `vertexData` or `fragmentData`
+# don't use a `builtin` like `VertexIndex`, unless you actually want to use that built-in.
+shader~(globalData?: gpuData, vertexData?: gpuData, fragmentData?: gpuData) := {
+    vertexInputData := union({Position: vector3f}, vertexData)
     vertexOutputData := union({Position: vector4f}, fragmentData)
 
     ;;renew(
@@ -125,7 +131,7 @@ shader~(globalData := null, vertexData := null, fragmentData := null) := {
         # based on GlobalData and FragmentData from the triangle's vertices.
         # If returning null, the result is equivalent to a `discard`,
         # and can be used for 100% transparency.
-        @private This shade(GlobalData, FragmentData)?: color4f
+        @private This shade(GlobalData, VertexOutputData)?: color4f
     ): null
 
     # Actually use this shader to draw to some GPU pixels.
@@ -139,6 +145,8 @@ shader~(globalData := null, vertexData := null, fragmentData := null) := {
     #   )
     ::shade(GlobalData, Draw->fn(Shading): null): null
 }
+
+gpuData := fieldsOf(u32, f32, vector2f, vector3f, vector4f, matrix3f, matrix4f)
 
 font := {
     ;;renew(

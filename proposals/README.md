@@ -2281,7 +2281,7 @@ call := {
     Input[str]; ptr~any
     # we need to distinguish between the caller asking for specific fields
     # versus asking for the whole output.
-    Output?; oneOf(fields: any[str], unified: any)
+    Output?; oneOf(multipleOutputs: any[str], oneOutput: any)
     # things printed to stdout via `print`:
     Print[]; string
     # things printed to stderr via `error`:
@@ -2300,7 +2300,7 @@ call := {
     # adds a single-value return type
     ;;output(Any): null
         assert This Output == Null
-        This Output = unified(Any)
+        This Output = oneOutput(Any)
 
     # adds a field to the return type with a default value.
     # e.g., `Call output(FieldName: 123)` will ensure
@@ -2314,8 +2314,8 @@ call := {
     # default of 123 if `FieldName` is not set in the function.
     ;;output(Name: string, Value: any): null
         if This Output == Null
-            This Output = fields()
-        assert This Output is(fields)
+            This Output = multipleOutputs()
+        assert This Output is(multipleOutputs)
         This Output[Name] = Value 
 }
 ```
