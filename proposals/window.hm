@@ -95,19 +95,19 @@ vertices~data := {
     }
 }
 
-@private state~id := oneOf(
+@private state~t := oneOf(
     # This object is not represented on the GPU at all.
     CpuOnly
     # This object is not represented on the CPU at all.
     GpuOnly: {Id}
     # The CPU version of this object is ahead of the GPU version.
     # The CPU version should send an update to the GPU (may be expensive).
-    NeedsGpuUpdate: {PreviousId: id}
+    NeedsGpuUpdate: {PreviousId: t}
     # The GPU version of this object is ahead of the CPU version.
     # The CPU version should request the data from the GPU (may be expensive).
-    NeedsCpuUpdate: {Id}
+    NeedsCpuUpdate: {Id: t}
     # The GPU version of this object is in sync with the CPU version.
-    Synced: {Id}
+    Synced: {Id: t}
 
     ::gpuIsAheadOfCpu(): bool
         what This

@@ -3402,6 +3402,18 @@ then inside `globalMethod(...<generic<t>>...)` we ensure to call.  we'll need to
 such a way that we don't need to know all the child class definitions when we write the parent
 class definition; e.g., build it into the type's vtable.
 
+### default field names with generics
+
+TODO: this might be confusing, maybe reevaluate.
+
+Note that if you define a generic like this, `generic~t := {T}` (short for `{T: t}`) or
+`exampleClass~myGeneric := {MyGeneric;}`, then the default name of the instantiating type
+will apply.  For example, `generic~int` will have an `Int: int` field, and
+`exampleClass~string` will have a `String; string` field.  If you want to ensure the
+field name stays the same regardless of the instantiated type, make sure to name the fields
+differently than the `UpperCamelCase`d type, e.g., `specifiedField~t := {Id: t}` to always
+have a field named `Id`.
+
 ## common class methods
 
 All classes have a few compiler-provided methods which cannot be overridden.
