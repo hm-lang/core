@@ -18,8 +18,11 @@ pixels := {
     # Color getter via coordinates.  Can fail if the coordinates are out of bounds (OOB).
     ::[Coordinates2i, fn(Color): ~t]: try~(ok: t, uh)
 
-    # Color setter via coordinates.
+    # Color check+setter via coordinates.
     ;;[Coordinates2i, fn(Color;): ~t]: try~(ok: t, uh)
+
+    # Color setter (doesn't check the color first).
+    ;;[Coordinates2i, Color]: try~(uh)
 
     # Saves the image.
     ::save(FilePath): null
@@ -27,6 +30,11 @@ pixels := {
     # Loads an image from a file.
     ;;load(FilePath) := This renew(FilePath)
     ;;renew(FilePath): null
+
+    # Draws some triangles to these pixels, setting the GPU version
+    # of these pixels ahead of the CPU version (if present).
+    # WARNING: Will also send `Vertices` to the GPU if not already there.
+    ;;draw(Shading~(vertexData, fragmentData);, Vertices~vertexData;, Triangles: triangle[]): null
 
     # Returns the Buffer ID to use for the GPU to draw these pixels.
     # This can be expensive as we upload the entire image from CPU to GPU, if it has changed.
@@ -140,8 +148,8 @@ shader~(globalData?: gpuData, vertexData?: gpuData, fragmentData?: gpuData) := {
     #       My: 12.3
     #       Global: vector2f(X: 5.0)
     #       Data: matrix4f(Translation: vector3f(X: 4.0, Y: 1.0, Z: 7.5))
-    #   }, draw(Shading):
-    #       Pixels draw(Shading, MyVertices, MyTriangles)
+    #   }, draw(Shading;):
+    #       Pixels draw(Shading;, MyVertices, MyTriangles)
     #   )
     ::shade(GlobalData, Draw->fn(Shading): null): null
 }
