@@ -21,6 +21,11 @@ pixels := {
     # Color setter via coordinates.
     ;;[Coordinates2i, fn(Color;): ~t]: try~(ok: t, uh)
 
+    # Saves the image.
+    ::save(FilePath): null
+
+    # TODO: load
+
     # Returns the Buffer ID to use for the GPU to draw these pixels.
     # This can be expensive as we upload the entire image from CPU to GPU, if it has changed.
     # TODO: probably should be @protected
@@ -45,17 +50,22 @@ pixels := {
 }
 
 vertices~data := {
-    vertex := allOf({Position: vector4f}, data)
+    vertex := union({Position: vector4f}, data)
+
+    # Saves the vertices to a file.
+    ::save(FilePath): null
+
+    # TODO: load
 
     # TODO: we should have an hm-lang idiom for this dereference-like behavior.
     #       `modify` works, or maybe something else?
     ;;modify(fn(Array[]; data): ~t): try~(ok: t, uh)
-        assert !This State isGpuOnly()
+        assert !This State gpuIsAheadOfCpu()
 
         Result := fn(This Vertices;)
 
-        This State is((Committed):
-            This State = needsCommit(PreviousId: Committed Id)
+        This State is((Synced):
+            This State = needsCommit(PreviousId: Synced Id)
         )
 
         ok(Result)
@@ -73,17 +83,27 @@ vertices~data := {
     }
 }
 
-@private state~t := oneOf(
+@private state~id := oneOf(
     # This object is not represented on the GPU at all.
     CpuOnly
-    # This object is not represented on the CPU at all;
-    # it is effectively "write-only" to the GPU; CPU cannot get this data back.
-    GpuOnly: {Id: t}
-    # The GPU version of this object is out of sync with the CPU version.
-    # The CPU version should sync to the GPU (may be expensive).
-    NeedsCommit: {PreviousId: t}
+    # This object is not represented on the CPU at all.
+    GpuOnly: {Id}
+    # The CPU version of this object is ahead of the GPU version.
+    # The CPU version should send an update to the GPU (may be expensive).
+    NeedsGpuUpdate: {PreviousId: id}
+    # The GPU version of this object is ahead of the CPU version.
+    # The CPU version should request the data from the GPU (may be expensive).
+    NeedsCpuUpdate: {Id}
     # The GPU version of this object is in sync with the CPU version.
-    Committed: {Id: t}
+    Synced: {Id}
+
+    ::gpuIsAheadOfCpu(): bool
+        what This
+            CpuOnly: $(False)
+            GpuOnly: $(True)
+            NeedsGpuUpdate: $(False)
+            NeedsCpuUpdate: $(True)
+            Synced: $(False)
 )
 
 triangle := {
@@ -91,8 +111,8 @@ triangle := {
 }
 
 shader~(globalData := null, vertexData := null, fragmentData := null) := {
-    vertexInputData := allOf({Position: vector4f}, vertexData)
-    vertexOutputData := allOf({Position: vector4f}, fragmentData)
+    vertexInputData := union({Position: vector4f}, vertexData)
+    vertexOutputData := union({Position: vector4f}, fragmentData)
 
     ;;renew(
         # Vertex shader, which returns the position of the vertex
