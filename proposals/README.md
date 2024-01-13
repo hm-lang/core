@@ -70,6 +70,13 @@ This parallels `myClass::myMethod` in C++, but in hm-lang we can analogously use
 `myClass;;myMutatingMethod` for a method that can mutate `This`, i.e.,
 `myMutatingMethod(This;, X: int): str` becomes `;;myMutatingMethod(X: int): str`.
 
+TODO: consider switching to `I`/`Me`/`My` for `This` when dereferencing methods/self/fields;
+`I` would be better for method names, e.g., `I draw(X)` versus `My Field Y`, versus
+`return Me` for a copy of self to return.  `i` is just maybe too small.
+Alternatively use `You` and `Your` with `You draw(X)`, `return You`, as well as `Your Field Y`.
+the `This: this` solution is just generally more consistent, however, despite the decrease
+in sentence readability.
+
 Class getters/setters do not use `::getX(): dbl` or `;;setX(Dbl): null`, but rather
 just `::x(): dbl` and `;;x(Dbl): null` for a private variable `X; dbl`.  This is one
 of the benefits of using `lowerCamelCase` for functions/methods and `UpperCamelCase`
