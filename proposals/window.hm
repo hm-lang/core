@@ -9,6 +9,14 @@ window := {
 }
 
 pixels := {
+    ;;renew(FilePath) := This load(FilePath)
+
+    # Saves the image.
+    ::save(FilePath): null
+
+    # Loads an image from a file.
+    ;;load(FilePath): null
+
     # Current size of the image.
     ::size(): size2i
     # Tries to resize the image.  Can fail if the new size is too large (OOM)
@@ -24,25 +32,21 @@ pixels := {
     # Color setter (doesn't check the color first).
     ;;[Coordinates2i, Color]: try~(uh)
 
-    # Saves the image.
-    ::save(FilePath): null
-
-    # Loads an image from a file.
-    ;;load(FilePath) := This renew(FilePath)
-    ;;renew(FilePath): null
-
     # Draws some triangles to these pixels, setting the GPU version
     # of these pixels ahead of the CPU version (if present).
     # WARNING: Will also send `Vertices` to the GPU if not already there.
     ;;draw(Shading~(vertexData, fragmentData);, Vertices~vertexData;, Triangles: triangle[]): null
 
-    # Returns the Buffer ID to use for the GPU to draw these pixels.
-    # This can be expensive as we upload the entire image from CPU to GPU, if it has changed.
-    # TODO: probably should be @protected
-    ;;commit(): pixelsId
-
     # TODO: line-drawing API.  e.g., `;;draw(Line, Color): null`
     #       probably want a pixel-perfect one, plus a thickness based one.
+
+    # Moves the data to the GPU, if it's not already there and up-to-date.
+    # This can be expensive as we upload the entire image from CPU to GPU, if it has changed.
+    ;;push(): null
+
+    # Moves the data from the GPU to the CPU, if the CPU is behind the GPU.
+    # This can be expensive as we download the entire image from GPU to CPU, if it has changed.
+    ;;pull(): null
 
     @private {
         State ;= state~pixelsId CpuOnly
@@ -62,12 +66,13 @@ pixels := {
 vertices~data := {
     vertex := union({Position: vector3f}, data)
 
+    ;;renew(FilePath) := This load(FilePath)
+
     # Saves the vertices to a file.
     ::save(FilePath): null
 
     # Loads vertices from a file.
-    ;;load(FilePath) := This renew(FilePath)
-    ;;renew(FilePath): null
+    ;;load(FilePath): null
 
     # TODO: we should have an hm-lang idiom for this dereference-like behavior.
     #       `modify` works, or maybe something else?
@@ -82,9 +87,12 @@ vertices~data := {
 
         ok(Result)
 
-    # Returns the Buffer ID to use for the GPU to draw these pixels
-    # TODO: probably should be @protected
-    ;;commit(): verticesId
+    # Moves the data to the GPU, if it's not already there and up-to-date.
+    # This can be expensive as we upload all the vertices from CPU to GPU, if they have changed.
+    ;;push(): null
+
+    # NOTE: there is no `;;pull()` method like with `pixels`; we don't modify
+    # vertices on the GPU like we do with textures.
 
     # TODO: `..transfer(): vertices~data` to become `GpuOnly`
 
