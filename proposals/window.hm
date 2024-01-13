@@ -1,17 +1,32 @@
 window := {
+    # Returns true iff the window is fullscreen.
+    ::fullscreen(): bool
+    # Sets fullscreen if the passed-in `Bool` is true,
+    # otherwise sets windowed mode; returns the previous value.
+    ;;fullscreen(Bool): bool
+
+    # Returns the actual window size, i.e., the real-estate available for drawing.
+    ::size(): size2i
+    # Sets the window size, returning the old value if the attempt was successful.
+    ;;size(Size2i): try~(ok: size2i, uh)
+    # TODO: add these eventually when we think we have a consistent API:
+    #[#
+    # Sets the minimum window size, i.e., for a resizable window.
+    ;;minSize(Size2i): try~(ok: size2i, uh)
+    # Sets the maximum window size, i.e., for a resizable window.
+    ;;maxSize(Size2i): try~(ok: size2i, uh)
+    # Adds a callback for size changes.
+    ;;size(update->fn(Size2i): null): null
+    # TODO: or should we do a different type of event for size changes,
+    #       e.g., in the event flow.
+    # One time handling of queued window events.
+    ;;handle(fn(Events->Array[]: windowEvent): ~t): t
+    #]#
 
     ::resolution() := This Pixels size()
     ;;resolution(Size2i) := This Pixels size(Size2i)
 
-    ;;draw(fn(~CpuPixels;): t): try~(ok: t, uh)
-        # pull to the CPU first.
-        This Pixels pull()
-        fn(This Pixels)
-
-    ;;draw(fn(~GpuPixels;): t): try~(ok: t, uh)
-        # push to the GPU first.
-        This Pixels push()
-        fn(This Pixels)
+    ;;draw(fn(~QpuPixels;): t) := fn(This Pixels)
 
     @private {
         Pixels;
@@ -19,64 +34,46 @@ window := {
     }
 }
 
-cpuPixels := hide(
-    from: pixels
-
-    ;;renew(_): _
-    ;;size(_): _
-    # TODO: we may want to support CPU font drawing at some point.
-    ;;draw(Font, _): _
-    # Drawing shaders directly on CPU pixels is inefficient, don't support it directly.
-    ;;draw(Shading~_, _): _
-    ;;push(_): _
-    ;;pull(_): _
-)
-
-# TODO: it might be nice to have an annotation for each method on `pixels`,
-# like `@hideFrom(cpuPixels)`, with an annotation at the start like 
-# `@reference(cpuPixels) pixels := { ... }`.
-gpuPixels := hide(
-    from: pixels
-
-    ;;renew(_): _
-    ;;size(_): _
-    # Getting pixels directly from the GPU is inefficient, don't support it directly.
-    ;:[Coordinates2i, _]:  _
-    ;;push(_): _
-    ;;pull(_): _
-)
-
+@referenceableAs(cpuPixels, gpuPixels)
 pixels := {
+    @hideFrom(cpuPixels, gpuPixels)
     ;;renew(FilePath) := This load(FilePath)
 
     # Saves the image.
     ::save(FilePath): null
 
     # Loads an image from a file.
+    @hideFrom(cpuPixels, gpuPixels)
     ;;load(FilePath): null
 
     # Current size of the image.
     ::size(): size2i
+
     # Tries to resize the image.  Can fail if the new size is too large (OOM)
     # or if the size is invalid (e.g., negative values).
+    @hideFrom(cpuPixels, gpuPixels)
     ;;size(New->Size2i): try~(ok: size2i, uh)
 
     # Color getter via coordinates.  Can fail if the coordinates are out of bounds (OOB).
     # Can also be expensive if the pixels aren't up-to-date on the CPU.
+    @hideFrom(gpuPixels)
     ::[Coordinates2i, fn(Color): ~t]: try~(ok: t, uh)
 
     # Color check+setter via coordinates.
+    @hideFrom(gpuPixels)
     ;;[Coordinates2i, fn(Color;): ~t]: try~(ok: t, uh)
 
     # Color setter (doesn't check the color first).
     ;;draw(Coordinates2i, Color): try~(uh)
 
     # Draws some text to these pixels.
+    @hideFrom(cpuPixels) # TODO: maybe support CPU font drawing eventually
     ;;draw(String, Caret;, Font;, FontOptions: fontOptions()): null
 
     # Draws some triangles to these pixels, setting the GPU version
     # of these pixels ahead of the CPU version (if present).
     # WARNING: Will also send `Vertices` to the GPU if not already there.
+    @hideFrom(cpuPixels)
     ;;draw(Shading~(vertexData, fragmentData);, Vertices~vertexData;, Triangles: triangle[]): null
 
     # TODO: line-drawing API.  e.g., `;;draw(Line, Color): null`
@@ -84,10 +81,12 @@ pixels := {
 
     # Moves the data to the GPU, if it's not already there and up-to-date.
     # This can be expensive as we upload the entire image from CPU to GPU, if it has changed.
+    @hideFrom(cpuPixels, gpuPixels)
     ;;push(): null
 
     # Moves the data from the GPU to the CPU, if the CPU is behind the GPU.
     # This can be expensive as we download the entire image from GPU to CPU, if it has changed.
+    @hideFrom(cpuPixels, gpuPixels)
     ;;pull(): null
 
     @private {
