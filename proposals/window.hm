@@ -3,14 +3,48 @@ window := {
     ::resolution() := This Pixels size()
     ;;resolution(Size2i) := This Pixels size(Size2i)
 
-    # TODO: this might be nice, or we should just do `modify(fn(Pixels;): ~t)` style methods.
-    ;;draw(fn(~QpuPixels;): t) := This Pixels draw(fn)
+    ;;draw(fn(~CpuPixels;): t): try~(ok: t, uh)
+        # pull to the CPU first.
+        This Pixels pull()
+        fn(This Pixels)
+
+    ;;draw(fn(~GpuPixels;): t): try~(ok: t, uh)
+        # push to the GPU first.
+        This Pixels push()
+        fn(This Pixels)
 
     @private {
         Pixels;
         Background; color
     }
 }
+
+cpuPixels := hide(
+    from: pixels
+
+    ;;renew(_): _
+    ;;size(_): _
+    # TODO: we may want to support CPU font drawing at some point.
+    ;;draw(Font, _): _
+    # Drawing shaders directly on CPU pixels is inefficient, don't support it directly.
+    ;;draw(Shading~_, _): _
+    ;;push(_): _
+    ;;pull(_): _
+)
+
+# TODO: it might be nice to have an annotation for each method on `pixels`,
+# like `@hideFrom(cpuPixels)`, with an annotation at the start like 
+# `@reference(cpuPixels) pixels := { ... }`.
+gpuPixels := hide(
+    from: pixels
+
+    ;;renew(_): _
+    ;;size(_): _
+    # Getting pixels directly from the GPU is inefficient, don't support it directly.
+    ;:[Coordinates2i, _]:  _
+    ;;push(_): _
+    ;;pull(_): _
+)
 
 pixels := {
     ;;renew(FilePath) := This load(FilePath)
@@ -26,16 +60,6 @@ pixels := {
     # Tries to resize the image.  Can fail if the new size is too large (OOM)
     # or if the size is invalid (e.g., negative values).
     ;;size(New->Size2i): try~(ok: size2i, uh)
-
-    # TODO: To avoid resizing during a draw cycle, and to specify the CPU/GPU part,
-    # we should maybe switch to dedicated drawing algorithms like this:
-    # * switch to `;;draw(fn(CpuPixels;): t): try~(ok: t, uh)`
-    # * switch to `;;draw(fn(GpuPixels;): t): try~(ok: t, uh)`
-    # it might be nice to have `QpuPixels` be a reference to `This` but only keeping
-    # the draw methods; `CpuPixels` can automatically `pull()` at the start;
-    # `GpuPixels` can automatically `push()` at the start.
-    # however, we can make resizing during a draw call work fine and avoid indirection...
-    # or we can do both, so that `window` can abstract away some of these details.
 
     # Color getter via coordinates.  Can fail if the coordinates are out of bounds (OOB).
     # Can also be expensive if the pixels aren't up-to-date on the CPU.

@@ -305,7 +305,8 @@ Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc.
 most importantly in contrast to most other languages, underscores (`_`) are ignored within identifiers.
 E.g., `1_000_000` is the same as `1000000` and `my_Function` is the same as `myFunction`.
 
-TODO: we probably could make `_` effectively capitalize the next character.
+TODO: use `_` for placeholders, like `:;size(_): _` indicating both `::size(): mySizeType` and
+`;;size(New->MySizeType): mySizeType`.
 TODO: we probably can use `_` at the end of a numeric identifier to give the type, e.g., `1234_i32`.
 Some examples:
 
