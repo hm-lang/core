@@ -15,11 +15,14 @@ window := {
     ;;minSize(Size2i): try~(ok: size2i, uh)
     # Sets the maximum window size, i.e., for a resizable window.
     ;;maxSize(Size2i): try~(ok: size2i, uh)
-    # Adds a callback for size changes.
-    ;;size(update->fn(Size2i): null): null
-    # TODO: or should we do a different type of event for size changes,
-    #       e.g., in the event flow.
     #]#
+
+    # Returns the current data in the clipboard,
+    # i.e., for the "pasting" part of copy-paste.
+    ::clipboard(): string
+    # Sets the current data in the clipboard,
+    # i.e., for the "copying" part of copy-paste.
+    ;;clipboard(String): null
 
     ::resolution() := This Pixels size()
     ;;resolution(Size2i) := This Pixels size(Size2i)
@@ -27,13 +30,39 @@ window := {
     # Function to get pixels to draw to.
     ;;draw(fn(~QpuPixels;): t) := fn(This Pixels;)
 
-    # One time handling of queued window events.
-    ;;handle(fn(Events->Array[]: windowEvent): ~t): t
+    # Grabs window events to handle.
+    ;;pull(): windowEvent[]
+        Results[]; windowEvent
+        Events modify((Events;):
+            Results <-> Events
+        )
+        Results
 
     @private {
         Pixels;
         Background; color
+        Events; guarded~windowEvent[]
     }
+}
+
+windowEvent := oneOf(
+    Resize: size2i
+    # TODO: either put "Pressed/Released/Repeat" into `Key State`
+    #       or put it into the window event itself (e.g., `KeyUp` `KeyDown` `KeyRepeat`)
+    # TODO: we could just have `modifiers()` be a method on window, would save bytes here.
+    Key: {Rune, Logical: rune, Modifiers}
+    # TODO: either put "Pressed/Released" into `Mouse State`
+    #       or put it into the window event itself (e.g., `MouseUp` `MouseDown`)
+    MouseClick: {Position: vector2i, Button, Modifiers}
+    MouseMove: {Delta: vector2i, Position: vector2i, Modifiers}
+    MouseWheel: {Delta: i32, Modifiers}
+)
+
+modifiers := {
+    Control: bool
+    Shift: bool
+    Meta: bool
+    Alt: bool
 }
 
 @referenceableAs(cpuPixels, gpuPixels)
