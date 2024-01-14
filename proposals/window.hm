@@ -32,30 +32,70 @@ window := {
 
     # Grabs window events to handle.
     ;;pull(): windowEvent[]
-        Results[]; windowEvent
-        Events modify((Events;):
-            Results <-> Events
-        )
-        Results
+        This AccumulatingEvents modify((Unguarded;) := Unguarded pull())
 
     @private {
         Pixels;
         Background; color
-        Events; guarded~windowEvent[]
+        AccumulatingEvents; guarded~windowAccumulatingEvents
+    }
+}
+
+@private windowAccumulatingEvents {
+    # TODO: could add `Text`, etc., to accumulate events
+    @private Events[]; windowEvent
+
+    # TODO: probably want to pass in a winit (or whatever framework) event here.
+    append(WindowEvent): null
+        if WindowEvent is((KeyboardEvent):
+            This Modifiers checkDelta(
+                KeyboardEvent Key
+                KeyboardEvent Pressed
+            )
+        )
+        This Events append(WindowEvent)
+        # TODO: could update Text and put it all into one.
+    
+    pull(): windowEvent[]
+        Results[]; windowEvent
+        Results <-> This Events
+        Results 
+
+    Modifiers; {
+        Control: i32
+        Shift: i32
+        Meta: i32
+        Alt: i32
+
+        ;;checkDelta(Key, State: windowEvent keyEvent state): null
+            if State isRepeated()
+                return
+            what Key
+                Control
+                    This Control += if State isPressed() $(1) else $(-1)
+                Shift
+                    This Shift += if State isPressed() $(1) else $(-1)
+                Meta
+                    This Meta += if State isPressed() $(1) else $(-1)
+                Alt
+                    This Alt += if State isPressed() $(1) else $(-1)
     }
 }
 
 windowEvent := oneOf(
-    Resize: size2i
-    # TODO: either put "Pressed/Released/Repeat" into `Key State`
-    #       or put it into the window event itself (e.g., `KeyUp` `KeyDown` `KeyRepeat`)
-    # TODO: we could just have `modifiers()` be a method on window, would save bytes here.
-    Key: {Rune, Logical: rune, Modifiers}
-    # TODO: either put "Pressed/Released" into `Mouse State`
-    #       or put it into the window event itself (e.g., `MouseUp` `MouseDown`)
-    MouseClick: {Position: vector2i, Button, Modifiers}
-    MouseMove: {Delta: vector2i, Position: vector2i, Modifiers}
-    MouseWheel: {Delta: i32, Modifiers}
+    # A resize event, with the new internal window size.
+    ResizeEvent: size2i
+    # A sequence of runes (e.g., layout and locale included).
+    TextEvent: string
+    # A physical, named key.
+    KeyEvent: {Key, Modifiers, State: oneOf(Pressed, Released, Repeated)}
+    # Mouse button, e.g., left mouse button or right mouse button.
+    MouseButtonEvent: {Position: vector2i, Button: u8, Modifiers, State: oneOf(Pressed, Released)}
+    # The mouse moving.  The position is relative to the top-left of the shown pixels
+    # (i.e., in case of letterboxing, coordinates can be < 0 or >= the Window Resolution).
+    MouseMoveEvent: {Delta: vector2i, Position: vector2i, Modifiers}
+    # The mouse is scrolling.
+    MouseWheelEvent: {Delta: i32, Modifiers}
 )
 
 modifiers := {
