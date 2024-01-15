@@ -1117,10 +1117,10 @@ to 0.
 Optional functions are defined in a similar way (cf. section on nullable functions),
 with the `?` just after the function name, e.g., `someFunction?(...Args): returnType`.
 
-TODO: how do we declare a function of multiple types?  e.g.,
-`someFunction: oneOf((Dbl): string, (Dbl, Name: string): int)`.
-This might have some usage for function overloads.  Maybe we disallow these and require
-declare the overloads individually, although overloads would make more sense with `allOf(...)`.
+TODO: can we create an overload for "nullable" types?  e.g., it might be nice to
+allow `NaN` to be the null for floating point types `f32` and `f64`.
+similarly, someone might create a `symmetricI8` class with valid values -127 to 127,
+and the null is -128.
 
 ## nested/object types
 
