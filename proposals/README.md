@@ -1780,6 +1780,10 @@ doSomething(X?: int): int
     return 3
 ```
 
+TODO: argument structs.  e.g., `copy(From: (Pixels, Rectangle), To: (Pixels;, Rectangle))`
+which are short-hand for `copy(From Pixels, From Rectangle, To Pixels;, To Rectangle)`,
+or something similar.  these maintain referenceability.
+
 ### nullable output arguments
 
 We also support function overloads for outputs that are nullable.  Just like with overloads
