@@ -95,7 +95,7 @@ for variables; we can easily distinguish intent without additional verbs.
     at least where such copies are expensive (i.e., for large types or heap-allocated types).
 * use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
 * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
-* use `a: new~y` to declare `a` as a constructor that builds instances of type `y`
+* use `a: y` to declare `a` as a constructor that builds instances of type `y`
 * `[]` are for containers
     * `Map[key]: value` to declare a map, or `Map: value[key]`
     * `Set[element]:` or `Set: [element]` to declare a set with `element` type instances as elements
@@ -274,14 +274,12 @@ print(counter())    # 124
 ```
 
 ```
-# defining a function that takes a type constructor as an argument
-# and returns a type constructor:
-doSomething(new~x, namedNew: new~y): new~oneOf(x, y)
-    if random(dbl) < 0.5 $(x) else $(y)
-    # you can also use `new~x` and `namedNew` if desired:
-    # if random(dbl) < 0.5 $(new~x) else $(namedNew)
+# defining a function that takes two type constructors as arguments,
+# one of them being named, and returns a type constructor:
+doSomething(~x, namedNew: ~y): new~oneOf(x, y)
+    # if random(dbl) < 0.5 $(x) else $(namedNew)
 
-someType := doSomething(int, namedNew: dbl)
+someType := doSomething(int, namedNew: dbl) # int or dbl with 50-50 probability
 ```
 
 ## variable and function names
@@ -600,7 +598,9 @@ as(Scaled8, dbl): hm~(ok: dbl, numberConversion uh)
 Every variable has a reflexive type which describes the object/primitive that is held
 in the variable.  This can be accessed via the `is()` class function, which is also
 defined on each instance.  If comparing against a known type, i.e., to check if some
-variable is an integer, it is highly recommended to use the `::is(new~t)` method, e.g., 
+variable is an integer, it is highly recommended to use the `::is(~t)` method.
+See also [declaring more complicated types via `oneOf`](#declaring-more-complicated-types-via-oneOf)
+and the related methods we can use to determine/transform internal types.
 
 ```
 # implementation note: `int` should come first so it gets tried first;
@@ -637,7 +637,7 @@ vector3 := {X; dbl, Y; dbl, Z; dbl}
 
 Vector3 := vector3(X: 1.2, Y: -1.4, Z: 1.6)
 
-print(Vector3::is())                # prints `new~vector3`
+print(Vector3::is())                # prints `vector3`
 print(vector3 == Vector3 is())      # this prints true
 print(vector3 is() == Vector3 is()) # this also prints true.
 ```
@@ -649,14 +649,14 @@ is no type recursion possible; `vector3 is() is() == vector3 is() == vector3`.
 ```
 # we'll define `someType` as vector3, but it could become
 # different than vector3 in the future.
-someType; new~any = Vector3 is()    # also equivalent: `someType; new~any = vector3`
+someType; any = Vector3 is()    # also equivalent: `someType; any = vector3`
 
-# TODO: is this ok?  should `someType` recognize that it is a `new~any` somehow??
+# TODO: is this ok?  should `someType` recognize that it is a `any` somehow??
 # things can't get recursive:
 print(someType is())                # prints `vector3`
 
 # creates a dynamical instance of vector3; the compiler doesn't know it's a vector3.
-# even though we know it comes from a vector3, `someType` is a generic `new~any`.
+# even though we know it comes from a vector3, `someType` is a generic `any`.
 SomeThing := someType(X: 5, Y: 6, Z: -7)
 ```
 
@@ -1482,22 +1482,36 @@ the type of something.  This makes the most sense as a generic type,
 and can be done like this:
 
 ```
-doSomething(new~x): x
-    return x(123)   # also can use `new~x(123)`
+doSomething(~x): x
+    return x(123)
 
 print(doSomething(dbl)) # returns 123.0
 print(doSomething(u8))  # returns u8(123)
 ```
 
-It works similarly for named types as arguments.  Here is an example
-where we also return a type constructor.
+For returning a class/constructor, we need to use the syntax `new~t`,
+because `doSomething(): ~x` would return an instance `X` of class `x`.
+Since returning an instance is by far the most common case, we optimize
+for that rather than for returning a class.
 
 ```
-# the return type could also be `oneOf(new~x, new~y)`, but this is more idiomatic:
-doSomething(new~x, namedNew: new~y): new~oneOf(x, y)
-    return if random(dbl) < 0.5 $(x) else $(y)
-    # you can also use `new~x` and `namedNew` if desired:
-    # return if random(dbl) < 0.5 $(new~x) else $(namedNew)
+randomClass(): new~any
+    if random(dbl) < 0.5
+        int
+    elif random(dbl) < 0.5
+        dbl
+    else
+        string
+```
+
+We can also pass in named types as arguments.  Here is an example
+where we also return a type constructor.  Named types look like
+function arguments but without an argument list (e.g., `className: t`
+instead of `fn(Args): t`).
+
+```
+doSomething(~x, namedNew: ~y): new~oneOf(x, y)
+    return if random(dbl) < 0.5 $(x) else $(namedNew)
 
 print(doSomething(int, namedNew: dbl))  # will print `int` or `dbl` with 50-50 probability
 ```
@@ -3436,7 +3450,7 @@ e.g., `..map(fn(Self.): ~t): t`?
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
 * `::is(T: ~t): bool` returns true if this instance is equal to the passed-in value.
-* `is(new~t): bool` returns true if this instance/class is equal to the passed-in class.
+* `is(~t): bool` returns true if this instance/class is equal to the passed-in class.
 * `is(): new` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
     ```
@@ -5245,7 +5259,7 @@ a copy and any changes to the new variables will not be reflected in `Tree`.
 ```
 # TODO: not sure this notation is the best.
 #       this probably needs to be a macro.
-oneOf(...new~t) := {
+oneOf(...~t) := {
     # returns true if this `oneOf` is of type `T`, also allowing access
     # to the underlying value by passing it into the function.
     ;:is(fn(T;:): null): bool
