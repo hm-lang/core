@@ -477,7 +477,7 @@ the nested symbols are at a new tab stop, and they can even be broken (e.g., an 
 closing operator `#)#` as long as it is indented from the symbols which started the
 multiline comment), although this is not recommended.  To qualify as a multiline comment
 (either to open or close the comment), nothing else is allowed on the line before or after
-(besides spaces), otherwise an error is thrown.  All characters on all lines in between
+(besides spaces), otherwise a compiler error is thrown.  All characters on all lines in between
 the multiline comment symbols (e.g., `#(#` to `#)#`) are ignored.
 
 Note that `#@` is an end-of-line comment reserved for the compiler, so if you use
@@ -525,53 +525,39 @@ It's only when converting between `index` and `ordinal` that a delta occurs.
 
 hm-lang attempts to make casting between types convenient and simple.
 However, there are times where it's better to be explicit about the program's intention.
-For example, if you are converting between two numbers, but the number is *not*
-representable in the other type, the run-time will throw an error.  Therefore you'll
+For example, if you are converting between two number types, but the number is *not*
+representable in the other type, the run-time will return an error.  Therefore you'll
 need to be explicit about rounding when casting floating point numbers to integers,
 unless you are sure that the floating point number is an integer.  Even if the float
 is an integer, the maximum floating point integer is larger than most fixed-width integer
-types (e.g., `u32` or `i64`), so errors can be thrown in that case.  The big-integer type
-`int` will not have this latter issue, but may throw depending on memory constraints.
+types (e.g., `u32` or `i64`), so errors can be returned in that case.  The big-integer type
+`int` will not have this latter issue, but may return errors depending on memory constraints.
+Notice we use `assert` to shortcircuit function evaluation and return an error result
+(like throwing).  See [errors and asserts](#errors-and-asserts) for more details.
 
 ```
 # Going from a floating point number to an integer should be done carefully...
 X: dbl = 5.43
-Q: int = X                      # RUN-TIME ERROR, throws since `X` is not representable as an integer
-Y: int = X round(Down)          # Y = 5.  equivalent to `X floor()`
-Z: int = X round(Up)            # Z = 6.  equivalent to `X ceil()`.
-W: int = X round(Stochastically)# W = 5 with probability 57%, or 6 with probability 43%.
-R: int = X round()              # R = 5.  rounds to closest integer, breaking ties at half
-                                #         to the integer larger in magnitude.
+SafeCast := X as(int)                   # SafeCast is a result type (`hm~(ok: int, numberConversion uh)`)
+Q := = X as(int) assert()               # returns an error since `X` is not representable as an integer
+Y := X round(Down) as(int) assert()     # Y = 5.  equivalent to `X floor()`
+Z := X round(Up) as(int) assert()       # Z = 6.  equivalent to `X ceil()`.
+R := X round() as(int) assert()         # R = 5.  rounds to closest integer, breaking ties at half
+                                        #         to the integer larger in magnitude.
 
 # Note, representable issues arise for conversions even between different integer types.
-# WARNING: we skip checks from intX -> intY in `optimized` compile mode, but not `debug` or `hardened`.
 A: u32 = 1234
-Q: u8 = A                           # RUN-TIME ERROR, `A` is not representable as a `u8`.
+Q: u8 = A as(u8) assert()           # RUN-TIME ERROR, `A` is not representable as a `u8`.
 B: u8 = A & 255                     # OK, communicates intent and puts `A` into the correct range.
 C: u8 = A clamp(Min: 0, Max: 255)   # OK, communicates a different intent.
 ```
 
-If you want to verify if some value is representable as another type,
-you can make your variable nullable when casting:
-
-```
-X: dbl = 1.234
-Y ?:= int(X)        # `Y` is Null here because `X` was not an integer.
-Z: dbl = 2.0
-W ?:= u8(Z)         # `W` is not Null here because `Z` was an integer between 0 and 255
-                    # but we can still use `?:=` since the `dbl` might not have been
-                    # representable as a `u8`, so `W` might have been Null.
-```
-
-In hm-lang, a `Null` (of type `null`) acts as an empty argument, so something like `fn(Null)`
-is equivalent to `fn()`.  Thus casting a `Null` to boolean gives false, since `bool() == False`.
-Numbers are truthy only if they are non-zero, so `bool(0)` is `False` but `bool(100)` or `bool(0.5)`
-is `True`.
-
 Casting to a complex type, e.g., `oneOf(int, str)(SomeValue)` will pass through `SomeValue`
 if it is an `int` or a `str`, otherwise try `int(SomeValue)` if that is allowed, and finally
 `str(SomeValue)` if that is allowed.  If none of the above are allowed, the compiler will
-throw an error.
+throw an error.  Note that nullable types absorb errors in this way (and become null), so
+`oneOf(int, null)(SomeSafeCast)` will be null if the cast was invalid, or an `int` if the
+cast was successful.
 
 To define a conversion from one class to another, you can define a global function
 or a class method, like this:
@@ -585,18 +571,26 @@ scaled8 := {
     # TODO: talk about class variables (not instance):
     this Scale := 32
 
-    # method to convert to `flt`; can be called like `flt(Scaled8)`
-    # just as well as `Scaled8 flt()`.
+    # if there are no representability issues, you can create
+    # a direct method to convert to `flt`;
+    # this can be called like `flt(Scaled8)` or `Scaled8 flt()`.
     ::flt(): flt
-        This Value / this Scale
+        # `u8` types have a `flt` method.
+        This Value flt() / this Scale flt()
 
-    ;;=(Flt): null
-        This Value = Flt round() clamp(0, 255)
+    # if you have representability issues, you can use `as` instead;
+    # this can be called like `as(flt, Scaled8)` or `Scaled8 as(flt)`.
+    ::as(flt): hm~(ok: flt, numberConversion uh)
+        ok(This Value as(flt) assert() / this Scale as(flt) assert())
 }
 
 # global function; can also be called like `Scaled8 dbl()`.
 dbl(Scaled8): dbl
-    Scaled8 Value / scaled8 Scale
+    Scaled8 Value dbl() / scaled8 Scale dbl()
+
+# global `as` function; can also be called like `Scaled8 as(dbl)`.
+as(Scaled8, dbl): hm~(ok: dbl, numberConversion uh)
+    Scaled8 Value assert(as: dbl) / scaled8 Scale assert(as: dbl)
 
 # TODO: discussion about how defining `;;renew(Flt): null` defines a global `scaled8(Flt): scaled8` function.
 ```
@@ -843,19 +837,19 @@ does not change the instance but returns a sorted copy of the array (`::sort(): 
 
 ```
 # there are better ways to get a median, but just to showcase member access:
-getMedianSlow(Array: array~int): int
+getMedianSlow(Array: array~int): hm~(ok: int, uh: string)
     if Array count() == 0
-        throw "no elements in array, can't get median."
+        return uh("no elements in array, can't get median.")
     # make a copy of the array, but no longer allow access to it (via `@hide`):
     Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is readonly.
-    Sorted->Array[Sorted->Array count() // 2]
+    ok(Sorted->Array[Sorted->Array count() // 2])
 
 # sorts the array and returns the median.
-getMedianSlow(Array; array~int): int
+getMedianSlow(Array; array~int): hm~(ok: int, uh: string)
     if Array count() == 0
-        throw "no elements in array, can't get median."
+        return uh("no elements in array, can't get median.")
     Array sort()    # same as `Array;;sort()` since `Array` is writeable.
-    Array[Array count() // 2]
+    ok(Array[Array count() // 2])
 ```
 
 Note that if the LHS is readonly, you will not be able to use a `;;` method.
@@ -1006,11 +1000,10 @@ xor(~X, ~Y)?: oneOf(x, y)
 ```
 
 Note that `xor` will thus return a nullable value, unless you do an assert.
-Warning: asserting `not~null` will throw in the runtime, if the result was null.
 
 ```
 NullableXor ?:= X xor Y
-NonNullXor: not~null = X xor Y      # will throw if `X xor Y` is null
+NonNullXor := X xor Y assert()     # will shortcircuit this block if `X xor Y` is null
 ```
 
 ## assignment operators
@@ -1083,6 +1076,10 @@ if a declared variable is nullable but `?` is not used, since we want the progra
 aware of the fact that the variable could be null, even though the program will take care
 of null checks automatically and safely.
 TODO: we probably can look for things like `X: int?` and convert to `X?: int` automatically.
+TODO: if `Array[]: int` can be typed as `Array: int[]`, then we can probably use
+`X: int?` for an `X?: int` type.
+TODO: do we want to support enums with a `Null` entry have variables that also require `?`?
+probably, that's the basis of null anyways, e.g., `oneOf(Null, String, Int)`.
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The executable will automatically
@@ -1808,12 +1805,13 @@ myOverload(Y: str): {X?: int}
     what int(Y)
         # TODO: can we do `${X: Ok}` here as shorthand for `$({X: Ok})`?
         Ok: $({X: Ok})
-        Err: $({})
+        Uh: $({})
 
-X := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
-X ?:= myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
+{X} := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
+{X?} := myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
 ```
 
+TODO: revamp the `not~null` stuff if we're moving towards `assert` being the special return `uh` early.
 Note that if only Case 3 is defined, we can use a special notation to ensure that the return
 value is not null, e.g., `{X: not~null} = ...`.  This will throw a run-time error if the return
 value for `X` is null.  Note that this syntax is invalid if Case 2 is defined, since there is
@@ -2381,11 +2379,11 @@ print(Call Output)  # will print "hihihihihi" or 3 depending on `someCondition()
 ```
 
 Note that `call` is so generic that you can put any fields that won't actually
-be used in the function call.  In this, hm-lang will throw at run-time.
+be used in the function call.  In this, hm-lang will return an error at run-time.
 
 ```
 Call ;= call() { input(X: "4"), output(Value1: 123), output(Value2: 456) }
-someFunction(Call;) # RUNTIME ERROR since there are no overloads with {Value1, Value2}
+someFunction(Call;) assert()    # returns error since there are no overloads with {Value1, Value2}
 ```
 
 If compile-time checks are desired, one should use the more specific
@@ -3430,6 +3428,9 @@ have a field named `Id`.
 
 All classes have a few compiler-provided methods which cannot be overridden.
 
+TODO: should every class have a `map` function?
+e.g., `..map(fn(Self.): ~t): t`?
+
 * `This;!: this` creates a temporary with the current instance's values, while
     resetting the current instance to a default instance -- i.e., calling `renew()`.
     Internally, this swaps pointers, but not actual data, so this method
@@ -3800,88 +3801,96 @@ TODO: make it possible to mock out file system access in unit tests.
 
 # errors and asserts
 
-TODO: should we switch to Rust-style errors (`result~(ok, err)`) which would be easier to use in C?
-it does make error handling explicit which is nice.
-TODO: switch to `try~(ok, hm)` (or hm -> ew) instead of `result`.
-i think there's too much of a difference here between optional (null) and error, however;
-but we could automatically convert a `result~(ok, err)` type into a `oneOf(ok, null)` type.
-TODO: we should maybe have a method to flatten things like `try~(ok: try~(ok: t, uh: u), uh: v)`
-into `try~(ok: t, uh: oneOf(u, v))`.
+hm-lang borrows from Rust the idea that errors shouldn't be thrown, they should be
+returned and handled explicitly.  We use the notation `hm~(ok, uh)` to indicate
+a generic return type that might be `ok` or it might be an error (`uh`).
+In practice, you'll often specify the generic arguments like this:
+`hm~(ok: int, uh: string)` for a result that might be ok (as an integer) or it might
+be an error string.
 
-Note that technically, `assert` doesn't panic; it will return an error from the
-current function block, i.e., as an `ew` in a `result`.
+TODO: we should maybe have a method to flatten things like `hm~(ok: hm~(ok: t, uh: u), uh: v)`
+into `hm~(ok: t, uh: oneOf(u, v))`.
 
-TODO: `assert` should never panic but should return an error from the current scope.
-this includes for methods defined by classes, like `result::assert` below.
-maybe use `err` inside the function instead of `panic`.
+Note that `assert` doesn't panic; it will return an error from the
+current function block, i.e., as an `uh` in a `hm` result.
 
-TODO: maybe use `ew`, `no`, `bad` or `ill` instead of `err`. `error` would be ideal, but it's a bit long.
-maybe `uh`.
+Note that we can automatically convert a result type into a nullable version
+of the `ok` type, e.g., `hm~(ok: string, uh: errorCode)` can be converted into
+`string?` without issue.
+
+TODO: maybe use `um` for futures.
 
 ```
-result~(ok, err) := extend(oneOf(ok, err)) {
-    # The API is `Ok := Result assert("custom error message if not `ok`")`.
+hm~(ok, uh) := extend(oneOf(ok, uh)) {
+    # The API is `Ok := Result assert(Uh: "custom error message if not `ok`")`.
     # This will moot `This` and shortcircuit a failure (i.e., if `result`
-    # is `err`) to the calling block.  For example,
+    # is `uh`) to the calling block.  For example,
     #   ```
-    #   myFunction(Dbl): result~(ok: int, err: str)
-    #       Result := 
+    #   myFunction(Dbl): result~(ok: int, uh: str)
+    #       TODO
     #   ```
-    ..assert(Str: str = ""): ok
+    ..assert(New->Uh?: ~newUh): ok
         what This
             Ok: $(Ok)
-            Err:
-                error(Err)
-                assertFail(Str || Err)
+            Uh:
+                error(Uh)
+                # TODO: explain what shortcircuit does.
+                shortcircuit(New->Uh ?? Uh)
 
-    ..okOrPanic(Str: str = ""): ok
+    ..okOrPanic(String := ""): ok
         what This
             Ok: $(Ok)
-            Err:
-                error(Err)
+            Uh:
+                error(Uh)
                 # `panic` exits program
-                panic(Str || Err)
+                panic(String || Uh)
 
     # maps an `Ok` result to a different type of `ok`, consuming `This`.
-    ..map(fn(Ok): ~t): result~(ok: t, err)
+    # TODO: can we do `hm~(new ok, uh)` here instead to avoid `ok: ok2`?
+    #       e.g., ..map(fn(Ok.): ~a ok): hm~(a ok, uh).  similarly for `uh2` below.
+    ..map(fn(Ok.): ~ok2): hm~(ok: ok2, uh)
 
     # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `This`.
-    ..map(fn(Ok): result~(ok: t, err)): result~(ok: t, err)
+    ..map(fn(Ok.): hm~(ok: ok2, uh)): hm~(ok: ok2, uh)
 
-    # passes through any `Ok` result, but maps an `Err` to the desired `ok` result
+    # passes through any `Ok` result, but maps an `Uh` to the desired `ok` result
     # via the passed-in function.
-    ..map(fn(Err): ok): ok
+    ..map(fn(Uh.): ok): ok
+
+    # maps an `Uh` result to a different type of `uh`.
+    ..map(fn(Uh.): ~uh2):  hm~(ok, uh: uh2)
 
     # TODO: should we use `to` here or is there a better way to indicate casting?
-    # it's technically something like `oneOf(ok, null)(Result: result~(ok, err)): oneOf(ok, null)`
+    # it's technically something like `oneOf(ok, null)(Result: hm~(ok, uh)): oneOf(ok, null)`
     # which is pretty verbose.
     ..to(): oneOf(ok, null)
 }
 
-Result := if X $( ok(3) ) else $( err("oh no") )
+Result := if X $( ok(3) ) else $( uh("oh no") )
 if Result isOk()
     print("ok")
 
 # but it'd be nice to transform `Result` into the `Ok` value along the way.
 Result is((Ok) := print("Ok: ", Ok))
-Result is((Err) := print("Err: ", Err))
+Result is((Uh) := print("Uh: ", Uh))
 
 # or if you're sure it's that thing, or want the program to terminate if not:
 Ok := Result okOrPanic("for sure")
 ```
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
-e.g., `map.hm` has a `map error` type which can be caught using `catch error` or `catch map error`.
-Use `throw errorType("message $(HelpfulVariableToDebug)")` to throw a specific error, or 
-`throw "message $(HelpfulVariableToDebug)"` to automatically use the correct error subclass for
-whatever context you're in.  Note that you're not able to throw a module-specific error
-from another module (e.g., you can't throw `map error` from the `array.hm` module), but you can
-*catch* module-specific errors from another module (e.g., `catch map error` from the `array.hm`
-module).  Of course, you can throw/catch explicitly defined errors from other modules, as long as
-they are visible to you (see section on public/protected/private visibility).
+e.g., `map.hm` has a `map uh` error type.  Use `return myUhType("message $(HelpfulVariableToDebug)")`
+to return a specific error type, or `return uh("message $(HelpfulVariableToDebug)")` to automatically
+use the correct error subclass for whatever context you're in.  Note that you're not able to return a
+module-specific error from another module (e.g., you can't return `map uh` from the `array.hm` module),
+but you can match module-specific errors from another module (e.g., `what Uh $(map uh InvalidKey $(...))
+from the `array.hm` module or even your own).  Of course, you can throw/catch explicitly defined errors
+from other modules, as long as they are visible to you (see section on
+[public/protected/private](#public-private-protected-visibility)).
 
-The built-in `assert` statement will throw if the rest of the statement does not evolve to truthy.
-As a bonus, when throwing, all values will be logged to stderr as well for debugging purposes.
+The built-in `assert` statement will shortcircuit the block if the rest of the statement
+does not evolve to truthy.  As a bonus, when returning, all values will be logged to stderr
+as well for debugging purposes for debug-compiled code.
 
 ```
 assert(SomeVariable == ExpectedValue)   # throws if `SomeVariable != ExpectedValue`,
@@ -3896,48 +3905,28 @@ assert(SomeClass otherMethod("hi") > 10)    # throws if `SomeClass otherMethod("
                                             # `SomeClass otherMethod("hi")`.
 ```
 
-It is not allowed to use `assert` inside an expression; it must be at the start of a statement,
-since it is a "greedy" keyword that consumes the rest of the statement.  For customization of
-the error, you can add an optional indented line that includes an error, some class instance
-that inherits from error, or an error message specifically.  This is mostly helpful when
-you're checking a logical expression that isn't self documenting.  Be careful not to double
-indent here, since that would mean line continuation (i.e., of the `assert` statement).
-
-```
-# custom error:
-assert(This Might Not Be Self Explanatory, customError("should have tried X instead of Y"))
-
-# default error:
-assert(
-    SomeString endsWith(")")
-    `expected nothing else on the line
-     after the parenthetical.`
-)
-
-# WARNING! probably not intentional, parses as `Whatever Expression "this is a ..."`:
-assert(WhateverExpression
-        "this is a double indented line, doesn't count as the assert error message"
-)
-```
+If you want to customize the return error for an assert, pass it an explicit
+`Uh` argument, e.g., `assert(MyValue, Uh: "Was expecting that to be true")`;
+and note that asserts can be called like `MyValue assert()` or `Positive assert(Uh: "oops")`.
 
 Note that `assert` logic is always run, even in non-debug code.  To only check statements
 in the debug binary, use `debug assert`, which has the same signature as `assert`.  Using
 `debug assert` is not recommended, except to enforce the caller contract of private/protected
 methods.  For public methods, `assert` should always be used to check arguments.  Note also
-that `assert` will throw the correct error subclass for the module that it is in;
-`debug assert` will throw a `debug error` to help indicate that it is not a production error.
+that `assert` will return the correct uh subclass for the module that it is in;
+`debug assert` will return a `debug uh` to help indicate that it is not a production error.
 
 ## automatically converting errors to null
 
-If a function returns a `result` type, e.g., `myFunction(...): result~(ok, err)`,
+If a function returns a `hm` type, e.g., `myFunction(...): hm~(ok, uh)`,
 then we can automatically convert its return value into a `oneOf(ok, null)`, i.e.,
 a nullable version of the `ok` type.  This is helpful for things like type casting;
-instead of `MyInt := what int(MyDbl) $(Ok. $(Ok), Err: $(-1))` you can do
+instead of `MyInt := what int(MyDbl) $(Ok. $(Ok), Uh: $(-1))` you can do
 `MyInt := int(MyDbl) ?? -1`.  Although, there is another less-verbose option that
-doesn't use nulls:  `int(MyDbl) map((Err) := -1)`.
+doesn't use nulls:  `int(MyDbl) map((Uh) := -1)`.
 
 TODO: should this be valid if `ok` is already a nullable type?  e.g.,
-`myFunction(): result~(ok: oneOf(null, int), err: str)`.
+`myFunction(): hm~(ok: oneOf(null, int), uh: str)`.
 we probably should compile-error-out on casting to `Int ?:= myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
 
@@ -4034,6 +4023,13 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 ```
 # some relevant pieces of the class definition
 array~t := extend(container~(key: index, value: t)) {
+    this uh := oneOf(
+        OutOfMemory
+        # TODO: etc...
+    )
+    # TODO: a lot of these methods need to return `hm~u`.
+    this hm~u := hm~(ok: u, this uh)
+
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(This): bool
         return This count() > 0
@@ -4082,13 +4078,13 @@ array~t := extend(container~(key: index, value: t)) {
     # and filled with default values so that a valid reference can be passed into the callback.
     # USAGE: `This[Index] += 5` compiles to `This[Index, (T;): $(T += 5)]`
     # TODO: we can probably determine `$T += 5` as `(T;): $(T += 5)` because `$T += 5` requires mutability
-    ;;[Index, fn(T;): ~u]: u
+    ;;[Index, fn(T;): ~u]: hm~u
 
     # getter, which returns a Null if index is out of bounds of the array:
     ::[Index, fn(T?): ~u]: u
 
-    # getter, which never returns Null, but will throw if index is out of bounds of the array:
-    ::[Index, fn(T): ~u]: u
+    # getter, which never returns Null, but will return an `uh` if the index is out of bounds of the array:
+    ::[Index, fn(T): ~u]: hm~u
 
     # Note: You can use the `;:` const template for function arguments.
     # e.g., `myArray~t := extend(array~t) { ;:[Index, fn(T;:): ~u] := array;:[Index, fn] }`
@@ -4114,13 +4110,6 @@ We declare an array with a fixed number of elements using the notation
 or a variable that can be converted to the `count` type.  Fixed-count array elements
 will be initialized to the default value of the element type, e.g., 0 for number types.
 
-Under the hood, fixed-count arrays *are* standard arrays, but they will throw for any
-operation that changes the array count.  hm-lang attempts to throw compiler errors where
-possible (i.e., by deleting methods like `pop` or `append`), but there may be runtime
-errors (e.g., `Array[X] = 3` where `X` is unknown by the compiler).  Like regular arrays,
-fixed-count arrays are zero-indexed, so the first element in a fixed-count array
-`Array` is `Array[0]`.
-
 Fixed-count arrays can be passed in without a copy to functions taking
 an array as a readonly argument, but will be of course copied into a 
 resizable array if the argument is writeable.  Some examples:
@@ -4133,20 +4122,22 @@ Vector3; dbl[3] = [1.5, 2.4, 3.1]
 print("Vector3 is {$(Vector3[0]), $(Vector3[1]), $(Vector3[2])}")
 
 # a function with a writeable argument:
-doSomething(CopiedArray; dbl[]): dbl[2]
+doSomething(Array; dbl[]): dbl[2]
     # you wouldn't actually use a writeable array argument, unless you did
     # some computations using the array as a workspace.
-    # PRETENDING TO DO SOMETHING USEFUL WITH CopiedArray:
-    return [CopiedArray pop(), CopiedArray pop()]
+    # PRETENDING TO DO SOMETHING USEFUL WITH Array:
+    return [Array pop(), Array pop()]
 
 # a function with a readonly argument:
-doSomething(ConstArray: dbl[]): dbl[2]
+doSomething(Array: dbl[]): dbl[2]
     return [ConstArray[-1], ConstArray[-2]]
 
-# copies Vector3, of course:
-print(doSomething(CopiedArray: Vector3))    # prints [3.1, 2.4]
-# can bring in Vector3 by constant reference (i.e., no copy) here:
-print(doSomething(ConstArray: Vector3))     # prints [3.1, 2.4]
+# COMPILER ERROR: `Vector3` can't be passed as mutable reference
+# to a variable-sized array:
+print(doSomething(Array; Vector3))    # prints [3.1, 2.4]
+
+# OK: can bring in Vector3 by constant reference (i.e., no copy) here:
+print(doSomething(Array: Vector3))     # prints [3.1, 2.4]
 ```
 
 There may be optimizations if the fixed-array count is known at compile-time,
@@ -4277,6 +4268,13 @@ Some relevant pieces of the class definition:
 
 ```
 map~(key, value) := extend(container~{key, value}) {
+    this uh := oneOf(
+        OutOfMemory
+        # TODO: etc...
+    )
+    # TODO: a lot of these methods need to return `hm~u`.
+    this hm~u := hm~(ok: u, this uh)
+
     # Returns Null if `Key` is not in the map.
     This::[Key]?: value
 
@@ -4329,9 +4327,8 @@ map~(key, value) := extend(container~{key, value}) {
     ;;[Key, fn(Value?;): ~t]: t
 
     # getter and modifier in one definition, with the `;:` "template mutability" operator:
-    # will throw for the const map (`This:`) if Key is not in the map.
-    # TODO: switch to `result~(ok: t, err: ??)` here and nearby.
-    ;:[Key, fn(Value;:): ~t]: t
+    # will return an error for the const map (`This:`) if Key is not in the map.
+    ;:[Key, fn(Value;:): ~t]: hm~t
 
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
     ;:[Key, fn(Value?;:): ~t]: t
@@ -4420,7 +4417,7 @@ insertionOrderedMap~(key, value) := extend(map) {
     # modifier for an already indexed value in the map:
     @private
     ;;modifyAlreadyPresent(Index, fn(Value;): ~t): t
-        debug assert Index != 0
+        debug assert(Index != 0)
         return This IndexedMap[Index, (IndexedMapElement?;): t
             assert IndexedMapElement != Null
             return fn(IndexedMapElement Value;)
