@@ -1061,25 +1061,23 @@ allowed to mutate the memory if it is declared as a writeable variable with `;`.
 
 To make it easy to indicate when a variable can be nullable, we reserve the question mark
 symbol, `?`, placed after the variable name.  E.g., `X?: int` declares a variable `X` that
-can be an integer or null.  The default value for an optional type is `Null`.  You can also
-use the notation `X: oneOf(int, null)`, though note that `null` should come last for casts
-to work correctly (e.g., `oneOf(null, int)(1234)` would cast to null rather than `int(1234)`).
-Normally the first value in a `oneOf` is the default, but if `null` is an option, then null
-is the default.
+can be an integer or null.  The default value for an optional type is `Null`.
+TODO: if `Array[]: int` can be typed as `Array: int[]`, then we can probably use
+`X: int?` for an `X?: int` type.
 
 For an optional type with more than one non-null type, we use `Y?: oneOf(someType, anotherType)`
-or equivalently, `Y: oneOf(someType, anotherType, null)` (note again that `null` comes first).
+or equivalently, `Y: oneOf(someType, anotherType, null)` (where `null` comes last).
+Note that `null` should come last for casts to work correctly (e.g., `oneOf(null, int)(1234)`
+would cast to null rather than `int(1234)`).  Normally the first value in a `oneOf` is the
+default, but if `null` or `Null` is an option, then null is the default.  
+
 In either case, you can use `;` instead of `:` to indicate that the variable is writeable.
 Note that if you are defining a nullable variable inline (e.g., with `:=` or `;=`), you should
 prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a compiler error
 if a declared variable is nullable but `?` is not used, since we want the programmer to be
 aware of the fact that the variable could be null, even though the program will take care
-of null checks automatically and safely.
-TODO: we probably can look for things like `X: int?` and convert to `X?: int` automatically.
-TODO: if `Array[]: int` can be typed as `Array: int[]`, then we can probably use
-`X: int?` for an `X?: int` type.
-TODO: do we want to support enums with a `Null` entry have variables that also require `?`?
-probably, that's the basis of null anyways, e.g., `oneOf(Null, String, Int)`.
+of null checks automatically and safely.  The `?` operator is required for any `oneOf` that
+could take on a `Null` value, e.g., `oneOf(Null, Bread, Tomato, Mozzarella)`.
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The executable will automatically
@@ -1201,7 +1199,7 @@ afterwards by other methods... except for the constructor if it's called again (
 ### automatic deep nesting
 
 We can create deeply nested objects by adding valid identifiers with consecutive `:`.  E.g.,
-`(X: Y: 3)` is the same as `(X: {Y: 3})`.
+`(X: Y: 3)` is the same as `(X: (Y: 3))`.
 
 TODO: this might make overloads more complicated; how do we choose the overload if we are calling
 with e.g., `{X: {Y: 3}}` vs. `{X: {Y: 3, Z: 4}}`.
@@ -1282,6 +1280,9 @@ v(X: dbl, Y: dbl): null
 # but you should use the block parentheses notation `$(`.
 # TODO: should this be ${} instead?  or should we just allow `{}` plainly?
 #       We can't allow `{}` because it's being used for sequence building.
+#       well, we probably could allow it as a syntax exception, e.g., if a
+#       function declaration proceeds a sequence builder, then we use it as
+#       a function definition/block.
 excite(Times: int): str $(
     "hi!" * Times
 )
