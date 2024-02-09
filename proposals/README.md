@@ -305,8 +305,6 @@ E.g., `1_000_000` is the same as `1000000` and `my_Function` is the same as `myF
 
 TODO: use `_` for placeholders, like `:;size(_): _` indicating both `::size(): mySizeType` and
 `;;size(New->MySizeType): mySizeType`.
-TODO: we probably can use `_` at the end of a numeric identifier to give the type, e.g., `1234_i32`.
-Some examples:
 
 ## blocks
 
@@ -566,7 +564,6 @@ scaled8 := {
     Value: u8
 
     @private
-    # TODO: talk about class variables (not instance):
     this Scale := 32
 
     # if there are no representability issues, you can create
@@ -972,7 +969,7 @@ Again, in a conditional, we'll cast `X and Y` to a boolean.
 
 Thus, `and` and `or` act the same as JavaScript `&&` and `||`, for ease of transition.
 However, to make things more consistent with the `xor` operator, if your return value
-is nullable, `X or Y` will be `oneOf(null, x, y)` and `X and Y` will be `oneOf(null, y)`.
+is nullable, `X or Y` will be `oneOf(x, y, null)` and `X and Y` will be `oneOf(y, null)`.
 The result will be `Null` if both (either) operands are falsey for `or` (`and`).
 
 ```
@@ -982,12 +979,12 @@ NullableOr ?:= X or Y       # NullableOr ?:= if X $(X) elif Y $(Y) else $(Null)
 NullableAnd ?:= X and Y     # NullableAnd ?:= if !!X and !!Y $(Null) else $(Y)
 ```
 
-The exclusive-or operation `X xor Y` has type `oneOf(null, x, y)`, and will return `Null`
+The exclusive-or operation `X xor Y` has type `oneOf(x, y, null)`, and will return `Null`
 if both `X` and `Y` are truthy or if they are both falsy.  If just one of the operands
 is truthy, the result will be the truthy operand.  An example implementation:
 
 ```
-# you can define it as nullable via `xor(~X, ~Y): oneOf(null, x, y)` or like this:
+# you can define it as nullable via `xor(~X, ~Y): oneOf(x, y, null)` or like this:
 xor(~X, ~Y)?: oneOf(x, y)
     XIsTrue := bool(X)
     YIsTrue := bool(Y)
@@ -1065,10 +1062,13 @@ allowed to mutate the memory if it is declared as a writeable variable with `;`.
 To make it easy to indicate when a variable can be nullable, we reserve the question mark
 symbol, `?`, placed after the variable name.  E.g., `X?: int` declares a variable `X` that
 can be an integer or null.  The default value for an optional type is `Null`.  You can also
-use the notation `X: oneOf(null, int)`, though note that `null` should come first for to
-ensure that the default is `Null` (based on `oneOf` logic to default to the first choice).
+use the notation `X: oneOf(int, null)`, though note that `null` should come last for casts
+to work correctly (e.g., `oneOf(null, int)(1234)` would cast to null rather than `int(1234)`).
+Normally the first value in a `oneOf` is the default, but if `null` is an option, then null
+is the default.
+
 For an optional type with more than one non-null type, we use `Y?: oneOf(someType, anotherType)`
-or equivalently, `Y: oneOf(null, someType, anotherType)` (note again that `null` comes first).
+or equivalently, `Y: oneOf(someType, anotherType, null)` (note again that `null` comes first).
 In either case, you can use `;` instead of `:` to indicate that the variable is writeable.
 Note that if you are defining a nullable variable inline (e.g., with `:=` or `;=`), you should
 prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a compiler error
@@ -1095,7 +1095,7 @@ someClass := { ::someMethod(): int }
 
 Nullable?; someClass = Null
 
-Value ?:= Nullable someMethod() # `Value` has type `oneOf(null, int)` now,
+Value ?:= Nullable someMethod() # `Value` has type `oneOf(int, null)` now,
                                 # so it needs to be defined with `?`
 
 # eventually we want to support things like this, where the compiler
@@ -1774,7 +1774,7 @@ X ?:= if Y != Null $(overloaded(Y)) else $(Null)
 # if it is Null, the function will not be called and Null will be returned instead.
 X ?:= overloaded(?Y)
 
-# either way, X has type `oneOf(null, string)`.
+# either way, X has type `oneOf(string, null)`.
 ```
 
 You can use prefix `?` with multiple arguments; if any argument with prefix `?` is null,
@@ -2460,7 +2460,7 @@ but before the argument list.  E.g., `optionalFunction?(...Args): returnType` fo
 function and swapping `:` for `;` to create a reassignable function.
 When calling a nullable function, unless the function is explicitly checked for non-null,
 the return type will be nullable.  E.g., `X ?:= optionalFunction(...Args)` will have a
-type of `oneOf(null, returnType)`.  Nullable functions are checked by the executable, so the
+type of `oneOf(returnType, null)`.  Nullable functions are checked by the executable, so the
 programmer doesn't necessarily have to do it.
 
 A nullable function has `?` before the argument list; a `?` after the argument list
@@ -2477,14 +2477,14 @@ means that the return type is nullable.  The possible combinations are therefore
 
 * `nullableReturnFunction(...Args)?: returnType` is a non-null function
   which can return a nullable instance of `returnType`.  You can declare
-  this as `nullableReturnFunction: oneOf(null, returnType)(...Args)` as well.
+  this as `nullableReturnFunction: oneOf(returnType, null)(...Args)` as well.
   TODO: is `returnType?(...Args)` ok as well?
 
 * `superNullFunction?(...Args)?: returnType` is a nullable function
   which can return a null `returnType` instance, even if the function is non-null.
   I.e., if `superNullFunction` is null, trying to call it will return null,
   but even if it's not null `superNullFunction` can still return null.
-  You can also declare this as `superNullFunction?: oneOf(null, returnType)(...Args)`.
+  You can also declare this as `superNullFunction?: oneOf(returnType, null)(...Args)`.
   TODO: is `returnType?(...Args)` ok as well?
 
 Some examples:
@@ -3428,8 +3428,6 @@ class definition; e.g., build it into the type's vtable.
 
 ### default field names with generics
 
-TODO: this might be confusing, maybe reevaluate.
-
 Note that if you define a generic like this, `generic~t := {T}` (short for `{T: t}`) or
 `exampleClass~myGeneric := {MyGeneric;}`, then the default name of the instantiating type
 will apply.  For example, `generic~int` will have an `Int: int` field, and
@@ -3442,19 +3440,16 @@ have a field named `Id`.
 
 All classes have a few compiler-provided methods which cannot be overridden.
 
-TODO: should every class have a `map` function?
-e.g., `..map(fn(Self.): ~t): t`?
-
 * `This;!: this` creates a temporary with the current instance's values, while
     resetting the current instance to a default instance -- i.e., calling `renew()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
-* `::is(T: ~t): bool` returns true if this instance is equal to the passed-in value.
+* `::is(~T): bool` returns true if this instance is equal to the passed-in value.
 * `is(~t): bool` returns true if this instance/class is equal to the passed-in class.
 * `is(): new` provides the class type.  This makes it easy to determine
     what the current type of a combo-type variable is at run-time.  E.g.,
     ```
-    X; oneOf(null, int, dbl[])
+    X; oneOf(int, dbl[], null)
     X = [1.2, 3.4]
     # you can check `X is()` or `is(X)` (which is equivalent to `X is()`):
     what is(X)
@@ -3470,6 +3465,10 @@ e.g., `..map(fn(Self.): ~t): t`?
     TODO: figure out how to get around the problem of an object with
     a field defined as `is`.  Maybe we need to use string access,
     e.g., `Object "MyField" = 3`
+* `..map(fn(This.): ~t): t` to easily convert types or otherwise transform
+    the data held in `This`.  This method consumes `This`.
+* `::map(fn(This): ~t): t` is similar to `..map(fn(This.): ~t): t`,
+    but this method keeps `This` constant (readonly).
 
 ## singletons
 
@@ -3940,7 +3939,7 @@ instead of `MyInt := what int(MyDbl) $(Ok. $(Ok), Uh: $(-1))` you can do
 doesn't use nulls:  `int(MyDbl) map((Uh) := -1)`.
 
 TODO: should this be valid if `ok` is already a nullable type?  e.g.,
-`myFunction(): hm~(ok: oneOf(null, int), uh: str)`.
+`myFunction(): hm~(ok: oneOf(int, null), uh: str)`.
 we probably should compile-error-out on casting to `Int ?:= myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
 
@@ -3987,7 +3986,7 @@ container~(key, value) := {
 }
 ```
 
-TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `map~(key: string, value: oneOf(null, int))`.
+TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `map~(key: string, value: oneOf(int, null))`.
 This is because `Map[X] = Null` should delete the key specified by `X` from the map.  Plus, we already have handling for
 nullable values from the map, if we ask for the element at a key and it's not present in the map.  Similarly for arrays;
 `Array[3] = Null` should delete the fourth item in the array.  If the elements should represent optional things, then
@@ -5040,8 +5039,6 @@ command triggers a stop at any point, then abort (and stop calling the method)
 
 ## enumerations
 
-TODO: `Null` should never be used in a `oneOf` since `fn(Null)` is equivalent to `fn()`.
-
 We can create a new type that exhaustively declares all possible values it can take.
 The syntax is `lowerCamelCase := oneOf` followed by a list of named values
 (each an `UpperCamelCase` identifier), with optional values they take.  Enumerations
@@ -5145,7 +5142,20 @@ print(weird min())     # prints 1
 print(weird max())     # prints 9
 ```
 
-### Testing enums with lots of values
+### default values for a `oneOf`
+
+Note that the default value for a `oneOf` is the first value, unless `null` is an option.
+E.g., `oneOf(OptionA, OptionB)` defaults to `OptionA` but `oneOf(OptionC, Null)` would
+default to `Null` and `oneOf(type1, type2, null)` defaults to the `null` type.  Nulls are
+highly encouraged to come last in a `oneOf`, because they will match any input, so
+casting like this: `oneOf(null, int)(1234)` would actually become `Null` rather than
+the expected value `1234`, since casts are attempted in order of the `oneOf` types.
+For the extremely pedantic, `oneOf(Null, X)` should collapse to `oneOf(X)` based on the
+rules surrounding `Null` (i.e., they disappear from functions and argument lists), but
+we allow this breach of consistency for convenience and clarity; `oneOf` is more a macro
+than a function.
+
+### testing enums with lots of values
 
 Note that if you are checking many values, a `what` statement may be more useful
 than testing each value against the various possibilities.  Also note that you don't need
