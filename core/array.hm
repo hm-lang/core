@@ -1,6 +1,9 @@
 @include(<vector>)
 
 array~t := extend(indexable) {
+    this uh := allocation~t uh
+    this hm~u := hm~(ok: u, this uh)
+
     @private
     Allocation; allocation
 
@@ -10,119 +13,125 @@ array~t := extend(indexable) {
     Count; count = 0
 
     ::count() := This Count
-    ;;count(Count): 
-        assert Count >= 0
-        if Count == This Count
-            return
-        if Count > This Count
-            This allocate(AtLeast: Count)
-            while This Count < Count
-                Allocation defaultConstruct(This Count++)
+    ;;count(New->Count): hm~count
+        Old->Count := This Count
+        if New->Count == Old->Count
+            return ok(Old->Count)
+        if New->Count > Old->Count
+            This allocate(AtLeast: Count) assert()
+            while This Count < New->Count
+                Allocation defaultConstruct(InBounds: This Count++)
         else
-            while This Count > Count
-                Allocation deconstruct(--This Count)
+            assert(New->Count >= 0, Uh: InvalidCount)
+            while This Count > New->Count
+                Allocation deconstruct(InBounds: --This Count)
+        ok(Old->Count)
 
-    @private
-    ;;allocate(AtLeast: count): null
-        debug assert AtLeast >= 0
-        if AtLeast <= This Allocation Count
-            return
-
-        # we should at least try to double the storage
-        TryToAllocate ;= This roughlyDoubleAllocation()
-        while TryToAllocate > AtLeast
-            try
-                Allocation count(TryToAllocate)
-                return
-            except
-                # but in case we can't allocate that much, we can back down.
-                TryToAllocate = (TryToAllocate + AtLeast) // 2
-            # OR Rust-like:
-            if Allocation count(TryToAllocate) ok() $( return )
-            TryToAllocate = (TryToAllocate + AtLeast) // 2
-
-        Allocation count(AtLeast)
-
-    ;;append(T): null
-        debug assert This Count < count::Max
-        This allocate(This Count + 1)
+    ;;append(T): hm~null
+        debug assert(This Count < count::Max)
+        This allocate(AtLeast: This Count + 1) assert()
         Allocation copyConstruct(This Count++, T)
 
-    ;;append(T;): null
-        debug assert This Count < count::Max
-        This allocate(This Count + 1)
-        Allocation moveConstruct(This Count++, T;)
+    ;;append(T.): hm~null
+        debug assert(This Count < count::Max)
+        This allocate(AtLeast: This Count + 1) assert()
+        Allocation moveConstruct(This Count++, T!)
 
-    ::[Index]?: t
-        PositiveIndex := This ensurePositive(@hide Index)
-        if PositiveIndex >= This count()
-            Null
-        else
-            This[InBounds: PositiveIndex]
+    ;:[Index.]?: t
+        # don't resize the array if we're asking for a nullable element type:
+        what This::inBounds(Index)
+            Ok: inBounds
+                This[Ok]
+            Uh:
+                Null
 
     # getter
-    ;;[Index]: t
-        PositiveIndex := This ensurePositive(@hide Index)
-        if PositiveIndex >= This count()
-            This count(PositiveIndex + 1)
-        This[InBounds: PositiveIndex]
+    ;:[Index.]: hm~t
+        # allow array resizing if asking for non-null, if the array is mutable.
+        # (i.e., `This inBounds(Index)` is the same as `This;:inBounds(Index)`
+        # due to the method template signature.)
+        InBounds := This inBounds(@hide Index) assert()
+        This[InBounds]
    
     # in-bounds getter, which is unsafe to call unless `InBounds` is 
     # within the range `[0, This count())`.
-    ::[InBounds]: t
-        debug assert InBounds < This count()
+    ::[InBounds.]: t
+        debug assert(InBounds >= 0 and InBounds < This count())
         Allocation[InBoundsAndConstructed: InBounds]
 
-    # no-copy getter/setter; it can resize the array to return a value.
-    ;;[Index, fn(T;:): ~u]: u
-        PositiveIndex := This ensurePositive(@hide Index)
-        if PositiveIndex >= This count()
-            This count(PositiveIndex + 1)
-        This[InBounds: PositiveIndex, fn]
+    # no-copy getter/setter; it can resize this array (if writeable) to pass in
+    # a value to the passed-in function.
+    ;:[Index., fn(T;:): ~u]: hm~u
+        InBounds := This inBounds(@hide Index) assert()
+        This[InBounds, fn]
 
-    # no-copy getter/setter which is unsafe to call unless `InBounds`
-    # is within the range `[0, This count())`.
-    ;;[InBounds, fn(T;:): ~u]: u
-        debug assert InBounds < This count()
+    # no-copy getter/setter which is unsafe to call unless
+    # `InBounds` is within the range `[0, This count())`.
+    ;:[InBounds, fn(T;:): ~u]: u
+        debug assert(InBounds >= 0 and InBounds < This count())
         Allocation[InBoundsAndConstructed: InBounds, fn]
    
-    # no-copy getter that keeps
-    ::[Index, fn(T?): u]: u
-        debug assert InBounds < This count()
-        Allocation[InBoundsAndConstructed: InBounds]
+    # no-copy getter, which passes a Null into the callback if 
+    # the index is out of bounds in the array:
+    ::[Index., fn(T?): u]: hm~u
+        This ensurePositive(Index;) assert()
+        if Index >= This Count
+            ok(fn(Null))
+        else
+            ok(Allocation[InBoundsAndConstructed: Index, fn])
+
+    # allows access to modify the nullable internal value.
+    # passes the current value at the index into the passed-in modifier function.
+    # if Index >= the current This count(), a Null is passed into the modifier.
+    # if the modifier changes T from Null to a non-null instance, but Index was too large,
+    # then the array size is increased (to Index + 1) and filled with default values up
+    # to Index, then set to the new value determined by the modifier.
+    # if the modifier switches T from non-null to Null, then the array will shrink
+    # by one and all later indexed values move down one.
+    ;;[Index;, fn(T?;): ~u]: hm~u
+        This ensurePositive(Index;) assert()
+        if Index >= This Count
+            T ?;= Null
+            Result := f(T?;)
+            if T != Null
+                This count(Index + 1)
+                This[InBounds: Index] = T!
+            ok(Result)
+        else
+            ok(This[InBounds: Index, fn])
+
+    ;;[InBounds, fn(T?;): ~u]: u
+        # TODO
 
     # returns a non-null value of the array element at the specified index,
-    # or the end of the array if not specified.  throws an error if the element
+    # or the end of the array if not specified.  returns an error if the element
     # would be out of bounds (e.g., `Index >= This count()` or no elements present).
-    ;;pop(Index = -1): t
-        This pop(This inBounds(Index))
+    ;;pop(Index = -1): hm~t
+        This pop(This inBounds(Index) assert())
 
     ;;pop(InBounds): t
-        Result := This[InBounds: Index]!
+        Result := This[InBounds]!
         This erase(InBounds)
         Result
 
-    ;;erase(Index): null
-        This erase(This inBounds(Index))
+    ;;erase(Index): hm~null
+        This erase(This inBounds(Index) assert())
 
     ;;erase(InBounds): null
-        debug assert InBounds >= 0 and InBounds < This count()
+        debug assert(InBounds >= 0 and InBounds < This count())
         for DestinationIndex := InBounds, DestinationIndex < This count() - 1
-            This[DestinationIndex] = This[DestinationIndex + 1]!
+            This[DestinationIndex] = This[InBounds: DestinationIndex + 1]!
         This count(This count() - 1)
 
     # TODO: we can probably use `!!This: bool` instead of `::!!This: bool`
     ::!!This: bool
         return This count() > 0
 
-    # getter, which passes a Null into the callback if index is out of bounds in the array:
-    ::[Index, fn(T?): ~u]: u
-
     # moves the value at Index into the return value if Index is within the size of the array,
     # resetting the array element to a default `t()` if so.
     # otherwise, returns Null if Index was too big and doesn't reset any array elements.
     ;;[Index]!?: t
-        InBounds := This tryToBePositive(@hide Index)
+        InBounds := This ensurePositive(@hide Index)
         if InBounds < 0 or InBounds >= This count()
             return Null
         return This[InBounds: Index]!
@@ -136,7 +145,7 @@ array~t := extend(indexable) {
     @private
     # returns the value at Index, resetting the array elements value to a default value.
     ;;mootInBounds(Index): t
-        debug assert Index >= 0 and Index < This count()
+        debug assert(Index >= 0 and Index < This count())
         T; t
         @cc{
             hm(T) = std::move(Internal[hm(Index)]);
@@ -147,8 +156,8 @@ array~t := extend(indexable) {
     # swapper, sets the value at the index, returning the old value in the reference.
     # if the swapped in value is Null but the array value wasn't Null, the array
     # will shrink by one, and all later indexed values will move down one index.
-    ;;swap(Index;, @@T?): null
-        This tryToBePositive(@@Index)
+    ;;swap(Index;, T?;): null
+        This ensurePositive(Index;)
         if T == Null
             T = pop(Index)
         else
@@ -156,42 +165,7 @@ array~t := extend(indexable) {
             This[Index] = T!
             T = New->T!
 
-    ;;[Index, @@T?] := swap(Index, @@T)
-
-    # allows access to modify the nullable internal value via MMR (`@@`).
-    # passes the current value at the index into the passed-in modifier function.
-    # if Index >= the current This count(), a Null is passed into the modifier.
-    # if the modifier changes T from Null to a non-null instance, but Index was too large,
-    # then the array size is increased (to Index + 1) and filled with default values up
-    # to Index, then set to the new value determined by the modifier.
-    # if the modifier switches T from non-null to Null, then the array will shrink
-    # by one and all later indexed values move down one.
-    ;;modify(Index;, fn(@@T?): ~u): u
-        This ensurePositive(@@Index)
-        T?; t = This[Index]!
-        Result := fn(@@T)
-        if T != Null
-            This[Index] = T!
-        else
-            pop(Index)
-        return Result
-
-    ;;[Index, fn(@@T?): ~u] := modify(Index, fn)
-
-    # allows access to modify the internal value via MMR (`@@`).
-    # passes the current value at the index into the passed-in modifier function.
-    # if Index >= the current This count(), then the array size is increased (to Index + 1)
-    # and filled with default values so that a non-null instance can be passed into the modifier.
-    ;;modify(Index, fn(@@T): ~u): u
-        This ensurePositive(@@Index)
-        if Index >= This count()
-            This count(Index + 1)
-        T; t = This[Index]!
-        Result := fn(@@T)
-        This[Index] = T!
-        return Result
-
-    ;;[Index, fn(@@T): ~u] := modify(Index, fn)
+    ;;[Index;, T?;] := swap(Index;, T;)
 
     # returns a copy of this array, but sorted:
     ::sort(): this
@@ -200,24 +174,43 @@ array~t := extend(indexable) {
     ;;sort(): null
 
     @private
-    ::tryToBePositive(Index) := if Index < 0
-        Index + This count()
-    else
-        Index
+    ::ensurePositive(Index;): hm~null
+        if Index < 0
+            Index += This Count
+            if Index < 0
+                Index -= This Count # reset Index to avoid leaking state
+                debug error("Index was too negative: $(Index)")
+                return uh(InvalidIndex)
+        ok()
 
     @private
-    ::ensurePositive(Incoming->Index): index
-        Index := This tryToBePositive(Incoming->Index)
-        assert Index >= 0
-            "Index $(Incoming->Index) was invalid"
-        Index
+    ::inBounds(Index.): hm~inBounds
+        This ensurePositive(Index;) assert()
+        assert(Index < count(), Uh: InvalidIndex)
+        ok(inBounds(Index))
 
     @private
-    ::inBounds(Incoming->Index): inBounds
-        Index := This tryToBePositive(Incoming->Index)
-        assert Index >= 0 and Index < count()
-            "Index $(Incoming->Index) was invalid"
-        inBounds(Index)
+    ;;inBounds(Index.): hm~inBounds
+        This ensurePositive(Index;) assert()
+        if Index >= count()
+            count(Index + 1) assert()
+        ok(inBounds(Index))
+
+    @private
+    ;;allocate(AtLeast: count): hm~null
+        debug assert(AtLeast >= 0)
+        if AtLeast <= This Allocation Count
+            return ok()
+
+        # we should at least try to double the storage
+        TryToAllocate ;= This roughlyDoubleAllocation()
+        while TryToAllocate > AtLeast
+            if Allocation count(TryToAllocate) isOk()
+                return ok()
+            # in case we can't allocate that much, we can back down.
+            TryToAllocate = (TryToAllocate + AtLeast) // 2
+
+        Allocation count(AtLeast)
 
     @private
     ::roughlyDoubleAllocation(): count

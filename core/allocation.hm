@@ -8,6 +8,8 @@ allocation~t := {
     Count; count = 0
 
     this uh := oneOf(
+        InvalidCount
+        InvalidIndex
         OutOfMemory
     )
 
@@ -19,6 +21,7 @@ allocation~t := {
     # make sure to construct any new elements that are available to callers
     # after calling this method.
     ;;count(New->Count): hm~count
+        assert(New->Count >= 0, Uh: InvalidCount)
         Old->Count := This Count
         if New->Count == Old->Count
             return ok(Old->Count)
@@ -90,14 +93,15 @@ allocation~t := {
         }
     )
 
-    # Only call this if you've already constructed a value here.
     ::[InBoundsAndConstructed: inBounds]: t
+        # Only call this if you've already constructed a value here.
+        # We can't verify if the index has been constructed without more bookkeeping,
+        # but in debug mode we can verify that we're at least in bounds.
         debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < This count())
         @cc(
             return Memory[@hm(InBoundsAndConstructed)];
         )
 
-    # Only call this if you've already constructed a value here.
     ;:[InBoundsAndConstructed: inBounds, fn(T;:): ~u]: u
         debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < This count())
         @cc(
@@ -111,7 +115,7 @@ allocation~t := {
         )
         # pure C? `hm(t)_default(Memory + @hm(InBounds))`
 
-    ;;moveConstruct(InBounds, T;): null
+    ;;moveConstruct(InBounds, T.): null
         debug assert(InBounds >= 0 and InBounds < Count)
         @cc(
             new (Memory + @hm(InBounds)) @hm(t)(std::move(@hm(T)));

@@ -3874,6 +3874,9 @@ hm~(ok, uh) := extend(oneOf(ok, uh)) {
     # maps an `Uh` result to a different type of `uh`.
     ..map(fn(Uh.): ~uh2):  hm~(ok, uh: uh2)
 
+    # maps `ok` and `uh` separately.
+    ..map(fn(Ok.): t, fn(Uh.): t): t
+
     # TODO: should we use `to` here or is there a better way to indicate casting?
     # it's technically something like `oneOf(ok, null)(Result: hm~(ok, uh)): oneOf(ok, null)`
     # which is pretty verbose.
