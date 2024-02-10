@@ -7,34 +7,49 @@ allocation~t := {
     @protected
     Count; count = 0
 
+    this uh := oneOf(
+        OutOfMemory
+    )
+
+    this hm~u := hm~(ok: u, this uh)
+
     ::count() := This Count
-    ;;count(New->Count): Old->count
-        if New->Count == This Count
-            return
+
+    # returns the old count if successful.
+    # make sure to construct any new elements that are available to callers
+    # after calling this method.
+    ;;count(New->Count): hm~count
+        Old->Count := This Count
+        if New->Count == Old->Count
+            return ok(Old->Count)
         Bytes := countBytes(New->Count)
-        # make sure to construct any new elements after calling this.
         @cc(
             @hm(t) *New_Memory = (@hm(t) *)realloc(Memory, @hm(Bytes));
             if (New_Memory == Null) {
-                throw (@hm(string)("out of memory; cannot reallocate to size: ") + @hm(New_Count)).error(AT);
+                return @hm(this uh OutOfMemory);
             }
             Memory = New_Memory;
         )
         This Count = New->Count
+        ok(Old->Count)
+
+    this new(Count): hm~allocation~u
+        # it's always possible to default construct this allocation.
+        New ;= hm~allocation~u()
+        what New count(Count)
+            Ok:
+                ok(New)
+            Uh:
+                # TODO: do we need this `uh()` wrapper?
+                uh(Uh)
 
     @cc(
     private:
         @hm(t) *Memory = Null;
 
     public:
-        @hm(allocation)(@hm(count) _Count) {
-            size_t Bytes = This.@hm(countBytes)(_Count);
-            Memory = (@hm(t) *)malloc(Bytes);
-            if (Memory == Null) {
-                throw (@hm(string)("out of memory; cannot allocate size: ") + _Count).error(AT);
-            }
-            @hm(Count) = _Count;
-        }
+        // Default construction allowed
+        @hm(allocation() {}
 
         void reset() {
             free(Memory);
@@ -77,43 +92,43 @@ allocation~t := {
 
     # Only call this if you've already constructed a value here.
     ::[InBoundsAndConstructed: inBounds]: t
-        debug assert InBoundsAndConstructed >= 0 and InBoundsAndConstructed < This count()
+        debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < This count())
         @cc(
             return Memory[@hm(InBoundsAndConstructed)];
         )
 
     # Only call this if you've already constructed a value here.
     ;:[InBoundsAndConstructed: inBounds, fn(T;:): ~u]: u
-        debug assert InBoundsAndConstructed >= 0 and InBoundsAndConstructed < This count()
+        debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < This count())
         @cc(
             return @hm(fn)(&Memory[@hm(InBoundsAndConstructed)]);
         )
 
     ;;defaultConstruct(InBounds): null
-        debug assert InBounds >= 0 and InBounds < Count
+        debug assert(InBounds >= 0 and InBounds < Count)
         @cc(
             new (Memory + @hm(InBounds)) @hm(t)();
         )
         # pure C? `hm(t)_default(Memory + @hm(InBounds))`
 
     ;;moveConstruct(InBounds, T;): null
-        debug assert InBounds >= 0 and InBounds < Count
+        debug assert(InBounds >= 0 and InBounds < Count)
         @cc(
             new (Memory + @hm(InBounds)) @hm(t)(std::move(@hm(T)));
         )
         # pure C? `hm(t)_moot(Memory + @hm(InBounds), @hm(T))`
 
     ;;copyConstruct(InBounds, T): null
-        debug assert InBounds >= 0 and InBounds < Count
+        debug assert(InBounds >= 0 and InBounds < Count)
         @cc(
             new (Memory + @hm(InBounds)) @hm(t)(@hm(T));
         )
         # pure C? `hm(t)_copy(Memory + @hm(InBounds))`
 
-    ;;deconstruct(InBounds): null
-        debug assert InBounds >= 0 and InBounds < Count
+    ;;deconstruct(InBoundsAndConstructed): null
+        debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < Count)
         @cc(
-            (Memory + @hm(InBounds))->~@hm(t)();
+            (Memory + @hm(InBoundsAndConstructed))->~@hm(t)();
         )
         # pure C? `hm(t)_descope(Memory + @hm(InBounds))`
 
