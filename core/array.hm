@@ -13,6 +13,14 @@ array~t := extend(indexable) {
     Count; count = 0
 
     ::count() := This Count
+    # TODO: this should technically be `this hm~count`?
+    #       we always qualify the instance, e.g., `This count()` to avoid shadowing `count()`,
+    #       so shouldn't we also use `this hm~t` to avoid shadowing `hm~(ok, uh)`?
+    #       maybe we only require using `This` or `this` if shadowing *would* occur.
+    #       this allows concision but not at the expense of clarity.
+    #       in that case, do we want to rename the hashmap parent container from `map` to `chest`/`safe`/`vault` (key/value)?
+    #       i don't expect people to define `map` themselves often, but they might use `This map(...)` occasionally.
+    #       alternatively `store`/`lookup` could work for `map`, but we might want to convert `key` to `id`.
     ;;count(New->Count): hm~count
         Old->Count := This Count
         if New->Count == Old->Count
@@ -40,10 +48,8 @@ array~t := extend(indexable) {
     ;:[Index.]?: t
         # don't resize the array if we're asking for a nullable element type:
         what This::inBounds(Index)
-            Ok: inBounds
-                This[Ok]
-            Uh:
-                Null
+            Ok: $(This[Ok])
+            Uh: $(Null)
 
     # getter (makes a copy)
     ;:[Index.]: hm~t
@@ -86,10 +92,8 @@ array~t := extend(indexable) {
     ;;pop(Index = -1)?: t
         # don't resize the array in case `Index >= This Count`.
         what This::inBounds(Index)
-            Ok: inBounds
-                This pop(Ok)
-            Uh:
-                Null
+            Ok: $(This pop(Ok))
+            Uh: $(Null)
         # alternatively, `This::inBounds(Index) map((Ok) := This pop(Ok), (Uh) := Null)`
 
     ;;pop(InBounds): t

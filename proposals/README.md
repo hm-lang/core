@@ -76,6 +76,9 @@ TODO: consider switching to `I`/`Me`/`My` for `This` when dereferencing methods/
 Alternatively use `You` and `Your` with `You draw(X)`, `return You`, as well as `Your Field Y`.
 the `This: this` solution is just generally more consistent, however, despite the decrease
 in sentence readability.
+`I` could be used everywhere with `i` being the class type.  it is super concise
+and has the benefit for method names `I draw(X)` despite sounding a bit clunky for return
+types `return I` or fields `I FieldX`.
 
 Class getters/setters do not use `::getX(): dbl` or `;;setX(Dbl): null`, but rather
 just `::x(): dbl` and `;;x(Dbl): null` for a private variable `X; dbl`.  This is one
@@ -3383,6 +3386,8 @@ genericClass~(key, value) := {
 }
 # also equivalent:
 # genericClass := {Key: ~key, Value: ~value}
+# TODO: is this equivalent?
+# genericClass := {~Key, ~Value}
 
 # creating an instance using type inference:
 ClassInstance := genericClass(Key: 5, Value: "hello")
@@ -3428,6 +3433,18 @@ such a way that we don't need to know all the child class definitions when we wr
 class definition; e.g., build it into the type's vtable.
 
 ### default field names with generics
+
+TODO: i think we're going to revert this.  while this makes things consistent with function
+arguments, typically generics don't need to apply to field names.  this also makes `map~(key, value)`
+a bit weird, and might require differentiating the key/value types if they are the same (e.g.,
+both `int`), despite distinguished by the generic type name, e.g., `map~(key: int, value: int)`
+should be fine, but we'd need to use `intKey := int, valueKey := int, map~(key: intKey, value: valueKey)`
+in order for map elements like `{~Key, ~Value}` to be consistent as `{IntKey, ValueKey}`.
+however, it might not be a bad idea for key/value types to be distinguishable for intent/naming purposes.
+and this would be useful for bimaps, where we don't care which one is the key and which is the value,
+but we'd want people to look them up by the forward/reverse direction without using it;
+e.g., `bimap~(a, b)` wouldn't require `Bi get(A: "asdf")` to return a `b`, we could simply
+use `Bi get("asdf")`.
 
 Note that if you define a generic like this, `generic~t := {T}` (short for `{T: t}`) or
 `exampleClass~myGeneric := {MyGeneric;}`, then the default name of the instantiating type
