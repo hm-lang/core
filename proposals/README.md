@@ -867,7 +867,7 @@ to keep a variable for multiple uses: `{NestedField} := something()`.)
 The operator `!` is always unary (except when combined with equals for not equals,
 e.g., `!=`).  It can act as a prefix operator "not", e.g., `!A`, pronounced "not A",
 or a postfix operator on a variable, e.g., `Z!`, pronounced "Z mooted" (or "moot Z").  In the first
-example, prefix `!` calls the `!This: bool` method defined on `A`, which creates a
+example, prefix `!` calls the `!(This): bool` method defined on `A`, which creates a
 temporary value of the boolean opposite of `A` without modifying `A`.  In the second
 case, it calls a built-in method on `Z`, which moves the current data out of `Z` into
 a temporary instance of whatever type `Z` is, and resets `Z` to a blank/default state.
@@ -876,7 +876,7 @@ should follow the rule that, after e.g., `Z!`, checking whether `Z` evaluates to
 i.e., by `!Z`, should return true.
 
 Note, it's easier to think about positive boolean actions sometimes than negatives,
-so we allow defining either `!!This: bool` or `!This: bool` on a class, the former
+so we allow defining either `!!(This): bool` or `!(This): bool` on a class, the former
 allowing you to cast a value, e.g., `A`, to its positive boolean form `!!A`, pronounced
 "not not A."  Note, you cannot define both `!` and `!!` overloads for a class, since
 that would make things like `!!!` ambiguous.
