@@ -80,48 +80,17 @@ array~t := extend(indexable) {
         else
             ok(Allocation[InBoundsAndConstructed: Index, fn])
 
-    # allows access to modify the nullable internal value.
-    # passes the current value at the index into the passed-in modifier function.
-    # if Index >= the current This count(), a Null is passed into the modifier.
-    # if the modifier changes T from Null to a non-null instance, but Index was too large,
-    # then the array size is increased (to Index + 1) and filled with default values up
-    # to Index, then set to the new value determined by the modifier.
-    # if the modifier switches T from non-null to Null, then the array will shrink
-    # by one and all later indexed values move down one.
-    ;;[Index., fn(T?;): ~u]: hm~u
-        This ensurePositive(Index;) assert()
-        if Index >= This Count
-            T ?;= Null
-            Result := f(T?;)
-            if T != Null
-                This count(Index + 1)
-                This[InBounds: Index] = T!
-            ok(Result)
-        else
-            ok(This[InBounds: Index, fn])
-
-    # allows access to modify the internal value.
-    # since the index is in-bounds, the passed-in value should be non-null,
-    # but if you modify it to null, then the array will shrink by one and
-    # all subsequent values move down one.
-    ;;[InBounds, fn(T?;): ~u]: u
-        # TODO
-        # probably needs to be available on `Allocation` or we need to do MMR;
-        # i.e., swap out This[InBounds] and then swap back in.
-        # TODO: since we aren't thinking of doing MMR anymore, we probably can
-        # delete this function unless we think `Allocation` should have a 
-        # similar method, which, if `T` gets set to null, will reset the element.
-        # seems kinda counter-intuitive.
-
     # returns a value of the array element at the specified index,
     # or the end of the array if not specified.  returns null if the element
     # would be out of bounds (e.g., `Index >= This count()` or no elements present).
     ;;pop(Index = -1)?: t
-        what This inBounds(Index)
+        # don't resize the array in case `Index >= This Count`.
+        what This::inBounds(Index)
             Ok: inBounds
                 This pop(Ok)
             Uh:
                 Null
+        # alternatively, `This::inBounds(Index) map((Ok) := This pop(Ok), (Uh) := Null)`
 
     ;;pop(InBounds): t
         debug assert(InBounds >= 0 and InBounds < This count())
@@ -129,8 +98,10 @@ array~t := extend(indexable) {
         This erase(InBounds)
         Result
 
-    ;;erase(Index): hm~null
-        This erase(This inBounds(Index) assert())
+    ;;erase(Index.): null
+        This inBounds(Index) is((Ok):
+            This erase(Ok)
+        )
 
     ;;erase(InBounds): null
         debug assert(InBounds >= 0 and InBounds < This count())

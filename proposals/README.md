@@ -3849,9 +3849,11 @@ hm~(ok, uh) := extend(oneOf(ok, uh)) {
             Uh:
                 error(Uh)
                 # TODO: explain what shortcircuit does.
+                # TODO: we probably need an annotation on `assert` to give the new `uh` type,
+                #       or we need a special return type, e.g., `assert~(ok, uh)`.
                 shortcircuit(New->Uh ?? Uh)
 
-    ..okOrPanic(String := ""): ok
+    ..orPanic(String := ""): ok
         what This
             Ok: $(Ok)
             Uh:
@@ -3888,11 +3890,22 @@ if Result isOk()
     print("ok")
 
 # but it'd be nice to transform `Result` into the `Ok` value along the way.
+# TODO: because `hm~(ok, uh)` extends `oneOf(ok, uh)`, should we actually
+#       convert to `Result is((Int) := print("Ok: $(Int)")` and
+#       `Result is((Str) := print("Uh: $(Str)")` ??
+#       this naming is less clear.  maybe we don't let `myClass~id := {Id}`
+#       convert `myClass~int` into `{Int: int}` but use `{Id: int}`.
+#       `Result is((Ok) := ...)` is nicer from a name perspective in case
+#       `uh` and `ok` are the same type, e.g., `string`, or in case
+#       someone changes out the underlying type (e.g. `ok` goes from `u16` to `i32`
+#       and they don't want to update everywhere).  however, `map~(key, value)`
+#       also assumes that `Key` and `Value` fields are distinctly named,
+#       and we should support that...
 Result is((Ok) := print("Ok: ", Ok))
 Result is((Uh) := print("Uh: ", Uh))
 
 # or if you're sure it's that thing, or want the program to terminate if not:
-Ok := Result okOrPanic("for sure")
+Ok := Result orPanic("for sure")
 ```
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
