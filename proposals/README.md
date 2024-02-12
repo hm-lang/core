@@ -664,6 +664,16 @@ TODO: types of functions, shouldn't really have `new`.
 TODO: ensure that `::is(fn(InternalType): null): bool` is ok, otherwise we need a different
 type narrowing method.
 
+## type overloads (generics only)
+
+Similar to defining a function overload, we can define type overloads for generic types.
+For example, the generic result class in hm-lang is `hm~(ok, uh)`, which encapsulates
+an ok value (`ok`) or an error (`uh`).  For your custom class you may not want to specify
+`hm~(ok, uh)` all the time for your custom error type `myClassUh`, so you can define
+`hm~ok := hm~(ok, uh: myClassUh)` and use e.g. `hm~int` to return an integer or an
+error of type `myClassUh`.  Shadowing variables is invalid in hm-lang, but overloads
+are valid.  Note however that we disallow redefining an overload, as that would be shadowing.
+
 # operators and precedence
 
 Operator priority.
@@ -761,7 +771,11 @@ which there is no field value (i.e, a null field value).
 TODO: if you don't supply all the arguments, you should get a new function that prefills
 all the arguments you supplied and keeps as its own arguments the ones you didn't.
 
-## new-namespace operator `->`
+## new namespace operator `->`
+
+TODO: do we want to allow `New`, `Old`, and `Other` to be common namespaces that don't need a `->`?
+e.g., `New Count` and `Old Value`.  do we even need to use `->` always, or can we infer the existence
+of a namespace in function arguments even with `MyCustomNamespace Int`?
 
 The operator `->` can be used to create default-named variables in a
 new/existing namespace.  For example:
@@ -2746,7 +2760,7 @@ from an instance of the class, e.g., `X myClassFunction()`.  Note that because o
 we're not allowed to define class functions with the same overload as instance methods.
 Similar to class functions are class variables, which are defined in an analogous way:
 `this MyStaticVariable := 123`, and which cannot shadow any class instance variables,
-since `X MyStaticVariable` and `x MyStaticVariable` should do the same thing.
+since `X MyStaticVariable` and `x MyStaticVariable` should be the same thing.
 
 Instance functions (3) normally can't depend on any instance variables, but are declared
 like instance methods, just without `This` as an argument.
@@ -2767,6 +2781,8 @@ instance of the class is needed.  It is a compiler error if a `;;renew()` method
 (with no arguments besides `This;`) is defined after other `renew` methods (with arguments).
 Note that `renew` should be a class instance method (1), i.e., `;;renew(...)`.
 
+## class type and instance abbreviation
+
 When defining methods or functions of all kinds, note that you can use `this`
 to refer to the current class instance type.  E.g.,
 
@@ -2781,6 +2797,8 @@ Inside a class method, you must use `This` to refer to any other instance variab
 e.g., `This X` or `This someMethod()`, so that we can disambiguate calling a global function
 that might have the same name as our class instance method, or using a global variable that
 might have the same name as a class instance variable.
+
+## class example
 
 ```
 exampleClass := {
@@ -2896,7 +2914,6 @@ are self descriptive and don't require named static functions for readability.
 E.g., instead of `MyDate := dateClass fromIsoString("2020-05-04")`, just use
 `MyDate := dateClass(IsoString: "2020-05-04")` and define the
 `;;renew(IsoString: string)` method accordingly.
-
 
 ## unicode/localization support
 
@@ -3443,8 +3460,12 @@ in order for map elements like `{~Key, ~Value}` to be consistent as `{IntKey, Va
 however, it might not be a bad idea for key/value types to be distinguishable for intent/naming purposes.
 and this would be useful for bimaps, where we don't care which one is the key and which is the value,
 but we'd want people to look them up by the forward/reverse direction without using it;
-e.g., `bimap~(a, b)` wouldn't require `Bi get(A: "asdf")` to return a `b`, we could simply
-use `Bi get("asdf")`.
+e.g., `bimap~(a, b)` wouldn't require `Bimap get(A: "asdf")` to return a `b`, we could simply
+use `Bimap get("asdf")`.  but it's probably ok to keep function arguments as resolving, e.g.,
+`bimap::get(A): b` can be called with `Bimap get(String): int` (e.g., for `a := string` and `b := int`).
+the side effect is that stuff like `Hm isOk()` would remain `isOk()` instead
+of `isInnerType()` (e.g., for `hm~(innerType, uh)`).  if using `Hm ok()`, that
+*might* convert to `innerType()`, but that might be confusing.
 
 Note that if you define a generic like this, `generic~t := {T}` (short for `{T: t}`) or
 `exampleClass~myGeneric := {MyGeneric;}`, then the default name of the instantiating type
@@ -4226,6 +4247,11 @@ fixedCountArray~t := extend(array~t) {
 ```
 
 ## maps
+
+TODO: do we want to rename this container type from `map` to `chest`/`safe`/`vault` (key/value)?
+alternatively `store`/`lookup` could work for `map`, but we might want to convert `key` to `id`.
+yeah, `key` seems to be the wrong analogy since it doesn't unlock anything, it just
+links/identifies something.
 
 A map can look up, insert, and delete elements by key quickly (ideally amortized
 at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a map, e.g.,

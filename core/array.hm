@@ -1,9 +1,7 @@
-@include(<vector>)
+uh := \\allocation uh
+hm~ok := hm~(ok, uh)
 
 array~t := extend(indexable) {
-    this uh := allocation~t uh
-    this hm~u := hm~(ok: u, this uh)
-
     @private
     Allocation; allocation
 
@@ -13,24 +11,19 @@ array~t := extend(indexable) {
     Count; count = 0
 
     ::count() := This Count
-    # TODO: this should technically be `this hm~count`?
-    #       we always qualify the instance, e.g., `This count()` to avoid shadowing `count()`,
-    #       so shouldn't we also use `this hm~t` to avoid shadowing `hm~(ok, uh)`?
-    #       maybe we only require using `This` or `this` if shadowing *would* occur.
-    #       this allows concision but not at the expense of clarity.
-    #       in that case, do we want to rename the hashmap parent container from `map` to `chest`/`safe`/`vault` (key/value)?
-    #       i don't expect people to define `map` themselves often, but they might use `This map(...)` occasionally.
-    #       alternatively `store`/`lookup` could work for `map`, but we might want to convert `key` to `id`.
     ;;count(New->Count): hm~count
         Old->Count := This Count
         if New->Count == Old->Count
+            # TODO: is `ok(...)` necessary here?
+            #       we probably can autoconvert `x` to `hm~(ok: x, uh)`
+            #       as long as `x` and `uh` are distinct.
             return ok(Old->Count)
         if New->Count > Old->Count
             This allocate(AtLeast: Count) assert()
             while This Count < New->Count
                 Allocation defaultConstruct(InBounds: This Count++)
         else
-            assert(New->Count >= 0, Uh: InvalidCount)
+            assert(New->Count >= 0, uh InvalidCount)
             while This Count > New->Count
                 Allocation deconstruct(InBounds: --This Count)
         ok(Old->Count)
@@ -161,7 +154,7 @@ array~t := extend(indexable) {
             if Index < 0
                 Index -= This Count # reset Index to avoid leaking state
                 debug error("Index was too negative: $(Index)")
-                return uh(InvalidIndex)
+                return uh InvalidIndex
         ok()
 
     @private

@@ -1,3 +1,11 @@
+uh := oneOf(
+    InvalidCount
+    InvalidIndex
+    OutOfMemory
+)
+
+hm~ok := hm~(ok, uh)
+
 # A class that handles low-level contiguous memory access.
 # You must handle initializing/constructing and destructing elements in this class;
 # which elements are initialized *must be known* by the class instance which
@@ -6,14 +14,6 @@
 allocation~t := {
     @protected
     Count; count = 0
-
-    this uh := oneOf(
-        InvalidCount
-        InvalidIndex
-        OutOfMemory
-    )
-
-    this hm~u := hm~(ok: u, this uh)
 
     ::count() := This Count
 
