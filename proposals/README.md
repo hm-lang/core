@@ -22,7 +22,7 @@ See [passing by reference and by value](#pass-by-reference-or-pass-by-value).
 
 In hm-lang, determining the number of elements in a container uses the same
 method name for all container types; `count(Container)` or `Container count()`,
-which works for `Array`, `Map`, `Set`, etc.  In some languages, e.g., JavaScript,
+which works for `Array`, `Store` (map/dict), `Set`, etc.  In some languages, e.g., JavaScript,
 arrays use a property (`Array.length`) and maps use a different property (`Map.size`).
 
 ## convenience
@@ -39,14 +39,14 @@ define, e.g., `MyClassB myTwoInstanceFunction(MyClassA, Width: 5, Height: 10)` a
 For convenience, `Array[3] = 5` will work even if `Array` is not already at least size 4;
 hm-lang will resize the array if necessary, populating it with default values,
 until finally setting the fourth element to 5.  This is also to be consistent with
-other container types, e.g., maps, where `Map["Key"] = 50` works conveniently.
+other container types, e.g., stores, where `Store["Id"] = 50` works conveniently.
 In some standard libraries (e.g., C++), `Array[3] = 5` is undefined behavior
 if the array is not already at least size 4.
 
-Similarly, when referencing `Array[10]` or `Map["Key"]`, a default will be provided
-if necessary, so that e.g. `++Array[10]` and `++Map["Key"]` don't need to be guarded
+Similarly, when referencing `Array[10]` or `Store["Id"]`, a default will be provided
+if necessary, so that e.g. `++Array[10]` and `++Store["Id"]` don't need to be guarded
 as `Array[10] = if count(Array) > 10 $(Array[10] + 1) else $(Array count(11), 1)` or
-`Map["Key"] = if Map["Key"] != Null $(Map["Key"] + 1) else $(1)`.
+`Store["Id"] = if Store["Id"] != Null $(Store["Id"] + 1) else $(1)`.
 
 ## clarity
 
@@ -85,6 +85,12 @@ just `::x(): dbl` and `;;x(Dbl): null` for a private variable `X; dbl`.  This is
 of the benefits of using `lowerCamelCase` for functions/methods and `UpperCamelCase`
 for variables; we can easily distinguish intent without additional verbs.
 
+hm-lang uses result-passing instead of exception-throwing in order to make it clear
+when errors can occur.  The `hm~(ok, uh)` class handles this, with `ok` being the
+type of a valid result and `uh` being the type of an error result.  If the `ok`
+and `uh` types are distinct, you don't need to wrap a return value in `ok(ValidResult)`
+and `uh(ErrorResult)`; you can just return `ValidResult` or `ErrorResult`.
+
 # general syntax
 
 * `print(...)` to echo some values (in ...) to stdout, `error(...)` to echo to stderr
@@ -100,7 +106,7 @@ for variables; we can easily distinguish intent without additional verbs.
 * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
 * use `a: y` to declare `a` as a constructor that builds instances of type `y`
 * `[]` are for containers
-    * `Map[key]: value` to declare a map, or `Map: value[key]`
+    * `Store[id]: value` to declare a store (i.e., map/dict), or `Store: value[id]`
     * `Set[element]:` or `Set: [element]` to declare a set with `element` type instances as elements
     * `Array[]: element` or `Array: element[]` to declare an array with `element` type instances as elements
     * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
@@ -128,11 +134,6 @@ for variables; we can easily distinguish intent without additional verbs.
 * variables that are already named after the correct argument can be used without `:`
     * `(X: dbl, Y: int)` can be called with `(X, Y)` if `X` and `Y` are already defined in the scope
 
-TODO: automatic casting to the argument type will break "pass by reference" logic.
-we could do a
-compile error if the type isn't compatible; i.e., the instance being passed in
-should be the type or a child of the type.
-
 ```
 # declaring a variable:
 ReadonlyVar: int
@@ -157,18 +158,18 @@ ArrayVar[1]!        # returns 2, zeroes out ArrayVar[1]
 ```
 
 ```
-# declaring a readonly map
-MyMap[keyType]: valueType   # also ok: `MyMap: valueType[keyType]`
+# declaring a readonly store
+MyStore[idType]: valueType   # also ok: `MyStore: valueType[idType]`
 
-# defining a writeable map:
-VotesMap[str]; int = ["Cake": 5, "Donuts": 10, "Cupcakes": 3]
-# We can also infer types implicitly via `VotesMap ;= ["Cake": 5, ...]`?
-VotesMap["Cake"]        # 5
-++VotesMap["Donuts"]    # 11
-++VotesMap["Ice Cream"] # inserts "Ice Cream" with default value, then increments
-VotesMap["Cupcakes"]!   # deletes from the map
-VotesMap::["Cupcakes"]  # Null
-# now VotesMap == ["Cake": 5, "Donuts": 11, "Ice Cream": 1]
+# defining a writeable store:
+VotesStore[str]; int = ["Cake": 5, "Donuts": 10, "Cupcakes": 3]
+# We can also infer types implicitly via `VotesStore ;= ["Cake": 5, ...]`?
+VotesStore["Cake"]        # 5
+++VotesStore["Donuts"]    # 11
+++VotesStore["Ice Cream"] # inserts "Ice Cream" with default value, then increments
+VotesStore["Cupcakes"]!   # deletes from the store
+VotesStore::["Cupcakes"]  # Null
+# now VotesStore == ["Cake": 5, "Donuts": 11, "Ice Cream": 1]
 ```
 
 ```
@@ -323,7 +324,7 @@ Lines can be continued at a +2 indent from the originating line, though there ar
 special rules here when parentheses are involved.  If an open parenthesis is encountered at
 the end of the line, and the next lines are only at +1 indent, then we assume an array
 is being constructed.  If `:` is encountered in what otherwise might be a
-line-continued array, we assume we're creating an map.  If the line after an open
+line-continued array, we assume we're creating a store.  If the line after an open
 parenthesis is at +2 indent, then we assume we are just continuing the line and not creating
 an array.  Note that operators besides parentheses *are ignored* for determining the indent,
 so typical practice is to tab to the operator then tab to the number/symbol you need for
@@ -343,7 +344,7 @@ ArrayVariable := [
     5
 ]
 
-MapVariable := {
+StoreVariable := {
     SomeValue: 100      # equivalent to "SomeValue": 100
     OtherValue: "hi"    # equivalent to "OtherValue": "hi"
 }
@@ -380,7 +381,7 @@ ExamplePlusThreeIndent
         -   Continuing
 ```
 
-Arguments supplied to functions are similar to maps and only require +1 indent.
+Arguments supplied to functions are similar to stores and only require +1 indent.
 
 ```
 if someFunctionCall(
@@ -1902,6 +1903,13 @@ writeable argument variables inside the function definition, and (3) any
 modifications to a writeable argument variable inside the function block persist
 in the outer scope.  Note that pass-by-constant-reference arguments are the default,
 so `fn(Int): null` is the same as `fn(Int: int): null`.
+TODO: maybe autogenerate a `fn(Int.): null` function for default arguments.
+
+When passing by reference for `:` and `;` variables, we cannot automatically 
+cast to the correct type.  Two exceptions: (1) if the variable is a temporary
+we can cast like this, e.g., `MyValue: 123` can be used for a `MyValue: u8` argument,
+and (2) child types are allowed to be passed by reference when the function asks
+for a parent type.
 
 Note that return types are never references, so one secondary difference between
 `fn(Int.) := ++Int` and `fn(Int;) := ++Int` is that a copy/temporary is required
@@ -2157,15 +2165,15 @@ print(Array)    # prints [0, 1, 2, 40]
 #     Array[3] *= 10        # reference to 4 *= 10  --> 40
 ```
 
-Note that references to elements in a container are internally pointers to the container plus the key/offset,
+Note that references to elements in a container are internally pointers to the container plus the ID/offset,
 so that we don't delete the value at `Array[3]` and thus invalidate the reference `Array[3];` above.
-Containers of containers (and further nesting) require key arrays for the pointers.
-E.g., `MyMap["Ginger"][1]["Soup"]` would be a struct which contains `&MyMap`, plus the tuple `("Ginger", 1, "Soup")`.
+Containers of containers (and further nesting) require ID arrays for the pointers.
+E.g., `MyStore["Ginger"][1]["Soup"]` would be a struct which contains `&MyStore`, plus the tuple `("Ginger", 1, "Soup")`.
 
 TODO: discussion on how `Array[5]` gets passed by reference when used as an argument.
 e.g., `myFunction(X; Array[5])` will do something like `Array[5, (T;) := myFunction(X; T)]`.
 
-Here is an example with a map.  Note that the argument is readonly, but that doesn't mean
+Here is an example with a store.  Note that the argument is readonly, but that doesn't mean
 the argument doesn't change, especially when we're doing self-referential logic like this.
 
 ```
@@ -3397,20 +3405,20 @@ class identifier, or `~type` for a single template type.  You can use these
 new types for any class inheritance from a parent which is a generic/template class.
 
 ```
-# create a class with two generic types, `key` and `value`:
-genericClass~(key, value) := {
-    ;;renew(This Key: key, This Value: value): null
+# create a class with two generic types, `id` and `value`:
+genericClass~(id, value) := {
+    ;;renew(This Id: id, This Value: value): null
 }
 # also equivalent:
-# genericClass := {Key: ~key, Value: ~value}
+# genericClass := {Id: ~id, Value: ~value}
 # TODO: is this equivalent?
-# genericClass := {~Key, ~Value}
+# genericClass := {~Id, ~Value}
 
 # creating an instance using type inference:
-ClassInstance := genericClass(Key: 5, Value: "hello")
+ClassInstance := genericClass(Id: 5, Value: "hello")
  
 # creating an instance with template/generic types specified:
-OtherInstance := genericClass ~(key: dbl, value: string) (Key: 3, Value: 4)
+OtherInstance := genericClass ~(id: dbl, value: string) (Id: 3, Value: 4)
 # note the passed-in values will be converted into the correct type.
 ```
 
@@ -3452,11 +3460,11 @@ class definition; e.g., build it into the type's vtable.
 ### default field names with generics
 
 TODO: i think we're going to revert this.  while this makes things consistent with function
-arguments, typically generics don't need to apply to field names.  this also makes `map~(key, value)`
+arguments, typically generics don't need to apply to field names.  this also makes `store~(id, value)`
 a bit weird, and might require differentiating the key/value types if they are the same (e.g.,
-both `int`), despite distinguished by the generic type name, e.g., `map~(key: int, value: int)`
-should be fine, but we'd need to use `intKey := int, valueKey := int, map~(key: intKey, value: valueKey)`
-in order for map elements like `{~Key, ~Value}` to be consistent as `{IntKey, ValueKey}`.
+both `int`), despite distinguished by the generic type name, e.g., `store~(id, value: int)`
+should be fine, but we'd need to use `intId := int, valueId := int, store~(id: intId, value: valueId)`
+in order for store elements like `{~Id, ~Value}` to be consistent as `{IntId, ValueId}`.
 however, it might not be a bad idea for key/value types to be distinguishable for intent/naming purposes.
 and this would be useful for bimaps, where we don't care which one is the key and which is the value,
 but we'd want people to look them up by the forward/reverse direction without using it;
@@ -3936,8 +3944,8 @@ if Result isOk()
 #       `Result is((Ok) := ...)` is nicer from a name perspective in case
 #       `uh` and `ok` are the same type, e.g., `string`, or in case
 #       someone changes out the underlying type (e.g. `ok` goes from `u16` to `i32`
-#       and they don't want to update everywhere).  however, `map~(key, value)`
-#       also assumes that `Key` and `Value` fields are distinctly named,
+#       and they don't want to update everywhere).  however, `store~(id, value)`
+#       also assumes that `Id` and `Value` fields are distinctly named,
 #       and we should support that...
 Result is((Ok) := print("Ok: ", Ok))
 Result is((Uh) := print("Uh: ", Uh))
@@ -3947,11 +3955,11 @@ Ok := Result orPanic("for sure")
 ```
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
-e.g., `map.hm` has a `map uh` error type.  Use `return myUhType("message $(HelpfulVariableToDebug)")`
+e.g., `store.hm` has a `store uh` error type.  Use `return myUhType("message $(HelpfulVariableToDebug)")`
 to return a specific error type, or `return uh("message $(HelpfulVariableToDebug)")` to automatically
 use the correct error subclass for whatever context you're in.  Note that you're not able to return a
-module-specific error from another module (e.g., you can't return `map uh` from the `array.hm` module),
-but you can match module-specific errors from another module (e.g., `what Uh $(map uh InvalidKey $(...))
+module-specific error from another module (e.g., you can't return `store uh` from the `array.hm` module),
+but you can match module-specific errors from another module (e.g., `what Uh $(store uh InvalidId $(...))
 from the `array.hm` module or even your own).  Of course, you can throw/catch explicitly defined errors
 from other modules, as long as they are visible to you (see section on
 [public/protected/private](#public-private-protected-visibility)).
@@ -4001,54 +4009,54 @@ it's not clear whether `Int` is null due to an error or due to the return value.
 # standard container classes (and helpers)
 
 ```
-container~(key, value) := {
-    # Returns `Null` if `Key` is not in this container,
-    # otherwise the `value` instance at that `Key`.
+container~(id, value) := {
+    # Returns `Null` if `Id` is not in this container,
+    # otherwise the `value` instance at that `Id`.
     # NOTE: the value will be readonly since `This` is readonly.
     # NOTE: this is a reference to the value in the container,
     # which will be copied unless it's being passed into a
     # function's arguments.
-    ::[Key]?: value
+    ::[Id]?: value
 
-    # Returns `Null` if `Key` is not in this container,
-    # otherwise the `value` instance at that `Key`.
-    # In contrast with the `::[Key]?: value` method, this
+    # Returns `Null` if `Id` is not in this container,
+    # otherwise the `value` instance at that `Id`.
+    # In contrast with the `::[Id]?: value` method, this
     # returns a *writeable* reference to the value.
     # If in reference form, you can set this to `Null`
     # to delete the element from the container.
-    ;;[Key]?: value
+    ;;[Id]?: value
 
-    # Returns the value at `Key`, if present, while mooting
-    # it in the container.  This may remove the `key` from
-    # the container or may set its keyed value to the default.
+    # Returns the value at `Id`, if present, while mooting
+    # it in the container.  This may remove the `id` from
+    # the container or may set its linked value to the default.
     # (Which depends on the child container implementation.)
     # Returns Null if not present.
-    ;;[Key]!?: value
+    ;;[Id]!?: value
 
-    # Gets the existing value at `Key` if present,
-    # otherwise inserts a default value at `Key`,
+    # Gets the existing value at `Id` if present,
+    # otherwise inserts a default value at `Id`,
     # and returns a writeable reference to it.
     # WARNING: the container may add more than one default value,
     # e.g., in the case of asking for an element at an array
     # index much higher than the current size of the array.
-    ;;[Key]: value
+    ;;[Id]: value
     
-    @alias ::has(Key) := This[Key] != Null
-    @alias ::contains(Key) := This[Key] != Null
+    @alias ::has(Id) := This[Id] != Null
+    @alias ::contains(Id) := This[Id] != Null
 
     # Returns the number of elements in this container.
     ::count(): count
 }
 ```
 
-TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `map~(key: string, value: oneOf(int, null))`.
-This is because `Map[X] = Null` should delete the key specified by `X` from the map.  Plus, we already have handling for
-nullable values from the map, if we ask for the element at a key and it's not present in the map.  Similarly for arrays;
+TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `store~(id: string, value: oneOf(int, null))`.
+This is because `Store[X] = Null` should delete the ID specified by `X` from the store.  Plus, we already have handling for
+nullable values from the store, if we ask for the element at a ID and it's not present in the store.  Similarly for arrays;
 `Array[3] = Null` should delete the fourth item in the array.  If the elements should represent optional things, then
 we should use the `optional` type.
 
 TODO: clean up usage of "optional" when we really mean "nullable", so that we can distinguish between the two.
-Or figure out a way to not distinguish between optional and nullable (e.g., allow null in Map or Array??).
+Or figure out a way to not distinguish between optional and nullable (e.g., allow null in Store or Array??).
 Ideally we can think of nullable types as optional.
 
 ## arrays
@@ -4058,8 +4066,8 @@ define an array explicitly using the notation `Array: array~elementType`
 for the type `elementType` or via `Array[]: elementType` or `Array: elementType[]`.
 E.g. `MyArray: int[]` or `MyArray: array~int` for a readonly integer array.
 The writeable versions of course use `;` instead of `:`.  Note that arrays
-are keyed by an `index` type, but using `MyVar[index]: elementType` would
-create a [map](#maps).
+are ID'd by an `index` type, but using `MyVar[index]: elementType` would
+create a [store](#stores).
 
 To define an array quickly (i.e., without a type annotation), use the notation
 `["hi", "hello", "hey"]`.
@@ -4090,7 +4098,7 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 
 ```
 # some relevant pieces of the class definition
-array~t := extend(container~(key: index, value: t)) {
+array~t := extend(container~(id: index, value: t)) {
     this uh := oneOf(
         OutOfMemory
         # TODO: etc...
@@ -4114,7 +4122,7 @@ array~t := extend(container~(key: index, value: t)) {
     ;;[Index]: t
 
     # Returns the value at Array[Index] while resetting it to the default value.
-    # The reason we don't eject the element like we do with a map or a set is that
+    # The reason we don't eject the element like we do with a store or a set is that
     # we need to preserve the invariant that `Array[Index]!` followed by `!Array::[Index]`
     # should be true, and we don't want to depend on the next element in the array for
     # the follow-up condition, i.e., if we remove the value and pull every later value down.
@@ -4246,45 +4254,46 @@ fixedCountArray~t := extend(array~t) {
 }
 ```
 
-## maps
+## stores
 
-TODO: do we want to rename this container type from `map` to `chest`/`safe`/`vault` (key/value)?
-alternatively `store`/`lookup` could work for `map`, but we might want to convert `key` to `id`.
-yeah, `key` seems to be the wrong analogy since it doesn't unlock anything, it just
-links/identifies something.
+A `store` is hm-lang's version of a map (or `dict` in python).  Instead of mapping from a `key`
+to a `value` type, stores link an `id` to a `value`.  This change from convention is mostly
+to avoid overloading the term `map` which is used when transforming values such as `hm`, but also
+because `map`, `key`, and `value` have little to do with each other; we don't "unlock" anything
+with a C++ `map`'s key: we look up a value.
 
-A map can look up, insert, and delete elements by key quickly (ideally amortized
-at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a map, e.g.,
-`VariableName: map~(key: keyType, value: valueType)`, or you can use an implicit method
-with brackets, `VariableName[keyType]: valueType` or `VariableName: valueType[keyType]`.
-For example, for a map from integers to strings, you can use: `MyMap[int]: string`.
-The default name for a map variable is `Map`, regardless of key or value type.
-Note that while an array can be thought of as a map from the `index` type to
-whatever the array element type is, `elementType[index]` indicates a map type,
+A store can look up, insert, and delete elements by key quickly (ideally amortized
+at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a store, e.g.,
+`VariableName: store~(id: idType, value: valueType)`, or you can use an implicit method
+with brackets, `VariableName[idType]: valueType` or `VariableName: valueType[idType]`.
+For example, for a store that links integers to strings, you can use: `MyStore[int]: string`.
+The default name for a store variable is `Store`, regardless of ID or value type.
+Note that while an array can be thought of as a store linking the `index` type to
+whatever the array element type is, `elementType[index]` indicates a store type,
 not an array type.  The array type, `elementType[]` would be useful for densely
-packed data (i.e., instances of `elementType` for most indices), while the map
+packed data (i.e., instances of `elementType` for most indices), while the store
 type `elementType[index]` would be useful for sparse data.
 
-To define a map (and its contents) inline, use this notation:
+To define a store (and its contents) inline, use this notation:
 
 ```
 Jim1 := "Jim C"
 Jim2 := "Jim D"
-# map from string to ints:
+# store linking string to ints:
 EmployeeIds: int[str] = [
     # option 1.A: `X: Y` syntax
     "Jane": 123
-    # option 1.B: `{Key: X, Value: Y}` syntax
-    {Key: "Jane", Value: 123}
-    # option 1.C: `[X, Y]` syntax, ok if key and value types are different
+    # option 1.B: `{Id: X, Value: Y}` syntax
+    {Id: "Jane", Value: 123}
+    # option 1.C: `[X, Y]` syntax, ok if ID and value types are different
     ["Jane", 123]
     # option 1.D:
     Jane: 123
-    # if you have some variables to define your key, you need to take care (see WARNING below).
-    # option 2.A, wrap in parentheses to indicate it's a variable not a key
+    # if you have some variables to define your id, you need to take care (see WARNING below).
+    # option 2.A, wrap in parentheses to indicate it's a variable not an ID
     (Jim1): 203
     # option 2.B
-    {Key: Jim1, Value: 203}
+    {Id: Jim1, Value: 203}
     # option 2.C
     [Jim1, 203]
     # WARNING! not a good option for 2; no equivalent of option 1.D here.
@@ -4294,21 +4303,21 @@ EmployeeIds: int[str] = [
 # but required if elements are placed on the same line.
 
 # equivalent definition would occur with this first line:
-# `EmployeeIds := map~(key: string, value: int) [`
+# `EmployeeIds := store~(id: string, value: int) [`
 ```
 
-To define a map quickly (i.e., without a type annotation), use the notation
+To define a store quickly (i.e., without a type annotation), use the notation
 `["Jane": 123, "Jim": 456]`.
 
-Maps require a key type whose instances can hash to an integer or string-like value.
+Stores require an ID type whose instances can hash to an integer or string-like value.
 E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array~dbl`).
 
 ```
-DblDatabase; dbl[int]      # OK, int is an OK key type
-DblDblDatabase; dbl[dbl]   # COMPILE ERROR, dbl is an invalid key type.
+DblDatabase; dbl[int]      # OK, int is an OK ID type
+DblDblDatabase; dbl[dbl]   # COMPILE ERROR, dbl is an invalid ID type.
 ```
 
-However, we allow casting from these prohibited types to allowed key types.  For example:
+However, we allow casting from these prohibited types to allowed ID types.  For example:
 
 ```
 NameDatabase; string[int]
@@ -4317,30 +4326,30 @@ NameDatabase[124] = "Jane"
 print(NameDatabase[123.4])  # RUNTIME ERROR, 123.4 is not representable as an `int`.
 print(NameDatabase[123.4 round(Stochastically)])    # prints "John" with 60% probability, "Jane" with 40%.
 
-# note that the definition of the key is a readonly array:
+# note that the definition of the ID is a readonly array:
 StackDatabase; string[int[]]
 StackDatabase[[1,2,3]] = "stack123"
 StackDatabase[[1,2,4]] = "stack124"
 # prints "stack123" with 90% probability, "stack124" with 10%:
 print(StackDatabase[map([1.0, 2.0, 3.1], $Dbl round(Stochastically))])
 # things get more complicated, of course, if all array elements are non-integer.
-# the array is cast to the key type (integer array) first.
+# the array is cast to the ID type (integer array) first.
 StackDatabase[[2.2, 3.5, 4.8] map($Dbl round(Stochastically))]
 # result could be stored in [2, 3, 4], [2, 3, 5], [2, 4, 4], [2, 4, 5],
 #                           [3, 3, 4], [3, 3, 5], [3, 4, 4], [3, 4, 5]
-# but the key is decided first, then the map is added to.
+# but the ID is decided first, then the store is added to.
 ```
 
-Note: when used as a map key, objects with nested fields become deeply constant,
+Note: when used as a store ID, objects with nested fields become deeply constant,
 regardless of whether the internal fields were defined with `;` or `:`.
-I.e., the object is defined as if with a `:`.  This is because we need key
-stability inside a map; we're not allowed to change the key or it could
-change places inside the map and/or collide with an existing key.
+I.e., the object is defined as if with a `:`.  This is because we need ID
+stability inside a store; we're not allowed to change the ID or it could
+change places inside the store and/or collide with an existing ID.
 
 Some relevant pieces of the class definition:
 
 ```
-map~(key, value) := extend(container~{key, value}) {
+store~(id, value) := extend(container~{id, value}) {
     this uh := oneOf(
         OutOfMemory
         # TODO: etc...
@@ -4348,166 +4357,169 @@ map~(key, value) := extend(container~{key, value}) {
     # TODO: a lot of these methods need to return `hm~u`.
     this hm~u := hm~(ok: u, this uh)
 
-    # Returns Null if `Key` is not in the map.
-    This::[Key]?: value
+    # Returns Null if `Id` is not in the store.
+    This::[Id]?: value
 
-    # Gets the existing value at `Key` if present,
-    # otherwise inserts a default `value` into the map and returns it.
-    This;;[Key]: value
+    # Gets the existing value at `Id` if present,
+    # otherwise inserts a default `value` into the store and returns it.
+    This;;[Id]: value
 
-    # Ejects the possibly null value at `This[Key]` and returns it.
-    # A subsequent, immediate call to `This::[Key]` returns Null.
-    This;;[Key]!?: value
+    # Ejects the possibly null value at `This[Id]` and returns it.
+    # A subsequent, immediate call to `This::[Id]` returns Null.
+    This;;[Id]!?: value
 
     ::count(): count
 
-    # Returns the last element added to the map if the map is
+    # Returns the last element added to the store if the store is
     # insertion ordered, otherwise returns any convenient element.
-    # The element is removed from the map.
+    # The element is removed from the store.
     # Throws if there is no element available.
-    ;;pop(): {key, value}
+    ;;pop(): {id, value}
 
-    @alias ;;pop(Key) ?:= This;;[Key]!
+    @alias ;;pop(Id) ?:= This;;[Id]!
 
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
-    # returns a copy of the value at key, too.
-    ;;[Key]: value
+    # returns a copy of the value at ID, too.
+    ;;[Id]: value
 
-    # getter, which will create a default value instance if it's not present at Key.
-    ;;[Key, fn(Value): ~t]: t
+    # getter, which will create a default value instance if it's not present at Id.
+    ;;[Id, fn(Value): ~t]: t
 
-    # returns a Null if key is not in the map.
-    ::[Key]?: value
+    # returns a Null if ID is not in the store.
+    ::[Id]?: value
 
-    # getter, which will pass back a Null if the key is not in the map.
-    ::[Key, fn(Value?): ~t]: t
+    # getter, which will pass back a Null if the ID is not in the store.
+    ::[Id, fn(Value?): ~t]: t
 
-    # sets the value at the key, returning the old value:
-    ;;[Key, Value;]: value
+    # sets the value at the ID, returning the old value:
+    ;;[Id, Value;]: value
 
     # modifier, allows access to modify the internal value via reference.
-    # passes the current value at the key into the passed-in function by reference (`;`).
-    # the return value of the passed-in function will become the new value at the key.
-    # if a value at `Key` is not already present, a default `Value` will be created.
-    ;;[Key, fn(Value;): ~t]: t
+    # passes the current value at the ID into the passed-in function by reference (`;`).
+    # the return value of the passed-in function will become the new value at the ID.
+    # if a value at `Id` is not already present, a default `Value` will be created.
+    ;;[Id, fn(Value;): ~t]: t
 
-    # nullable modifier, which returns a Null if the key is not in the map.
+    # nullable modifier, which returns a Null if the ID is not in the store.
     # if the Value wasn't Null, but becomes Null via the passed-in function,
-    # the key will be deleted from the map.  conversely, if the value was Null, but
-    # the passed-in function turns it into something non-null, the key/value will be added
-    # to the map.
-    ;;[Key, fn(Value?;): ~t]: t
+    # the ID will be deleted from the store.  conversely, if the value was Null, but
+    # the passed-in function turns it into something non-null, the ID/value will be added
+    # to the store.
+    ;;[Id, fn(Value?;): ~t]: t
 
     # getter and modifier in one definition, with the `;:` "template mutability" operator:
-    # will return an error for the const map (`This:`) if Key is not in the map.
-    ;:[Key, fn(Value;:): ~t]: hm~t
+    # will return an error for the const store (`This:`) if Id is not in the store.
+    ;:[Id, fn(Value;:): ~t]: hm~t
 
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
-    ;:[Key, fn(Value?;:): ~t]: t
+    ;:[Id, fn(Value?;:): ~t]: t
 }
 ```
 
-The default map type is `insertionOrderedMap`, which means that the order of elements
-is preserved based on insertion; i.e., new keys come after old keys when iterating.
-Other notable maps include `keyOrderedMap`, which will iterate over elements in order
-of their sorted keys, and `unorderedMap`, which has an unpredictable iteration order.
-Note that `keyOrderedMap` has `O(lg(N))` complexity for look up, insert, and delete,
-while `insertionOrderedMap` has some extra overhead but is `O(1)` for these operations,
-like `unorderedMap`.
+The default store type is `insertionOrderedStore`, which means that the order of elements
+is preserved based on insertion; i.e., new IDs come after old IDs when iterating.
+Other notable stores include `idOrderedStore`, which will iterate over elements in order
+of their sorted IDs, and `unorderedStore`, which has an unpredictable iteration order.
+Note that `idOrderedStore` has `O(lg(N))` complexity for look up, insert, and delete,
+while `insertionOrderedStore` has some extra overhead but is `O(1)` for these operations,
+like `unorderedStore`.
 
 ```
 @private
-indexedMapElement~(key, value) := {
+indexedStoreElement~(id, value) := {
     NextIndex; index
     PreviousIndex; index
-    Key: key
+    Id: id
     Value; value
 }
 
-insertionOrderedMap~(key, value) := extend(map) {
+insertionOrderedStore~(id, value) := extend(store) {
     # due to sequence building, we can use @private {...} to set @private for
     # each of the fields inside this block.
     @private {
-        KeyIndices; @only unorderedMap~(key, value: index)
-        IndexedMap; @only unorderedMap~(
-            key: index
-            value: indexedMapElement~(key, value)
-        ) = [{Key: 0, Value: {NextIndex: 0, key(), value(), PreviousIndex: 0}}]
+        IdIndices; @only unorderedStore~(id, value: index)
+        IndexedStore; @only unorderedStore~(
+            id: index
+            value: indexedStoreElement~(id, value)
+        ) = [{Id: 0, Value: {NextIndex: 0, id(), value(), PreviousIndex: 0}}]
         NextAvailableIndex; index = 1
     }
 
-    # creates a default value if not present at the key to pass in to the modifier:
-    ;;[Key;:, fn(Value;): ~t]: t
-        Index ?:= This KeyIndices[Key]
+    # creates a default value if not present at the ID to pass in to the modifier:
+    ;;[Id;:, fn(Value;): ~t]: t
+        Index ?:= This IdIndices[Id]
         return if Index != Null
             This modifyAlreadyPresent(Index, fn)
         else
-            This needToInsertThenModify(Key;:, fn)
+            This needToInsertThenModify(Id;:, fn)
 
-    ::[Key, fn(Value?): ~t]: t
-        Index ?:= This KeyIndices[Key]
+    ::[Id, fn(Value?): ~t]: t
+        Index ?:= This IdIndices[Id]
         return if Index != Null
             assert Index != 0
-            This IndexedMap[Index, (IndexedMapElement): t
-                return fn(IndexedMapElement Value)
+            This IndexedStore[Index, (IndexedStoreElement): t
+                return fn(IndexedStoreElement Value)
             ]
         else
             fn(Null)
     
-    ::forEach(Loop->fn(Key, Value): loop): null
-        Index ;= This IndexedMap[0] NextIndex
+    ::forEach(Loop->fn(Id, Value): loop): null
+        Index ;= This IndexedStore[0] NextIndex
         while Index != 0
-            {Value:, Key:} = not~null(This IndexedMap[Index])
-            ForLoop := Loop->fn(Key, Value)
+            {Value:, Id:} = not~null(This IndexedStore[Index])
+            ForLoop := Loop->fn(Id, Value)
             if ForLoop == loop Break
                 break
-            Index = This IndexedMap[Index] NextIndex
+            Index = This IndexedStore[Index] NextIndex
         # mostly equivalent to using nested functions to avoid copies:
-        #   ForLoop := This IndexedMap[Index, (IndexedMapElement?):
-        #       if IndexedMapElement == Null
-        #           error("insertion-ordered map invariant was broken")
-        #       Index = IndexedMapElement NextIndex
-        #       return Loop->fn(IndexedMapElement Key, IndexedMapElement Value)
+        #   ForLoop := This IndexedStore[Index, (IndexedStoreElement?):
+        #       if IndexedStoreElement == Null
+        #           error("insertion-ordered store invariant was broken")
+        #       Index = IndexedStoreElement NextIndex
+        #       return Loop->fn(IndexedStoreElement Id, IndexedStoreElement Value)
         #   ]
 
-    # modifier for a keyed value not yet in the map, need to insert a default first:
+    # modifier for a ID'd value not yet in the store, need to insert a default first:
     @private
-    ;;needToInsertThenModify(Key;:, fn(Value;): ~t): t
+    ;;needToInsertThenModify(Id;:, fn(Value;): ~t): t
         NewIndex := This NextAvailableIndex++ or reshuffle()
-        PreviouslyLastIndex := This IndexedMap[0] PreviousIndex
-        This IndexedMap[NewIndex] = {
+        PreviouslyLastIndex := This IndexedStore[0] PreviousIndex
+        This IndexedStore[NewIndex] = {
             PreviousIndex: PreviouslyLastIndex
             NextIndex: 0
-            Key
+            Id
             Value: value()
         }
-        This KeyIndices[@mootOrCopy(Key)] = NewIndex
-        This IndexedMap[0] PreviousIndex = NewIndex
-        This IndexedMap[PreviouslyLastIndex] NextIndex = NewIndex
+        This IdIndices[@mootOrCopy(Id)] = NewIndex
+        This IndexedStore[0] PreviousIndex = NewIndex
+        This IndexedStore[PreviouslyLastIndex] NextIndex = NewIndex
         return This modifyAlreadyPresent(NewIndex, fn)
 
-    # modifier for an already indexed value in the map:
+    # modifier for an already indexed value in the store:
     @private
     ;;modifyAlreadyPresent(Index, fn(Value;): ~t): t
         debug assert(Index != 0)
-        return This IndexedMap[Index, (IndexedMapElement?;): t
-            assert IndexedMapElement != Null
-            return fn(IndexedMapElement Value;)
+        return This IndexedStore[Index, (IndexedStoreElement?;): t
+            assert IndexedStoreElement != Null
+            return fn(IndexedStoreElement Value;)
         ]
 }
 ```
 
 ## sets
 
+TODO: if we rename map -> store, should we rename set -> bag or something else?  set is usually overloaded
+with setting something, although that's mostly obviated by the `x(New->X: int)` syntax.
+
 A set contains some elements, and makes checking for the existence of an element within
-fast, i.e., O(1).  Like with map keys, the set's element type must satisfy certain properties
+fast, i.e., O(1).  Like with store IDs, the set's element type must satisfy certain properties
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set~elementType`
 to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [elementType]`.
 The default-named variable name for a set of any type is `Set`.
 
 ```
-set~t := extend(container~(key: t, value: true)) {
+set~t := extend(container~(id: t, value: true)) {
     # Returns `True` iff T is in the set, otherwise Null.
     # NOTE: the `true` type is only satisfied by the instance `True`;
     # this is not a boolean return value.
@@ -4547,13 +4559,13 @@ set~t := extend(container~(key: t, value: true)) {
     # Throws if there is no element available.
     ;;pop(): t
 
-    @alias ;;pop(Key) ?:= This;;[Key]!
-    @alias ;;remove(Key) ?:= This;;[Key]!
+    @alias ;;pop(Id) ?:= This;;[Id]!
+    @alias ;;remove(Id) ?:= This;;[Id]!
     ...
 }
 ```
 
-Like the keys in maps, items added to a set become deeply constant,
+Like the IDs in stores, items added to a set become deeply constant,
 even if the set variable is writeable.
 
 TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
@@ -4561,19 +4573,19 @@ TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
 To define a set quickly, use the notation `[str]["hello", "world"]`, where the
 initial `[str]` should be the type of whatever element is in the set.
 
-TODO: make it easy to pass in a set as an argument and return a map with e.g. those keys.
+TODO: make it easy to pass in a set as an argument and return a store with e.g. those IDs.
   maybe this isn't as important as it would be if we had a dedicated object type.
 
 ```
 fn(Fields: [~k], PickFrom: ~t[~q extends k]): t[k]
     return Fields map((Field: str) := mapElement(Field, PickFrom[Field]))
 
-fn(PickFrom: ~o, Keys: ~k from keys(o)): pick(o, k)
-    return pick(PickFrom, Keys)
+fn(PickFrom: ~o, Ids: ~k from ids(o)): pick(o, k)
+    return pick(PickFrom, Ids)
 ```
 
-TODO: discuss how `in` sounds like just one key from the set of keys (e.g., `k in keys(o)`)
-and `from` selects multiple (or no) keys from the set (`k from keys(o)`).
+TODO: discuss how `in` sounds like just one key from the set of IDs (e.g., `k in ids(o)`)
+and `from` selects multiple (or no) IDs from the set (`k from ids(o)`).
 
 ## iterator
 
@@ -4649,7 +4661,7 @@ arrayIterator~t := extend(iterator~t) {
     
     # note that this function doesn't technically need to modify this
     # `arrayIterator`, but we keep it as `;;` since other container
-    # iterators will generally need to update their index/key.
+    # iterators will generally need to update their index/ID.
     ;;remove(Array; array~t) ?:= if This Next < Array count()
         Array remove(This Next)
     else
@@ -5005,10 +5017,10 @@ what MyHashableClass
 Note that if your `fastHash` implementation is terrible (e.g., `fastHash(Salt) := Salt`),
 then the compiler will error out after a certain number of attempts with different salts.
 
-For sets and maps, we use a hash method that is order-independent (even if the container
+For sets and stores, we use a hash method that is order-independent (even if the container
 is insertion-ordered).  E.g., we can sum the hash codes of each element, or `xor` them.
 Arrays have order-dependent hashes, since `[1, 2]` should be considered different than `[2, 1]`,
-but the map `{"hi": 1, "hey": 2}` should be the same as `{"hey": 2, "hi": 1}` (different
+but the store `{"hi": 1, "hey": 2}` should be the same as `{"hey": 2, "hi": 1}` (different
 insertion order, but same contents).
 
 ## for loops
@@ -5928,13 +5940,13 @@ Grammar := singleton() {
                 TypeElement
             )
             sequenceMatcher([
-                # map types, e.g., `str[int]` or `dbl[str]`
+                # store types, e.g., `str[int]` or `dbl[str]`
                 # as well as array types, e.g., `str[]` or `dbl[]`.
                 # TODO: i don't think this works for more complicated types, e.g.,
-                #       str[][int] which should be a map of `int` to `str[]` 
+                #       str[][int] which should be a store of `int` to `str[]` 
                 LowerCamelCase
                 bracketMatcher(
-                    # present if we're a map type, absent if an array type:
+                    # present if we're a store type, absent if an array type:
                     optionalMatcher(TypeElement)
                 )
             ])
