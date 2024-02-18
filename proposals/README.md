@@ -19,6 +19,8 @@ In some languages, e.g., JavaScript, objects are passed by reference and primiti
 are passed by value when calling a function with these arguments.  In hm-lang,
 arguments are passed by reference by default, for consistency.
 See [passing by reference and by value](#pass-by-reference-or-pass-by-value). 
+However, to avoid most surprises, arguments are passed by *readonly* reference.
+See [passing by reference gotchas](#passing-by-reference-gotchas)) for the edge cases.
 
 In hm-lang, determining the number of elements in a container uses the same
 method name for all container types; `count(Container)` or `Container count()`,
@@ -238,6 +240,8 @@ vector3 := {X: dbl, Y: dbl, Z: dbl}
 myClass := {
     # methods which mutate the class use a `;;` prefix
     # TODO: should we switch to `from` so we have `from` and `to` as conversions back/forth?
+    # TODO: should we avoid making `renew` macro-like?  should we have just a static function
+    #       `new(...): this` and then automatically define `renew` on it?
     ;;renew(This X: int) := Null
 
     # methods which keep the class readonly use a `::` prefix
@@ -2082,12 +2086,11 @@ appear to relate most closely to a readonly type, we choose to use `:` as readon
 writeable references due to the similarity between `:` and `;`; therefore `.` can be the
 odd-one-out corresponding to a non-reference, pass-by-value type.
 
-TODO: some discussion below with `.` templates.  `;.` makes a lot of sense, and we probably
-can support `;:.` as well.
-
 If you want to define multiple overloads, you can use the template `;:` (or `:;`) declaration
-syntax.  There will be some annotation/macros which can be used while before compiling,
-e.g., `@writeable`/`@readonly` to determine if the variable is writeable or not.
+syntax for writeable/readonly references.  There will be some annotation/macros which can be
+used while before compiling, e.g., `@writeable`/`@readonly` to determine if the variable is
+writeable or not.  Similarly, we can use templates like `:;.` for
+readonly-reference/writeable-reference/temporary.
 
 ```
 myClass~t := {
@@ -2115,10 +2118,11 @@ myClass~t := {
     # these are added automatically by the compiler since `X; t` is defined.
     ;;x(T; t): $( This X<->T )
     ;;x(T: t): $( This X = T )
+    ;;x(T. t): $( This X = T! )
 
     # so `take` would become:
-    ;:take(X;: t):
-        This x(X;:)
+    ;;take(X:;. t):
+        This x(X:;!)
 }
 ```
 
@@ -4578,7 +4582,7 @@ TODO: make it easy to pass in a set as an argument and return a store with e.g. 
 
 ```
 fn(Fields: [~k], PickFrom: ~t[~q extends k]): t[k]
-    return Fields map((Field: str) := mapElement(Field, PickFrom[Field]))
+    return Fields map((Field: str) := storeElement(Field, PickFrom[Field]))
 
 fn(PickFrom: ~o, Ids: ~k from ids(o)): pick(o, k)
     return pick(PickFrom, Ids)
