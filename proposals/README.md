@@ -130,7 +130,7 @@ and `uh(ErrorResult)`; you can just return `ValidResult` or `ErrorResult`.
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object, `W` is an optional field
         passed by readonly reference, `X` is a readonly reference, `Y` is a writeable reference,
-        and `Z` is passed by value.
+        and `Z` is passed by value.  See [argument objects](#argument-objects) for more details.
     * `(SomeInstance x(), SomeInstance Y;, W: "hi", Z. 1.23)` to instantiate an argument object
         with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
     * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
@@ -1327,7 +1327,8 @@ oh(Really; dbl): dbl $( Really *= 2.5, return 50 + Really )
 You can call functions with arguments in any order.  Arguments must be specified
 with the named identifiers in the function definition.  The only exception is
 if the argument is default-named (i.e., it has the same name as the type), then you
-don't need to specify its name.  We'll discuss that more in the next section.
+don't need to specify its name.  We'll discuss that more in the
+[default-name arguments](#default-name-arguments-in-functions) section.
 
 ```
 # definition:
@@ -1342,6 +1343,52 @@ X := 5.4
 Y := 3
 v(X, Y)     # equivalent to `v(X: X, Y: Y)` but the redundancy is not idiomatic.
 v(Y, X)     # equivalent
+```
+
+### argument objects
+
+In hm-lang, parentheses can be used to define argument objects, both as types
+and instances.  As a type, `(X: dbl, Y; int, Z. str)` differs from the object
+type `{X: dbl, Y; int, Z; str}`, for more than just the reason that `.` is invalid
+in an object type.  When instantiated, argument objects with `;` and `:` fields
+contain references to variables; objects get their own copies.  For convenience,
+we'll use *arguments type* for an argument object type and *arguments instance* for
+an argument object instance.
+
+Because they contain references, argument instances cannot outlive the lifetime
+of the variables they contain.
+
+```
+a := (X: dbl, Y; int, Z. str)
+
+# This is OK:
+X := 3.0
+Y ;= 123
+A := (X, Y;, Z. "hello")    # `Z` is passed by value, so it's not a reference.
+A Y *= 37    # OK
+
+# This is not OK:
+returnA(Q: int): a
+    # X and Y are defined locally here, and will be descoped at the
+    # end of this function call.
+    X := Q as(dbl) or(NaN) * 4.567
+    Y ;= Q * 3
+    # So we can't pass X, Y as references here.  Z is fine.
+    (X, Y;, Z. "world")
+```
+
+Note that we can return arguments instances from functions, but they must be
+declared with variables whose lifetimes outlive the instance.  For example:
+
+```
+a := (X: dbl, Y; int, Z. str)
+X := 4.56
+returnA(Q; int): a
+    Q *= 37
+    # X has a lifetime that outlives this function.
+    # Y has the lifetime of the passed-in variable, which exceeds the return type.
+    # Z is passed by value, so no lifetime concerns.
+    (X, Y; Q, Z. "sky")
 ```
 
 ### default-name arguments in functions
@@ -3412,6 +3459,8 @@ Unspecified := SomeExample to()     # COMPILER ERROR, specify a type for `Unspec
 ```
 
 ## generic/template classes
+
+TODO: `()` is for argument objects, maybe we should use `~{}` here.
 
 To create a generic class, you put the expression `~(types...)` after the
 class identifier, or `~type` for a single template type.  You can use these
