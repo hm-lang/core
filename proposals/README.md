@@ -60,8 +60,17 @@ nullables using `?:`, casting for pass-by-reference, etc.
 
 ## concision
 
-Variable arguments that use the default name for a type can elide the type name;
-e.g., `myFunction(Int): str` will declare a function that takes an instance of `int`.
+When calling a function, we don't need to use `myFunction(X: X)` if we have a local
+variable named `X` that shadows the function's argument named `X`.  We can just
+call `myFunction(X)` for readonly reference (`X: X`), `otherFunction(Y;)` for a writeable
+reference (`Y; Y`), or `tmpFunction(Z!)` to pass in as a temporary `Z. Z!`.  While
+technically we might want the `:;.` on the left-hand side of the variable we're passing in
+(e.g., `otherFunction(;Y)`), we keep it on the right-hand side for consistency of how
+functions are defined, and to avoid needing to do something like `tmpFunction(.Z!)`.
+
+When defining a function, variable arguments that use the default name for a type can
+elide the type name; e.g., `myFunction(Int): str` will declare a function that takes 
+an instance of `int`.  This is also true if namespaces are used, e.g., `myFunction(Named->Int): str`.
 See [default-named arguments](#default-name-arguments-in-functions).  We can also
 avoid the readonly declaration (`:`) since it is the default, but you can use
 `myFunction(Int;): str` for a function which can mutate the passed-in integer.
@@ -1400,7 +1409,10 @@ MyVariable; value       # with or without `value`
 ### the name of a called function in an argument object
 
 Calling a function with one argument being defined by a nested function will use
-the nested function's name as a default name.
+the nested function's name as the variable name.  E.g., if a function is called
+`value`, then executing `whatIsThis(value())` will try to call the `whatIsThis(Value)`
+overload.  If there is no such overload, it will fall back on `whatIsThis(Type)` where
+`Type` is the return value of the `value()` function.
 
 ```
 value(): int
@@ -1573,6 +1585,7 @@ TODO: we do need order dependence for certain use cases, like arguments to an ar
 maybe we have a specific `@orderDependent` or `@arrayOrder` annotation.
 order dependence also occurs for cross product (e.g., `Vector3 cross(Other->Vector3)`),
 and it would be a pain to name this other vector (`Vector3 cross(With: Other->Vector3)`).
+Maybe create a `@orderDependenceOk` for such cases.
 
 There is one place where it is not obvious that two arguments might have the same name, and
 that is in method definitions.  Take for example the vector dot product:
@@ -1651,6 +1664,7 @@ fibonacci(Times: dbl): int
     GoldenRatio: dbl = (1.0 + \\math sqrt(5)) * 0.5
     OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
     return round{(GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5)}
+# TODO: is this still correct?  we're specifying by name then filtering by type.
 # COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
 
 # NOTE: if the second function returned a `dbl`, then we actually could distinguish between
@@ -2136,11 +2150,6 @@ myFunction(Array[3];)   # passed as writeable reference
 myFunction(Array[3]:)   # passed as readonly reference
 myFunction(Array[3])    # also passed as readonly reference, it's the default.
 ```
-
-TODO: should the `.;:` be on the other side for function calls?  e.g., `fn(:Array[10])`?
-for function definitions, the right side makes sense `fn(Int:): null` since it's short-hand
-for `fn(Int: int): null`, but when calling, `fn(:Array[10])` would be shorthand for
-`fn(ArrayElementType: Array[10])`.
 
 You can switch to passing by value by using `.` or making an explicit copy:
 
