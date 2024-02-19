@@ -692,6 +692,9 @@ are valid.  Note however that we disallow redefining an overload, as that would 
 
 Operator priority.
 
+TODO: almost all operations should have result-like syntax.  e.g., `A * B` can overflow (or run out of memory for `int`).
+same for `A + B` and `A - B`.  `A // B` is safe.
+
 TODO: add : , ; ?? postfix/prefix ?
 TODO: add ... for dereferencing.  maybe we also allow it for spreading out an object into function arguments,
 e.g., `myFunction(A: 3, B: 2, ...MyObject)` will call `myFunction(A: 3, B: 4, C: 5)` if `MyObject == {B: 4, C: 5}`.
@@ -1149,6 +1152,19 @@ TODO: can we create an overload for "nullable" types?  e.g., it might be nice to
 allow `NaN` to be the null for floating point types `f32` and `f64`.
 similarly, someone might create a `symmetricI8` class with valid values -127 to 127,
 and the null is -128.
+
+Note that any `oneOf` that can be null gets these methods.  They are defined globally
+since we don't want to make users extend from a base nullable class.
+
+```
+# TODO: consistent syntax for `...` with oneOf.
+# or(OneOf?. oneOf(...a, null), A: a): a
+# maybe we just use this:
+or(~A?., Other->A.): a
+    what A
+        NonNull->A: $(NonNull->A)
+        Null $(Other->A)
+```
 
 ## nested/object types
 
@@ -4016,6 +4032,12 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
                 # `panic` exits program
                 panic(String || Uh)
 
+    # If ok, returns the `Ok` value; otherwise returns the passed-in value.
+    ..or(Or->Ok.): ok
+        what This
+            Ok: $(Ok)
+            Uh: $(Or->Ok)
+
     # maps an `Ok` result to a different type of `ok`, consuming `This`.
     # TODO: can we do `hm~{new ok, uh}` here instead to avoid `ok: ok2`?
     #       e.g., ..map(fn(Ok.): ~a ok): hm~{a ok, uh}.  similarly for `uh2` below.
@@ -5094,8 +5116,6 @@ myHashableClass := {
     # or fast hashes in one definition, depending on what is required.
     # This should automatically be defined for classes with precise fields (e.g., int, u32, string, etc.)!
     ::hash(~Builder;):
-        # TODO: consider if we should hash the class' internal type ID,
-        #       i.e., in order to avoid collisions if multiple types have the same internal fields.
         Builder hash(This Id)       # you can use `hash` via the builder or...
         This Name hash(Builder;)    # you can use `hash` via the field.
 
