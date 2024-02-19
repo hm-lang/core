@@ -32,7 +32,7 @@ arrays use a property (`Array.length`) and maps use a different property (`Map.s
 hm-lang also prioritizes convenience; class methods can be called like a function with
 the instance as an argument or as a method on the instance, e.g., `myMethod(MyClass)`
 or `Class myMethod()`.  This extends to functions with definitions like
-`myTwoInstanceFunction(A->MyClassA, B->MyClassB, Width: int, Height: int)` which
+`myTwoInstanceFunction(MyClassA, MyClassB, Width: int, Height: int)` which
 can be called as `(MyClassA, MyClassB) myTwoInstanceFunction(Width: 5, Height: 10)`,
 or by calling it as a method on either one of the instances, e.g.,
 `MyClassA myTwoInstanceFunction(MyClassB, Width: 5, Height: 10)`, without needing to
@@ -70,8 +70,8 @@ functions are defined, and to avoid needing to do something like `tmpFunction(.Z
 
 When defining a function, variable arguments that use the default name for a type can
 elide the type name; e.g., `myFunction(Int): str` will declare a function that takes 
-an instance of `int`.  This is also true if namespaces are used, e.g., `myFunction(Named->Int): str`.
-See [default-named arguments](#default-name-arguments-in-functions).  We can also
+an instance of `int`.  See [default-named arguments](#default-name-arguments-in-functions).
+This is also true if namespaces are used, e.g., `myFunction(Named Int): str`.  We can also
 avoid the readonly declaration (`:`) since it is the default, but you can use
 `myFunction(Int;): str` for a function which can mutate the passed-in integer.
 
@@ -90,6 +90,8 @@ in sentence readability.
 `I` could be used everywhere with `i` being the class type.  it is super concise
 and has the benefit for method names `I draw(X)` despite sounding a bit clunky for return
 types `return I` or fields `I FieldX`.
+TODO: we probably could just use `::draw(X)` and `;;FieldX` which sticks an implied
+`This` in front of them.
 
 Class getters/setters do not use `::getX(): dbl` or `;;setX(Dbl): null`, but rather
 just `::x(): dbl` and `;;x(Dbl): null` for a private variable `X; dbl`.  This is one
@@ -315,13 +317,18 @@ There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
 `what`,
 which are function-like but will consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
+There are some reserved namespaces like `Old`, `New`, `Other`, `NonNull`, and `NotNull`.
+Variables cannot be defined with these names, but they can be defined as `Old Int`,
+`New X`, `Other ClassType`, or `NonNull Z`.  In particular, `NonNull` and `NotNull`
+are reserved namespaces for variables that cannot be null.
+See [namespaces](#namespaces) for more details.
 
 Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
 most importantly in contrast to most other languages, underscores (`_`) are ignored within identifiers.
 E.g., `1_000_000` is the same as `1000000` and `my_Function` is the same as `myFunction`.
 
 TODO: use `_` for placeholders, like `:;size(_): _` indicating both `::size(): mySizeType` and
-`;;size(New->MySizeType): mySizeType`.
+`;;size(New MySizeType): mySizeType`.
 
 ## blocks
 
@@ -712,7 +719,6 @@ declaration, so that we can do things like `X: int as Y` for output destructurin
 |   1       |  ` ()`    | function call             | on fn: `a(B)`     | LTR           |
 |   2       |   `::`    | impure read scope         | binary: `A::B`    | LTR           |
 |           |   `;;`    | impure read/write scope   | binary: `A;;B`    |               |
-|           |   `->`    | new namespace             | binary: `A->B`    |               |
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   ` []`   | parenthetical subscript   | binary: `A[B]`    |               |
 |           |   `!`     | postfix moot = move+renew | unary:  `A!`      |               |
@@ -790,38 +796,96 @@ which there is no field value (i.e, a null field value).
 TODO: if you don't supply all the arguments, you should get a new function that prefills
 all the arguments you supplied and keeps as its own arguments the ones you didn't.
 
-## new namespace operator `->`
+## namespaces
 
-TODO: do we want to allow `New`, `Old`, and `Other` to be common namespaces that don't need a `->`?
-e.g., `New Count` and `Old Value`.  do we even need to use `->` always, or can we infer the existence
-of a namespace in function arguments even with `MyCustomNamespace Int`?
-
-The operator `->` can be used to create default-named variables in a
-new/existing namespace.  For example:
-`New->Int`, `Old->String`, `Input->Array`, or `Output->Rune`, where the LHS is the namespace
-and the RHS is the variable name (typically the `UpperCamelCase` version of the `lowerCamelCase` type).
-This allows you to pass in default-named arguments into functions, while avoiding argument/variable
-name shadowing, which is not allowed in hm-lang.  For example:
+Namespaces are used to avoid conflicts between two variable names that should be called
+the same, i.e., for function convenience.  hm-lang doesn't support shadowing, so something
+like this would break:
 
 ```
-someFunction(Input->Index): null
-    # `Input->Index` is a default-named variable of type `index`, but we refer to it
-    # within this scope using `Input->Index`.
+myFunction(X: int): int
+    # define a nested function:
+    # COMPILE ERROR
+    doStuff(X: int): null
+        # is this the `X` that's passed in from `myFunction`? or from `doStuff`?
+        # most languages will shadow so that `X` is now `doStuff`'s argument,
+        # but hm-lang does not allow shadowing.
+        print(X)
+    doStuff(X)
+    doStuff(X: X // 2)
+    doStuff(X: X // 4)
+    X // 8
+```
+
+The way to get around this is to use a namespace for one or both conflicts.
+Namespaces look like objects with field names, e.g., `MyNamespace MyVariableName`,
+but where `MyNamespace` isn't an existing variable name.  hm-lang will infer that
+it's a namespace if it's in the arguments of a function declaration.
+
+```
+myFunction(X: int): int
+    # nested function is OK due to namespace:
+    doStuff(Other X: int): null
+        print(Other X)
+    doStuff(X)
+    doStuff(X: X // 2)
+    doStuff(X: X // 4)
+    X // 8
+```
+
+Similarly, you can define new variables with namespaces, in case you need a new variable
+in the current space.  This might be useful in a class method like this:
+
+```
+myClass := {
+    X; dbl
+
+    # this is a re-implementation of `;;x(X. dbl): dbl`
+    # but is a situation where you might like to use namespaces.
+    ;;doSomething(New X. dbl): dbl
+        # defines a variable `X` in the namespace `Old`:
+        Old X := This X
+        This X = New X
+        Old X
+```
+
+One of the most convenient uses for namespaces is the ability to use elide argument
+names when calling functions.  E.g., if you have a function which takes a variable named `X`,
+but you already have a different one in scope, you can create a new variable with a namespace
+`ExampleNamespace X := MyNewXValue` and then pass it into the function as
+`myFunction(ExampleNamespace X)` instead of `myFunction(X: ExampleNamespaceX)`.
+This also works with default-named variables.
+
+```
+someFunction(Input Index): null
+    # `Input Index` is a default-named variable of type `index`, but we refer to it
+    # within this scope using `Input Index`.
     even(Index): bool
         Index % 2 == 0
     # you can define other namespaces inline as well, like `Another` here:
-    for Another->Index: index < Input->Index
-        if even(Another->Index)
-            print(Another->Index)
+    for Another Index: index < Input Index
+        if even(Another Index)
+            print(Another Index)
         
 X: index = 100
-someFunction(X)     # note that we don't need to call as `someFunction(Index: X)`
+someFunction(X)     # note that we don't need to call as `someFunction(Index: X)` or `someFunction(Input Index: X)`.
 ```
 
-You can use the same namespace for multiple variables, e.g., `Input->Rune` and `Input->String`,
-as long as the variable names don't overlap.  You can also use the namespace operator inside
-of functions to declare new variables, but its utility is mostly to avoid argument renaming.
-Like the member access operators below, the namespace operator binds left to right.
+You can use the same namespace for multiple variables, e.g., `Input Rune` and `Input String`,
+as long as the variable names don't overlap.  Like the member access operators below, the
+namespace operator binds left to right.
+
+There are some reserved namespaces which cannot be used as variable names, e.g., `Old`, `New`,
+`Other`, `NotNull`, and `NonNull`.  The latter non-nullable namespaces have a further restriction
+that the variables declared are not null. E.g., if `X ?:= nullableFunction()`, then we can do this:
+
+```
+what X 
+    NonNull X:
+        print("got non-null X: $(NonNull X)"))
+    Null
+        print("got null"))
+```
 
 ## member access operators `::`, `;;`, and ` `
 
@@ -874,8 +938,8 @@ getMedianSlow(Array: array~int): hm~{ok: int, uh: string}
     if Array count() == 0
         return uh("no elements in array, can't get median.")
     # make a copy of the array, but no longer allow access to it (via `@hide`):
-    Sorted->Array := @hide Array sort()   # same as `Array::sort()` since `Array` is readonly.
-    ok(Sorted->Array[Sorted->Array count() // 2])
+    Sorted Array := @hide Array sort()   # same as `Array::sort()` since `Array` is readonly.
+    ok(Sorted Array[Sorted Array count() // 2])
 
 # sorts the array and returns the median.
 getMedianSlow(Array; array~int): hm~{ok: int, uh: string}
@@ -1160,10 +1224,12 @@ since we don't want to make users extend from a base nullable class.
 # TODO: consistent syntax for `...` with oneOf.
 # or(OneOf?. oneOf(...a, null), A: a): a
 # maybe we just use this:
-or(~A?., Other->A.): a
+# TODO: should we make it clear that this is not a truthy-or, it's a nullable or?
+#       e.g., the difference between `??` and `||` in javascript.
+or(~A?., Other A.): a
     what A
-        NonNull->A: $(NonNull->A)
-        Null $(Other->A)
+        NonNull A: $(NonNull A)
+        Null $(Other A)
 ```
 
 ## nested/object types
@@ -1631,24 +1697,24 @@ This is true, for example, in a function like `max`:
 
 ```
 @orderIndependent
-max(First->Int, Second->Int): int
-    return if First->Int > Second->Int
-        First->Int
+max(First Int, Second Int): int
+    return if First Int > Second Int
+        First Int
     else
-        Second->Int
+        Second Int
 
 max(5, 3) == max(3, 5)
 ```
 
 The compiler is not smart enough to know whether order matters or not, so we need to annotate
-the function with `@orderIndependent` -- otherwise it's a compiler error -- and we need to use namespaces (`First->` and `Second->`)
+the function with `@orderIndependent` -- otherwise it's a compiler error -- and we need to use namespaces (`First` and `Second`)
 in order to distinguish between the two variables inside the function block.  When calling `max`,
 we don't need to use those namespaces, and can't (since they're invisible to the outside world).
 
 TODO: we do need order dependence for certain use cases, like arguments to an array.
 maybe we have a specific `@orderDependent` or `@arrayOrder` annotation.
-order dependence also occurs for cross product (e.g., `Vector3 cross(Other->Vector3)`),
-and it would be a pain to name this other vector (`Vector3 cross(With: Other->Vector3)`).
+order dependence also occurs for cross product (e.g., `Vector3 cross(Other Vector3)`),
+and it would be a pain to name this other vector (`Vector3 cross(With: Other Vector3)`).
 Maybe create a `@orderDependenceOk` for such cases.
 
 There is one place where it is not obvious that two arguments might have the same name, and
@@ -3231,14 +3297,14 @@ justModdable := {
     #(#
     # the following swapper becomes automatically defined:
     ;;someVar(Int;): null
-        This someVar((Old->Int;): null
-            Int <-> Old->Int
+        This someVar((Old Int;): null
+            Int <-> Old Int
         )
 
     # the following temp modifier becomes automatically defined:
     ;;someVar(Int.): null
-        This someVar((Old->Int;): null
-            Old->Int = Int!
+        This someVar((Old Int;): null
+            Old Int = Int!
         )
 
     # and the following move+reset method becomes automatically defined:
@@ -4017,12 +4083,12 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
-    ..assert(New->Uh: ~new->uh): shortcircuit~{ok, new->uh}
+    ..assert(New Uh: ~new uh): shortcircuit~{ok, new uh}
         what This
             Ok: $(Ok)
             Uh:
                 debug error(Uh)
-                shortcircuit(New->Uh)
+                shortcircuit(New Uh)
 
     ..orPanic(String := ""): ok
         what This
@@ -4033,10 +4099,10 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
                 panic(String || Uh)
 
     # If ok, returns the `Ok` value; otherwise returns the passed-in value.
-    ..or(Or->Ok.): ok
+    ..or(Default Ok.): ok
         what This
             Ok: $(Ok)
-            Uh: $(Or->Ok)
+            Uh: $(Default Ok)
 
     # maps an `Ok` result to a different type of `ok`, consuming `This`.
     # TODO: can we do `hm~{new ok, uh}` here instead to avoid `ok: ok2`?
@@ -4595,11 +4661,11 @@ insertionOrderedStore~{id, value} := extend(store) {
         else
             fn(Null)
     
-    ::forEach(Loop->fn(Id, Value): loop): null
+    ::forEach(Loop fn(Id, Value): loop): null
         Index ;= This IndexedStore[0] NextIndex
         while Index != 0
             {Value:, Id:} = not~null(This IndexedStore[Index])
-            ForLoop := Loop->fn(Id, Value)
+            ForLoop := Loop fn(Id, Value)
             if ForLoop == loop Break
                 break
             Index = This IndexedStore[Index] NextIndex
@@ -4608,7 +4674,7 @@ insertionOrderedStore~{id, value} := extend(store) {
         #       if IndexedStoreElement == Null
         #           error("insertion-ordered store invariant was broken")
         #       Index = IndexedStoreElement NextIndex
-        #       return Loop->fn(IndexedStoreElement Id, IndexedStoreElement Value)
+        #       return Loop fn(IndexedStoreElement Id, IndexedStoreElement Value)
         #   ]
 
     # modifier for a ID'd value not yet in the store, need to insert a default first:
@@ -4641,7 +4707,7 @@ insertionOrderedStore~{id, value} := extend(store) {
 ## sets
 
 TODO: if we rename map -> store, should we rename set -> bag or something else?  set is usually overloaded
-with setting something, although that's mostly obviated by the `x(New->X: int)` syntax.
+with setting something, although that's mostly obviated by the `x(New X: int)` syntax.
 
 A set contains some elements, and makes checking for the existence of an element within
 fast, i.e., O(1).  Like with store IDs, the set's element type must satisfy certain properties
@@ -4670,13 +4736,13 @@ set~t := extend(container~{id: t, value: true}) {
     # if the value was `Null` and is converted to `True` inside the function,
     # then the set will get `T` added to itself.  Example:
     #   `Set[X] = if Condition $(True) else {Null}` becomes
-    #   `Set[X, fn(Maybe->True?;): $(Maybe->True = if Condition $(True) else $(Null))]`
-    # TODO: if we used `True?` as the identifier everywhere we wouldn't need to do `Maybe->True`, e.g.,
+    #   `Set[X, fn(Maybe True?;): $(Maybe True = if Condition $(True) else $(Null))]`
+    # TODO: if we used `True?` as the identifier everywhere we wouldn't need to do `Maybe True`, e.g.,
     #   `Set[X, fn(True?;): $(True? = if Condition $(True) else $(Null))]`
-    ;;[T, fn(Maybe->True?; true): ~t]: t
+    ;;[T, fn(Maybe True?; true): ~t]: t
 
     # Fancy getter for whether `T` is in the set or not.
-    ::[T, fn(Maybe->True?): ~t]: t
+    ::[T, fn(Maybe True?): ~t]: t
 
     ::count(): count
 
@@ -5777,9 +5843,9 @@ is descoped.
 #   someFn() := "hey"
 #   otherFn := wow(someFn)
 #   print(otherFn()) # 3
-wow(Input->fn(): string): fn(): int
+wow(Input fn(): string): fn(): int
     return (): int
-        return Input->fn() countBytes()
+        return Input fn() countBytes()
 ```
 
 ## the "no pointers" rule
@@ -5800,8 +5866,8 @@ ArrayArray; int[][] = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
 ArrayArray[0] append(4)     # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
-ArrayArray[0, (Nested->Array; int[]): null
-    Nested->Array append(4)
+ArrayArray[0, (Nested Array; int[]): null
+    Nested Array append(4)
 ]
 ```
 
