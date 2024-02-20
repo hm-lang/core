@@ -326,6 +326,7 @@ See [namespaces](#namespaces) for more details.
 Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
 most importantly in contrast to most other languages, underscores (`_`) are ignored within identifiers.
 E.g., `1_000_000` is the same as `1000000` and `my_Function` is the same as `myFunction`.
+TODO: maybe use `my_function` and autocapitalize the `f`.
 
 TODO: use `_` for placeholders, like `:;size(_): _` indicating both `::size(): mySizeType` and
 `;;size(New MySizeType): mySizeType`.
@@ -1221,15 +1222,31 @@ Note that any `oneOf` that can be null gets these methods.  They are defined glo
 since we don't want to make users extend from a base nullable class.
 
 ```
-# TODO: consistent syntax for `...` with oneOf.
-# or(OneOf?. oneOf(...a, null), A: a): a
-# maybe we just use this:
-# TODO: should we make it clear that this is not a truthy-or, it's a nullable or?
-#       e.g., the difference between `??` and `||` in javascript.
-or(~A?., Other A.): a
+# nullish or.
+# `Nullable ?? A` to return `A` if `Nullable` is null,
+# otherwise the non-null value in `Nullable`.
+# TODO: a way to indicate this is binary and order dependent.
+#       maybe use namespaces like `First` and `Second` instead of unnamed & `Other`.
+nonNullOr(~A?., Other A.): a
     what A
         NonNull A: $(NonNull A)
         Null $(Other A)
+
+# boolean or.
+# `Nullable || A` to return `A` if `Nullable` is null or falsy,
+# otherwise the non-null truthy value in `Nullable`.
+# TODO: a way to indicate this is binary and order dependent.
+truthyOr(~A?., Other A.): a
+    what A
+        NonNull A:
+            if NonNull A
+                NonNull A
+            else
+                Other A
+        Null $(Other A)
+        # TODO: is there a better, rust-like syntax like??
+        # NonNull A: if NonNull A $(NonNull A)
+        # _ $(Other A)
 ```
 
 ## nested/object types
@@ -1455,7 +1472,7 @@ A Y *= 37    # OK
 returnA(Q: int): a
     # X and Y are defined locally here, and will be descoped at the
     # end of this function call.
-    X := Q as(dbl) or(NaN) * 4.567
+    X := Q as(dbl) okOr(NaN) * 4.567
     Y ;= Q * 3
     # So we can't pass X, Y as references here.  Z is fine.
     (X, Y;, Z. "world")
@@ -4099,7 +4116,7 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
                 panic(String || Uh)
 
     # If ok, returns the `Ok` value; otherwise returns the passed-in value.
-    ..or(Default Ok.): ok
+    ..okOr(Default Ok.): ok
         what This
             Ok: $(Ok)
             Uh: $(Default Ok)
