@@ -317,10 +317,12 @@ There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
 `what`,
 which are function-like but will consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
-There are some reserved namespaces like `Old`, `New`, `Other`, `NonNull`, and `NotNull`.
-Variables cannot be defined with these names, but they can be defined as `Old Int`,
+There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
+`NonNull`, `NotNull`,
+and variables cannot be defined with these names.  Variables can be defined as `Old Int`,
 `New X`, `Other ClassType`, or `NonNull Z`.  In particular, `NonNull` and `NotNull`
-are reserved namespaces for variables that cannot be null.
+are reserved namespaces for variables that cannot be null, and `First` and `Second`
+are reserved for binary operations like `&&` and `*`.
 See [namespaces](#namespaces) for more details.
 
 Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
@@ -799,6 +801,11 @@ all the arguments you supplied and keeps as its own arguments the ones you didn'
 
 ## namespaces
 
+Reserved namespaces:
+* `Old`
+* `First` - for the first operand in a binary operation (where order matters)
+* `Second` - for the second operand in a binary operation (where order matters)
+
 Namespaces are used to avoid conflicts between two variable names that should be called
 the same, i.e., for function convenience.  hm-lang doesn't support shadowing, so something
 like this would break:
@@ -1223,20 +1230,17 @@ since we don't want to make users extend from a base nullable class.
 
 ```
 # nullish or.
-# `Nullable ?? A` to return `A` if `Nullable` is null,
+# `Nullable ?? X` to return `X` if `Nullable` is null,
 # otherwise the non-null value in `Nullable`.
-# TODO: a way to indicate this is binary and order dependent.
-#       maybe use namespaces like `First` and `Second` instead of unnamed & `Other`.
-nonNullOr(~A?., Other A.): a
-    what A
+nonNullOr~a(First A?., Second A.): a
+    what First A
         NonNull A: $(NonNull A)
-        Null $(Other A)
+        Null $(Second A)
 
 # boolean or.
-# `Nullable || A` to return `A` if `Nullable` is null or falsy,
+# `Nullable || X` to return `X` if `Nullable` is null or falsy,
 # otherwise the non-null truthy value in `Nullable`.
-# TODO: a way to indicate this is binary and order dependent.
-truthyOr(~A?., Other A.): a
+truthyOr~a(First A?., Second A.): a
     what A
         NonNull A:
             if NonNull A
@@ -1709,30 +1713,26 @@ myFun(X: int, X: dbl): oneOf(int, dbl) = X      # COMPILER ERROR.  duplicate ide
 ```
 
 However, there are times where it is useful for a function to have two arguments with the same
-name, and that's for default-named arguments in a function where *order doesn't matter.*
-This is true, for example, in a function like `max`:
+name, and that's for default-named arguments in a function where (1) *order doesn't matter*,
+or (2) order does matter but in an established convention, like two sides of a binary operand.
+An example of (1) is in a function like `max`:
 
 ```
 @orderIndependent
-max(First Int, Second Int): int
-    return if First Int > Second Int
-        First Int
+max(Int, Other Int): int
+    return if Int > Other Int
+        Int
     else
-        Second Int
+        Other Int
 
 max(5, 3) == max(3, 5)
 ```
 
 The compiler is not smart enough to know whether order matters or not, so we need to annotate
-the function with `@orderIndependent` -- otherwise it's a compiler error -- and we need to use namespaces (`First` and `Second`)
-in order to distinguish between the two variables inside the function block.  When calling `max`,
-we don't need to use those namespaces, and can't (since they're invisible to the outside world).
-
-TODO: we do need order dependence for certain use cases, like arguments to an array.
-maybe we have a specific `@orderDependent` or `@arrayOrder` annotation.
-order dependence also occurs for cross product (e.g., `Vector3 cross(Other Vector3)`),
-and it would be a pain to name this other vector (`Vector3 cross(With: Other Vector3)`).
-Maybe create a `@orderDependenceOk` for such cases.
+the function with `@orderIndependent` -- otherwise it's a compiler error -- and we need to use
+namespaces (e.g., `Other` with `Other Int`) in order to distinguish between the two variables
+inside the function block.  When calling `max`, we don't need to use those namespaces, and
+can't (since they're invisible to the outside world).
 
 There is one place where it is not obvious that two arguments might have the same name, and
 that is in method definitions.  Take for example the vector dot product:
@@ -1752,14 +1752,46 @@ print(dot(Vector2, OtherVector2))   # equivalent, prints -5
 ```
 
 The method `::dot(Vector2): dbl` has a function signature `dot(This, Vector2): dbl`,
-where `This` is an instance of `vector2`, so ultimately this function looks like
-`dot(Vector2, Vector2): dbl`, and can be called thus.  Therefore this function
+where `This` is an instance of `vector2`, so ultimately this function creates a global
+function with the function signature `dot(Vector2, Vector2): dbl`.  Therefore this function
 *must* be order independent and should be annotated as such.  Otherwise it is
 a compiler error.
 
-Note that operations like `+` should be order independent, whereas `+=` should be
+As mentioned earlier, we can have order dependence in certain established cases, but these
+should be avoided in hm-lang as much as possible, where we prefer unique names.
+One example is the cross product of two vectors, where order matters but the
+names of the vectors don't.  (The relationship between the two orders is also
+somewhat trivial, `A cross(B) == -B cross(A)`, and this simplicity should be aspired to.)
+The way to accomplish this in hm-lang is to use `First` and `Second` namespaces for
+each variable.  If defined in a method, `This` will be assumed to be namespaced as `First`,
+so you can use `Second` for the other variable being passed in.  Using `First` and `Second`
+allows you to avoid the compiler errors like `@orderIndependent` does.
+
+```
+vector3 := {
+    ;;renew(This X; dbl, This Y; dbl, This Z; dbl) := Null
+
+    # defined in the class body, we do it like this:
+    ::cross(Second Vector3) := vector3(
+        X: This Y * Second Vector3 Z - This Z * Second Vector3 Y
+        Y: This Z * Second Vector3 X - This X * Second Vector3 Z
+        Z: This X * Second Vector3 Y - This Y * Second Vector3 X
+    )
+}
+
+# defined outside the class body, we do it like this:
+# NOTE: both definitions are *not* required, only one.
+cross(First Vector3, Second Vector3) := vector3(
+    X: First Vector3 Y * Second Vector3 Z - First Vector3 Z * Second Vector3 Y
+    Y: First Vector3 Z * Second Vector3 X - First Vector3 X * Second Vector3 Z
+    Z: First Vector3 X * Second Vector3 Y - First Vector3 Y * Second Vector3 X
+)
+```
+
+One final note is that operations like `+` should be order independent, whereas `+=` should be
 order dependent, since the method would look like this: `;;+=(Vector2)`, which is
-equivalent to `+=(This;, Vector2)`, where the first argument is writeable.
+equivalent to `+=(This;, Vector2)`, where the first argument is writeable.  These
+two arguments can be distinguished because of the writeability.
 
 ## function overloads
 
