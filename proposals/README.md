@@ -1801,28 +1801,28 @@ and it must have different argument names or return values.  You can also have d
 argument modifiers (i.e., `;` and `:` are different overloads, as are nullable types, `?`).
 
 ```
-greetings(String): null
+greet(String): null
     print("Hello, $(String)!")
 
-greetings(Say: string, To: string): null
+greet(Say: string, To: string): null
     print("$(Say), $(To)!")
 
-greetings(Say: string, To: string, Times: int): null
+greet(Say: string, To: string, Times: int): null
     for Count: int < Times
-        greetings(Say, To)
+        greet(Say, To)
 
 # so you call this in different ways:
-greetings("World")
-greetings(To: "you", Say: "Hi")
-greetings(Times: 5, Say: "Hey", To: "Sam")
+greet("World")
+greet(To: "you", Say: "Hi")
+greet(Times: 5, Say: "Hey", To: "Sam")
 
 # note this is a different overload, since it must be called with `Say;`
-greetings(Say; string): null
+greet(Say; string): null
     Say += " wow"
     print("$(Say), world...")
 
 MySay ;= "hello"
-greetings(Say; MySay)   # prints "hello wow, world..."
+greet(Say; MySay)   # prints "hello wow, world..."
 print(MySay)            # prints "hello wow" since MySay was modified
 ```
 
@@ -2655,16 +2655,16 @@ someFunction(MyCall; call): null
 To declare a reassignable function, use `;` after the arguments.
 
 ```
-greetings(Noun: string); null
+greet(Noun: string); null
     print("Hello, $(Noun)!")
 
 # you can use the function:
-greetings(Noun: "World")
+greet(Noun: "World")
 
 # or you can redefine it:
-greetings(Noun: string); null
+greet(Noun: string); null
     print("Overwriting!")
-# it's not ok if we use `greetings(Noun: string): null` when redefining, since that looks like
+# it's not ok if we use `greet(Noun: string): null` when redefining, since that looks like
 # we're switching from writeable to readonly.
 ```
 
