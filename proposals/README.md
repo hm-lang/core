@@ -1495,6 +1495,35 @@ returnA(Q; int): (X: dbl, Y; int, Z. str)       # inline argument type
     (X, Y; Q, Z. "sky")
 ```
 
+Argument objects are helpful if you want to have arguments that should be
+references, but need nesting to be the most clear.  For example:
+
+```
+# function declaration
+copy(From: (Pixels, Rectangle.), To: (Pixels;, Rectangle.): null
+
+# function usage
+Source Pixels := pixels() { #( build image )# }
+Destination Pixels ;= pixels()
+Size Rectangle := rectangle(Width: 10, Height: 7)
+
+copy(
+    From: (
+        Source Pixels
+        # TODO: discuss how the first variable in an argument object
+        #       (e.g., `Size Rectangle` here) becomes the name unless
+        #       the name is manually specified:
+        Size Rectangle + Vector2(X: 3, Y: 4)
+    )
+    To: (
+        Destination Pixels;
+        Size Rectangle + Vector2(X: 9, Y: 8)
+    )
+)
+
+```
+
+
 ### default-name arguments in functions
 
 For functions with one argument (per type) where the variable name doesn't matter,
@@ -1553,6 +1582,7 @@ q(():
 # equivalent to `q(() := X)`
 # also equivalent to `q((): $(X))`
 # TODO: should this also work as a definition for `MyVariable`?
+#       makes sense to me.  = can be equivalent to a newline + tab (block) for function definitions.
 MyVariable; value       # with or without `value`
     myInitialization + OfMyVariable
 ```
@@ -1648,11 +1678,14 @@ runAsdf($K * $J + str($L))   # prints "hayhayhayhayhay3.14"
 
 TODO: how to determine that `$L` in the above expression isn't being used
 as a lambda inside of `str`?
+should we use `$$L` for the number of parentheses it needs to escape?
 
 ### types as arguments
 
 Generally speaking you can use generic/template programming for this case,
 which infers the types based on instances of the type.
+TODO: can we avoid using ~ and just infer that a new type is a generic type?
+e.g., `doSomething(X): x` if `x` is not in scope anywhere?
 
 ```
 # generic function taking an instance of `x` and returning one.
@@ -2006,10 +2039,6 @@ doSomething(X?: int): int
     ...
     return 3
 ```
-
-TODO: argument structs.  e.g., `copy(From: (Pixels, Rectangle), To: (Pixels;, Rectangle))`
-which are short-hand for `copy(From Pixels, From Rectangle, To Pixels;, To Rectangle)`,
-or something similar.  these maintain referenceability.
 
 ### nullable output arguments
 
