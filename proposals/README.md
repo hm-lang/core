@@ -801,11 +801,6 @@ all the arguments you supplied and keeps as its own arguments the ones you didn'
 
 ## namespaces
 
-Reserved namespaces:
-* `Old`
-* `First` - for the first operand in a binary operation (where order matters)
-* `Second` - for the second operand in a binary operation (where order matters)
-
 Namespaces are used to avoid conflicts between two variable names that should be called
 the same, i.e., for function convenience.  hm-lang doesn't support shadowing, so something
 like this would break:
@@ -894,6 +889,16 @@ what X
     Null
         print("got null"))
 ```
+
+### full list of reserved namespaces
+
+* `New`
+* `Old`
+* `First` - for the first operand in a binary operation (where order matters)
+* `Second` - for the second operand in a binary operation (where order matters)
+* `NotNull` - for variables that cannot be null
+* `NonNull` - for variables that cannot be null
+
 
 ## member access operators `::`, `;;`, and ` `
 
@@ -1510,9 +1515,6 @@ Size Rectangle := rectangle(Width: 10, Height: 7)
 copy(
     From: (
         Source Pixels
-        # TODO: discuss how the first variable in an argument object
-        #       (e.g., `Size Rectangle` here) becomes the name unless
-        #       the name is manually specified:
         Size Rectangle + Vector2(X: 3, Y: 4)
     )
     To: (
