@@ -128,7 +128,11 @@ and `uh(ErrorResult)`; you can just return `ValidResult` or `ErrorResult`.
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
     * `{Greeting: str, Times: int} = destructureMe()` to do destructuring of a return value
     * `"My String Interpolation is ${X, Y: Z}"` to add `{X: *value-of-X*, Y: *value-of-Z*}` to the string.
-    * `A {x(), y()}` to call `A x()` then `A y()` via [sequence building](#sequence-building).
+    * `A {x(), y()}` to call `A x()` then `A y()` via [sequence building](#sequence-building)
+        and return them in an object with fields `X` and `Y`, i.e., `{X: A x(), Y: A y()}`.
+    * For generic/template classes, e.g., classes like `array~{N: count, type}` for a fixed array of size
+        `N` with elements of type `type`, or `store~{id: str, value: int}` to create a map/dictionary
+        of strings mapped to integers.
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object, `W` is an optional field
         passed by readonly reference, `X` is a readonly reference, `Y` is a writeable reference,
@@ -324,6 +328,8 @@ and variables cannot be defined with these names.  Variables can be defined as `
 are reserved namespaces for variables that cannot be null, and `First` and `Second`
 are reserved for binary operations like `&&` and `*`.
 See [namespaces](#namespaces) for more details.
+Other reserved keywords: `new` for returning a class constructor,
+TODO: `new` should probably be considered a namespace here, e.g., `new int`.
 
 Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
 most importantly in contrast to most other languages, underscores (`_`) are ignored within identifiers.
@@ -3623,28 +3629,23 @@ Unspecified := SomeExample to()     # COMPILER ERROR, specify a type for `Unspec
 
 ## generic/template classes
 
-TODO: can we just use `genericClass(id, value) := {...class-def}` to save `~`?
-this starts looking like a function definition, however.
-could we use `genericClass{id, value} := {...}`?  `[id, value]` would look
-too much like an array.  if we omitted `~`, then we'd need to use braces
-all the time, e.g., `array{type} := { ... }`.  i think i'd prefer parentheses
-here e.g., `array(type)` but we'd need to ensure that we can distinguish
-from a function definition; we do want to allow generics with non-types, however,
-like the number of elements in the array `genericArray~{type, N: int}`,
-so that starts looking like a function definition with parentheses: `genericArray(type, N: int)`.
-would we introduce `genericArray(type, N: int) := new { ... }`?  that's not as obvious.
-
 TODO: discuss how `null` can be used as a type in most places.  unless we
 want to explicitly allow for it only if we use `{id?}` for example.
 for example, we need to allow `hm~{ok, uh}` to have a nullable `ok`,
 but probably shouldn't allow nullable `uh`.  we probably need annotations
 for this, e.g., `store~{id, value} where {hash(id), notNull(value)}`
+Ideally we could use `{id: hashable, value: notNull}` or similar to avoid
+adding more keywords and mental concepts.
 
-TODO: maybe allow default types.
+TODO: maybe allow default types.  maybe this is a use-case for `:=` inside
+the braces, e.g., `hm~{ok ?:= null, uh}`.
 
 To create a generic class, you put the expression `~{types...}` after the
-class identifier, or `~type` for a single template type.  You can use these
-new types for any class inheritance from a parent which is a generic/template class.
+class identifier, or `~type` for a single template type.  The difference
+between the two generic declarations is that `~type` will take an unnamed type
+so `~int` or `~dbl` are both valid specifications, while `~{types...}` must
+have their fields specified by name, e.g., `~{type1, type2}` must be
+specified like `~{type1: int, type2: string}`.
 
 ```
 # create a class with two generic types, `id` and `value`:
@@ -3670,7 +3671,8 @@ You can also have virtual generic methods on generic classes, which is not allow
 generic~t := {
     Value; t
 
-    ::method(U: ~u): u
+    # virtual on account of declaration with `;`:
+    ::method(~U); u
         OtherT: t = This Value * (U + 5)
         return U + OtherT
 }
@@ -3682,7 +3684,7 @@ print(Generic method(i32(2)))    # prints ("3" * 7)
 specific~t := extends(generic~t) {
     ;;renew(This Scale; t = 1) := Null
 
-    ::method(U: ~u): u
+    ::method(~U): u
         ParentResult := generic~t::method(U)
         return ParentResult * This Scale 
 }
@@ -3698,6 +3700,18 @@ inside the `Generic` type, and look up that type's instance's method.  e.g., def
 then inside `globalMethod(...<generic<t>>...)` we ensure to call.  we'll need to do this in
 such a way that we don't need to know all the child class definitions when we write the parent
 class definition; e.g., build it into the type's vtable.
+
+Just like with function arguments, we can elide a generic field value if the
+field name is already a type name in the current scope.  For example:
+
+```
+MyNamespace id := int
+value := {X: flt, Y: flt}
+
+# This is not idiomatic, probably should get automatically converted to below:
+MyStore1 ;= store~{id: MyNamespace id, value: value}()
+MyStore2 ;= store~{MyNamespace id, value}()
+```
 
 ### default field names with generics
 
