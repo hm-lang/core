@@ -2830,15 +2830,19 @@ Vector3 == Result           # equals True
 ### argument *name* generics: with associated generic type
 
 TODO: restrictions here, do we need to only have a single argument, so that
-argument names are unique?
+argument names are unique?  it's probably ok if we have an `@orderIndependent`
+or use `First ~T` and `Second ~U` to indicate order is ok.
 
-For an example where the name and type are both generic, which is probably
-the most common: `logger(~T): t`, where `~T` is shorthand for `T: t` with a 
-new template type `t`.  For contrast, `logger(T: ~t): t` might appear to be doing
-the same thing, but this will be a compile error since you probably don't want to
-call this function like `logger(T: "whatever")`.
-TODO: the compile error is probably "cannot use a template type `~t` when there is
-an existing named instance `T`; you probably meant `~T`, not `T: ~t`."
+To avoid needing an argument name when calling the function, we can use
+name and type generics.  This differs from named generics where the lowerCamelCase
+type doesn't match the UpperCamelCase identifier (like the example
+`copy(Value: ~t): t` which requires naming the argument `Value` in function calls
+like `copy(Value: MyVariable)`).
+
+If the UpperCamelCase identifier matches the lowerCamelCase type of a generic,
+then it's a default-named argument, e.g., `MyType; ~myType` or `T: ~t`.  There
+is a shorthand for this which is more idiomatic: `~MyType;` or `~T`.  Here
+is a complete example:
 
 ```
 logger(~T): t
@@ -2866,6 +2870,7 @@ You can also define an argument with a known type, but an unknown name.
 ```
 thisFunction(~TheName: int): null
     # TODO: come up with a good way to get the name, if this isn't the best:
+    #       maybe @@, e.g., `@@TheName`.
     ArgumentName: str = @(TheName)
     print("calling thisFunction with $(ArgumentName): $(TheName)")
 ```
@@ -3060,6 +3065,7 @@ exampleClass := {
     ;;addSomething(Int): null
         This X += Int
 
+    # TODO: make `;` virtual functions.
     # TODO: either use `:;myMethod(); null` for virtual methods or don not allow redefinable methods.
     # TODO: should we distinguish between virtual (overridable) and non-virtual (non-overridable)
     #       methods?  if so, we can use `myFn();` for virtual and `myFn():` for non-virtual.
@@ -3629,6 +3635,14 @@ Unspecified := SomeExample to()     # COMPILER ERROR, specify a type for `Unspec
 
 ## generic/template classes
 
+TODO: can we do `array value := extend(container{id: index, value}) {...}`
+for unnamed types (e.g., `array int`) and `store{id, value} := extend(container{id, value}) {...}`
+for named types?  this makes more sense in case we define an `{id, value}` type of our own,
+e.g., `storeType := {id: str, value: int}` and then we can do `store storeType`.
+this seems to work ok for class definitions but function definitions
+might be annoying.  `myFunction u(U, Str): u` doesn't look quite right;
+it's nice to inline where the type is defined via `myFunction(~U, Str): u`.
+
 TODO: discuss how `null` can be used as a type in most places.  unless we
 want to explicitly allow for it only if we use `{id?}` for example.
 for example, we need to allow `hm~{ok, uh}` to have a nullable `ok`,
@@ -3661,8 +3675,7 @@ genericClass~{id, value} := {
 ClassInstance := genericClass(Id: 5, Value: "hello")
  
 # creating an instance with template/generic types specified:
-OtherInstance := genericClass~{id: dbl, value: string}(Id: 3, Value: 4)
-# note the passed-in values will be converted into the correct type.
+OtherInstance := genericClass~{id: dbl, value: string}(Id: 3, Value: "4")
 ```
 
 You can also have virtual generic methods on generic classes, which is not allowed by C++.
@@ -3715,29 +3728,14 @@ MyStore2 ;= store~{MyNamespace id, value}()
 
 ### default field names with generics
 
-TODO: i think we're going to revert this.  while this makes things consistent with function
-arguments, typically generics don't need to apply to field names.  this also makes `store~{id, value}`
-a bit weird, and might require differentiating the key/value types if they are the same (e.g.,
-both `int`), despite distinguished by the generic type name, e.g., `store~{id, value: int}`
-should be fine, but we'd need to use `intId := int, valueId := int, store~{id: intId, value: valueId}`
-in order for store elements like `{~Id, ~Value}` to be consistent as `{IntId, ValueId}`.
-however, it might not be a bad idea for key/value types to be distinguishable for intent/naming purposes.
-and this would be useful for bimaps, where we don't care which one is the key and which is the value,
-but we'd want people to look them up by the forward/reverse direction without using it;
-e.g., `bimap~{a, b}` wouldn't require `Bimap get(A: "asdf")` to return a `b`, we could simply
-use `Bimap get("asdf")`.  but it's probably ok to keep function arguments as resolving, e.g.,
-`bimap::get(A): b` can be called with `Bimap get(String): int` (e.g., for `a := string` and `b := int`).
-the side effect is that stuff like `Hm isOk()` would remain `isOk()` instead
-of `isInnerType()` (e.g., for `hm~{innerType, uh}`).  if using `Hm ok()`, that
-*might* convert to `innerType()`, but that might be confusing.
+Note that generic classes like `generic~id := {Id}` will always have a field named `Id`
+regardless of the specified type.  We don't make this like a generic name; `generic~int`
+would *not* be equivalent to `{Int: int}`; `generic~int` is `{Id: int}`.  This is mostly
+to avoid confusion when passing in two types that are the same like `store~{id: int, value: int}`.
+Internally, if we store a list of `{Id, Value}` objects, there could be a name collision
+(e.g., `{Int, Int}`), and we don't want to expose that internal detail to consumers of
+the generic class.
 
-Note that if you define a generic like this, `generic~t := {T}` (short for `{T: t}`) or
-`exampleClass~myGeneric := {MyGeneric;}`, then the default name of the instantiating type
-will apply.  For example, `generic~int` will have an `Int: int` field, and
-`exampleClass~string` will have a `String; string` field.  If you want to ensure the
-field name stays the same regardless of the instantiated type, make sure to name the fields
-differently than the `UpperCamelCase`d type, e.g., `specifiedField~t := {Id: t}` to always
-have a field named `Id`.
 
 ## common class methods
 
@@ -4640,20 +4638,19 @@ change places inside the store and/or collide with an existing ID.
 Some relevant pieces of the class definition:
 
 ```
-store~{id, value} := extend(container~{id, value}) {
-    this uh := oneOf(
-        OutOfMemory
-        # TODO: etc...
-    )
-    # TODO: a lot of these methods need to return `hm~u`.
-    this hm~u := hm~{ok: u, this uh}
+uh := oneOf(
+    OutOfMemory
+    # TODO: etc...
+)
+hm~ok := hm~{ok, uh}
 
+store~{id, value} := extend(container~{id, value}) {
     # Returns Null if `Id` is not in the store.
     This::[Id]?: value
 
     # Gets the existing value at `Id` if present,
     # otherwise inserts a default `value` into the store and returns it.
-    This;;[Id]: value
+    This;;[Id]: hm~value
 
     # Ejects the possibly null value at `This[Id]` and returns it.
     # A subsequent, immediate call to `This::[Id]` returns Null.
@@ -4664,16 +4661,19 @@ store~{id, value} := extend(container~{id, value}) {
     # Returns the last element added to the store if the store is
     # insertion ordered, otherwise returns any convenient element.
     # The element is removed from the store.
-    # Throws if there is no element available.
-    ;;pop(): {id, value}
+    # TODO: probably should just return ?: {id, value} but this looks a lot like
+    #       `hm~{ok, uh}`, and how do we distinguish between a desire to pass in
+    #       a single value for `hm~ok` and the desire to try and use `hm~{ok, uh}`?
+    ;;pop(): hm~{id, value}
 
     @alias ;;pop(Id) ?:= This;;[Id]!
 
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at ID, too.
-    ;;[Id]: value
+    ;;[Id]: hm~value
 
+    # TODO: a lot of these methods need to return `hm~ok`.
     # getter, which will create a default value instance if it's not present at Id.
     ;;[Id, fn(Value): ~t]: t
 
