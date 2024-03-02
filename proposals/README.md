@@ -1591,6 +1591,8 @@ q(():
 # also equivalent to `q((): $(X))`
 # TODO: should this also work as a definition for `MyVariable`?
 #       makes sense to me.  = can be equivalent to a newline + tab (block) for function definitions.
+#       however, this may break `what` statements that define new values but don't initialize.
+#       e.g., `what Result $(Ok: $(doSomethingWith(Ok), looksLikeVariableInitialization()))`
 MyVariable; value       # with or without `value`
     myInitialization + OfMyVariable
 ```
@@ -3642,6 +3644,7 @@ e.g., `storeType := {id: str, value: int}` and then we can do `store storeType`.
 this seems to work ok for class definitions but function definitions
 might be annoying.  `myFunction u(U, Str): u` doesn't look quite right;
 it's nice to inline where the type is defined via `myFunction(~U, Str): u`.
+maybe we do both.  `~t` for new types and `{}` for specifying types.
 
 TODO: discuss how `null` can be used as a type in most places.  unless we
 want to explicitly allow for it only if we use `{id?}` for example.
@@ -3966,7 +3969,7 @@ and two backslashes becomes a search for a library module, e.g., `\\math`.
 
 Subsequent subdirectories are separated using forward slashes, e.g.,
 `\/relative/path/to/file` to reference the file at `./relative/path/to/file.hm`,
-and `..` is allowed between backslashes to go to the parent directory relative
+and `..` is allowed between forward slashes to go to the parent directory relative
 to the current directory, e.g., `\/../subdirectory_in_parent_directory/other/file`.
 Note that we don't include the `.hm` extension on the final file, and we allow
 underscores in file and directory names.
@@ -4000,6 +4003,7 @@ determine if it's a function or a class in the importing file.  e.g.,
 `{myFunction(MyArg1: int, MyArg2: dbl): str} = \/util`.
 we can always come up with a solution to "grab all overloads" like
 `{myFunction: ...(...)} = \/util`. -- TODO something better.
+or `{myFunction(_): _} = \/util` or `{myFunction(*): *} = \/util`.
 
 You can use this `\/` notation inline as well, which is recommended
 for avoiding unnecessary imports.  It will be a language feature to
@@ -4142,7 +4146,6 @@ TODO: maybe use `um` for futures.
 hm~{ok, uh} := extend(oneOf(ok, uh)) {
     # The API is `Ok := Hm assert()`, which will bubble up this `uh`
     # if the result was an error.
-    # TODO: explain what shortcircuit does.
     #   ```
     #   doSomething(Dbl): hm~{ok: dbl, uh: str}
     #       if Dbl < 0
@@ -4155,10 +4158,10 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #       Result := doSomething(1.234) assert()
     #       print(Result)
     #   ```
-    ..assert(): shortcircuit~{ok, uh}
+    ..assert(): guard~{admit: ok, eject: uh}
         what This
-            Ok: $(Ok)
-            Uh: $(debug error(Uh), shortcircuit(Uh))
+            Ok: $(admit(Ok))
+            Uh: $(debug error(Uh), eject(Uh))
 
     # The API is `Ok := Hm assert(Uh: "custom error if not `ok`")`.
     # This will moot `This` and shortcircuit a failure (i.e., if `result`
@@ -4175,12 +4178,14 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
-    ..assert(New Uh: ~new uh): shortcircuit~{ok, new uh}
+    # TODO: should we just rely on `map` functionality here instead of adding a new `assert`?
+    #       e.g., we can do `Hm map((Uh) := New Uh) assert()`
+    ..assert(New Uh: ~eject): guard~{admit: ok, eject}
         what This
-            Ok: $(Ok)
+            Ok: $(admit(Ok))
             Uh:
                 debug error(Uh)
-                shortcircuit(New Uh)
+                eject(New Uh)
 
     ..orPanic(String := ""): ok
         what This
@@ -4294,6 +4299,51 @@ TODO: should this be valid if `ok` is already a nullable type?  e.g.,
 `myFunction(): hm~{ok: oneOf(int, null), uh: str}`.
 we probably should compile-error-out on casting to `Int ?:= myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
+
+# guard
+
+You can write your own `assert` or `return`-like statements using guard logic.
+Ultimately `guard` is a simple `oneOf` that returns early if `eject` is instantiated
+and keeps going if `admit` is instantiated.  Getting an `eject` shortcircuits the
+rest of the block (and possibly other nested blocks), but `admit` will continue
+the current block.  This is all done opaquely by the compiler.
+
+```
+guard~{admit, eject} := extend(oneOf(admit, eject)) {
+    # ... special compiler magic ...
+}
+```
+
+TODO:
+We probably can return early from an `if` block with or `if guard send()` or `then break()`,
+or from other conditionals like `what`.  However, to be useful, we need to do stuff like
+break a nested conditional.
+```
+if SomeCondition
+    # do stuff
+    if SomeOtherCondition
+        then send() # should be able to break the parent `if`, not just this if; that's not useful.
+    # do other stuff
+```
+Probably could rewire conditionals to accept an additional "argument", something like
+```
+if SomeCondition, Then:
+    # do stuff
+    if SomeOtherCondition
+        Then return()
+    # do other stuff
+```
+We could also do crazier stuff with function returns as well:
+```
+myFunction(X: int), Fn: int
+    innerFunction(Y: int): dbl
+        if Y == 123
+            Fn return(123)      # early return from `myFunction`
+        return Y as(dbl) assert()
+    for Y: int < X
+        innerFunction(Y)
+    return 3 
+```
 
 # standard container classes (and helpers)
 
@@ -4674,16 +4724,17 @@ store~{id, value} := extend(container~{id, value}) {
     ;;[Id]: hm~value
 
     # TODO: a lot of these methods need to return `hm~ok`.
-    # getter, which will create a default value instance if it's not present at Id.
+    # no-copy getter: which will create a default value instance if it's not present at Id.
     ;;[Id, fn(Value): ~t]: t
 
+    # copy getter: which will return a copy of the value at ID;
     # returns a Null if ID is not in the store.
     ::[Id]?: value
 
-    # getter, which will pass back a Null if the ID is not in the store.
+    # no-copy getter: which will pass back a Null if the ID is not in the store.
     ::[Id, fn(Value?): ~t]: t
 
-    # sets the value at the ID, returning the old value:
+    # swapper: sets the value at the ID, returning the old value:
     ;;[Id, Value;]: value
 
     # modifier, allows access to modify the internal value via reference.
