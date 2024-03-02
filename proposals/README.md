@@ -4161,7 +4161,7 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #           ok(Dbl sqrt())
     #
     #   # example with implicit guard:
-    #   main(): hm~{ok: null, uh: str}
+    #   implicitGuard(): hm~{ok: null, uh: str}
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert()
     #       print(Result)
@@ -4171,12 +4171,10 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #       with Guard ;= guard~uh()
     #           Result := doSomething(1.234) assert(Guard;)
     #           print(Result)
-    #       jump Eject:
-    #           return Eject
+    #       exit Uh:
+    #           return Uh
     #   ```
-    # TODO: should this be a `jump~{ok, eject}` return type??
-    #       i guess the `..assert(): jump` method should do that.
-    ..assert(Guard: guard~uh): ok
+    ..assert(Guard; guard~uh): ok
         what This
             Ok: $(Ok)
             Uh: $(debug error(Uh), Guard eject(Uh))
@@ -4191,14 +4189,14 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   main(): hm~{ok: null, uh: oneOf(InvalidDoSomething, OtherError)}
+    #   implicitGuard(): hm~{ok: null, uh: oneOf(InvalidDoSomething, OtherError)}
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
     # TODO: should we just rely on `map` functionality here instead of adding a new `assert`?
     #       e.g., we can do `Hm map((Uh) := New Uh) assert()`
-    ..assert(New Uh: ~eject, Guard: guard~eject): ok
+    ..assert(New Uh: ~eject, Guard; guard~eject): ok
         what This
             Ok: $(Ok)
             Uh:
@@ -4323,13 +4321,12 @@ it's not clear whether `Int` is null due to an error or due to the return value.
 
 You can write your own `assert` or `return`-like statements using guard logic.  The `guard`
 class has a method to return early if desired.  Calling the `eject` method shortcircuits the
-rest of the block (and possibly other nested blocks).  This is annotated by using the `jump`
+rest of the block (and possibly other nested blocks).  This is annotated by using the `exit`
 return value.
 
 ```
 guard~eject := extend(withable) {
-    # TODO: should we rename `jump` to `escape`?
-    ;;eject(Eject.): jump
+    ;;eject(Eject.): exit~eject
 }
 ```
 
