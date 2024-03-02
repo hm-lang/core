@@ -4151,7 +4151,8 @@ TODO: maybe use `um` for futures.
 ```
 hm~{ok, uh} := extend(oneOf(ok, uh)) {
     # The API is `Ok := Hm assert()`, which will bubble up this `uh`
-    # if the result was an error.
+    # if the result was an error.  Note that we use the `guard` API
+    # which normally is implicit but can be used explicitly if needed.
     #   ```
     #   doSomething(Dbl): hm~{ok: dbl, uh: str}
     #       if Dbl < 0
@@ -4159,15 +4160,26 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
+    #   # example with implicit guard:
     #   main(): hm~{ok: null, uh: str}
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert()
     #       print(Result)
+    #
+    #   # example with explicit guard that does the same thing as implicit:
+    #   explicitGuard(): hm~{ok: null, uh: str}
+    #       with Guard ;= guard~uh()
+    #           Result := doSomething(1.234) assert(Guard;)
+    #           print(Result)
+    #       jump Eject:
+    #           return Eject
     #   ```
-    ..assert(): guard~{admit: ok, eject: uh}
+    # TODO: should this be a `jump~{ok, eject}` return type??
+    #       i guess the `..assert(): jump` method should do that.
+    ..assert(Guard: guard~uh): ok
         what This
-            Ok: $(admit(Ok))
-            Uh: $(debug error(Uh), eject(Uh))
+            Ok: $(Ok)
+            Uh: $(debug error(Uh), Guard eject(Uh))
 
     # The API is `Ok := Hm assert(Uh: "custom error if not `ok`")`.
     # This will moot `This` and shortcircuit a failure (i.e., if `result`
@@ -4186,12 +4198,12 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #   ```
     # TODO: should we just rely on `map` functionality here instead of adding a new `assert`?
     #       e.g., we can do `Hm map((Uh) := New Uh) assert()`
-    ..assert(New Uh: ~eject): guard~{admit: ok, eject}
+    ..assert(New Uh: ~eject, Guard: guard~eject): ok
         what This
-            Ok: $(admit(Ok))
+            Ok: $(Ok)
             Uh:
                 debug error(Uh)
-                eject(New Uh)
+                Guard eject(New Uh)
 
     ..orPanic(String := ""): ok
         what This
@@ -4251,6 +4263,7 @@ Result is((Ok) := print("Ok: ", Ok))
 Result is((Uh) := print("Uh: ", Uh))
 
 # or if you're sure it's that thing, or want the program to terminate if not:
+# TODO: do we want to make the api `Ok := Result assert("for sure", OrPanic)` using an `OrPanic` guard?
 Ok := Result orPanic("for sure")
 ```
 
@@ -4308,27 +4321,27 @@ it's not clear whether `Int` is null due to an error or due to the return value.
 
 # guard
 
-You can write your own `assert` or `return`-like statements using guard logic.
-Ultimately `guard` is a simple `oneOf` that returns early if `eject` is instantiated
-and keeps going if `admit` is instantiated.  Getting an `eject` shortcircuits the
-rest of the block (and possibly other nested blocks), but `admit` will continue
-the current block.  This is all done opaquely by the compiler.
+You can write your own `assert` or `return`-like statements using guard logic.  The `guard`
+class has a method to return early if desired.  Calling the `eject` method shortcircuits the
+rest of the block (and possibly other nested blocks).  This is annotated by using the `jump`
+return value.
 
 ```
-guard~{admit, eject} := extend(oneOf(admit, eject)) {
-    # ... special compiler magic ...
+guard~eject := extend(withable) {
+    # TODO: should we rename `jump` to `escape`?
+    ;;eject(Eject.): jump
 }
 ```
 
 TODO:
-We probably can return early from an `if` block with or `if guard send()` or `then break()`,
+We probably can return early from an `if` block with or `if guard eject()` or `then break()`,
 or from other conditionals like `what`.  However, to be useful, we need to do stuff like
 break a nested conditional.
 ```
 if SomeCondition
     # do stuff
     if SomeOtherCondition
-        then send() # should be able to break the parent `if`, not just this if; that's not useful.
+        then eject() # should be able to break the parent `if`, not just this if; that's not useful.
     # do other stuff
 ```
 Probably could rewire conditionals to accept an additional "argument", something like
