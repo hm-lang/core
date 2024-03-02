@@ -3645,6 +3645,12 @@ this seems to work ok for class definitions but function definitions
 might be annoying.  `myFunction u(U, Str): u` doesn't look quite right;
 it's nice to inline where the type is defined via `myFunction(~U, Str): u`.
 maybe we do both.  `~t` for new types and `{}` for specifying types.
+but how would we get a field defined on a generic type like `array~t`?
+`array int::myMethod()` looks like `int::myMethod()` but if we make it all left-to-right it's fine.
+however this doesn't look right for instantiating a class, e.g., `array int([1, 2, 3])` looks like
+`array->int([1, 2, 3])` which would track as `int(...)` in the namespace of `array` so it's still technically ok.
+`array~int([1,2,3])`.  But i'd prefer to keep that looking like a static method on `array`
+rather than a generic specification.
 
 TODO: discuss how `null` can be used as a type in most places.  unless we
 want to explicitly allow for it only if we use `{id?}` for example.
@@ -3690,12 +3696,12 @@ generic~t := {
     # virtual on account of declaration with `;`:
     ::method(~U); u
         OtherT: t = This Value * (U + 5)
-        return U + OtherT
+        U + u(OtherT) orPanic()
 }
 
 Generic := generic~string
-Generic Value = "hello"
-print(Generic method(i32(2)))    # prints ("3" * 7)
+Generic Value = "3"
+print(Generic method(i32(2)))    # prints "3333335" which is i32("3" * (2 + 5)) + 2
 
 specific~t := extends(generic~t) {
     ;;renew(This Scale; t = 1) := Null
@@ -4330,20 +4336,33 @@ Probably could rewire conditionals to accept an additional "argument", something
 if SomeCondition, Then:
     # do stuff
     if SomeOtherCondition
-        Then return()
+        Then eject()
     # do other stuff
 ```
 We could also do crazier stuff with function returns as well:
 ```
+# TODO: should this be `myFunction(X: int): int, Fn:` ?  maybe this is not worth it for the confusing syntax.
 myFunction(X: int), Fn: int
     innerFunction(Y: int): dbl
         if Y == 123
-            Fn return(123)      # early return from `myFunction`
+            Fn eject(123)       # early return from `myFunction`
         return Y as(dbl) assert()
     for Y: int < X
         innerFunction(Y)
     return 3 
 ```
+
+TODO: Can we write other conditionals/loops/etc. in terms of `guard` to make it easier to compile
+from fewer primitives?  E.g., `while Condition, Do: $(... Do eject(3) ...)`.
+
+TODO: should `Then` be in a function format, e.g.,
+```
+if(SomeCondition, (Then):
+    ...
+)
+```
+The downside here is that `return` will definitely only work inside the function to return from `Then`,
+so `Then eject` has no purpose.  well, it would be needed for nested if statements.
 
 # standard container classes (and helpers)
 
