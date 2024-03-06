@@ -1,20 +1,27 @@
+
+uh := oneOf(
+    InvalidArgument
+    # TODO...
+)
+hm~ok := hm{ok, uh}
+
 window := {
     # Returns true iff the window is fullscreen.
     ::fullscreen(): bool
     # Sets fullscreen if the passed-in `Bool` is true,
-    # otherwise sets windowed mode; returns the previous value.
-    ;;fullscreen(Bool): bool
+    # otherwise sets windowed mode; swaps the previous value into `Bool` (if `;`).
+    ;;fullscreen(Bool;.): null
 
     # Returns the actual window size, i.e., the real-estate available for drawing.
     ::size(): size2i
     # Sets the window size, returning the old value if the attempt was successful.
-    ;;size(Size2i): try~(ok: size2i, uh)
+    ;;size(Size2i): hm size2i
     # TODO: add these eventually when we think we have a consistent API:
     #[#
     # Sets the minimum window size, i.e., for a resizable window.
-    ;;minSize(Size2i): try~(ok: size2i, uh)
+    ;;minSize(Size2i): hm size2i
     # Sets the maximum window size, i.e., for a resizable window.
-    ;;maxSize(Size2i): try~(ok: size2i, uh)
+    ;;maxSize(Size2i): hm size2i
     #]#
 
     # Returns the current data in the clipboard,
@@ -22,22 +29,24 @@ window := {
     ::clipboard(): string
     # Sets the current data in the clipboard,
     # i.e., for the "copying" part of copy-paste.
-    ;;clipboard(String): null
+    # returns what was in the clipboard.
+    ;;clipboard(String): string
 
-    ::resolution() := This Pixels size()
-    ;;resolution(Size2i) := This Pixels size(Size2i)
+    ::resolution() := My Pixels size()
+    ;;resolution(Size2i) := My Pixels size(Size2i)
 
     # Function to get pixels to draw to.
     ;;draw(fn(~QpuPixels;): t) := fn(This Pixels;)
 
     # Grabs window events to handle.
     ;;pull(): windowEvent[]
-        This AccumulatingEvents modify((Unguarded;) := Unguarded pull())
+        This AccumulatingEvents[(WindowAccumulatingEvents;) := WindowAccumulatingEvents pull()]
 
     @private {
         Pixels;
         Background; color
-        AccumulatingEvents; guarded~windowAccumulatingEvents
+        # TODO: better word for mutex, maybe `locked`?
+        AccumulatingEvents; guarded windowAccumulatingEvents
     }
 }
 
@@ -108,7 +117,7 @@ modifiers := {
 @referenceableAs(cpuPixels, gpuPixels)
 pixels := {
     @hideFrom(cpuPixels, gpuPixels)
-    ;;renew(FilePath) := This load(FilePath)
+    ;;renew(FilePath) := I load(FilePath)
 
     # Saves the image.
     ::save(FilePath): null
@@ -123,19 +132,19 @@ pixels := {
     # Tries to resize the image.  Can fail if the new size is too large (OOM)
     # or if the size is invalid (e.g., negative values).
     @hideFrom(cpuPixels, gpuPixels)
-    ;;size(New->Size2i): try~(ok: size2i, uh)
+    ;;size(New->Size2i): hm{ok: size2i, uh}
 
     # Color getter via coordinates.  Can fail if the coordinates are out of bounds (OOB).
     # Can also be expensive if the pixels aren't up-to-date on the CPU.
     @hideFrom(gpuPixels)
-    ::[Coordinates2i, fn(Color): ~t]: try~(ok: t, uh)
+    ::[Coordinates2i, fn(Color): ~t]: hm{ok: t, uh}
 
     # Color check+setter via coordinates.
     @hideFrom(gpuPixels)
-    ;;[Coordinates2i, fn(Color;): ~t]: try~(ok: t, uh)
+    ;;[Coordinates2i, fn(Color;): ~t]: hm{ok: t, uh}
 
     # Color setter (doesn't check the color first).
-    ;;draw(Coordinates2i, Color): try~(uh)
+    ;;draw(Coordinates2i, Color): hm{uh}
 
     # Draws some text to these pixels.
     @hideFrom(cpuPixels) # TODO: maybe support CPU font drawing eventually
@@ -151,11 +160,11 @@ pixels := {
     # the rectangle will be split into pieces and wrapped before drawing.
     ;;draw(Rectangle2i, Color, Wrap: rectangle2i): null
 
-    # Draws some triangles to these pixels, setting the GPU version
+    # Draws some fragments (triangles) to these pixels, setting the GPU version
     # of these pixels ahead of the CPU version (if present).
     # WARNING: Will also send `Vertices` to the GPU if not already there.
     @hideFrom(cpuPixels)
-    ;;draw(Shading~(vertexData, fragmentData);, Vertices~vertexData;, Triangles: triangle[]): null
+    ;;draw(Shading~{vertexData, fragmentData};, Vertices[]; vertexData, Fragments[]: fragment): null
 
     # TODO: line-drawing API.  e.g., `;;draw(Line, Color): null`
     #       probably want a pixel-perfect one, plus a thickness based one.
@@ -171,7 +180,7 @@ pixels := {
     ;;pull(): null
 
     @private {
-        State ;= state~pixelsId CpuOnly
+        State ;= state pixelsId CpuOnly
 
         # The current image size.
         Size; size2i
@@ -179,8 +188,8 @@ pixels := {
         # Row-major order, with rows being rows of pixels across the screen left->right,
         # with `Pixels[0]` being the top row and `Pixels[Height - 1]` the bottom row.
         # Invariant: if `State != GpuOnly`,
-        # `Pixels[Y] size() == This Size Width` for all `Y` in bounds
-        # and `Pixels size() == This Size Height`.
+        # `Pixels[Y] size() == My Size Width` for all `Y` in bounds
+        # and `Pixels size() == My Size Height`.
         Pixels[][]; color
     }
 }
@@ -206,7 +215,7 @@ draw(
 vertices~data := {
     vertex := union({Position: vector3f}, data)
 
-    ;;renew(FilePath) := This load(FilePath)
+    ;;renew(FilePath) := I load(FilePath)
 
     # Saves the vertices to a file.
     ::save(FilePath): null
@@ -214,12 +223,10 @@ vertices~data := {
     # Loads vertices from a file.
     ;;load(FilePath): null
 
-    # TODO: we should have an hm-lang idiom for this dereference-like behavior.
-    #       `modify` works, or maybe something else?
-    ;;modify(fn(Array[]; data): ~t): try~(ok: t, uh)
-        assert !This State gpuIsAheadOfCpu()
+    ;;[fn(Array[]; data): ~t]: hm{ok: t, uh}
+        assert !My State gpuIsAheadOfCpu()
 
-        Result := fn(This Vertices;)
+        Result := fn(My Vertices;)
 
         This State is((Synced):
             This State = needsCommit(PreviousId: Synced Id)
@@ -234,10 +241,10 @@ vertices~data := {
     # NOTE: there is no `;;pull()` method like with `pixels`; we don't modify
     # vertices on the GPU like we do with textures.
 
-    # TODO: `..transfer(): vertices~data` to become `GpuOnly`
+    # TODO: `..transfer(): vertices data` to become `GpuOnly`
 
     @private {
-        State ;= state~verticesId CpuOnly
+        State ;= state verticesId CpuOnly
 
         Vertices[]; vertex
     }
@@ -266,13 +273,13 @@ vertices~data := {
             Synced: $(False)
 )
 
-triangle := {
+fragment := {
     VertexIndices[3]; u32
 }
 
 # Warning!  Ensure that any fields to `vertexData` or `fragmentData`
 # don't use a `builtin` like `VertexIndex`, unless you actually want to use that built-in.
-shader~(globalData?: gpuData, vertexData?: gpuData, fragmentData?: gpuData) := {
+shader~{globalData?: gpuData, vertexData?: gpuData, fragmentData?: gpuData} := {
     vertexInputData := union({Position: vector3f}, vertexData)
     vertexOutputData := union({Position: vector4f}, fragmentData)
 
@@ -284,7 +291,7 @@ shader~(globalData?: gpuData, vertexData?: gpuData, fragmentData?: gpuData) := {
         @private This shade(GlobalData, VertexInputData): vertexOutputData
 
         # Fragment shader, which returns the color to use for this pixel,
-        # based on GlobalData and FragmentData from the triangle's vertices.
+        # based on GlobalData and FragmentData from the fragment's vertices.
         # If returning null, the result is equivalent to a `discard`,
         # and can be used for 100% transparency.
         @private This shade(GlobalData, VertexOutputData)?: color4f
@@ -379,13 +386,13 @@ l2 := {
 }
 
 vector2~t := {X; t, Y; t}
-vector2i := vector2~i32
-vector2f := vector2~f32
+vector2i := vector2 i32
+vector2f := vector2 f32
 
 size2~t := {Width; t, Height; t}
-size2i := size2~i32
-size2f := size2~f32
+size2i := size2 i32
+size2f := size2 f32
 
 index2~t := {Column; t, Row; t}
-index2i := index2~i32
-index2f := index2~f32
+index2i := index2 i32
+index2f := index2 f32

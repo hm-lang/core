@@ -88,7 +88,7 @@ We recommend using `My` for field access (e.g., `My X`) as well as getters/sette
 and `I` for methods that start with a verb, e.g., `I draw()`.
 
 Class getters/setters do not use `::getX(): dbl` or `;;setX(Dbl): null`, but rather
-just `::x(): dbl` and `;;x(Dbl): null` for a private variable `X; dbl`.  This is one
+just `::x(): dbl` and `;;x(Dbl;.): null` for a private variable `X; dbl`.  This is one
 of the benefits of using `lowerCamelCase` for functions/methods and `UpperCamelCase`
 for variables; we can easily distinguish intent without additional verbs.
 
@@ -708,9 +708,6 @@ same for `A + B` and `A - B`.  `A // B` is safe.
 TODO: add : , ; ?? postfix/prefix ?
 TODO: add ... for dereferencing.  maybe we also allow it for spreading out an object into function arguments,
 e.g., `myFunction(A: 3, B: 2, ...MyObject)` will call `myFunction(A: 3, B: 4, C: 5)` if `MyObject == {B: 4, C: 5}`.
-TODO: add `as`.  `X as Y` is equivalent to `Y: X` but `as` binds less strongly than the type `:`/`;`
-declaration, so that we can do things like `X: int as Y` for output destructuring which will declare
-`X` as an `int` variable and then be used for the return value of `Y` from the function.
 
 | Precedence| Operator  | Name                      | Type/Usage        | Associativity |
 |:---------:|:---------:|:--------------------------|:-----------------:|:-------------:|
@@ -3386,7 +3383,7 @@ justModdable := {
 
     #(#
     # the following swapper becomes automatically defined:
-    ;;someVar(Int;): null
+    ;;someVar(Int;.): null
         My someVar((Old Int;): null
             Int <-> Old Int
         )
@@ -3631,6 +3628,21 @@ To64 := i64(SomeExample to())
 Unspecified := SomeExample to()     # COMPILER ERROR, specify a type for `Unspecified`
 ```
 
+## modifier pattern
+
+In addition to getters/swappers (`::x(): int` and `;;x(X;. int): null`), another
+standard pattern is modifying some internal data on the class.  Instead of recommending
+a word like `modify`, we prefer using `;;[fn(ThingToModify;): ~t]: t` as
+the method signature.  If there are multiple things you could modify in a class,
+you can define multiple methods like this as long as they are distinguishable overloads.
+With containers, values are keyed by some ID, so we do `;;[Key, fn(ThingToModify;): ~t]: t`
+(or `hm~t` as the return type in case of errors).  But if you have a class like a mutex
+or a guard, where there is no ID needed to access the underlying data, you simply use e.g.
+`Mutex[fn(Data;) := Data someMethod()]`.
+
+This is consistent with brackets `[]` being associated with container classes,
+and giving access to the underlying data.
+
 ## generic/template classes
 
 TODO: can we do `array value := extend(container{id: index, value}) {...}`
@@ -3647,6 +3659,10 @@ however this doesn't look right for instantiating a class, e.g., `array int([1, 
 `array->int([1, 2, 3])` which would track as `int(...)` in the namespace of `array` so it's still technically ok.
 `array~int([1,2,3])`.  But i'd prefer to keep that looking like a static method on `array`
 rather than a generic specification.
+TODO: how do we do narrow specifications for single type, e.g., `array value: nonnull := extend(...)` doesn't look right.
+maybe `array NonNull value := extend(...)`.  we'll probably need to make a namespace for each 
+type, so we can do `myGeneric AnyType genericType := { ... }`.
+we'll probably need to allow chaining them, e.g., `myGeneric AnyType1 AnyType2 AnyType3 genericType := ...`.
 
 TODO: discuss how `null` can be used as a type in most places.  unless we
 want to explicitly allow for it only if we use `{id?}` for example.
