@@ -258,7 +258,7 @@ myClass := {
     # methods which mutate the class use a `;;` prefix
     # TODO: should we switch to `from` so we have `from` and `to` as conversions back/forth?
     # TODO: should we avoid making `renew` macro-like?  should we have just a static function
-    #       `new(...): this` and then automatically define `renew` on it?
+    #       `new(...): me` and then automatically define `renew` on it?
     ;;renew(My X: int) := Null
 
     # methods which keep the class readonly use a `::` prefix
@@ -598,20 +598,21 @@ scaled8 := {
     @private
     Value: u8
 
+    # static/class-level variable:
     @private
-    this Scale := 32
+    my Scale := 32
 
     # if there are no representability issues, you can create
     # a direct method to convert to `flt`;
     # this can be called like `flt(Scaled8)` or `Scaled8 flt()`.
     ::flt(): flt
         # `u8` types have a `flt` method.
-        My Value flt() / this Scale flt()
+        My Value flt() / my Scale flt()
 
     # if you have representability issues, you can use `as` instead;
     # this can be called like `as(flt, Scaled8)` or `Scaled8 as(flt)`.
     ::as(flt): hm{ok: flt, NumberConversion uh}
-        ok(My Value as(flt) assert() / this Scale as(flt) assert())
+        ok(My Value as(flt) assert() / my Scale as(flt) assert())
 }
 
 # global function; can also be called like `Scaled8 dbl()`.
@@ -919,13 +920,13 @@ readonly/writeable `I/Me/My` as an argument.
 
 ```
 exampleClass := {
-    # this `;;` prefix is shorthand for `renew(Me; this, ...): null`:
+    # this `;;` prefix is shorthand for `renew(Me;, ...): null`:
     ;;renew(My X: int, My Y: dbl): null
         print("X $(X) Y $(Y)")
 
-    # this `::` prefix is shorthand for `multiply(My: this, ...): dbl`:
+    # this `::` prefix is shorthand for `multiply(My: my, ...): dbl`:
     ::multiply(Z: dbl): dbl
-        X * Y * Z
+        My X * My Y * Z
 }
 ```
 
@@ -947,7 +948,7 @@ NestedClass[3] I[4] = "oops"    # creates a default [2] and [3], sets [3]'s I to
 
 For class methods, `;;` (`::`) selects the overload with a writeable (readonly) class
 instance, respectively.  For example, the `array` class has overloads for sorting, (1) which
-does not change the instance but returns a sorted copy of the array (`::sort(): this`), and
+does not change the instance but returns a sorted copy of the array (`::sort(): me`), and
 (2) one which sorts in place (`;;sort(): null`).  The ` ` (member access) operator will use
 `I:` if the LHS is a readonly variable or `I;` if the LHS is writeable.  Some examples in code:
 
@@ -3008,8 +3009,8 @@ be called from the class name, e.g., `x myClassFunction()`, or
 from an instance of the class, e.g., `X myClassFunction()`.  Note that because of this,
 we're not allowed to define class functions with the same overload as instance methods.
 Similar to class functions are class variables, which are defined in an analogous way:
-`this MyStaticVariable := 123`, and which cannot shadow any class instance variables,
-since `X MyStaticVariable` and `x MyStaticVariable` should be the same thing.
+`my StaticVariable := 123`, and which cannot shadow any class instance variables,
+since `X StaticVariable` and `x StaticVariable` should be the same thing.
 
 Instance functions (3) normally can't depend on any instance variables, but are declared
 like instance methods, just without `Me/My/I` as an argument.
@@ -3032,12 +3033,12 @@ Note that `renew` should be a class instance method (1), i.e., `;;renew(...)`.
 
 ## class type and instance abbreviation
 
-When defining methods or functions of all kinds, note that you can use `this`
+When defining methods or functions of all kinds, note that you can use `me` (or `i`/`my`)
 to refer to the current class instance type.  E.g.,
 
 ```
 myClass := {
-    ::copy(): this  # OK
+    ::copy(): me    # OK
         print("logging a copy")
         return me(Me)   # or fancier copy logic
 }
@@ -3090,18 +3091,18 @@ exampleClass := {
 
     # some examples of class functions (2):
     # this pure function does not require an instance, and cannot use instance variables:
-    this someStaticFunction(Y; int): int
+    i someStaticFunction(Y; int): int
         Y /= 2
         return Y!
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read/write global variables (or other files):
-    this someStaticImpureFunctionWithSideEffects(Y: int): null
+    i someStaticImpureFunctionWithSideEffects(Y: int): null
         write(Y, File: "Y")
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read (but not write) global variables (or other files):
-    this someStaticImpureFunction(): int
+    i someStaticImpureFunction(): int
         YString := read(File: "Y")
         return int(?YString) ?? 7
 
@@ -3115,7 +3116,6 @@ exampleClass := {
     # has been created, as long as the instance is mutable.
     someMutablePureFunction(); null
         print("hello!")
-
 }
 
 Example; exampleClass = (X: 5)  # also equivalent, `Example ;= exampleClass(X: 5)`
@@ -3430,10 +3430,10 @@ TODO: parent class with getter defined, child class with copy defined.
 You can define parent-child class relationships with the following syntax.
 For one parent, `extend(parentClassName)`. Multiple inheritance is
 allowed as well, e.g., `extend(parentOne, parentTwo, ...)`.
-We can access the current class instance using `My`,
-and `this` will be the current instance's type.  Thus, `this` is
+We can access the current class instance using `My` (or `Me`/`My`),
+and `i` (or `me`/`my`) will be the current instance's type.  Thus, `i`/`me`/`my` is
 the parent class if the instance is a parent type, or a subclass if the instance
-is a child class.  E.g., a parent class method can return a `this` type instance,
+is a child class.  E.g., a parent class method can return a `me` type instance,
 and using the method on a subclass instance will return an instance of the subclass.
 
 We can access member variables or functions that belong to that the parent type,
@@ -3497,9 +3497,9 @@ cat := extend(animal) {
         print("CAT ESCAPES DARINGLY!")
 
     # the parent `clone()` method won't work, so override:
-    ::clone(): this
+    ::clone(): me
         # cats are essentially singletons, that cannot have their own name;
-        return this()
+        return me()
 }
 
 Cat := cat()
@@ -3790,7 +3790,7 @@ internal details isn't desired at all.
 
 All classes have a few compiler-provided methods which cannot be overridden.
 
-* `Me;!: this` creates a temporary with the current instance's values, while
+* `Me;!: me` creates a temporary with the current instance's values, while
     resetting the current instance to a default instance -- i.e., calling `renew()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
@@ -4496,15 +4496,15 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 `stack` for a contiguous list that grows in one direction only.
 
 ```
+Array uh := oneOf(
+    OutOfMemory
+    # TODO: etc...
+)
+hm~u := hm{ok: u, Array uh}
+
 # some relevant pieces of the class definition
 array~t := extend(container{id: index, value: t}) {
-    this uh := oneOf(
-        OutOfMemory
-        # TODO: etc...
-    )
     # TODO: a lot of these methods need to return `hm~u`.
-    this hm~u := hm{ok: u, this uh}
-
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(Me): bool
         return My count() > 0
@@ -4534,7 +4534,9 @@ array~t := extend(container{id: index, value: t}) {
     ;;pop(Index: index = -1): t
 
     # returns a copy of this array, but sorted:
-    ::sort(): this
+    # TODO: should we appropriate `You` and `Your` for an 'other' type?
+    #       e.g., `::compare(Your): ...` for an other, or `::sort(): you` to return a new type?
+    ::sort(): me
 
     # sorts this array in place:
     ;;sort(): null
@@ -5934,7 +5936,7 @@ myMask XAndY: myMask = X | Y    # or `myMask XAndY := myMask X | myMask Y`
 myMask := anyOrNoneOf(
     X
     Y
-    this XAndY := X | Y
+    my XAndY := X | Y
 )
 # option 6
 myMask := anyOrNoneOf(
