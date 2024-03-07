@@ -140,8 +140,8 @@ you can just return `ValidResult` or `ErrorResult`.
         of strings mapped to integers.
 * `~` to declare a template type, e.g., `array~t` to indicate an array with a new generic type `t`,
     or `myGenericFunction(Value: ~u): u` to define a function that takes a generic type `u` and returns it.
-    See [generic/template classes](#generic-template-classes) and
-    [generic/template functions](#generic-template-functions) for more details.
+    See [generic/template classes](#generictemplate-classes) and
+    [generic/template functions](#generictemplate-functions) for more details.
 * `$` for inline block and lambda arguments
     * `if Condition $(doThing()) else $(doOtherThing())` for [inline blocks](#block-parentheses-and-commas)
     * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
@@ -1703,7 +1703,7 @@ doSomething(~X): x
 doSomething(123)    # returns 246
 doSomething(0.75)   # returns 1.5
 ```
-See [generic/template functions](#generic-template-functions) for more details
+See [generic/template functions](#generictemplate-functions) for more details
 on the syntax.
 
 However, there are use cases where we might actually want to pass in
