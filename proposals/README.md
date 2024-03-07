@@ -141,7 +141,8 @@ you can just return `ValidResult` or `ErrorResult`.
 * `~` to declare a template type, e.g., `array~t` to indicate an array with a new generic type `t`,
     or `myGenericFunction(Value: ~u): u` to define a function that takes a generic type `u` and returns it.
     See [generic/template classes](#generictemplate-classes) and
-    [generic/template functions](#generictemplate-functions) for more details.
+    [generic/template functions](#generictemplate-functions) for more details.  Specifying a generic type
+    does *not* require `~`, so `myGenericClass~t` can be specified as e.g. `myGenericClass int`.
 * `$` for inline block and lambda arguments
     * `if Condition $(doThing()) else $(doOtherThing())` for [inline blocks](#block-parentheses-and-commas)
     * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
@@ -300,7 +301,7 @@ print(counter())    # 124
 ```
 # defining a function that takes two type constructors as arguments,
 # one of them being named, and returns a type constructor:
-doSomething(~x, namedNew: ~y): new~oneOf(x, y)
+doSomething(~x, namedNew: ~y): new oneOf(x, y)
     # if random(dbl) < 0.5 $(x) else $(namedNew)
 
 someType := doSomething(int, namedNew: dbl) # int or dbl with 50-50 probability
@@ -568,7 +569,7 @@ Notice we use `assert` to shortcircuit function evaluation and return an error r
 ```
 # Going from a floating point number to an integer should be done carefully...
 X: dbl = 5.43
-SafeCast := X as(int)                   # SafeCast is a result type (`hm~{ok: int, numberConversion uh}`)
+SafeCast := X as(int)                   # SafeCast is a result type (`hm{ok: int, NumberConversion uh}`)
 Q := = X as(int) assert()               # returns an error since `X` is not representable as an integer
 Y := X round(Down) as(int) assert()     # Y = 5.  equivalent to `X floor()`
 Z := X round(Up) as(int) assert()       # Z = 6.  equivalent to `X ceil()`.
@@ -609,7 +610,7 @@ scaled8 := {
 
     # if you have representability issues, you can use `as` instead;
     # this can be called like `as(flt, Scaled8)` or `Scaled8 as(flt)`.
-    ::as(flt): hm~{ok: flt, numberConversion uh}
+    ::as(flt): hm{ok: flt, NumberConversion uh}
         ok(My Value as(flt) assert() / this Scale as(flt) assert())
 }
 
@@ -618,7 +619,7 @@ dbl(Scaled8): dbl
     Scaled8 Value dbl() / scaled8 Scale dbl()
 
 # global `as` function; can also be called like `Scaled8 as(dbl)`.
-as(Scaled8, dbl): hm~{ok: dbl, numberConversion uh}
+as(Scaled8, dbl): hm{ok: dbl, NumberConversion uh}
     Scaled8 Value assert(as: dbl) / scaled8 Scale assert(as: dbl)
 
 # TODO: discussion about how defining `;;renew(Flt): null` defines a global `scaled8(Flt): scaled8` function.
@@ -698,12 +699,13 @@ type narrowing method.
 ## type overloads (generics only)
 
 Similar to defining a function overload, we can define type overloads for generic types.
-For example, the generic result class in hm-lang is `hm~{ok, uh}`, which encapsulates
-an ok value (`ok`) or an error (`uh`).  For your custom class you may not want to specify
-`hm~{ok, uh}` all the time for your custom error type `myClassUh`, so you can define
-`hm~ok := hm~{ok, uh: myClassUh}` and use e.g. `hm~int` to return an integer or an
-error of type `myClassUh`.  Shadowing variables is invalid in hm-lang, but overloads
-are valid.  Note however that we disallow redefining an overload, as that would be shadowing.
+For example, the generic result class in hm-lang is `hm~{ok?, uh}`, which encapsulates
+a nullable ok value (`ok`) or a non-nullable error (`uh`).  For your custom class you
+may not want to specify `hm{ok: myOkType, uh: myClassUh}` all the time for your custom
+error type `myClassUh`, so you can define `hm~ok := hm{ok, uh: myClassUh}` and use e.g.
+`hm~int` to return an integer or an error of type `myClassUh`.  Shadowing variables is
+invalid in hm-lang, but overloads are valid.  Note however that we disallow redefining
+an overload, as that would be the equivalent of shadowing.
 
 # operators and precedence
 
@@ -765,7 +767,7 @@ e.g., `myFunction(A: 3, B: 2, ...MyObject)` will call `myFunction(A: 3, B: 4, C:
 
 
 TODO: discussion on `~`
-needs to be RTL for `array~array~int` processing as `array~{array~int}`, etc.
+needs to be RTL for `array array int` processing as `array (array int)`, etc.
 TODO: if we always require `{}` e.g., `hm{ok, uh}` then we wouldn't have a problem here
 since it'd need to be `array{array{int}}`.
 
@@ -951,7 +953,7 @@ does not change the instance but returns a sorted copy of the array (`::sort(): 
 
 ```
 # there are better ways to get a median, but just to showcase member access:
-getMedianSlow(Array: array~int): hm~{ok: int, uh: string}
+getMedianSlow(Array: array int): hm{ok: int, uh: string}
     if Array count() == 0
         return uh("no elements in array, can't get median.")
     # make a copy of the array, but no longer allow access to it (via `@hide`):
@@ -959,7 +961,7 @@ getMedianSlow(Array: array~int): hm~{ok: int, uh: string}
     ok(Sorted Array[Sorted Array count() // 2])
 
 # sorts the array and returns the median.
-getMedianSlow(Array; array~int): hm~{ok: int, uh: string}
+getMedianSlow(Array; array int): hm{ok: int, uh: string}
     if Array count() == 0
         return uh("no elements in array, can't get median.")
     Array sort()    # same as `Array;;sort()` since `Array` is writeable.
@@ -1241,7 +1243,7 @@ since we don't want to make users extend from a base nullable class.
 # nullish or.
 # `Nullable ?? X` to return `X` if `Nullable` is null,
 # otherwise the non-null value in `Nullable`.
-nonNullOr~a(First A?., Second A.): a
+nonNullOr(First ~A?., Second A.): a
     what First A
         NonNull A: $(NonNull A)
         Null $(Second A)
@@ -1249,7 +1251,7 @@ nonNullOr~a(First A?., Second A.): a
 # boolean or.
 # `Nullable || X` to return `X` if `Nullable` is null or falsy,
 # otherwise the non-null truthy value in `Nullable`.
-truthyOr~a(First A?., Second A.): a
+truthyOr(First ~A?., Second A.): a
     what A
         NonNull A:
             if NonNull A
@@ -1718,13 +1720,13 @@ print(doSomething(dbl)) # returns 123.0
 print(doSomething(u8))  # returns u8(123)
 ```
 
-For returning a class/constructor, we need to use the syntax `new~t`,
-because `doSomething(): ~x` would return an instance `X` of class `x`.
-Since returning an instance is by far the most common case, we optimize
-for that rather than for returning a class.
+For returning a class/constructor, we need to use the syntax `new x` (or
+`new~t` if it's a generic type `t`), because `doSomething(): x` returns
+an instance `X` of class `x`.  Since returning an instance is by far the
+most common case, we optimize for that rather than for returning a class.
 
 ```
-randomClass(): new~any
+randomClass(): new any
     if random(dbl) < 0.5
         int
     elif random(dbl) < 0.5
@@ -2080,11 +2082,12 @@ myOverload(Y: str): {X?: int}
 {X?} := myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
 ```
 
-TODO: revamp the `not~null` stuff if we're moving towards `assert` being the special return `uh` early.
 Note that if only Case 3 is defined, we can use a special notation to ensure that the return
-value is not null, e.g., `{X: not~null} = ...`.  This will throw a run-time error if the return
+value is not null, e.g., `{NotNull X} = ...`.  This will throw a run-time error if the return
 value for `X` is null.  Note that this syntax is invalid if Case 2 is defined, since there is
 no need to assert a non-null return value in that case.
+TODO: we probably want to do `{@NotNull X}` to indicate that `X` is not null but then not
+require the namespace `NotNull` anymore.
 
 ```
 # normal call for case 3, defines an X which may be null:
@@ -2092,7 +2095,7 @@ no need to assert a non-null return value in that case.
 
 # special call for case 3; if X is null, this will throw a run-time error,
 # otherwise will define a non-null X:
-{X: not~null} = myOverload(Y: "123")
+{NotNull X} = myOverload(Y: "123")
 
 # make a default for case 3, in case X comes back as null from the function
 {X := -1} = myOverload(Y: "123")
@@ -2559,7 +2562,7 @@ call := {
     # TODO: need to distinguish between readonly and writeable references.
     #       this can be done on the pointer (e.g., Ptr[]; for writeable
     #       and Ptr[]: for readonly) or here somehow.
-    Input[str]; ptr~any
+    Input[str]; ptr any
     # we need to distinguish between the caller asking for specific fields
     # versus asking for the whole output.
     Output?; oneOf(multipleOutputs: any[str], oneOutput: any)
@@ -2570,12 +2573,12 @@ call := {
 
     # adds an argument to the function call.
     # e.g., `Call input(Name: "Cave", Value: "Story")`
-    ;;input(Name: str, Value: ptr~any): null
+    ;;input(Name: str, Value: ptr any): null
         My Input[Name] = Value
 
     # adds an argument to the function call.
     # e.g., `Call input(Cave: "Story")`
-    ;;input(~Name: ptr~any): null
+    ;;input(~Name: ptr any): null
         My Input[@(Name)] = Name
 
     # adds a single-value return type
@@ -2808,9 +2811,6 @@ Child optionalMethod(1.45)  # returns Null
 We can have arguments with generic types, but we can also have arguments
 with generic names.
 
-TODO: do generic names need a different syntax than generic values, e.g.,
-`fixedArray~{N: count, t}` for a fixed-count array with `t` elements?
-
 ### argument type generics
 
 For functions that accept multiple types as input/output, we define template types
@@ -2828,6 +2828,8 @@ Vector3 := vector3(Y: 5)
 Result := copy(Value: Vector3)    # prints "got vector3(X: 0, Y: 5, Z: 0)".
 Vector3 == Result           # equals True
 ```
+
+TODO: we likely want to support `copy~t(Value: t): t` as another way to specify the generic type.
 
 ### argument *name* generics: with associated generic type
 
@@ -2881,6 +2883,8 @@ We cannot define an argument name and an argument type to both be
 generic and different.  `myFunction(~MyName: ~anotherType)` (COMPILE ERROR)
 is needlessly verbose; if the type should be generic, just rely on what
 is passed in: `myFunction(~MyName: myName)` or `myFunction(~MyName) for short.
+TODO: this actually might make sense, where we're doing `myFunction(SomeValue: 3)`
+or `myFunction(OtherValue: "asdf")`.
 
 ## pure functions and functions with side effects
 
@@ -3647,7 +3651,7 @@ you can define multiple methods like this as long as they are distinguishable ov
 (Note that arguments to the passed-in function can distinguish overloads, so
 `;;[fn(ThingToModify;): ~t]: t` and `;;[fn(OtherThing;): ~t]: t` are distinguishable.)
 With containers, values are keyed by some ID, so we do `;;[Id, fn(Value;): ~t]: t`
-(or `hm~t` as the return type in case of errors).  But if you have a class like a mutex
+(or `hm{ok: t, ~uh}` as the return type in case of errors).  But if you have a class like a mutex
 or a guard, where there is no ID needed to access the underlying data, you simply use e.g.
 `Mutex[fn(Data;) := Data someMethod()]`.
 
@@ -3656,32 +3660,32 @@ and giving access to the underlying data.
 
 ## generic/template classes
 
-TODO: can we do `array value := extend(container{id: index, value}) {...}`
-for unnamed types (e.g., `array int`) and `store{id, value} := extend(container{id, value}) {...}`
-for named types?  this makes more sense in case we define an `{id, value}` type of our own,
-e.g., `storeType := {id: str, value: int}` and then we can do `store storeType`.
-this seems to work ok for class definitions but function definitions
-might be annoying.  `myFunction u(U, Str): u` doesn't look quite right;
-it's nice to inline where the type is defined via `myFunction(~U, Str): u`.
-maybe we do both.  `~t` for new types and `{}` for specifying types.
-but how would we get a field defined on a generic type like `array~t`?
-`array int::myMethod()` looks like `int::myMethod()` but if we make it all left-to-right it's fine.
-however this doesn't look right for instantiating a class, e.g., `array int([1, 2, 3])` looks like
-`array->int([1, 2, 3])` which would track as `int(...)` in the namespace of `array` so it's still technically ok.
-`array~int([1,2,3])`.  But i'd prefer to keep that looking like a static method on `array`
-rather than a generic specification.
+TODO: do generic types need a different syntax than generic values, e.g.,
+`fixedArray~{N: count, type}` for a fixed-count array with `type` elements.
+TODO: is `~{N: count, type}` consistent with things, or should it be
+`fixedArray{N: count, ~type}`?
+TODO: discussion on `type` being the "Default name" for a type, so you can do
+`fixedArray{N: 5, int}` without specifying `fixedArray{N: 5, type: int}`.
+
 TODO: how do we do narrow specifications for single type, e.g., `array value: nonnull := extend(...)` doesn't look right.
 maybe `array NonNull value := extend(...)`.  we'll probably need to make a namespace for each 
 type, so we can do `myGeneric AnyType genericType := { ... }`.
 we'll probably need to allow chaining them, e.g., `myGeneric AnyType1 AnyType2 AnyType3 genericType := ...`.
 
-TODO: discuss how `null` can be used as a type in most places.  unless we
-want to explicitly allow for it only if we use `{id?}` for example.
-for example, we need to allow `hm~{ok, uh}` to have a nullable `ok`,
-but probably shouldn't allow nullable `uh`.  we probably need annotations
+TODO: we probably need annotations
 for this, e.g., `store~{id, value} where {hash(id), notNull(value)}`
 Ideally we could use `{id: hashable, value: notNull}` or similar to avoid
 adding more keywords and mental concepts.
+
+TODO: ensure we use the `hm~{ok?, uh}` notation correctly everywhere, i.e.,
+require nullable types to be specified as ok in the template.  although this
+does make the modifier templates annoying, since a common use case will be
+to return a null function.  maybe revert the `ok?` change.
+
+TODO: discuss how `null` can be used as a type in most places.  unless we
+want to explicitly allow for it only if we use `{id?}` for example.
+for example, we need to allow `hm~{ok, uh}` to have a nullable `ok`,
+but probably shouldn't allow nullable `uh`.
 
 TODO: maybe allow default types.  maybe this is a use-case for `:=` inside
 the braces, e.g., `hm~{ok ?:= null, uh}`.
@@ -3692,6 +3696,17 @@ between the two generic declarations is that `~type` will take an unnamed type
 so `~int` or `~dbl` are both valid specifications, while `~{types...}` must
 have their fields specified by name, e.g., `~{type1, type2}` must be
 specified like `~{type1: int, type2: string}`.
+
+For example, when declaring a generic class, we use `mySingleGenericClass~value := {...}`
+or `myMultiGenericClass~{type1, type2} := {...}` for single/multiple generics, respectively.
+When specifying the types of the generic class, we omit the `~` so it's just
+`mySingleGenericClass int` or `myMultiGenericClass{type1: int, type2: str}`.
+Note that any static/class methods defined on the class can still be accessed
+like this: `mySingleGenericClass int myClassFunction(...)` or
+`myMultiGenericClass{type1: int, type2: str} otherClassFunction()`, which works
+due to operator precedence; `{}` binds more strongly on the left for the multiple
+generic case, and the `int` on `mySingleGenericClass int` defers to its namespace
+to execute `myClassFunction(...)`.
 
 ```
 # create a class with two generic types, `id` and `value`:
@@ -3706,8 +3721,8 @@ genericClass~{id, value} := {
 # creating an instance using type inference:
 ClassInstance := genericClass(Id: 5, Value: "hello")
  
-# creating an instance with template/generic types specified:
-OtherInstance := genericClass~{id: dbl, value: string}(Id: 3, Value: "4")
+# creating an instance with template/generic types specified (no ~ needed):
+OtherInstance := genericClass{id: dbl, value: string}(Id: 3, Value: "4")
 ```
 
 You can also have virtual generic methods on generic classes, which is not allowed by C++.
@@ -3722,15 +3737,15 @@ generic~t := {
         U + u(OtherT) orPanic()
 }
 
-Generic := generic~string
+Generic := generic string()
 Generic Value = "3"
 print(Generic method(i32(2)))    # prints "3333335" which is i32("3" * (2 + 5)) + 2
 
-specific~t := extends(generic~t) {
+specific~t := extends(generic t) {
     ;;renew(My Scale; t = 1) := Null
 
     ::method(~U): u
-        ParentResult := generic~t::method(U)
+        ParentResult := generic t::method(U)
         return ParentResult * My Scale 
 }
 ```
@@ -3754,20 +3769,22 @@ MyNamespace id := int
 value := {X: flt, Y: flt}
 
 # This is not idiomatic, probably should get automatically converted to below:
-MyStore1 ;= store~{id: MyNamespace id, value: value}()
-MyStore2 ;= store~{MyNamespace id, value}()
+MyStore1 ;= store{id: MyNamespace id, value: value}()
+MyStore2 ;= store{MyNamespace id, value}()
 ```
 
 ### default field names with generics
 
 Note that generic classes like `generic~id := {Id}` will always have a field named `Id`
-regardless of the specified type.  We don't make this like a generic name; `generic~int`
-would *not* be equivalent to `{Int: int}`; `generic~int` is `{Id: int}`.  This is mostly
-to avoid confusion when passing in two types that are the same like `store~{id: int, value: int}`.
+regardless of the specified type.  We don't make this like a generic name; `generic int`
+would *not* be equivalent to `{Int: int}`; `generic int` is `{Id: int}`.  This is mostly
+to avoid confusion when passing in two types that are the same like `store{id: int, value: int}`.
 Internally, if we store a list of `{Id, Value}` objects, there could be a name collision
 (e.g., `{Int, Int}`), and we don't want to expose that internal detail to consumers of
 the generic class.
 
+This is one minor inconsistency with argument name generics for functions, but exposing
+internal details isn't desired at all.
 
 ## common class methods
 
@@ -4149,10 +4166,10 @@ TODO: make it possible to mock out file system access in unit tests.
 # errors and asserts
 
 hm-lang borrows from Rust the idea that errors shouldn't be thrown, they should be
-returned and handled explicitly.  We use the notation `hm~{ok, uh}` to indicate
+returned and handled explicitly.  We use the notation `hm{ok, uh}` to indicate
 a generic return type that might be `ok` or it might be an error (`uh`).
 In practice, you'll often specify the generic arguments like this:
-`hm~{ok: int, uh: string}` for a result that might be ok (as an integer) or it might
+`hm{ok: int, uh: string}` for a result that might be ok (as an integer) or it might
 be an error string.
 
 To make it easy to handle errors being returned from other functions, hm-lang uses
@@ -4164,7 +4181,7 @@ There are a few helpful overloads for the `assert()` method, including changing 
 error type `uh` by including it, e.g., `MyHm assert(Uh: newUhType("Bad"))`.
 
 Note that we can automatically convert a result type into a nullable version
-of the `ok` type, e.g., `hm~{ok: string, uh: errorCode}` can be converted into
+of the `ok` type, e.g., `hm{ok: string, uh: errorCode}` can be converted into
 `string?` without issue, although as usual nulls must be made explicit with `?`.
 E.g., `myFunction(StringArgument?: MyHm)` to pass in `MyHm` if it's ok or null if not,
 and `String ?:= MyHm` to grab it as a local variable.
@@ -4177,27 +4194,27 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     # if the result was an error.  Note that we use the `guard` API
     # which normally is implicit but can be used explicitly if needed.
     #   ```
-    #   doSomething(Dbl): hm~{ok: dbl, uh: str}
+    #   doSomething(Dbl): hm{ok: dbl, uh: str}
     #       if Dbl < 0
     #           uh("Invalid Dbl: $(Dbl)")
     #       else
     #           ok(Dbl sqrt())
     #
     #   # example with implicit guard:
-    #   implicitGuard(): hm~{ok: null, uh: str}
+    #   implicitGuard(): hm{ok: null, uh: str}
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert()
     #       print(Result)
     #
     #   # example with explicit guard that does the same thing as implicit:
-    #   explicitGuard(): hm~{ok: null, uh: str}
-    #       with Guard ;= guard~uh()
+    #   explicitGuard(): hm{ok: null, uh: str}
+    #       with Guard ;= guard uh()
     #           Result := doSomething(1.234) assert(Guard;)
     #           print(Result)
     #       exit Uh:
     #           return Uh
     #   ```
-    ..assert(Guard; guard~uh): ok
+    ..assert(Guard; guard uh): ok
         what Me
             Ok: $(Ok)
             Uh: $(debug error(Uh), Guard eject(Uh))
@@ -4206,20 +4223,20 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     # This will moot `Me` and shortcircuit a failure (i.e., if `result`
     # is `uh`) to the calling block.  For example,
     #   ```
-    #   doSomething(Dbl): hm~{ok: dbl, uh: str}
+    #   doSomething(Dbl): hm{ok: dbl, uh: str}
     #       if Dbl < 0
     #           uh("Invalid Dbl: $(Dbl)")
     #       else
     #           ok(Dbl sqrt())
     #
-    #   implicitGuard(): hm~{ok: null, uh: oneOf(InvalidDoSomething, OtherError)}
+    #   implicitGuard(): hm{ok: null, uh: oneOf(InvalidDoSomething, OtherError)}
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
     # TODO: should we just rely on `map` functionality here instead of adding a new `assert`?
     #       e.g., we can do `Hm map((Uh) := New Uh) assert()`
-    ..assert(New Uh: ~eject, Guard; guard~eject): ok
+    ..assert(New Uh: ~eject, Guard; guard eject): ok
         what Me
             Ok: $(Ok)
             Uh:
@@ -4241,25 +4258,25 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
             Uh: $(Default Ok)
 
     # maps an `Ok` result to a different type of `ok`, consuming `Me`.
-    # TODO: can we do `hm~{new ok, uh}` here instead to avoid `ok: ok2`?
-    #       e.g., ..map(fn(Ok.): ~a ok): hm~{a ok, uh}.  similarly for `uh2` below.
-    ..map(fn(Ok.): ~ok2): hm~{ok: ok2, uh}
+    # we can also use namespaces like this to avoid renaming `ok` in the `hm{...}` specification:
+    # ..map(fn(Ok.): A~ok): hm{A ok, uh}.
+    ..map(fn(Ok.): ~ok2): hm{ok: ok2, uh}
 
     # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `Me`.
-    ..map(fn(Ok.): hm~{ok: ok2, uh}): hm~{ok: ok2, uh}
+    ..map(fn(Ok.): hm{ok: ~ok2, uh}): hm{ok: ok2, uh}
 
     # passes through any `Ok` result, but maps an `Uh` to the desired `ok` result
     # via the passed-in function.
     ..map(fn(Uh.): ok): ok
 
     # maps an `Uh` result to a different type of `uh`.
-    ..map(fn(Uh.): ~uh2):  hm~{ok, uh: uh2}
+    ..map(fn(Uh.): ~uh2):  hm{ok, uh: uh2}
 
     # maps `ok` and `uh` separately.
     ..map(fn(Ok.): t, fn(Uh.): t): t
 
     # TODO: should we use `to` here or is there a better way to indicate casting?
-    # it's technically something like `oneOf(ok, null)(Result: hm~{ok, uh}): oneOf(ok, null)`
+    # it's technically something like `oneOf(ok, null)(Result: hm{ok, uh}): oneOf(ok, null)`
     # which is pretty verbose.
     ..to(): oneOf(ok, null)
 }
@@ -4269,17 +4286,6 @@ if Result isOk()
     print("ok")
 
 # but it'd be nice to transform `Result` into the `Ok` value along the way.
-# TODO: because `hm~{ok, uh}` extends `oneOf(ok, uh)`, should we actually
-#       convert to `Result is((Int) := print("Ok: $(Int)")` and
-#       `Result is((Str) := print("Uh: $(Str)")` ??
-#       this naming is less clear.  maybe we don't let `myClass~id := {Id}`
-#       convert `myClass~int` into `{Int: int}` but use `{Id: int}`.
-#       `Result is((Ok) := ...)` is nicer from a name perspective in case
-#       `uh` and `ok` are the same type, e.g., `string`, or in case
-#       someone changes out the underlying type (e.g. `ok` goes from `u16` to `i32`
-#       and they don't want to update everywhere).  however, `store~{id, value}`
-#       also assumes that `Id` and `Value` fields are distinctly named,
-#       and we should support that...
 Result is((Ok) := print("Ok: ", Ok))
 Result is((Uh) := print("Uh: ", Uh))
 
@@ -4328,7 +4334,7 @@ that `assert` will return the correct uh subclass for the module that it is in;
 
 ## automatically converting errors to null
 
-If a function returns a `hm` type, e.g., `myFunction(...): hm~{ok, uh}`,
+If a function returns a `hm` type, e.g., `myFunction(...): hm{ok, uh}`,
 then we can automatically convert its return value into a `oneOf(ok, null)`, i.e.,
 a nullable version of the `ok` type.  This is helpful for things like type casting;
 instead of `MyInt := what int(MyDbl) $(Ok. $(Ok), Uh: $(-1))` you can do
@@ -4336,7 +4342,7 @@ instead of `MyInt := what int(MyDbl) $(Ok. $(Ok), Uh: $(-1))` you can do
 doesn't use nulls:  `int(MyDbl) map((Uh) := -1)`.
 
 TODO: should this be valid if `ok` is already a nullable type?  e.g.,
-`myFunction(): hm~{ok: oneOf(int, null), uh: str}`.
+`myFunction(): hm{ok: oneOf(int, null), uh: str}`.
 we probably should compile-error-out on casting to `Int ?:= myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
 
@@ -4349,7 +4355,7 @@ return value.
 
 ```
 guard~eject := extend(withable) {
-    ;;eject(Eject.): exit~eject
+    ;;eject(Eject.): exit eject
 }
 ```
 
@@ -4440,10 +4446,12 @@ container~{id, value} := {
 }
 ```
 
-TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `store~{id: string, value: oneOf(int, null)}`.
+TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `store{id: string, value: oneOf(int, null)}`.
+Probably should do `store{NonNull id, NonNull value}` or similar.
 This is because `Store[X] = Null` should delete the ID specified by `X` from the store.  Plus, we already have handling for
 nullable values from the store, if we ask for the element at a ID and it's not present in the store.  Similarly for arrays;
-`Array[3] = Null` should delete the fourth item in the array.  If the elements should represent optional things, then
+`Array[3] = Null` should delete the fourth item in the array (although you could argue that we'd maybe like to keep other
+elements from moving down).  If the elements should represent optional things, then
 we should use the `optional` type.
 
 TODO: clean up usage of "optional" when we really mean "nullable", so that we can distinguish between the two.
@@ -4453,9 +4461,9 @@ Ideally we can think of nullable types as optional.
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
-define an array explicitly using the notation `Array: array~elementType`
+define an array explicitly using the notation `Array: array elementType`
 for the type `elementType` or via `Array[]: elementType` or `Array: elementType[]`.
-E.g. `MyArray: int[]` or `MyArray: array~int` for a readonly integer array.
+E.g. `MyArray: int[]` or `MyArray: array int` for a readonly integer array.
 The writeable versions of course use `;` instead of `:`.  Note that arrays
 are ID'd by an `index` type, but using `MyVar[index]: elementType` would
 create a [store](#stores).
@@ -4489,13 +4497,13 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 
 ```
 # some relevant pieces of the class definition
-array~t := extend(container~{id: index, value: t}) {
+array~t := extend(container{id: index, value: t}) {
     this uh := oneOf(
         OutOfMemory
         # TODO: etc...
     )
     # TODO: a lot of these methods need to return `hm~u`.
-    this hm~u := hm~{ok: u, this uh}
+    this hm~u := hm{ok: u, this uh}
 
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(Me): bool
@@ -4545,16 +4553,16 @@ array~t := extend(container~{id: index, value: t}) {
     # and filled with default values so that a valid reference can be passed into the callback.
     # USAGE: `My[Index] += 5` compiles to `My[Index, (T;): $(T += 5)]`
     # TODO: we can probably determine `$T += 5` as `(T;): $(T += 5)` because `$T += 5` requires mutability
-    ;;[Index, fn(T;): ~u]: hm~u
+    ;;[Index, fn(T;): ~u]: hm u
 
     # getter, which returns a Null if index is out of bounds of the array:
     ::[Index, fn(T?): ~u]: u
 
     # getter, which never returns Null, but will return an `uh` if the index is out of bounds of the array:
-    ::[Index, fn(T): ~u]: hm~u
+    ::[Index, fn(T): ~u]: hm u
 
     # Note: You can use the `;:` const template for function arguments.
-    # e.g., `myArray~t := extend(array~t) { ;:[Index, fn(T;:): ~u] := array;:[Index, fn] }`
+    # e.g., `myArray~t := extend(array t) { ;:[Index, fn(T;:): ~u] := array;:[Index, fn] }`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`T?;`) is null, but you switch to
@@ -4628,7 +4636,7 @@ print(range(10))    # prints [0,1,2,3,4,5,6,7,8,9]
 In hm-lang:
 
 ```
-fixedCountArray~t := extend(array~t) {
+fixedCountArray~t := extend(array t) {
     @private FixedCount: count
     ;;renew(Count): null
         My FixedCount = Count
@@ -4641,7 +4649,7 @@ fixedCountArray~t := extend(array~t) {
     @hide reserve
     ;;count(Count): null
         assert Count == FixedCount
-        array~t;;count(Count)
+        array t;;count(Count)
 }
 ```
 
@@ -4655,7 +4663,7 @@ with a C++ `map`'s key: we look up a value.
 
 A store can look up, insert, and delete elements by key quickly (ideally amortized
 at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a store, e.g.,
-`VariableName: store~{id: idType, value: valueType}`, or you can use an implicit method
+`VariableName: store{id: idType, value: valueType}`, or you can use an implicit method
 with brackets, `VariableName[idType]: valueType` or `VariableName: valueType[idType]`.
 For example, for a store that links integers to strings, you can use: `MyStore[int]: string`.
 The default name for a store variable is `Store`, regardless of ID or value type.
@@ -4694,14 +4702,14 @@ EmployeeIds: int[str] = [
 # but required if elements are placed on the same line.
 
 # equivalent definition would occur with this first line:
-# `EmployeeIds := store~{id: string, value: int} [`
+# `EmployeeIds := store{id: string, value: int} [`
 ```
 
 To define a store quickly (i.e., without a type annotation), use the notation
 `["Jane": 123, "Jim": 456]`.
 
 Stores require an ID type whose instances can hash to an integer or string-like value.
-E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array~dbl`).
+E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array dbl`).
 
 ```
 DblDatabase; dbl[int]      # OK, int is an OK ID type
@@ -4744,15 +4752,15 @@ uh := oneOf(
     OutOfMemory
     # TODO: etc...
 )
-hm~ok := hm~{ok, uh}
+hm~ok := hm{ok, uh}
 
-store~{id, value} := extend(container~{id, value}) {
+store~{id, value} := extend(container{id, value}) {
     # Returns Null if `Id` is not in the store.
     ::[Id]?: value
 
     # Gets the existing value at `Id` if present,
     # otherwise inserts a default `value` into the store and returns it.
-    ;;[Id]: hm~value
+    ;;[Id]: hm value
 
     # Ejects the possibly null value at `Id` and returns it.
     # A subsequent, immediate call to `::[Id]` returns Null.
@@ -4764,16 +4772,18 @@ store~{id, value} := extend(container~{id, value}) {
     # insertion ordered, otherwise returns any convenient element.
     # The element is removed from the store.
     # TODO: probably should just return ?: {id, value} but this looks a lot like
-    #       `hm~{ok, uh}`, and how do we distinguish between a desire to pass in
+    #       `hm{ok, uh}`, and how do we distinguish between a desire to pass in
     #       a single value for `hm~ok` and the desire to try and use `hm~{ok, uh}`?
-    ;;pop(): hm~{id, value}
+    #       does `hm~ok` work as a catch-all in case `hm~{ok, uh}` doesn't match?
+    #       if `hm{...}` has some fields in {...} that match `{ok, uh}`, do we use those types?
+    ;;pop(): hm{id, value}
 
     @alias ;;pop(Id) ?:= ;;[Id]!
 
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at ID, too.
-    ;;[Id]: hm~value
+    ;;[Id]: hm value
 
     # TODO: a lot of these methods need to return `hm~ok`.
     # no-copy getter: which will create a default value instance if it's not present at Id.
@@ -4804,7 +4814,7 @@ store~{id, value} := extend(container~{id, value}) {
 
     # getter and modifier in one definition, with the `;:` "template mutability" operator:
     # will return an error for the const store (`My:`) if Id is not in the store.
-    ;:[Id, fn(Value;:): ~t]: hm~t
+    ;:[Id, fn(Value;:): ~t]: hm t
 
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
     ;:[Id, fn(Value?;:): ~t]: t
@@ -4832,10 +4842,10 @@ insertionOrderedStore~{id, value} := extend(store) {
     # due to sequence building, we can use @private {...} to set @private for
     # each of the fields inside this block.
     @private {
-        IdIndices; @only unorderedStore~{id, value: index}
-        IndexedStore; @only unorderedStore~{
+        IdIndices; @only unorderedStore{id, value: index}
+        IndexedStore; @only unorderedStore{
             id: index
-            value: indexedStoreElement~{id, value}
+            value: indexedStoreElement{id, value}
         } = [{Id: 0, Value: {NextIndex: 0, id(), value(), PreviousIndex: 0}}]
         NextAvailableIndex; index = 1
     }
@@ -4861,7 +4871,7 @@ insertionOrderedStore~{id, value} := extend(store) {
     ::forEach(Loop fn(Id, Value): loop): null
         Index ;= My IndexedStore[0] NextIndex
         while Index != 0
-            {Value:, Id:} = not~null(My IndexedStore[Index])
+            {Value:, Id:} = My IndexedStore[Index] orPanic("broken invariant!")
             ForLoop := Loop fn(Id, Value)
             if ForLoop == loop Break
                 break
@@ -4908,12 +4918,12 @@ with setting something, although that's mostly obviated by the `x(New X: int)` s
 
 A set contains some elements, and makes checking for the existence of an element within
 fast, i.e., O(1).  Like with store IDs, the set's element type must satisfy certain properties
-(e.g., integer/string-like).  The syntax to define a set is `VariableName: set~elementType`
+(e.g., integer/string-like).  The syntax to define a set is `VariableName: set elementType`
 to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [elementType]`.
 The default-named variable name for a set of any type is `Set`.
 
 ```
-set~t := extend(container~{id: t, value: true}) {
+set~t := extend(container{id: t, value: true}) {
     # Returns `True` iff T is in the set, otherwise Null.
     # NOTE: the `true` type is only satisfied by the instance `True`;
     # this is not a boolean return value.
@@ -4946,7 +4956,7 @@ set~t := extend(container~{id: t, value: true}) {
     # TODO: generalize with iterator or container:
     # Unions this set with another set, returning True if all the elements
     # in the other set were already in this set, otherwise False.
-    ;;[Set: set~t]: bool
+    ;;[Other Me]: bool
 
     # Removes the last element added to the set if this set is
     # insertion ordered, otherwise any convenient element.
@@ -4986,7 +4996,7 @@ and `from` selects multiple (or no) IDs from the set (`k from ids(o)`).
 For example, here is a way to create an iterator over some incrementing values:
 
 ```
-range~t := extend(iterator~t) {
+range~t := extend(iterator t) {
     @private
     NextValue: t = 0
 
@@ -5016,7 +5026,7 @@ the element and advance the iterator, e.g.:
 
 ```
 Array := [1,2,3]
-Iterator; iterator~int
+Iterator; iterator int
 assert Iterator next(Array) == 1
 assert next(Array, Iterator;) == 2  # you can use global `next`
 assert Iterator::peak(Array) == 3
@@ -5034,21 +5044,21 @@ The way we achieve that is through using an array iterator:
 # the iterator will become an array iterator.  this allows us to check for
 # `@only` annotations (e.g., if `Iterator` was not allowed to change) and
 # throw a compile error.
-next(Iterator; iterator~t @becomes(arrayIterator~t), Array: Array~t)?: t
-    Iterator = arrayIterator~t()
+next(Iterator; iterator~t @becomes(arrayIterator~t), Array: array t)?: t
+    Iterator = arrayIterator t()
     Iterator;;next(Array)
 
-arrayIterator~t := extend(iterator~t) {
+arrayIterator~t := extend(iterator t) {
     Next; index
     ;;renew(Start: index = 0):
         My Next = Start
 
-    ;;next(Array: array~t) ?:= if My Next < Array count()
+    ;;next(Array: array t) ?:= if My Next < Array count()
         Array[My Next++]
     else
         Null
 
-    ::peak(Array: array~t) ?:= if My Next < Array count()
+    ::peak(Array: array t) ?:= if My Next < Array count()
         Array[My Next]
     else
         Null
@@ -5056,7 +5066,7 @@ arrayIterator~t := extend(iterator~t) {
     # note that this function doesn't technically need to modify this
     # `arrayIterator`, but we keep it as `;;` since other container
     # iterators will generally need to update their index/ID.
-    ;;remove(Array; array~t) ?:= if My Next < Array count()
+    ;;remove(Array; array t) ?:= if My Next < Array count()
         Array remove(This Next)
     else
         Null
@@ -5781,7 +5791,7 @@ Each value can also be thought of as a flag or option, which are bitwise OR'd to
 Trying to assign a negative value will throw a compiler error.
 
 Like with enums, you can specify the integer type that backs the mask, but in this case
-it must be an unsigned type, e.g., `mask~u32`.  Note that by default, the `maskType`
+it must be an unsigned type, e.g., `mask u32`.  Note that by default, the `maskType`
 is exactly as many bits as it needs to be to fit the desired options, rounded up to
 the nearest standard unsigned type (`u8`, `u16`, `u32`, `u64`, `u128`, etc.).
 We will add a warning if the user is getting into the `u128+` territory.
@@ -6078,7 +6088,7 @@ might not even exist (e.g., the array was descoped).
 
 TODO: we probably actually want pointers for interfacing with C/C++ code.
 but they should be hidden behind a type that requires an `@unsafe` label,
-e.g., `ptr~u64`.
+e.g., `ptr u64`.
 
 ## handling system callbacks
 
@@ -6093,7 +6103,7 @@ internally, so that the `caller` will no longer call the `callee`.
 ```
 variableAccess := oneOf(Mutable, Readonly)
 caller~{t, VariableAccess} := {
-    Callees[ptr~callee~{t, VariableAccess}];
+    Callees[ptr callee {t, VariableAccess}];
     @if VariableAccess == Readonly
         ::runCallbacks(T: t) := for (Ptr) in Callees $(Ptr call(T)) 
     @if VariableAccess == Mutable
@@ -6102,7 +6112,7 @@ caller~{t, VariableAccess} := {
     # ::runCallbacks(@access(T, VariableAccess) t): null
     #       for (Ptr) in Callees $(Ptr call(@access(T, VariableAccess)))
 }
-audio := singleton(caller~{sample[], Mutable}) {
+audio := singleton(caller {sample[], Mutable}) {
     # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
@@ -6111,7 +6121,7 @@ audio := singleton(caller~{sample[], Mutable}) {
 }
 
 # TODO: we probably shouldn't allow `;` here.
-audioCallee := extend(callee~{sample[];}) {
+audioCallee := extend(callee {sample[];}) {
     Frequency; flt = 440
     Phase; flt = 0
 
