@@ -93,10 +93,13 @@ of the benefits of using `lowerCamelCase` for functions/methods and `UpperCamelC
 for variables; we can easily distinguish intent without additional verbs.
 
 hm-lang uses result-passing instead of exception-throwing in order to make it clear
-when errors can occur.  The `hm~{ok, uh}` class handles this, with `ok` being the
-type of a valid result and `uh` being the type of an error result.  If the `ok`
-and `uh` types are distinct, you don't need to wrap a return value in `ok(ValidResult)`
-and `uh(ErrorResult)`; you can just return `ValidResult` or `ErrorResult`.
+when errors can occur.  The `hm~{ok?, uh}` class handles this, with `ok` being the
+type of a valid result, designated `ok?` to indicate it can be null, and `uh` being
+the type of an error result, designated without `?` to indicate nullish types are
+not valid for the error type.  You can specify the types via `hm{ok: int, uh: str}`
+for `ok` being `int` and `uh` being a `str`.  If the `ok` and `uh` types are distinct,
+you don't need to wrap a return value in `ok(ValidResult)` and `uh(ErrorResult)`;
+you can just return `ValidResult` or `ErrorResult`.
 
 # general syntax
 
@@ -112,6 +115,14 @@ and `uh(ErrorResult)`; you can just return `ValidResult` or `ErrorResult`.
 * use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
 * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
 * use `a: y` to declare `a` as a constructor that builds instances of type `y`
+* `()` for organization and function calls
+    * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object, `W` is an optional field
+        passed by readonly reference, `X` is a readonly reference, `Y` is a writeable reference,
+        and `Z` is passed by value.  See [argument objects](#argument-objects) for more details.
+    * `(SomeInstance x(), SomeInstance Y;, W: "hi", Z. 1.23)` to instantiate an argument object
+        with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
+    * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
+        Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
 * `[]` are for containers
     * `Store[id]: value` to declare a store (i.e., map/dict), or `Store: value[id]`
     * `Set[element]:` or `Set: [element]` to declare a set with `element` type instances as elements
@@ -124,17 +135,13 @@ and `uh(ErrorResult)`; you can just return `ValidResult` or `ErrorResult`.
     * `"My String Interpolation is ${X, Y: Z}"` to add `{X: *value-of-X*, Y: *value-of-Z*}` to the string.
     * `A {x(), y()}` to call `A x()` then `A y()` via [sequence building](#sequence-building)
         and return them in an object with fields `X` and `Y`, i.e., `{X: A x(), Y: A y()}`.
-    * For generic/template classes, e.g., classes like `array~{N: count, type}` for a fixed array of size
-        `N` with elements of type `type`, or `store~{id: str, value: int}` to create a map/dictionary
+    * For generic/template classes, e.g., classes like `array{N: count, type}` for a fixed array of size
+        `N` with elements of type `type`, or `store{id: str, value: int}` to create a map/dictionary
         of strings mapped to integers.
-* `()` for organization and function calls
-    * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object, `W` is an optional field
-        passed by readonly reference, `X` is a readonly reference, `Y` is a writeable reference,
-        and `Z` is passed by value.  See [argument objects](#argument-objects) for more details.
-    * `(SomeInstance x(), SomeInstance Y;, W: "hi", Z. 1.23)` to instantiate an argument object
-        with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
-    * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
-        Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
+* `~` to declare a template type, e.g., `array~t` to indicate an array with a new generic type `t`,
+    or `myGenericFunction(Value: ~u): u` to define a function that takes a generic type `u` and returns it.
+    See [generic/template classes](#generic-template-classes) and
+    [generic/template functions](#generic-template-functions) for more details.
 * `$` for inline block and lambda arguments
     * `if Condition $(doThing()) else $(doOtherThing())` for [inline blocks](#block-parentheses-and-commas)
     * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
@@ -1696,6 +1703,8 @@ doSomething(~X): x
 doSomething(123)    # returns 246
 doSomething(0.75)   # returns 1.5
 ```
+See [generic/template functions](#generic-template-functions) for more details
+on the syntax.
 
 However, there are use cases where we might actually want to pass in
 the type of something.  This makes the most sense as a generic type,
@@ -2794,7 +2803,7 @@ erase(Child, optionalMethod?(Me, Z: dbl); int)
 Child optionalMethod(1.45)  # returns Null
 ```
 
-## function templates/generics
+## generic/template functions
 
 We can have arguments with generic types, but we can also have arguments
 with generic names.
@@ -3635,7 +3644,9 @@ standard pattern is modifying some internal data on the class.  Instead of recom
 a word like `modify`, we prefer using `;;[fn(ThingToModify;): ~t]: t` as
 the method signature.  If there are multiple things you could modify in a class,
 you can define multiple methods like this as long as they are distinguishable overloads.
-With containers, values are keyed by some ID, so we do `;;[Key, fn(ThingToModify;): ~t]: t`
+(Note that arguments to the passed-in function can distinguish overloads, so
+`;;[fn(ThingToModify;): ~t]: t` and `;;[fn(OtherThing;): ~t]: t` are distinguishable.)
+With containers, values are keyed by some ID, so we do `;;[Id, fn(Value;): ~t]: t`
 (or `hm~t` as the return type in case of errors).  But if you have a class like a mutex
 or a guard, where there is no ID needed to access the underlying data, you simply use e.g.
 `Mutex[fn(Data;) := Data someMethod()]`.
