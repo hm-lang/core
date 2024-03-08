@@ -55,8 +55,11 @@ as `Array[10] = if count(Array) > 10 $(Array[10] + 1) else $(Array count(11), 1)
 Functions are called with named arguments always, although names can be omitted in
 certain circumstances [when calling a function](#calling-a-function).
 
-TODO: 
-nullables using `?:`, casting for pass-by-reference, etc.
+Nullable variables should always be annotated by `?`, both in a declaration
+`Y ?:= somePossiblyNullReturningFunction()` and also when used as a function
+argument, e.g., `callWithNullable(SomeValue?: Y)`.  This is to avoid surprises
+with null, since `callWithNullable(SomeValue?: Null)` is equivalent to
+`callWithNullable()`, which can be a different overload.
 
 ## concision
 
@@ -6541,6 +6544,7 @@ repeatMatcher := extend(tokenMatcher) {
                 if not Grammar match(Index;, GrammarMatcher)
                     return False
 }
+```
 
 TODO: support internationalization.  do we really require Upper/lower+CamelCase for variables/functions?
 or is the syntax unambiguous enough to not need them?
