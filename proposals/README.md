@@ -4220,7 +4220,7 @@ TODO: maybe use `um` for futures.
 ```
 hm~{ok, uh} := extend(oneOf(ok, uh)) {
     # The API is `Ok := Hm assert()`, which will bubble up this `uh`
-    # if the result was an error.  Note that we use the `guard` API
+    # if the result was an error.  Note that we use the `loop` API
     # which normally is implicit but can be used explicitly if needed.
     #   ```
     #   doSomething(Dbl): hm{ok: dbl, uh: str}
@@ -4229,24 +4229,24 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   # example with implicit guard:
-    #   implicitGuard(): hm{ok: null, uh: str}
+    #   # example with implicit lane (like a guard/control flow):
+    #   implicitLane(): hm{ok: null, uh: str}
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert()
     #       print(Result)
     #
-    #   # example with explicit guard that does the same thing as implicit:
-    #   explicitGuard(): hm{ok: null, uh: str}
-    #       with Guard ;= guard uh()
-    #           Result := doSomething(1.234) assert(Guard;)
+    #   # example with explicit lane that does the same thing as implicit:
+    #   explicitLane(): hm{ok: null, uh: str}
+    #       with Lane ;= lane uh()
+    #           Result := doSomething(1.234) assert(Lane;)
     #           print(Result)
-    #       exit Uh:
+    #       exit Uh.
     #           return Uh
     #   ```
-    ..assert(Guard; guard uh): ok
+    ..assert(Lane; lane uh): ok
         what Me
             Ok: $(Ok)
-            Uh: $(debug error(Uh), Guard eject(Uh))
+            Uh: $(debug error(Uh), Lane exit(Uh))
 
     # The API is `Ok := Hm assert(Uh: "custom error if not `ok`")`.
     # This will moot `Me` and shortcircuit a failure (i.e., if `result`
@@ -4258,19 +4258,19 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   implicitGuard(): hm{ok: null, uh: oneOf(InvalidDoSomething, OtherError)}
+    #   implicitLane(): hm{ok: null, uh: oneOf(InvalidDoSomething, OtherError)}
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
     # TODO: should we just rely on `map` functionality here instead of adding a new `assert`?
     #       e.g., we can do `Hm map((Uh) := New Uh) assert()`
-    ..assert(New Uh: ~eject, Guard; guard eject): ok
+    ..assert(New Uh: ~exit, Lane; lane exit): ok
         what Me
             Ok: $(Ok)
             Uh:
                 debug error(Uh)
-                Guard eject(New Uh)
+                Lane exit(New Uh)
 
     ..orPanic(String := ""): ok
         what Me
@@ -4378,17 +4378,59 @@ TODO: should this be valid if `ok` is already a nullable type?  e.g.,
 we probably should compile-error-out on casting to `Int ?:= myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
 
-# guard
+# lanes for control flow
 
-You can write your own `assert` or `return`-like statements using guard logic.  The `guard`
-class has a method to return early if desired.  Calling the `eject` method shortcircuits the
-rest of the block (and possibly other nested blocks).  This is annotated by using the `exit`
-return value.
+You can write your own `assert` or `return`-like statements using lane logic.  The `lane`
+class has a method to return early if desired.  Calling the `exit` method shortcircuits the
+rest of the block (and possibly other nested blocks).  This is annotated by using the `jump`
+return value.  You can also call `loop` to return to the start of the `with` block.
 
 ```
-guard~eject := extend(withable) {
-    ;;eject(Eject.): exit eject
+# TODO: this should probably be renamed to `do`, and have tighter integration with
+# TODO: discussion about `do $(..., EndResult), exit Exit. $(ExitResult)` should have
+#       a return type of `oneOf(endResult, exitResult)`.
+# TODO: we probably want to be able to reference any variable's type via the lowerCamelCase
+#       version of the UpperCamelCase name, e.g., `MyVariable` and then using `myVariable(123)`.
+lane~exit := extend(withable) {
+    # exits the `with` with the corresponding `exit` value.  example:
+    #   Value ;= 0
+    #   with Lane ;= lane str()
+    #       Old Value := Value
+    #       Value = Value // 2 + 9
+    #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
+    #       if Old Value == Value
+    #           Lane exit("exited at ${Old Value}")
+    #       # note we need to `loop` otherwise we'll break out
+    #       # of the `with` without a return value; i.e.,
+    #       # the `exit` block below won't trigger.
+    #       Lane loop()
+    #   exit ExitValue.
+    #       print(ExitValue)    # should print "exited at 17"
+    ;;exit(Exit.): jump
+
+    # like a `continue` statement; will bring control flow back to
+    # the start of the `with` block.  example:
+    #   Value ;= 0
+    #   with Lane ;= lane str()
+    #       if ++Value > 10 $(Lane exit("done"))
+    #       if Value % 2
+    #           Lane loop()
+    #       print(Value)
+    #       Lane loop()
+    #   # should print "2", "4", "6", "8"
+    ;;loop(): jump
 }
+```
+
+TODO: we probably can allow for multiple exit types and then match on them.
+```
+with Lane ;= lane oneOf(str, int)()
+    # complicated logic
+    ...
+exit Str.
+    print("got string: $(Str)")
+exit Int.
+    print("got int: $(Int)")
 ```
 
 TODO:
