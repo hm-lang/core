@@ -1,7 +1,7 @@
 # why
 
 hm-lang tries to achieve **consistency** above all else.  
-**Convenience**, **clarity**, and **concision** come next.
+**Convenience**, **clarity**, **concision**, and **simplicity** come next.
 
 ## consistency
 
@@ -93,13 +93,23 @@ of the benefits of using `lowerCamelCase` for functions/methods and `UpperCamelC
 for variables; we can easily distinguish intent without additional verbs.
 
 hm-lang uses result-passing instead of exception-throwing in order to make it clear
-when errors can occur.  The `hm~{ok?, uh}` class handles this, with `ok` being the
-type of a valid result, designated `ok?` to indicate it can be null, and `uh` being
-the type of an error result, designated without `?` to indicate nullish types are
-not valid for the error type.  You can specify the types via `hm{ok: int, uh: str}`
-for `ok` being `int` and `uh` being a `str`.  If the `ok` and `uh` types are distinct,
-you don't need to wrap a return value in `ok(ValidResult)` and `uh(ErrorResult)`;
-you can just return `ValidResult` or `ErrorResult`.
+when errors can occur.  The `hm~{ok, uh}` class handles this, with `ok` being the
+type of a valid result, and `uh` being the type of an error result.  You can specify
+the types via `hm{ok: int, uh: str}` for `ok` being `int` and `uh` being a `str`.
+If the `ok` and `uh` types are distinct, you don't need to wrap a return value in
+`ok(ValidResult)` and `uh(ErrorResult)`; you can just return `ValidResult` or `ErrorResult`.
+
+## simplicity
+
+We don't require a different function name for each method to convert a result class
+into a new one, e.g., to transform the `ok` result or the `uh` error.  We simply
+use `map` for everything, with function overloading helping us out.
+
+We also don't use a different concept for interfaces and inheritance.
+The equivalent of an interface in hm-lang is simply an abstract class.  This way
+we don't need two different keywords to `extend` or `implement` a class or interface,
+we simply always `extend` the class.
+
 
 # general syntax
 
@@ -3667,16 +3677,6 @@ TODO: is `~{N: count, type}` consistent with things, or should it be
 TODO: discussion on `type` being the "Default name" for a type, so you can do
 `fixedArray{N: 5, int}` without specifying `fixedArray{N: 5, type: int}`.
 
-TODO: how do we do narrow specifications for single type, e.g., `array value: nonnull := extend(...)` doesn't look right.
-maybe `array NonNull value := extend(...)`.  we'll probably need to make a namespace for each 
-type, so we can do `myGeneric AnyType genericType := { ... }`.
-we'll probably need to allow chaining them, e.g., `myGeneric AnyType1 AnyType2 AnyType3 genericType := ...`.
-
-TODO: we probably need annotations
-for this, e.g., `store~{id, value} where {hash(id), notNull(value)}`
-Ideally we could use `{id: hashable, value: notNull}` or similar to avoid
-adding more keywords and mental concepts.
-
 TODO: ensure we use the `hm~{ok?, uh}` notation correctly everywhere, i.e.,
 require nullable types to be specified as ok in the template.  although this
 does make the modifier templates annoying, since a common use case will be
@@ -3685,20 +3685,16 @@ to return a null function.  maybe revert the `ok?` change.
 TODO: discuss how `null` can be used as a type in most places.  unless we
 want to explicitly allow for it only if we use `{id?}` for example.
 for example, we need to allow `hm~{ok, uh}` to have a nullable `ok`,
-but probably shouldn't allow nullable `uh`.
+but probably shouldn't allow nullable `uh`.  i.e., `hm~{ok, NonNull uh}`
+should be the signature.
 
 TODO: maybe allow default types.  maybe this is a use-case for `:=` inside
 the braces, e.g., `hm~{ok ?:= null, uh}`.
 
 To create a generic class, you put the expression `~{types...}` after the
-class identifier, or `~type` for a single template type.  The difference
-between the two generic declarations is that `~type` will take an unnamed type
-so `~int` or `~dbl` are both valid specifications, while `~{types...}` must
-have their fields specified by name, e.g., `~{type1, type2}` must be
-specified like `~{type1: int, type2: string}`.
-
-For example, when declaring a generic class, we use `mySingleGenericClass~value := {...}`
-or `myMultiGenericClass~{type1, type2} := {...}` for single/multiple generics, respectively.
+class identifier, or `~type` for a single template type.  For example, we use
+`mySingleGenericClass~value := {...}` or `myMultiGenericClass~{type1, type2} := {...}`
+for single/multiple generics, respectively, to define the generic class.
 When specifying the types of the generic class, we omit the `~` so it's just
 `mySingleGenericClass int` or `myMultiGenericClass{type1: int, type2: str}`.
 Note that any static/class methods defined on the class can still be accessed
@@ -3772,6 +3768,18 @@ value := {X: flt, Y: flt}
 MyStore1 ;= store{id: MyNamespace id, value: value}()
 MyStore2 ;= store{MyNamespace id, value}()
 ```
+
+To constrain a generic type, use `~{type1: constraints1, type2: constraints2}` for
+the multiple generics class, where `constraints1/2` can be another type like
+`nonNull` or `number`, or even a combination of classes like
+`allOf(container{id, value}, number)`.  You can also specify the constraints as
+namespaces like `~{AllOf(container{id: str, value: int}, number) type1, NonNull type2}`,
+but this is only recommended in simple cases or for the single generic type case.
+For single generic classes, we don't have the benefit of the object bracket `{}`,
+so we use e.g., `myClass~NonNull t := ...` to define `myClass` as taking a non-null
+generic type, or `otherClass~AllOf(t1, t2) genericType` to define `otherClass`
+as taking a generic type that needs to extend both `t1` and `t2` classes.
+
 
 ### default field names with generics
 
@@ -4260,6 +4268,9 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
     # maps an `Ok` result to a different type of `ok`, consuming `Me`.
     # we can also use namespaces like this to avoid renaming `ok` in the `hm{...}` specification:
     # ..map(fn(Ok.): A~ok): hm{A ok, uh}.
+    # TODO: in case `ok` and `uh` are the same type, we need to make sure that `fn(Ok): ok2`
+    #       requires passing in by name (i.e., `fn(Ok. 123)`) so that we can distinguish the overloads
+    #       for this versus `map(fn(Uh.): ~x): ~y`
     ..map(fn(Ok.): ~ok2): hm{ok: ok2, uh}
 
     # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `Me`.
@@ -4503,7 +4514,9 @@ Array uh := oneOf(
 hm~u := hm{ok: u, Array uh}
 
 # some relevant pieces of the class definition
-array~t := extend(container{id: index, value: t}) {
+# Note that `container{id, value}` must have a non-null `value` type, so
+# declaring `array~NonNull t` is a bit verbose compared to just `array~t`.
+array~NonNull t := extend(container{id: index, value: t}) {
     # TODO: a lot of these methods need to return `hm~u`.
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(Me): bool
@@ -4756,7 +4769,7 @@ uh := oneOf(
 )
 hm~ok := hm{ok, uh}
 
-store~{id, value} := extend(container{id, value}) {
+store~{id: hashable, value: nonNull} := extend(container{id, value}) {
     # Returns Null if `Id` is not in the store.
     ::[Id]?: value
 
@@ -4925,7 +4938,7 @@ to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [el
 The default-named variable name for a set of any type is `Set`.
 
 ```
-set~t := extend(container{id: t, value: true}) {
+set~Hashable t := extend(container{id: t, value: true}) {
     # Returns `True` iff T is in the set, otherwise Null.
     # NOTE: the `true` type is only satisfied by the instance `True`;
     # this is not a boolean return value.
@@ -4998,7 +5011,7 @@ and `from` selects multiple (or no) IDs from the set (`k from ids(o)`).
 For example, here is a way to create an iterator over some incrementing values:
 
 ```
-range~t := extend(iterator t) {
+range~Number t := extend(iterator t) {
     @private
     NextValue: t = 0
 
@@ -5046,7 +5059,7 @@ The way we achieve that is through using an array iterator:
 # the iterator will become an array iterator.  this allows us to check for
 # `@only` annotations (e.g., if `Iterator` was not allowed to change) and
 # throw a compile error.
-next(Iterator; iterator~t @becomes(arrayIterator~t), Array: array t)?: t
+next(Iterator; iterator~t @becomes(arrayIterator t), Array: array t)?: t
     Iterator = arrayIterator t()
     Iterator;;next(Array)
 
@@ -5383,7 +5396,9 @@ hm-lang will support fast hashes for classes like `int`, `i32`, and `u64[]`,
 and other containers of precise types, as well as recursive containers thereof.
 
 ```
-myHashableClass := {
+# TODO: there should maybe be a way to avoid using `extend(...)` for all interfaces.
+#       maybe we can do `@override ::hash(~Builder): null` for common interfaces
+myHashableClass := extend(hashable) {
     Id: u64
     Name; string
 
