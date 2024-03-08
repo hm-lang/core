@@ -55,7 +55,7 @@ as `Array[10] = if count(Array) > 10 $(Array[10] + 1) else $(Array count(11), 1)
 Functions are called with named arguments always, although names can be omitted in
 certain circumstances [when calling a function](#calling-a-function).
 
-TODO: being explicit as the third goal; descriptive but concise.  e.g.,
+TODO: 
 nullables using `?:`, casting for pass-by-reference, etc.
 
 ## concision
@@ -120,16 +120,14 @@ we simply always `extend` the class.
 * outside of arguments, use `:` for readonly declarations and `;` for writeable declarations
 * for an argument, `:` is a readonly reference, `;` is a writeable reference, and `.` is a temporary
     (i.e., passed by value), see [pass-by-reference or pass-by-value](#pass-by-reference-or-pass-by-value)
-    TODO: `.` should use an explicit copy, e.g., `X. int(MyValue)` instead of `X. MyValue`,
-    at least where such copies are expensive (i.e., for large types or heap-allocated types).
 * use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
 * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
 * use `a: y` to declare `a` as a constructor that builds instances of type `y`
 * `()` for organization and function calls
-    * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object, `W` is an optional field
+    * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object type, `W` is an optional field
         passed by readonly reference, `X` is a readonly reference, `Y` is a writeable reference,
         and `Z` is passed by value.  See [argument objects](#argument-objects) for more details.
-    * `(SomeInstance x(), SomeInstance Y;, W: "hi", Z. 1.23)` to instantiate an argument object
+    * `(SomeInstance x(), SomeInstance Y;, W: "hi", Z. 1.23)` to instantiate an argument object instance
         with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
     * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
         Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
@@ -268,7 +266,12 @@ myClass := {
     # methods which mutate the class use a `;;` prefix
     # TODO: should we switch to `from` so we have `from` and `to` as conversions back/forth?
     # TODO: should we avoid making `renew` macro-like?  should we have just a static function
-    #       `new(...): me` and then automatically define `renew` on it?
+    #       `my new(...): me` and then automatically define `renew` on it?
+    #       where it saves time is with the field definitions like `My X: int`.
+    #       the equivalent of   `;;renew(My X: int): null`  would be
+    #                           X: int
+    #                           my new(X: int) := {X} # or ` := me(X)`
+    #       however, `;;renew()` is still nice for parent class passing, i.e., `@passTo`
     ;;renew(My X: int) := Null
 
     # methods which keep the class readonly use a `::` prefix
@@ -281,8 +284,8 @@ myClass := {
 ```
 # combining two classes
 aOrB := oneOf(a, b)
-aAndB := allOf(a, b)
-# TODO: should we do `allOf` as union?  e.g., `union(a, b)` or `a union(b)` would be nice.
+aAndB := union(a, b)
+allOf := union      # in case symmetry between `oneOf` and `allOf` makes more sense.
 ```
 
 ```
@@ -348,9 +351,6 @@ most importantly in contrast to most other languages, underscores (`_`) are igno
 E.g., `1_000_000` is the same as `1000000` and `my_Function` is the same as `myFunction`.
 TODO: maybe use `my_function` and autocapitalize the `f`.
 
-TODO: use `_` for placeholders, like `:;size(_): _` indicating both `::size(): mySizeType` and
-`;;size(New MySizeType): mySizeType`.
-
 ## blocks
 
 ### tabs vs. spaces
@@ -362,7 +362,7 @@ If you need more indents, refactor your code.
 ### line continuations
 
 Lines can be continued at a +2 indent from the originating line, though there are some
-special rules here when parentheses are involved.  If an open parenthesis is encountered at
+special rules here when parentheses are involved.  If an open bracket is encountered at
 the end of the line, and the next lines are only at +1 indent, then we assume an array
 is being constructed.  If `:` is encountered in what otherwise might be a
 line-continued array, we assume we're creating a store.  If the line after an open
@@ -385,9 +385,17 @@ ArrayVariable := [
     5
 ]
 
-StoreVariable := {
+StoreVariable := [
     SomeValue: 100      # equivalent to "SomeValue": 100
     OtherValue: "hi"    # equivalent to "OtherValue": "hi"
+]
+
+# This is different than the `StoreVariable` because it essentially
+# is an instance of a `{SomeValue: int, OtherValue: str}` type,
+# which cannot have new fields added, even if it was mutable.
+ObjectVariable := {
+    SomeValue: 100
+    OtherValue: "hi"
 }
 ```
 
@@ -396,11 +404,11 @@ The starting indent of the line is what matters, so a close parenthesis can be o
 line as an open parenthesis.
 
 ```
-NotAnArray := (
+SomeValue := (
         (20 + 45)
     *   Continuing + The + Line + AtPlus2Indent - (
                 Nested * Parentheses / Are + Ok
-                - Too
+            -   Too
         )
 )
 
@@ -481,7 +489,7 @@ if SomeCondition
 
 # comma version:
 if SomeCondition
-    # NOTE: not recommended, since it's easy to accidentally skip reading
+    # WARNING: NOT RECOMMENDED, since it's easy to accidentally skip reading
     # the statements that aren't first:
     print("toggling shutoff"), shutdown()
 
@@ -606,32 +614,40 @@ or a class method, like this:
 ```
 scaled8 := {
     @private
-    Value: u8
+    ScaledValue: u8
 
     # static/class-level variable:
     @private
     my Scale := 32
+
+    my new(Flt): hm{ok: me, uh: oneOf(Negative, TooBig)}
+        ScaledValue := round(Flt * my Scale)
+        if ScaledValue < 0
+            return Negative
+        if ScaledValue > u8 max() as(flt)
+            return TooBig
+        scaled8(ScaledValue as(u8))
 
     # if there are no representability issues, you can create
     # a direct method to convert to `flt`;
     # this can be called like `flt(Scaled8)` or `Scaled8 flt()`.
     ::flt(): flt
         # `u8` types have a `flt` method.
-        My Value flt() / my Scale flt()
+        My ScaledValue flt() / my Scale flt()
 
     # if you have representability issues, you can use `as` instead;
     # this can be called like `as(flt, Scaled8)` or `Scaled8 as(flt)`.
     ::as(flt): hm{ok: flt, NumberConversion uh}
-        ok(My Value as(flt) assert() / my Scale as(flt) assert())
+        ok(My ScaledValue as(flt) assert() / my Scale as(flt) assert())
 }
 
 # global function; can also be called like `Scaled8 dbl()`.
 dbl(Scaled8): dbl
-    Scaled8 Value dbl() / scaled8 Scale dbl()
+    Scaled8 ScaledValue dbl() / scaled8 Scale dbl()
 
 # global `as` function; can also be called like `Scaled8 as(dbl)`.
 as(Scaled8, dbl): hm{ok: dbl, NumberConversion uh}
-    Scaled8 Value assert(as: dbl) / scaled8 Scale assert(as: dbl)
+    Scaled8 ScaledValue assert(as: dbl) / scaled8 Scale assert(as: dbl)
 
 # TODO: discussion about how defining `;;renew(Flt): null` defines a global `scaled8(Flt): scaled8` function.
 ```
@@ -2143,6 +2159,10 @@ with larger-allocation types like `int` or `str` with an explicit copy:
 argument, if changed inside the function block, will have no effect on the
 things outside the function block.  Inside the function block, pass-by-value
 arguments are mutable, and can be reassigned or modified as desired.
+Similar to Rust, variables that can be easily copied implement a `::copy(): me`
+method, while variables that may require large allocations should only implement
+`;;renew(Other Me): null` (essentially a C++ copy constructor).  This is done
+by default for most hm-lang classes.
 
 Functions can also be defined with writeable or readonly reference arguments, e.g., via
 `MutableArgument; typeOfTheWriteable` and `ReadonlyArgument: typeOfTheReadonly` in the
@@ -2590,7 +2610,7 @@ call := {
     # adds an argument to the function call.
     # e.g., `Call input(Cave: "Story")`
     ;;input(~Name: ptr any): null
-        My Input[@(Name)] = Name
+        My Input[@@Name] = Name
 
     # adds a single-value return type
     ;;output(Any): null
@@ -2601,7 +2621,7 @@ call := {
     # e.g., `Call output(FieldName: 123)` will ensure
     # `{FieldName}` is defined in the return value, with a
     # default of 123 if `FieldName` is not set in the function.
-    ;;output(~Name: any) := My output(Name: @(Name), Value: Name)
+    ;;output(~Name: any) := My output(Name: @@Name, Value: Name)
 
     # adds a field to the return type with a default value.
     # e.g., `Call output(Name: "FieldName", Value: 123)` will ensure
@@ -2884,9 +2904,7 @@ You can also define an argument with a known type, but an unknown name.
 
 ```
 thisFunction(~TheName: int): null
-    # TODO: come up with a good way to get the name, if this isn't the best:
-    #       maybe @@, e.g., `@@TheName`.
-    ArgumentName: str = @(TheName)
+    ArgumentName: str = @@TheName
     print("calling thisFunction with $(ArgumentName): $(TheName)")
 ```
 
@@ -3772,12 +3790,12 @@ MyStore2 ;= store{MyNamespace id, value}()
 To constrain a generic type, use `~{type1: constraints1, type2: constraints2}` for
 the multiple generics class, where `constraints1/2` can be another type like
 `nonNull` or `number`, or even a combination of classes like
-`allOf(container{id, value}, number)`.  You can also specify the constraints as
-namespaces like `~{AllOf(container{id: str, value: int}, number) type1, NonNull type2}`,
+`union(container{id, value}, number)`.  You can also specify the constraints as
+namespaces like `~{Union(container{id: str, value: int}, number) type1, NonNull type2}`,
 but this is only recommended in simple cases or for the single generic type case.
 For single generic classes, we don't have the benefit of the object bracket `{}`,
 so we use e.g., `myClass~NonNull t := ...` to define `myClass` as taking a non-null
-generic type, or `otherClass~AllOf(t1, t2) genericType` to define `otherClass`
+generic type, or `otherClass~Union(t1, t2) genericType` to define `otherClass`
 as taking a generic type that needs to extend both `t1` and `t2` classes.
 
 
@@ -6049,11 +6067,6 @@ However, technically this is OK because arguments in functions are references,
 and they should therefore be defined before this function is called.
 Even if `Int;` here is a temporary, it is defined before this function
 (and not deleted after the function call).
-TODO: does this just increase our stack variables without end?  we probably
-want to allow getting rid of stack variables here.  we probably could annotate
-functions as "need temporaries to last" (or not), and try to decide this
-at compile time.  if we don't know (e.g., the function is a lambda), we'll
-check at runtime.
 
 Here is an example where the return value is a function which uses
 the another function from the input.  This is ok because the returned
