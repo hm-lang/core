@@ -267,7 +267,6 @@ vector3 := {X: dbl, Y: dbl, Z: dbl}
 # declaring a "complicated" class
 myClass := {
     # methods which mutate the class use a `;;` prefix
-    # TODO: should we switch to `from` so we have `from` and `to` as conversions back/forth?
     # TODO: should we avoid making `renew` macro-like?  should we have just a static function
     #       `my new(...): me` and then automatically define `renew` on it?
     #       where it saves time is with the field definitions like `My X: int`.
@@ -280,6 +279,8 @@ myClass := {
     #       also should standardize/recommend a `this` for `new`, maybe `my new`.
     #       we could still do `my new(My X: int, @passTo(parent) Name: str) := {}`.
     #       i think we should go this route; `renew` can be added by the compiler.
+    #       i think we can save the `new` part and just do `my(...): me` or `my(...): hm{ok: me, uh: ...}`.
+    #       this is appealing from a concision standpoint, as long as it doesn't conflict with other syntax.
     ;;renew(My X: int) := Null
 
     # methods which keep the class readonly use a `::` prefix
@@ -602,6 +603,7 @@ Notice we use `assert` to shortcircuit function evaluation and return an error r
 ```
 # Going from a floating point number to an integer should be done carefully...
 X: dbl = 5.43
+# TODO: convert `X as(int)` to `int(X)` everywhere
 SafeCast := X as(int)                   # SafeCast is a result type (`hm{ok: int, NumberConversion uh}`)
 Q := = X as(int) assert()               # returns an error since `X` is not representable as an integer
 Y := X round(Down) as(int) assert()     # Y = 5.  equivalent to `X floor()`
@@ -3160,17 +3162,23 @@ Note that we do not allow adding instance functions or instance variables outsid
 of the class definition, as that would change the memory footprint of each class instance.
 
 ```
+# static function that constructs a type or errors out
+# TODO: do we need `new` here?
+exampleClass new(Z: dbl): hm{ok: exampleClass, uh: str}
+    X := Z round() int() assert(Uh: "Need `round(Z)` representable as an `int`.")
+    exampleClass(X)
+
 # static function
 exampleClass myAddedClassFunction(K: int): exampleClass
-    return exampleClass(X: K * 1000)
+    exampleClass(X: K * 1000)
 
 # method which keeps the class instance readonly:
 exampleClass myAddedMethod(My, Y: int): int
-    return My X * 1000 + Y * 100
+    My X * 1000 + Y * 100
 
 # equivalently, a method which keeps the instance readonly:
 exampleClass::myAddedMethod(Y: int): int
-    return My X * 1000 + Y * 100
+    My X * 1000 + Y * 100
 
 # a method which can mutate the class instance:
 # this could also be defined as `exampleClass anotherMethod(My;, PlusK: int): null`.
@@ -3650,6 +3658,9 @@ someExample := {
     Value: int
     ;;renew(Int): null
         My Value = Int
+    # in your own code, prefer adding `~t new(SomeExample): t`
+    # outside of this class body as the more idiomatic way
+    # to convert `SomeExample` to a different type.
     ::to(): ~t
         return t(My Value)
 }
