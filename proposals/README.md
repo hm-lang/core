@@ -275,6 +275,11 @@ myClass := {
     #                           X: int
     #                           my new(X: int) := {X} # or ` := me(X)`
     #       however, `;;renew()` is still nice for parent class passing, i.e., `@passTo`
+    #       maybe we can do `my new(My X: int) := {}` and `X` automatically gets prefilled in the result `{}`.
+    #       or maybe `my new(New X: int) := {}`, whichever one seems clearer.
+    #       also should standardize/recommend a `this` for `new`, maybe `my new`.
+    #       we could still do `my new(My X: int, @passTo(parent) Name: str) := {}`.
+    #       i think we should go this route; `renew` can be added by the compiler.
     ;;renew(My X: int) := Null
 
     # methods which keep the class readonly use a `::` prefix
@@ -323,6 +328,10 @@ doSomething(~x, namedNew: ~y): new oneOf(x, y)
 someType := doSomething(int, namedNew: dbl) # int or dbl with 50-50 probability
 ```
 
+Note you could also return `oneOf(new x, new y)` in the above example,
+but there is no difference between that and `new oneOf(x, y)`, so the
+latter is more idiomatic.
+
 ## variable and function names
 
 Identifiers in hm-lang are very important.  The capitalization (or lack thereof)
@@ -340,19 +349,22 @@ There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
 which are function-like but will consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
-`NonNull`, `NotNull`,
+`NonNull`, `NotNull`, `Unused`,
 and variables cannot be defined with these names.  Variables can be defined as `Old Int`,
 `New X`, `Other ClassType`, or `NonNull Z`.  In particular, `NonNull` and `NotNull`
 are reserved namespaces for variables that cannot be null, and `First` and `Second`
 are reserved for binary operations like `&&` and `*`.
 See [namespaces](#namespaces) for more details.
-Other reserved keywords: `new` for returning a class constructor,
-TODO: `new` should probably be considered a namespace here, e.g., `new int`.
+Other reserved keywords: `new` for returning a class constructor, e.g.,
+`myFunction(): new oneOf(int, dbl)` for returning either an `int` or `dbl` constructor.
 
 Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
-most importantly in contrast to most other languages, underscores (`_`) are ignored within identifiers.
-E.g., `1_000_000` is the same as `1000000` and `my_Function` is the same as `myFunction`.
-TODO: maybe use `my_function` and autocapitalize the `f`.
+underscores (`_`) have some special handling.  They are ignored in numbers,
+e.g., `1_000_000` is the same as `1000000`, but highly recommended for large numbers.
+Underscores in identifiers will automatically capitalize the next letter, so
+`my_function` is the same as `myFunction`, and `_count` is the same as `Count`.
+Numbers are ignored, so `x_1` is the same as `x1`.  Trailing underscores are not allowed;
+if you want to annotate a variable as unused, use the `Unused` namespace.
 
 ## blocks
 
@@ -651,71 +663,54 @@ dbl(Scaled8): dbl
 # global `as` function; can also be called like `Scaled8 as(dbl)`.
 as(Scaled8, dbl): hm{ok: dbl, NumberConversion uh}
     Scaled8 ScaledValue assert(as: dbl) / scaled8 Scale assert(as: dbl)
-
-# TODO: discussion about how defining `;;renew(Flt): null` defines a global `scaled8(Flt): scaled8` function.
 ```
 
 ## types of types
 
 Every variable has a reflexive type which describes the object/primitive that is held
-in the variable.  This can be accessed via the `is()` class function, which is also
-defined on each instance.  If comparing against a known type, i.e., to check if some
-variable is an integer, it is highly recommended to use the `::is(~t)` method.
-See also [declaring more complicated types via `oneOf`](#declaring-more-complicated-types-via-oneOf)
-and the related methods we can use to determine/transform internal types.
+in the variable, which can be accessed via the `lowerCamelCase` version of the
+`UpperCamelCase` variable name.  For more methods of determining/transforming
+internal types, see
+[declaring more complicated types via `oneOf`](#declaring-more-complicated-types-via-oneOf).
 
 ```
 # implementation note: `int` should come first so it gets tried first;
 # `dbl` will eat up many values that are integers, including `4`.
 X; oneOf(int, dbl) = 4
 ...
-if X is(int)
+if x == int
     print("X is an integer")
-elif X is(dbl)
+elif x == dbl
     print("X is a double")
 ```
 
-You can create a new instance of the same type by chaining `is()` like this:
+You can create a new instance of the same type using the `lowerCamelCase` type:
 
 ```
-xType := X is()
+xType := x
 Y := xType(1234)
 
-# alternatively:
-Y := X is() new(1234)
+# alternatively, you can use directly:
+Y := x(1234)
 ```
-
-The reason we need a `new` in between `is()` and the constructor arguments
-for `X is() new(1234)` is that otherwise we grammatically don't know whether
-we're doing an implicit subscript or a function call.  We could use the
-default function name `fn` but `new` is more clear.
-TODO: we probably can distinguish now that we use `[]` for subscript.
-but `X is()(1234)` doesn't look quite right.
 
 Some more examples:
 
 ```
 vector3 := {X; dbl, Y; dbl, Z; dbl}
 
-Vector3 := vector3(X: 1.2, Y: -1.4, Z: 1.6)
+MyVector3 := vector3(X: 1.2, Y: -1.4, Z: 1.6)
 
-print(Vector3::is())                # prints `vector3`
-print(vector3 == Vector3 is())      # this prints true
-print(vector3 is() == Vector3 is()) # this also prints true.
+print(myVector3)                # prints `vector3`
+print(vector3 == myVector3)     # this prints true
 ```
-
-Note that because we allow calling class functions by class instances,
-we need `vector3 is()` to be the same as `Vector3 is()`.  Thus there
-is no type recursion possible; `vector3 is() is() == vector3 is() == vector3`.
 
 ```
 # we'll define `someType` as vector3, but it could become
 # different than vector3 in the future.
-someType; any = Vector3 is()    # also equivalent: `someType; any = vector3`
+someType; any = myVector3
 
-# TODO: is this ok?  should `someType` recognize that it is a `any` somehow??
-# things can't get recursive:
-print(someType is())                # prints `vector3`
+... # other logic that could change `someType`
 
 # creates a dynamical instance of vector3; the compiler doesn't know it's a vector3.
 # even though we know it comes from a vector3, `someType` is a generic `any`.
@@ -723,8 +718,6 @@ SomeThing := someType(X: 5, Y: 6, Z: -7)
 ```
 
 TODO: types of functions, shouldn't really have `new`.
-TODO: ensure that `::is(fn(InternalType): null): bool` is ok, otherwise we need a different
-type narrowing method.
 
 ## type overloads (generics only)
 
@@ -934,6 +927,7 @@ what X
 * `Second` - for the second operand in a binary operation (where order matters)
 * `NotNull` - for variables that cannot be null
 * `NonNull` - for variables that cannot be null
+* `Unused` - for variables that aren't used in this block
 
 
 ## member access operators `::`, `;;`, and ` `
@@ -2633,7 +2627,7 @@ call := {
     ;;output(Name: string, Value: any): null
         if My Output == Null
             My Output = multipleOutputs()
-        assert My Output is(multipleOutputs)
+        assert My output == multipleOutputs
         My Output[Name] = Value 
 }
 ```
@@ -3823,31 +3817,11 @@ All classes have a few compiler-provided methods which cannot be overridden.
     resetting the current instance to a default instance -- i.e., calling `renew()`.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
-* `::is(~T): bool` returns true if this instance is equal to the passed-in value.
-* `is(~t): bool` returns true if this instance/class is equal to the passed-in class.
-* `is(): new` provides the class type.  This makes it easy to determine
-    what the current type of a combo-type variable is at run-time.  E.g.,
-    ```
-    X; oneOf(int, dbl[], null)
-    X = [1.2, 3.4]
-    # you can check `X is()` or `is(X)` (which is equivalent to `X is()`):
-    what is(X)
-        null
-            print("X is Null")
-        int
-            print("X is an integer")
-        dbl[]
-            print("X is an array of double")
-    ```
-    Note that the `is()` type can be printed nicely, e.g.,
-    `print("asdf" is())` prints "str", and `str(1 is()) == "int"`.
-    TODO: figure out how to get around the problem of an object with
-    a field defined as `is`.  Maybe we need to use string access,
-    e.g., `Object "MyField" = 3`
 * `..map(fn(Me.): ~t): t` to easily convert types or otherwise transform
     the data held in `Me`.  This method consumes `Me`.
 * `::map(fn(Me): ~t): t` is similar to `..map(fn(Me.): ~t): t`,
     but this method keeps `Me` constant (readonly).
+* TODO: `;;renew(...): ...`
 
 ## singletons
 
@@ -6542,7 +6516,7 @@ parenthesesMatcher := extend(tokenMatcher) {
 
     ::match(Index;, Array: token[]): bool
         CurrentToken := Array[Index]
-        if not CurrentToken is(parenthesesToken)
+        if currentToken != parenthesesToken
             return False
 
         InternalIndex; index = 0
