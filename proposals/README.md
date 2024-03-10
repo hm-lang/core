@@ -267,20 +267,6 @@ vector3 := {X: dbl, Y: dbl, Z: dbl}
 # declaring a "complicated" class
 myClass := {
     # methods which mutate the class use a `;;` prefix
-    # TODO: should we avoid making `renew` macro-like?  should we have just a static function
-    #       `my new(...): me` and then automatically define `renew` on it?
-    #       where it saves time is with the field definitions like `My X: int`.
-    #       the equivalent of   `;;renew(My X: int): null`  would be
-    #                           X: int
-    #                           my new(X: int) := {X} # or ` := me(X)`
-    #       however, `;;renew()` is still nice for parent class passing, i.e., `@passTo`
-    #       maybe we can do `my new(My X: int) := {}` and `X` automatically gets prefilled in the result `{}`.
-    #       or maybe `my new(New X: int) := {}`, whichever one seems clearer.
-    #       also should standardize/recommend a `this` for `new`, maybe `my new`.
-    #       we could still do `my new(My X: int, @passTo(parent) Name: str) := {}`.
-    #       i think we should go this route; `renew` can be added by the compiler.
-    #       i think we can save the `new` part and just do `my(...): me` or `my(...): hm{ok: me, uh: ...}`.
-    #       this is appealing from a concision standpoint, as long as it doesn't conflict with other syntax.
     ;;renew(My X: int) := Null
 
     # methods which keep the class readonly use a `::` prefix
@@ -3080,16 +3066,26 @@ might have the same name as a class instance variable.
 
 ```
 exampleClass := {
-    # class instance variables can be defined here:
+    # class instance variables can be defined here.
+    # if they are public, a public constructor like `exampleClass(X;:. int)` will be created.
     X; int
 
     # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `renew` function.  this is true even
     # if the class instance variables are defined as readonly.
+    # NOTE:  defining this method isn't necessary since we already would have had
+    # `exampleClass(X: int)` based on the public variable definition of `X`, but
+    # we include it as an example in case you want to do extra work in the constructor
+    # (although avoid doing work if possible).
     ;;renew(X; int): null
         My X = X!
     # or short-hand: `;;renew(My X; int) := Null`
     # adding `My` to the arg name will automatically set `My X` to the passed in `X`.
+
+    # create a different constructor.  constructors use the class reference `i` and must
+    # return either an `i` or a `hm{ok: i, ~uh}` for any error type `uh`.
+    # this constructor returns `i`:
+    i(K: int) := i(X: K * 1000)
 
     # some more examples of class methods (1):
     # prefix `::` (`;;`) is shorthand for adding `My: my` (`My; my`) as an argument.
@@ -3163,8 +3159,7 @@ of the class definition, as that would change the memory footprint of each class
 
 ```
 # static function that constructs a type or errors out
-# TODO: do we need `new` here?
-exampleClass new(Z: dbl): hm{ok: exampleClass, uh: str}
+exampleClass(Z: dbl): hm{ok: exampleClass, uh: str}
     X := Z round() int() assert(Uh: "Need `round(Z)` representable as an `int`.")
     exampleClass(X)
 
@@ -3471,9 +3466,9 @@ and using the method on a subclass instance will return an instance of the subcl
 
 We can access member variables or functions that belong to that the parent type,
 i.e., without subclass overloads, using the syntax `parentClassName someMethod(My, ...Args)`
-or `parentClassName::someMethod(...Args)`.  Use `My;` to access variables or methods that will
+or `ParentClassName::someMethod(...Args)`.  Use `My;` to access variables or methods that will
 mutate the underlying class instance, e.g., `parentClassName someMethod(My;, ...Args)`
-or `parentClassName;;someMethod(...Args)`.  hm-lang doesn't have a `super` keyword
+or `ParentClassName;;someMethod(...Args)`.  hm-lang doesn't have a `super` keyword
 because we want inheritance to be as clear as composition for how method calls work.
 
 Some examples:
@@ -3518,8 +3513,8 @@ cat := extend(animal) {
     # here we define a `renew` method, so the parent `reset` methods
     # become hidden to users of this child class:
     ;;renew(): null
-        # can refer to parent methods using class name:
-        animal;;renew(Name: "Cat-don't-care-what-you-name-it")
+        # can refer to parent methods using the `UpperCamelCase` class name:
+        Animal renew(Name: "Cat-don't-care-what-you-name-it")
 
     ::speak(): null
         print("hisss!")
@@ -3540,14 +3535,14 @@ Cat escape()    # prints "CAT ESCAPES DARINGLY!"
 ```
 
 We have some functionality to make it easy to pass `renew` arguments to
-a parent class via `@passTo(parentClassName)` in the constructor.
+a parent class via the `ParentClassName` namespace in the constructor arguments.
 This way you don't need to add the boiler plate logic inside the
-constructor like this `;;renew(ParentArgument): $( parent;;renew(ParentArgument) )`,
+constructor like this `;;renew(ParentArgument): $( Parent renew(ParentArgument) )`,
 you can make it simpler like this instead:
 
 ```
 horse := extend(animal) {
-    ;;renew(@passTo(animal) Name: str, My Owner: str, NeighTimes: int = 0)
+    ;;renew(Animal Name: str, My Owner: str, NeighTimes: int = 0)
         for Int: int < NeighTimes
             This speak()
 
@@ -3832,7 +3827,15 @@ All classes have a few compiler-provided methods which cannot be overridden.
     the data held in `Me`.  This method consumes `Me`.
 * `::map(fn(Me): ~t): t` is similar to `..map(fn(Me.): ~t): t`,
     but this method keeps `Me` constant (readonly).
-* TODO: `;;renew(...): ...`
+* `i(...): me` class constructors for any `;;renew(...): null` methods.
+* `i(...): hm{ok: me, uh}` class or error constructors for any methods defined as
+    `;;renew(...): hm{ok: i, ~uh}`
+* `;;renew(...): null` for any `i(...): me` class constructors.
+    This allows any writeable variable to reset without doing `X = x(...)`,
+    which may be painful for long variable names, and instead do `X renew(...)`.
+* `;;renew(...): hm{uh}` for any `i(...): hm{ok: me, uh}` construct or error class functions
+    This allows any writeable variable to reset without doing `X = x(...) assert()`,
+    which may be painful for long variable names, and instead do `X renew(...) assert()`.
 
 ## singletons
 
@@ -4000,6 +4003,11 @@ Aliases can also be used for more complicated logic and even deprecating code.
 
 ```
 myClass := {
+    # TODO: we probably want to support `My` working here as well:
+    # explicit constructor:
+    i(My X; int) := i()
+
+    # implicit constructor:
     ;;renew(My X; int) := null
 
     # This was here before...
@@ -6247,7 +6255,6 @@ grammarElement := oneOf(
     AtomicStatement
     ClassName
     ClassDefinition
-    ClassBlock
     ClassStatement
     ClassMethod
     EndOfInput
@@ -6448,9 +6455,8 @@ Grammar := singleton() {
                 doNotAllow(operatorMatcher("?:="), "Classes cannot be nullable.")
             ])
             optionalMatcher(ExtendParentClasses)
-            parenthesesMatcher(ClassBlock)
+            parenthesesMatcher(repeatMatcher([ClassStatement], Until: operatorMatcher("}")))
         ])
-        ClassBlock: repeatMatcher(ClassStatement)
         ClassStatement: oneOfMatcher([
             VariableDefinition
             VariableDeclaration
@@ -6509,13 +6515,11 @@ listMatcher(GrammarMatcher) := parenthesesMatcher(repeatMatcher([
 ])
 
 sequence := extend(tokenMatcher) {
-    Uninterruptible: grammarMatcher[]
-    ;;renew(Array; grammarMatcher[]):
-        My Uninterrutible = Array!
+    ;;renew(My Array; grammarMatcher[]) := Null
 
-    ::match(Index;, Array: token[]): bool
-        for (GrammarMatcher) in My Uninterruptible
-            if not Grammar match(Index;, Array, GrammarMatcher)
+    ::match(Index;, ToMatch Array: token[]): bool
+        for (GrammarMatcher) in My Array
+            if not Grammar match(Index;, ToMatch Array, GrammarMatcher)
                 return False
         return True
 }
@@ -6546,23 +6550,28 @@ parenthesesMatcher := extend(tokenMatcher) {
 # TODO: make this a function which returns either `repeatInterruptible` and `repeatTimes`
 # this is essentially the definition for repeatInterruptible:
 repeatMatcher := extend(tokenMatcher) {
-    Interruptible: GrammarMatcher[]
-    # until `Until` is found, checks matches through `Interruptible` repeatedly.
+    # until `Until` is found, checks matches through `Array` repeatedly.
     # note that `Until` can be found at any point in the array;
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
     # if you need to ensure a non-breakable sequence is found before `Until`,
-    # use the `sequence` token matcher inside `Interruptible`.
-    ;;renew(My Until: GrammarMatcher = EndOfInput, Array: GrammarMatcher[]):
-        My Interruptible = Array!
+    # use the `sequence` token matcher inside `Array`.
+    i(My Until: GrammarMatcher = EndOfInput, My Array: GrammarMatcher[]) := i()
+    ;;renew(My Until: GrammarMatcher = EndOfInput, My Array: GrammarMatcher[]) := Null
 
-    ::match(Index;, Array: token[]): bool
+    ::match(Index;, ToMatch Array: token[]): bool
         if Index >= Array count()
             return False
 
         while True
-            for (GrammarMatcher) in My Interruptible
+            # TODO: is there a better syntax here that doesn't put `X: x` in front of `in`?
+            #       it'd be nice to avoid parentheses if necessary, although that does make it clear
+            #       that we have reference-like abilities.
+            #       maybe `in My Array, GrammarMatcher:` or `iterate My Array, GrammarMatcher:`
+            #           or `with My Array, GrammarMatcher:`
+            #       or `for GrammarMatcher:, in My Array`
+            for (GrammarMatcher) in My Array
                 # always check the escape sequence, Until:
-                if Grammar match(Index;, Array, My Until)
+                if Grammar match(Index;, ToMatch Array, My Until)
                     return True
                 # note that it's ok to call `Grammar` here despite
                 # the self-referential nature of the grammar, because
