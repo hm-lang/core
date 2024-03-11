@@ -3820,6 +3820,10 @@ For single generic classes, we don't have the benefit of the object bracket `{}`
 so we use e.g., `myClass~NonNull t := ...` to define `myClass` as taking a non-null
 generic type, or `otherClass~Union(t1, t2) genericType` to define `otherClass`
 as taking a generic type that needs to extend both `t1` and `t2` classes.
+You can also define the type with `lowerCamelCase` and then use it as a namespace
+in `UpperCamelCase`, whenever the type is more complicated:
+`myComplicatedConstraintType := allOf(t1, oneOf(t2, t3))` and declaring the class as
+`newGeneric~MyComplicatedConstraintType t`.
 
 
 ### default field names with generics
