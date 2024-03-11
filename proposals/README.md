@@ -556,6 +556,7 @@ Other types which have a fixed amount of memory:
 * `u64` : unsigned integer which can hold values from 0 to `2^64 - 1`, inclusive
 * `uXYZ` : unsigned integer which can hold values from 0 to `2^XYZ - 1`, inclusive,
     where `XYZ` is 128 to 512 in steps of 64
+    TODO: can we define as `u~Count Bits := what Count Bits $(8 $(u8) 16 $(u16) 32 $(u32), ...)`?
 * `count` : `i64` under the hood, intended to be >= 0 to indicate the amount of something.
 * `index` : signed integer, `i64` under the hood.  for indexing arrays starting at 0.
 * `ordinal` : signed integer, `i64` under the hood.  for indexing arrays starting at 1.
@@ -589,17 +590,17 @@ Notice we use `assert` to shortcircuit function evaluation and return an error r
 ```
 # Going from a floating point number to an integer should be done carefully...
 X: dbl = 5.43
-# TODO: convert `X as(int)` to `int(X)` everywhere
-SafeCast := X as(int)                   # SafeCast is a result type (`hm{ok: int, NumberConversion uh}`)
-Q := = X as(int) assert()               # returns an error since `X` is not representable as an integer
-Y := X round(Down) as(int) assert()     # Y = 5.  equivalent to `X floor()`
-Z := X round(Up) as(int) assert()       # Z = 6.  equivalent to `X ceil()`.
-R := X round() as(int) assert()         # R = 5.  rounds to closest integer, breaking ties at half
+SafeCast := X int()                     # SafeCast is a result type (`hm{ok: int, NumberConversion uh}`)
+# also OK: `SafeCast := int(X)`.
+Q := = X int() assert()                 # returns an error since `X` is not representable as an integer
+Y := X round(Down) int() assert()       # Y = 5.  equivalent to `X floor()`
+Z := X round(Up) int() assert()         # Z = 6.  equivalent to `X ceil()`.
+R := X round() int() assert()           # R = 5.  rounds to closest integer, breaking ties at half
                                         #         to the integer larger in magnitude.
 
 # Note, representable issues arise for conversions even between different integer types.
 A: u32 = 1234
-Q: u8 = A as(u8) assert()           # RUN-TIME ERROR, `A` is not representable as a `u8`.
+Q: u8 = A u8() assert()             # RUN-TIME ERROR, `A` is not representable as a `u8`.
 B: u8 = A & 255                     # OK, communicates intent and puts `A` into the correct range.
 C: u8 = A clamp(Min: 0, Max: 255)   # OK, communicates a different intent.
 ```
@@ -616,6 +617,7 @@ or a class method, like this:
 
 ```
 scaled8 := {
+    # the actual value held by a `scaled8` is `My ScaledValue / my Scale`.
     @private
     ScaledValue: u8
 
@@ -627,9 +629,9 @@ scaled8 := {
         ScaledValue := round(Flt * my Scale)
         if ScaledValue < 0
             return Negative
-        if ScaledValue > u8 max() as(flt)
+        if ScaledValue > u8 max() flt()
             return TooBig
-        scaled8(ScaledValue as(u8))
+        scaled8(ScaledValue u8() orPanic())
 
     # if there are no representability issues, you can create
     # a direct method to convert to `flt`;
@@ -638,19 +640,26 @@ scaled8 := {
         # `u8` types have a `flt` method.
         My ScaledValue flt() / my Scale flt()
 
-    # if you have representability issues, you can use `as` instead;
-    # this can be called like `as(flt, Scaled8)` or `Scaled8 as(flt)`.
-    ::as(flt): hm{ok: flt, NumberConversion uh}
-        ok(My ScaledValue as(flt) assert() / my Scale as(flt) assert())
+    # if you have representability issues, you can return a result instead.
+    ::int(): hm{ok: int, NumberConversion uh}
+        if My ScaledValue % my Scale != 0
+            NumberConversion NotAnInteger
+        else
+            My ScaledValue // my Scale
 }
 
 # global function; can also be called like `Scaled8 dbl()`.
 dbl(Scaled8): dbl
+    # note that we can access private variables of the class *in this file/module*
+    # but if we weren't in this file we wouldn't have this access.
     Scaled8 ScaledValue dbl() / scaled8 Scale dbl()
 
-# global `as` function; can also be called like `Scaled8 as(dbl)`.
-as(Scaled8, dbl): hm{ok: dbl, NumberConversion uh}
-    Scaled8 ScaledValue assert(as: dbl) / scaled8 Scale assert(as: dbl)
+# global function which returns a result, can be called like `Scaled8 u16()`
+u~Count Bits(Scaled8): hm{ok: u Count Bits, NumberConversion uh}
+    if My ScaledValue % my Scale != 0
+        NumberConversion NotAnInteger
+    else
+        My ScaledValue // my Scale
 ```
 
 ## types of types
@@ -723,7 +732,18 @@ an overload, as that would be the equivalent of shadowing.
 Operator priority.
 
 TODO: almost all operations should have result-like syntax.  e.g., `A * B` can overflow (or run out of memory for `int`).
-same for `A + B` and `A - B`.  `A // B` is safe.
+same for `A + B` and `A - B`.  `A // B` is safe.  instead of making hm-lang always assert, however,
+we should probably switch to `multiply(~First A, Second A): hm{ok: a, NumberConversion uh}` and then have
+`A1 * A2` always give an `a` result by panicking if we run out of memory.  i.e.,
+```
+# TODO: this is where `You` would be great.  `int Me * (You): me`.  could automatically prefill `First` for the `Me`
+# variable and `Second` for the `You` variable.
+int Me * (Second Me): me
+    Result := Me * Second Me
+    Result orPanic()
+```
+Primitive types could probably do overflow like they usually do without panicking, but it would save
+cycles to catch bugs like `U32: u32 = 0, while U32 >= 0 $(--U32)`.
 
 TODO: add : , ; ?? postfix/prefix ?
 TODO: add ... for dereferencing.  maybe we also allow it for spreading out an object into function arguments,
@@ -1499,7 +1519,7 @@ A Y *= 37    # OK
 returnA(Q: int): a
     # X and Y are defined locally here, and will be descoped at the
     # end of this function call.
-    X := Q as(dbl) okOr(NaN) * 4.567
+    X := Q dbl() okOr(NaN) * 4.567
     Y ;= Q * 3
     # So we can't pass X, Y as references here.  Z is fine.
     (X, Y;, Z. "world")
@@ -3824,9 +3844,10 @@ All classes have a few compiler-provided methods which cannot be overridden.
     Internally, this swaps pointers, but not actual data, so this method
     should be faster than copy for types bigger than the processor's word size.
 * `..map(fn(Me.): ~t): t` to easily convert types or otherwise transform
-    the data held in `Me`.  This method consumes `Me`.
+    the data held in `Me`.  This method consumes `Me`.  You can also overload
+    `map` to define other useful transformations on your class.
 * `::map(fn(Me): ~t): t` is similar to `..map(fn(Me.): ~t): t`,
-    but this method keeps `Me` constant (readonly).
+    but this method keeps `Me` constant (readonly).  You can overload as well.
 * `i(...): me` class constructors for any `;;renew(...): null` methods.
 * `i(...): hm{ok: me, uh}` class or error constructors for any methods defined as
     `;;renew(...): hm{ok: i, ~uh}`
@@ -4274,10 +4295,12 @@ hm~{ok, uh} := extend(oneOf(ok, uh)) {
                 panic(String || Uh)
 
     # If ok, returns the `Ok` value; otherwise returns the passed-in value.
-    ..okOr(Default Ok.): ok
+    # If it is expensive to create the in-case-of-error `ok` value, use 
+    # `Hm map((Uh.) := myExpensiveOkConstruction())` to create it only as necessary.
+    ..okOr(InCaseOfError Ok.): ok
         what Me
             Ok: $(Ok)
-            Uh: $(Default Ok)
+            Uh: $(InCaseOfError Ok)
 
     # maps an `Ok` result to a different type of `ok`, consuming `Me`.
     # we can also use namespaces like this to avoid renaming `ok` in the `hm{...}` specification:
@@ -4452,7 +4475,7 @@ myFunction(X: int), Fn: int
     innerFunction(Y: int): dbl
         if Y == 123
             Fn eject(123)       # early return from `myFunction`
-        return Y as(dbl) assert()
+        Y dbl() orPanic()
     for Y: int < X
         innerFunction(Y)
     return 3 
