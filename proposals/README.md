@@ -599,9 +599,9 @@ Notice we use `assert` to shortcircuit function evaluation and return an error r
 ```
 # Going from a floating point number to an integer should be done carefully...
 X: dbl = 5.43
-SafeCast := X int()                     # SafeCast is a result type (`hm{ok: int, NumberConversion uh}`)
+SafeCast := X int()                     # SafeCast is a result type (`hm[ok: int, NumberConversion uh]`)
 # also OK: `SafeCast := int(X)`.
-Q := = X int() assert()                 # returns an error since `X` is not representable as an integer
+Q := X int() assert()                   # returns an error since `X` is not representable as an integer
 Y := X round(Down) int() assert()       # Y = 5.  equivalent to `X floor()`
 Z := X round(Up) int() assert()         # Z = 6.  equivalent to `X ceil()`.
 R := X round() int() assert()           # R = 5.  rounds to closest integer, breaking ties at half
@@ -1279,7 +1279,7 @@ is null on it.  For example, the signed types `s8` defines null as `-128` like t
 
 ```
 s8 := extend(i8) {
-    # This should probably be auto-defined when an `isNull` method is added:
+    # TODO: This should probably be auto-defined when an `isNull` method is added:
     ;;renew(New I8): hm~null
         I8 = New I8
         assert(!Me isNull())
@@ -1407,9 +1407,6 @@ afterwards by other methods... except for the constructor if it's called again (
 We can create deeply nested objects by adding valid identifiers with consecutive `:`.  E.g.,
 `(X: Y: 3)` is the same as `(X: (Y: 3))`.
 
-TODO: this might make overloads more complicated; how do we choose the overload if we are calling
-with e.g., `{X: {Y: 3}}` vs. `{X: {Y: 3, Z: 4}}`.
-
 ## temporarily locking writeable variables
 
 You can also make a variable readonly
@@ -1488,7 +1485,9 @@ v(X: dbl, Y: dbl): null
 #       We can't allow `{}` because it's being used for sequence building.
 #       well, we probably could allow it as a syntax exception, e.g., if a
 #       function declaration proceeds a sequence builder, then we use it as
-#       a function definition/block.
+#       a function definition/block.  however, it looks like generics `str{...}`.
+#       the alternative would be to switch generics to brackets, then we could
+#       use sequence building for function definitions or other lambdas.
 excite(Times: int): str $(
     "hi!" * Times
 )
