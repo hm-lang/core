@@ -563,7 +563,15 @@ Other types which have a fixed amount of memory:
 
 and similarly for `i8` to `i512`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
-The corresponding generic is `signed~Count Bits`.
+The corresponding generic is `signed~Count Bits`.  We also define the
+symmetric integers `s8` to `s512` using two's complement, but disallowing
+the lowest negative value of the corresponding `i8` to `i512`, e.g.,
+-128 for `s8`.  This allows you to fit in a null type with no extra storage,
+e.g., `oneOf(s8, null)` is exactly 8 bits, since it uses -128 for null.
+(See [nullable classes](#nullable-classes) for more information.)
+Symmetric integers are useful when you want to ensure that `-Symmetric`
+is actually the opposite sign of `Symmetric`; `-i8(-128)` is still `i8(-128)`.
+The corresponding generic for symmetric integers is `symmetric~Count Bits`.
 
 Note that the `ordinal` type behaves exactly like a number but can be used
 to index arrays starting at 1.  E.g., `Array[ordinal(1)]` corresponds to `Array[index(0)]`
@@ -740,7 +748,7 @@ we should probably switch to `multiply(~First A, Second A): hm{ok: a, NumberConv
 # TODO: this is where `You` would be great.  `int Me * (You): me`.  could automatically prefill `First` for the `Me`
 # variable and `Second` for the `You` variable.
 int Me * (Second Me): me
-    Result := Me * Second Me
+    Result := Me multiply(Second Me)
     Result orPanic()
 ```
 Primitive types could probably do overflow like they usually do without panicking, but it would save
@@ -1264,12 +1272,29 @@ to 0.
 Optional functions are defined in a similar way (cf. section on nullable functions),
 with the `?` just after the function name, e.g., `someFunction?(...Args): returnType`.
 
-TODO: can we create an overload for "nullable" types?  e.g., it might be nice to
-allow `NaN` to be the null for floating point types `f32` and `f64`.
-similarly, someone might create a `symmetricI8` class with valid values -127 to 127,
-and the null is -128.
+## nullable classes
 
-Note that any `oneOf` that can be null gets these methods.  They are defined globally
+We will allow defining a nullable type by taking a type and specifying what value
+is null on it.  For example, the signed types `s8` defines null as `-128` like this:
+
+```
+s8 := extend(i8) {
+    # This should probably be auto-defined when an `isNull` method is added:
+    ;;renew(New I8): hm~null
+        I8 = New I8
+        assert(!Me isNull())
+
+    ::isNull(): bool
+        I8 == -128
+}
+```
+
+Similarly, `f32` and `f64` indicate that `NaN` is null via `::isNull() := isNaN(Me)`,
+so that you can define e.g. a nullable `f32` in exactly 32 bits.  To get this functionality,
+you must declare your variable as type `s8?` or `f32?`, so that the nullable checks
+kick in.
+
+Note that any `oneOf` that can be null gets nullable methods.  They are defined globally
 since we don't want to make users extend from a base nullable class.
 
 ```
@@ -1296,6 +1321,7 @@ truthyOr(First ~A?., Second A.): a
         # NonNull A: if NonNull A $(NonNull A)
         # _ $(Other A)
 ```
+
 
 ## nested/object types
 
