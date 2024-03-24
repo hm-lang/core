@@ -555,14 +555,15 @@ Other types which have a fixed amount of memory:
 * `u32` : unsigned integer which can hold values from 0 to `2^32 - 1`, inclusive
 * `u64` : unsigned integer which can hold values from 0 to `2^64 - 1`, inclusive
 * `uXYZ` : unsigned integer which can hold values from 0 to `2^XYZ - 1`, inclusive,
-    where `XYZ` is 128 to 512 in steps of 64
-    TODO: can we define as `u~Count Bits := what Count Bits $(8 $(u8) 16 $(u16) 32 $(u32), ...)`?
+    where `XYZ` is 128 to 512 in steps of 64, and generically we can use
+    `unsigned~Count Bits := what Count Bits $(8 $(u8), 16 $(u16), 32 $(u32), ...)`
 * `count` : `i64` under the hood, intended to be >= 0 to indicate the amount of something.
 * `index` : signed integer, `i64` under the hood.  for indexing arrays starting at 0.
 * `ordinal` : signed integer, `i64` under the hood.  for indexing arrays starting at 1.
 
 and similarly for `i8` to `i512`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
+The corresponding generic is `signed~Count Bits`.
 
 Note that the `ordinal` type behaves exactly like a number but can be used
 to index arrays starting at 1.  E.g., `Array[ordinal(1)]` corresponds to `Array[index(0)]`
