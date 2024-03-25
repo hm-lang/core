@@ -4449,6 +4449,9 @@ TODO: should this be valid if `ok` is already a nullable type?  e.g.,
 `myFunction(): hm[ok: oneOf(int, null), uh: str]`.
 we probably should compile-error-out on casting to `Int ?:= myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
+TODO: don't require `[ok?, uh]` and `[ok?: null, uh]`; the `null` type itself
+is non-null, so `[ok: null, ...]` should be fine.  (`[ok: Null]` would trigger the
+compilation warning about using `[ok?: Null, ...]`.)
 
 # lanes for control flow
 
