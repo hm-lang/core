@@ -142,7 +142,6 @@ we simply always `extend` the class.
     * For generic/template classes, e.g., classes like `array[N: count, type]` for a fixed array of size
         `N` with elements of type `type`, or `store[id: str, value: int]` to create a map/dictionary
         of strings mapped to integers.
-    * TODO: can we use `[x, y, z]` for a tuple of types `x`, `y`, `z`?
 * `{}` for objects/types
     * `{X: dbl, Y: dbl}` to declare a class with two double-precision fields, `X` and `Y`
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
@@ -367,13 +366,10 @@ If you need more indents, refactor your code.
 
 Lines can be continued at a +2 indent from the originating line, though there are some
 special rules here when parentheses are involved.  If an open bracket is encountered at
-the end of the line, and the next lines are only at +1 indent, then we assume an array
-is being constructed.  If `:` is encountered in what otherwise might be a
-line-continued array, we assume we're creating a store.  If the line after an open
-parenthesis is at +2 indent, then we assume we are just continuing the line and not creating
-an array.  Note that operators besides parentheses *are ignored* for determining the indent,
-so typical practice is to tab to the operator then tab to the number/symbol you need for
-continuing a line.
+the end of the line, and the next lines are only at +1 indent, then we assume a container
+is being constructed.  Note that operators besides parentheses *are ignored* for determining
+the indent, so typical practice is to tab to the operator then tab to the number/symbol
+you need for continuing a line.
 
 ```
 SomeVariable := someVeryLongFunctionNameBecauseItIsGoodToBeSpecific(10)
@@ -3862,6 +3858,23 @@ an array of them? `myGeneric[x: int, y: dbl][]`.  seems like it should be ok.
 does it work for the store syntax shortcut (e.g., `MyStore: value[id]` for 
 `MyStore: store[value, id]`)?  or does this make it look like `value` should
 be generic?
+
+### tuples are not allowed
+
+One might conceive of a tuple type like `[x, y, z]` for types `x`, `y`, `z`,
+but adding such a feature to hm-lang would make it hard to distinguish between
+passing in a single generic (e.g., for `myGeneric~t`) versus passing in multiple
+generics (e.g., for `otherGenerics~[x, y, z]`).  Would `tuple := [x, y, z]`
+with `otherGenerics tuple` trigger the single-generic or multi-generic resolution?
+We'd like to make it clear when single or multi-generics are being used, since you
+can make overloads for both.
+
+The biggest argument for tuples is returning multiple values (with possibly different
+types) from a function, but this can be readily obtained using `{}` with the requisite
+fields, e.g., `{X, Y, Z}` for types `x`, `y`, and `z`.  Named fields also increase
+readability, so e.g. `{LikelyIndex: index, ExpectedCount: count}` can improve others'
+understanding of your code.  As such, tuples are unnecessary due to easily declared
+object types.
 
 
 ### default field names with generics
