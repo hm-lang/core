@@ -338,13 +338,18 @@ which are function-like but will consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
 `NonNull`, `NotNull`, `Unused`,
-and variables cannot be defined with these names.  Variables can be defined as `Old Int`,
-`New X`, `Other ClassType`, or `NonNull Z`.  In particular, `NonNull` and `NotNull`
+and variables cannot be defined with these names.  Variables can be defined
+using these namespaces, e.g., as `Old Int`, `New X`, `Other ClassType`, or `NonNull Z`.
+In particular, `NonNull` and `NotNull`
 are reserved namespaces for variables that cannot be null, and `First` and `Second`
 are reserved for binary operations like `&&` and `*`.
 See [namespaces](#namespaces) for more details.
 Other reserved keywords: `new` for returning a class constructor, e.g.,
 `myFunction(): new oneOf(int, dbl)` for returning either an `int` or `dbl` constructor.
+There are some reserved variable names, like `I`, `Me`, and `My`, which can only
+be used as a reference to the current class instance, and `You` and `Your` which
+can only be used as a reference to a different instance of the same type.
+(The corresponding types `i`, `me`, `my`, `you`, and `your` are reserved for the same reasons.)
 
 Most ASCII symbols are not allowed inside identifiers, e.g., `*`, `/`, `&`, etc., but
 underscores (`_`) have some special handling.  They are ignored in numbers,
@@ -743,10 +748,8 @@ same for `A + B` and `A - B`.  `A // B` is safe.  instead of making hm-lang alwa
 we should probably switch to `multiply(~First A, Second A): hm[ok: a, NumberConversion uh]` and then have
 `A1 * A2` always give an `a` result by panicking if we run out of memory.  i.e.,
 ```
-# TODO: this is where `You` would be great.  `int Me * (You): me`.  could automatically prefill `First` for the `Me`
-# variable and `Second` for the `You` variable.
-int Me * (Second Me): me
-    Result := Me multiply(Second Me)
+int Me * (You): me
+    Result := multiply(Me, You)
     Result orPanic()
 ```
 Primitive types could probably do overflow like they usually do without panicking, but it would save
@@ -1856,17 +1859,19 @@ somewhat trivial, `A cross(B) == -B cross(A)`, and this simplicity should be asp
 The way to accomplish this in hm-lang is to use `First` and `Second` namespaces for
 each variable.  If defined in a method, `Me` will be assumed to be namespaced as `First`,
 so you can use `Second` for the other variable being passed in.  Using `First` and `Second`
-allows you to avoid the compiler errors like `@orderIndependent` does.
+allows you to avoid the compiler errors like `@orderIndependent` does.  You can also
+use `You` as the variable name which in the class body is the same as `Second Me`.
 
 ```
 vector3 := {
     ;;renew(My X; dbl, My Y; dbl, My Z; dbl) := Null
 
     # defined in the class body, we do it like this:
-    ::cross(Second Vector3) := vector3(
-        X: My Y * Second Vector3 Z - My Z * Second Vector3 Y
-        Y: My Z * Second Vector3 X - My X * Second Vector3 Z
-        Z: My X * Second Vector3 Y - My Y * Second Vector3 X
+    ::cross(You) := vector3(
+        # you can use `You` or `Your` in this block:
+        X: My Y * Your Z - My Z * Your Y
+        Y: My Z * Your X - My X * Your Z
+        Z: My X * Your Y - My Y * Your X
     )
 }
 
