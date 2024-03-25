@@ -163,7 +163,8 @@ we simply always `extend` the class.
   for the given type which will grab an argument with that type (e.g., `Int` for an `int` type).
     * `(X: dbl, Int)` can be called with `(1234, X: 5.67)` or even `(Y, X: 5.67)` if `Y` is an `int`
 * variables that are already named after the correct argument can be used without `:`
-    * `(X: dbl, Y: int)` can be called with `(X, Y)` if `X` and `Y` are already defined in the scope
+    * `(X: dbl, Y: int)` can be called with `(X, Y)` if `X` and `Y` are already defined in the scope,
+        i.e., eliding duplicate entries like `(X: X, Y: Y)`.
 
 ```
 # declaring a variable:
@@ -1478,13 +1479,7 @@ v(X: dbl, Y: dbl): null
     # print("$$(X), $$(Y), $$(\\math atan(X, Y))")
 
 # Note that it is also ok to use parentheses around a function definition,
-# but you should use the block parentheses notation `$(`.
-# TODO: should this be ${} instead?  or should we just allow `{}` plainly?
-#       We can't allow `{}` because it's being used for sequence building.
-#       well, we probably could allow it as a syntax exception, e.g., if a
-#       function declaration proceeds a sequence builder, then we use it as
-#       a function definition/block.   we could
-#       use sequence building for function definitions or other lambdas.
+# but you should use the block parentheses notation `$()`.
 excite(Times: int): str $(
     "hi!" * Times
 )
@@ -4465,7 +4460,7 @@ lane~exit := extend(withable) {
     #       Value = Value // 2 + 9
     #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
     #       if Old Value == Value
-    #           Lane exit("exited at ${Old Value}")
+    #           Lane exit("exited at $(Old Value)")
     #       # note we need to `loop` otherwise we'll break out
     #       # of the `with` without a return value; i.e.,
     #       # the `exit` block below won't trigger.
@@ -5084,7 +5079,7 @@ set~Hashable t := extend(container[id: t, value: true]) {
     # The current value is passed into the callback and can be modified;
     # if the value was `Null` and is converted to `True` inside the function,
     # then the set will get `T` added to itself.  Example:
-    #   `Set[X] = if Condition $(True) else {Null}` becomes
+    #   `Set[X] = if Condition $(True) else $(Null)` becomes
     #   `Set[X, fn(Maybe True?;): $(Maybe True = if Condition $(True) else $(Null))]`
     # TODO: if we used `True?` as the identifier everywhere we wouldn't need to do `Maybe True`, e.g.,
     #   `Set[X, fn(True?;): $(True? = if Condition $(True) else $(Null))]`
