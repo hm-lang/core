@@ -4555,16 +4555,39 @@ so `Then eject` has no purpose.  well, it would be needed for nested if statemen
 # futures
 
 hm-lang wants to make it very simple to do async code, without additional
-metadata on functions like `async` (JavaScript).  If your function returns
-a future, simply return `um~t` for whatever type `t` you will eventually return.
-hm-lang makes it possible to *directly* convert an `um t` into the underlying
-type `t`.
+metadata on functions like `async` (JavaScript).  It's also desirable to
+avoid even acknowledging that your function returns a future, since changing
+an inner function to return a future would then require changing all nested
+functions' signatures to return futures.  Instead, functions return the
+value that they will receive after any futures are completed (and we recommend
+a timeout `uh` being present for a result error).  If the caller wants to
+treat the function as a future, i.e., to run many such futures in parallel,
+then they ask for the result as an `um~t` type, where `t` is the future type.
 
-TODO: if your function returns `um t` then any callers of that function will
-also need to switch to returning `um~x` for whatever value `x` they return.
-In this way, `um` is infectious, sort-of the opposite of what we want.
-Can we make the function return the value `t`, and the *caller* decide if they
-want to treat it as a future (i.e., `um~t`)?
+```
+someVeryLongRunningFunction(Int): string
+    Result ;= ""
+    for New Int < Int
+        sleep(Seconds: New Int)
+        Result += str(New Int)
+    Result
+
+# this uses the default `string` return value:
+print("starting a long running function...")
+MyName := someVeryLongRunningFunction(10)
+print("the result is $(MyName) many seconds later")
+
+# this does it as a future
+print("starting a future, won't make progress unless polled")
+Future: um~string = someVeryLongRunningFunction(10)
+print("this `print` executes right away")
+Result: string = Future
+print("the result is $(Result) many seconds later")
+```
+
+TODO: syntax for awaiting multiple futures for parallelism:
+`{Future1 Result, Future2 Result} := {Future1, Future2}`
+and similarly for arrays, etc.
 
 TODO: coroutines/yield logic.
 
