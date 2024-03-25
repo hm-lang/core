@@ -4287,8 +4287,6 @@ of the `ok` type, e.g., `hm[ok: string, uh: errorCode]` can be converted into
 E.g., `myFunction(StringArgument?: MyHm)` to pass in `MyHm` if it's ok or null if not,
 and `String ?:= MyHm` to grab it as a local variable.
 
-TODO: maybe use `um` for futures.
-
 ```
 hm~[ok, uh] := extend(oneOf(ok, uh)) {
     # The API is `Ok := Hm assert()`, which will bubble up this `uh`
@@ -4550,6 +4548,22 @@ if(SomeCondition, (Then):
 ```
 The downside here is that `return` will definitely only work inside the function to return from `Then`,
 so `Then eject` has no purpose.  well, it would be needed for nested if statements.
+
+# futures
+
+hm-lang wants to make it very simple to do async code, without additional
+metadata on functions like `async` (JavaScript).  If your function returns
+a future, simply return `um~t` for whatever type `t` you will eventually return.
+hm-lang makes it possible to *directly* convert an `um t` into the underlying
+type `t`.
+
+TODO: if your function returns `um t` then any callers of that function will
+also need to switch to returning `um~x` for whatever value `x` they return.
+In this way, `um` is infectious, sort-of the opposite of what we want.
+Can we make the function return the value `t`, and the *caller* decide if they
+want to treat it as a future (i.e., `um~t`)?
+
+TODO: coroutines/yield logic.
 
 # standard container classes (and helpers)
 
