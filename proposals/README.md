@@ -4336,24 +4336,24 @@ hm~[ok, uh] := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   # example with implicit lane (like a guard/control flow):
-    #   implicitLane(): hm[ok: null, uh: str]
+    #   # example with implicit `then` (like a guard/control flow):
+    #   implicitThen(): hm[ok: null, uh: str]
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert()
     #       print(Result)
     #
-    #   # example with explicit lane that does the same thing as implicit:
-    #   explicitLane(): hm[ok: null, uh: str]
-    #       with Lane ;= lane uh()
-    #           Result := doSomething(1.234) assert(Lane;)
+    #   # example with explicit `then` that does the same thing as implicit:
+    #   explicitThen(): hm[ok: null, uh: str]
+    #       with Then ;= then uh()
+    #           Result := doSomething(1.234) assert(Then;)
     #           print(Result)
     #       exit Uh.
     #           return Uh
     #   ```
-    ..assert(Lane; lane uh): ok
+    ..assert(Then; then uh): ok
         what Me
             Ok: $(Ok)
-            Uh: $(debug error(Uh), Lane exit(Uh))
+            Uh: $(debug error(Uh), Then exit(Uh))
 
     # The API is `Ok := Hm assert(Uh: "custom error if not `ok`")`.
     # This will moot `Me` and shortcircuit a failure (i.e., if `result`
@@ -4365,17 +4365,17 @@ hm~[ok, uh] := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   implicitLane(): hm[ok: null, uh: oneOf(InvalidDoSomething, OtherError)]
+    #   implicitThen(): hm[ok: null, uh: oneOf(InvalidDoSomething, OtherError)]
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
-    ..assert(New Uh: ~exit, Lane; lane exit): ok
+    ..assert(New Uh: ~exit, Then; then exit): ok
         what Me
             Ok: $(Ok)
             Uh:
                 debug error(Uh)
-                Lane exit(New Uh)
+                Then exit(New Uh)
 
     ..orPanic(String := ""): ok
         what Me
@@ -4488,13 +4488,13 @@ TODO: don't require `[ok?, uh]` and `[ok?: null, uh]`; the `null` type itself
 is non-null, so `[ok: null, ...]` should be fine.  (`[ok: Null]` would trigger the
 compilation warning about using `[ok?: Null, ...]`.)
 
-# lanes for control flow
+# then for control flow
 
-You can write your own `assert` or `return`-like statements using lane logic.  The `lane`
+You can write your own `assert` or `return`-like statements using `then` logic.  The `then`
 class has a method to return early if desired.  Calling the `exit` method shortcircuits the
 rest of the block (and possibly other nested blocks).  This is annotated by using the `jump`
 return value.  You can also call `loop` to return to the start of the `with` block.
-TODO: `enter` is probably a better identifier for lane stuff.  e.g., `enter Lane ;= lane str() $(...) exit Value. $(...)`
+TODO: maybe rename `with` to `when`.
 
 ```
 # TODO: this should probably be renamed to `do`, and have tighter integration with
@@ -4502,19 +4502,19 @@ TODO: `enter` is probably a better identifier for lane stuff.  e.g., `enter Lane
 #       a return type of `oneOf(endResult, exitResult)`.
 # TODO: we probably want to be able to reference any variable's type via the lowerCamelCase
 #       version of the UpperCamelCase name, e.g., `MyVariable` and then using `myVariable(123)`.
-lane~exit := extend(withable) {
+then~exit := extend(withable) {
     # exits the `with` with the corresponding `exit` value.  example:
     #   Value ;= 0
-    #   with Lane ;= lane str()
+    #   with Then ;= then str()
     #       Old Value := Value
     #       Value = Value // 2 + 9
     #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
     #       if Old Value == Value
-    #           Lane exit("exited at $(Old Value)")
+    #           Then exit("exited at $(Old Value)")
     #       # note we need to `loop` otherwise we'll break out
     #       # of the `with` without a return value; i.e.,
-    #       # the `exit` block below won't trigger.
-    #       Lane loop()
+    #       # the `exit String.` block below would not trigger,
+    #       Then loop()
     #   exit String.
     #       print(String)       # should print "exited at 17"
     ;;exit(Exit.): jump
@@ -4522,20 +4522,21 @@ lane~exit := extend(withable) {
     # like a `continue` statement; will bring control flow back to
     # the start of the `with` block.  example:
     #   Value ;= 0
-    #   with Lane ;= lane str()
-    #       if ++Value > 10 $(Lane exit("done"))
+    #   with Then ;= then str()
+    #       if ++Value > 10 $(Then exit("done"))
     #       if Value % 2
-    #           Lane loop()
+    #           Then loop()
     #       print(Value)
-    #       Lane loop()
+    #       Then loop()
     #   # should print "2", "4", "6", "8"
     ;;loop(): jump
 }
 ```
 
-TODO: we probably can allow for multiple exit types and then match on them.
+We allow for multiple exit types and can match on them.
+TODO: we probably should use `what` for this for code reuse.
 ```
-with Lane ;= lane oneOf(str, int)()
+with Then ;= then oneOf(str, int)()
     # complicated logic
     ...
 exit Str.
@@ -4545,23 +4546,22 @@ exit Int.
 ```
 
 TODO:
-We probably can return early from an `if` block with or `if guard eject()` or `then break()`,
-or from other conditionals like `what`.  However, to be useful, we need to do stuff like
-break a nested conditional.
-```
-if SomeCondition
-    # do stuff
-    if SomeOtherCondition
-        then eject() # should be able to break the parent `if`, not just this if; that's not useful.
-    # do other stuff
-```
 Probably could rewire conditionals to accept an additional "argument", something like
+a `Then` that can have a namespace for nesting purposes
 ```
 if SomeCondition, Then:
     # do stuff
     if SomeOtherCondition
-        Then eject()
+        Then exit()
     # do other stuff
+
+Result := what SomeValue, Then:
+    5
+        ...
+        if OtherCondition
+            Then exit("Early return for `what`")
+        ...
+    ...
 ```
 We could also do crazier stuff with function returns as well:
 ```
