@@ -4553,6 +4553,21 @@ what Then decide()
         print("got another integer besides 5, $(Int)")
 ```
 
+```
+# functions seem a bit cumbersome; we should just be able to return a `forLoop`
+# enum like `Repeat` or `Exit`.  or `oneOf(otherTypes..., forLoop)`
+what with((Then):
+    Old Value := Value
+    Value = Value // 2 + 9
+    if Old Value == Value
+        Then exit("exited at $(Old Value)")
+    Then loop()
+)
+    Str.
+    5
+    Int.
+```
+
 We allow for multiple exit types and can match on them.
 TODO: we probably should use `what` for this for code reuse.
 ```
