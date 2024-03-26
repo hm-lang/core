@@ -727,6 +727,8 @@ SomeThing := someType(X: 5, Y: 6, Z: -7)
 ```
 
 TODO: types of functions, shouldn't really have `new`.
+TODO: we should discuss the things functions do have, like `myFunction Inputs`
+and `myFunction Outputs` as well as `myFunction um`.
 
 ## type overloads (generics only)
 
@@ -4060,6 +4062,31 @@ order, e.g., `A c(), A d(), B c(), B d()`.  In this case, when the LHS is itself
 it acts like a temporary, so that the return value is an object with fields `A` and `B`,
 i.e., `{A, B}`, where `A` and `B` have already had the methods `c()` and `d()` called on them.
 
+You can use field names in sequence builders in order to better organize things.
+This is only useful if the LHS is not a temporary, since a temporary LHS is returned
+as sequence builder's value.
+
+```
+MyClass := {...}
+# MyClass is not a temporary, so we can include field names here:
+Results := MyClass {
+    Field1: myMethod()
+    Field2: nextMethod()
+}
+# The above is equivalent to the following:
+Results := {
+    Field1: MyClass myMethod()
+    Field2: MyClass nextMethod()
+}
+
+# This is a compile error because the LHS of the sequence builder
+# is a temporary, so the fields are not used in the return value.
+Results := MyClass getValue() {
+    Field1: doSomething()
+    Field2: doSomethingElse()
+} # COMPILE ERROR
+```
+
 TODO: are classes some sort of unevaluated sequence builder?
 
 TODO: talk about conditionals in sequence building.
@@ -4567,7 +4594,12 @@ functions' signatures to return futures.  Instead, functions return the
 value that they will receive after any futures are completed (and we recommend
 a timeout `uh` being present for a result error).  If the caller wants to
 treat the function as a future, i.e., to run many such futures in parallel,
-then they ask for the result as an `um~t` type, where `t` is the future type.
+then they ask for it as a future using `um` before the function name, which
+returns the `um~t` type, where `t` is the normal function's return type.
+You can also type the variable explicitly as `um t` and then void using `um`
+before the function name.
+TODO: is `um myFunction(...)` compatible with generic specification, e.g.,
+`MyValue: um string` or `MyArray: um array[int]`?
 
 ```
 someVeryLongRunningFunction(Int): string
@@ -4584,15 +4616,50 @@ print("the result is $(MyName) many seconds later")
 
 # this does it as a future
 print("starting a future, won't make progress unless polled")
-Future: um~string = someVeryLongRunningFunction(10)
+# `Future` here has the type `um string`:
+Future := um someVeryLongRunningFunction(10)
+# Also ok: `Future: um string = someVeryLongRunningFunction(10)`
 print("this `print` executes right away")
 Result: string = Future
 print("the result is $(Result) many seconds later")
 ```
 
-TODO: syntax for awaiting multiple futures for parallelism:
-`{Future1 Result, Future2 Result} := {Future1, Future2}`
-and similarly for arrays, etc.
+That is the basic way to resolve a future, but you can also use
+the `::decide(): t` method for an explicit conversion from `um t`
+to `t`.  Ultimately futures are more useful when combined for
+parallelism.  Here is an example:
+
+```
+after(Seconds: int, Return: string): string
+    sleep(Seconds)
+    Return
+
+FuturesArray[]: um string
+# no need to use `um after` here since `FuturesArray`
+# elements are already typed as `um string`:
+FuturesArray append(after(Seconds: 2, Return: "hello"))
+FuturesArray append(after(Seconds: 1, Return: "world"))
+ResultsArray := decide(FuturesArray)
+print(ResultsArray) # prints `["hello", "world"]`
+
+# here we use sequence building to ensure we're creating futures:
+# TODO: is this distinguishable from a type specification um{Greeting, After}?
+#       probably because Greeting/After are specified themselves so they
+#       wouldn't count as types.  but we can have generic specifications
+#       that include actual values, like `fixedArray[N: 5, int]`, but that
+#       does use `[]` instead of `{}`.
+FuturesObject := um {
+    Greeting: after(Seconds: 2, Return: "hello")
+    Noun: after(Seconds: 1, Return: "world")
+}
+print(decide(FuturesObject)) # prints `{Greeting: "hello", Noun: "world"}`
+```
+
+Notice that all containers with `um` types for elements will have
+an overload defined for `decide`, which can be used like with the
+`FuturesArray` example above.  Similarly all object types with `um`
+fields have a `decide` function that awaits all internal fields that
+are futures before returning.
 
 TODO: coroutines/yield logic.
 
