@@ -4533,6 +4533,26 @@ then~exit := extend(withable) {
 }
 ```
 
+TODO: can we use `um` futures for `then`?  or maybe `then` can have more methods
+that actually do resolution of `um` values (i.e., via `exit`).
+```
+Then; then oneOf(str, int)
+if SomeCondition
+    Then exit("hello")
+doSomethingElse()
+if OtherCondition
+    Then loop() # return control to just after when `Then` was declared
+# TODO: would need to see if `then` doesn't return a `loop()` or `exit()` to
+# avoid making this next statement hang if `OtherCondition` is false.
+what Then decide()
+    Str.
+        print("got a string: $(Str)")
+    5
+        print("got 5")
+    Int.
+        print("got another integer besides 5, $(Int)")
+```
+
 We allow for multiple exit types and can match on them.
 TODO: we probably should use `what` for this for code reuse.
 ```
