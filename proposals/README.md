@@ -123,9 +123,11 @@ we simply always `extend` the class.
 * outside of arguments, use `:` for readonly declarations and `;` for writeable declarations
 * for an argument, `:` is a readonly reference, `;` is a writeable reference, and `.` is a temporary
     (i.e., passed by value), see [pass-by-reference or pass-by-value](#pass-by-reference-or-pass-by-value)
-* use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
-* use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
-* use `a: y` to declare `a` as a constructor that builds instances of type `y`
+* use `:` to declare readonly things, `;` to declare writeable things.
+    * use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
+    * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
+    * use `a: y` to declare `a` as a constructor that builds instances of type `y`
+* when not declaring things, `:` is not used; e.g., `if` statements do not require a trailing `:` like python
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object type, `W` is an optional field
         passed by readonly reference, `X` is a readonly reference, `Y` is a writeable reference,
@@ -4088,6 +4090,9 @@ Results := MyClass getValue() {
 ```
 
 TODO: are classes some sort of unevaluated sequence builder?
+probably they are actually evaluated sequence builders.
+TODO: can we make `extend` go away and just do `hm~[ok, uh] := oneOf(ok, uh) { ...extra-methods... }`
+via sequence building?
 
 TODO: talk about conditionals in sequence building.
 E.g., `{ myMethod(), if Value $(someMethod()) else $(otherMethod()) }`
@@ -4365,8 +4370,6 @@ hm~[ok, uh] := extend(oneOf(ok, uh)) {
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
-    # TODO: should we just rely on `map` functionality here instead of adding a new `assert`?
-    #       e.g., we can do `Hm map((Uh) := New Uh) assert()`
     ..assert(New Uh: ~exit, Lane; lane exit): ok
         what Me
             Ok: $(Ok)
@@ -4491,6 +4494,7 @@ You can write your own `assert` or `return`-like statements using lane logic.  T
 class has a method to return early if desired.  Calling the `exit` method shortcircuits the
 rest of the block (and possibly other nested blocks).  This is annotated by using the `jump`
 return value.  You can also call `loop` to return to the start of the `with` block.
+TODO: `enter` is probably a better identifier for lane stuff.  e.g., `enter Lane ;= lane str() $(...) exit Value. $(...)`
 
 ```
 # TODO: this should probably be renamed to `do`, and have tighter integration with
@@ -4511,8 +4515,8 @@ lane~exit := extend(withable) {
     #       # of the `with` without a return value; i.e.,
     #       # the `exit` block below won't trigger.
     #       Lane loop()
-    #   exit ExitValue.
-    #       print(ExitValue)    # should print "exited at 17"
+    #   exit String.
+    #       print(String)       # should print "exited at 17"
     ;;exit(Exit.): jump
 
     # like a `continue` statement; will bring control flow back to
@@ -4643,8 +4647,8 @@ ResultsArray := decide(FuturesArray)
 print(ResultsArray) # prints `["hello", "world"]`
 
 # here we use sequence building to ensure we're creating futures:
-# TODO: is this distinguishable from a type specification um{Greeting, After}?
-#       probably because Greeting/After are specified themselves so they
+# TODO: is this distinguishable from a type specification um{Greeting, Noun}?
+#       probably because Greeting/Noun are specified themselves so they
 #       wouldn't count as types.  but we can have generic specifications
 #       that include actual values, like `fixedArray[N: 5, int]`, but that
 #       does use `[]` instead of `{}`.
