@@ -4336,24 +4336,27 @@ hm~[ok, uh] := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   # example with implicit `then` (like a guard/control flow):
-    #   implicitThen(): hm[ok: null, uh: str]
+    #   # example with implicit `do` (like a guard/control flow):
+    #   implicitDo(): hm[ok: null, uh: str]
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert()
     #       print(Result)
     #
-    #   # example with explicit `then` that does the same thing as implicit:
-    #   explicitThen(): hm[ok: null, uh: str]
-    #       with Then ;= then uh()
-    #           Result := doSomething(1.234) assert(Then;)
+    #   # example with explicit `do` that does the same thing as implicit:
+    #   explicitDo(): hm[ok: null, uh: str]
+    #       loop((Do; hm[ok: null, uh: str]):
+    #           Result := doSomething(1.234) assert(Do;)
     #           print(Result)
-    #       exit Uh.
-    #           return Uh
+    #           Do exit(null)
+    #       )
     #   ```
-    ..assert(Then; then uh): ok
+    # TODO: this shoulld be `do Uh~moreGenericType` or something similar.
+    #       we want to enable `do oneOf(uh, ~otherTypes)`; does `oneOf(uh, ~otherTypes)`
+    #       extend/implement `uh`?  probably.
+    ..assert(Do; do uh): ok
         what Me
             Ok: $(Ok)
-            Uh: $(debug error(Uh), Then exit(Uh))
+            Uh: $(debug error(Uh), Do exit(Uh))
 
     # The API is `Ok := Hm assert(Uh: "custom error if not `ok`")`.
     # This will moot `Me` and shortcircuit a failure (i.e., if `result`
@@ -4365,17 +4368,18 @@ hm~[ok, uh] := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   implicitThen(): hm[ok: null, uh: oneOf(InvalidDoSomething, OtherError)]
+    #   implicitDo(): hm[ok: null, uh: oneOf(InvalidDoSomething, OtherError)]
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
-    ..assert(New Uh: ~exit, Then; then exit): ok
+    # TODO: this shoulld be `do Uh~moreGenericType` or something similar.
+    ..assert(New Uh: ~exit, Do; do exit): ok
         what Me
             Ok: $(Ok)
             Uh:
                 debug error(Uh)
-                Then exit(New Uh)
+                Do exit(New Uh)
 
     ..orPanic(String := ""): ok
         what Me
@@ -4488,106 +4492,73 @@ TODO: don't require `[ok?, uh]` and `[ok?: null, uh]`; the `null` type itself
 is non-null, so `[ok: null, ...]` should be fine.  (`[ok: Null]` would trigger the
 compilation warning about using `[ok?: Null, ...]`.)
 
-# then for control flow
+# do/loop for control flow
 
-You can write your own `assert` or `return`-like statements using `then` logic.  The `then`
-class has a method to return early if desired.  Calling the `exit` method shortcircuits the
+You can write your own `assert` or `return`-like statements using `do` logic.  The `do`
+class has a method to return early if desired.  Calling `Do exit(...)` shortcircuits the
 rest of the block (and possibly other nested blocks).  This is annotated by using the `jump`
-return value.  You can also call `loop` to return to the start of the `with` block.
-TODO: maybe rename `with` to `when`.
+return value.  You can also call `Do loop()` to return to the start of the block.
+You don't usually create a `do` instance; you'll use it in combination with
+the `loop` function.
+
 
 ```
-# TODO: this should probably be renamed to `do`, and have tighter integration with
+# loop function which returns whatever value the `Do` exits the loop with.
+loop(fn(Do: do~exit): null): exit
+
 # TODO: discussion about `do $(..., EndResult), exit Exit. $(ExitResult)` should have
 #       a return type of `oneOf(endResult, exitResult)`.
-# TODO: we probably want to be able to reference any variable's type via the lowerCamelCase
-#       version of the UpperCamelCase name, e.g., `MyVariable` and then using `myVariable(123)`.
-then~exit := extend(withable) {
+@referenceableAs(then)
+do~exit := extend(withable) {
     # exits the `with` with the corresponding `exit` value.  example:
     #   Value ;= 0
-    #   with Then ;= then str()
+    #   what loop((Do; do str):
     #       Old Value := Value
     #       Value = Value // 2 + 9
     #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
     #       if Old Value == Value
-    #           Then exit("exited at $(Old Value)")
+    #           Do exit("exited at $(Old Value)")
     #       # note we need to `loop` otherwise we'll break out
     #       # of the `with` without a return value; i.e.,
     #       # the `exit String.` block below would not trigger,
-    #       Then loop()
-    #   exit String.
-    #       print(String)       # should print "exited at 17"
+    #       Do loop()
+    #   )
+    #       String.
+    #           print(String)       # should print "exited at 17"
     ;;exit(Exit.): jump
 
     # like a `continue` statement; will bring control flow back to
     # the start of the `with` block.  example:
     #   Value ;= 0
-    #   with Then ;= then str()
-    #       if ++Value > 10 $(Then exit("done"))
+    #   loop((Do; do str):
+    #       if ++Value > 10 $(Do exit("done"))
     #       if Value % 2
-    #           Then loop()
+    #           Do loop()
     #       print(Value)
-    #       Then loop()
+    #       Do loop()
+    #   )
     #   # should print "2", "4", "6", "8"
+    @hideFrom(then)
     ;;loop(): jump
 }
 ```
 
-TODO: can we use `um` futures for `then`?  or maybe `then` can have more methods
-that actually do resolution of `um` values (i.e., via `exit`).
-```
-Then; then oneOf(str, int)
-if SomeCondition
-    Then exit("hello")
-doSomethingElse()
-if OtherCondition
-    Then loop() # return control to just after when `Then` was declared
-# TODO: would need to see if `then` doesn't return a `loop()` or `exit()` to
-# avoid making this next statement hang if `OtherCondition` is false.
-what Then decide()
-    Str.
-        print("got a string: $(Str)")
-    5
-        print("got 5")
-    Int.
-        print("got another integer besides 5, $(Int)")
-```
+TODO: can we use an `um` internally inside `do`?
 
 ```
 # functions seem a bit cumbersome; we should just be able to return a `forLoop`
-# enum like `Repeat` or `Exit`.  or `oneOf(otherTypes..., forLoop)`
-what with((Then):
-    Old Value := Value
-    Value = Value // 2 + 9
-    if Old Value == Value
-        Then exit("exited at $(Old Value)")
-    Then loop()
-)
-    Str.
-    5
-    Int.
-```
-
-We allow for multiple exit types and can match on them.
-TODO: we probably should use `what` for this for code reuse.
-```
-with Then ;= then oneOf(str, int)()
-    # complicated logic
-    ...
-exit Str.
-    print("got string: $(Str)")
-exit Int.
-    print("got int: $(Int)")
-```
 
 TODO:
 Probably could rewire conditionals to accept an additional "argument", something like
-a `Then` that can have a namespace for nesting purposes
+a `Then` that can have a namespace for nesting purposes, or just be named.
 ```
 if SomeCondition, Then:
     # do stuff
-    if SomeOtherCondition
-        Then exit()
+    if SomeOtherCondition, NamedThen: then
+        if SomethingElse1
+            Then exit()
+        if SomethingElse2
+            NamedThen exit()
     # do other stuff
 
 Result := what SomeValue, Then:
@@ -4611,7 +4582,7 @@ myFunction(X: int), Fn: int
     return 3 
 ```
 
-TODO: Can we write other conditionals/loops/etc. in terms of `guard` to make it easier to compile
+TODO: Can we write other conditionals/loops/etc. in terms of `do/loop` to make it easier to compile
 from fewer primitives?  E.g., `while Condition, Do: $(... Do eject(3) ...)`.
 
 TODO: should `Then` be in a function format, e.g.,
