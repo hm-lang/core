@@ -149,8 +149,10 @@ we simply always `extend` the class.
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
     * `{Greeting: str, Times: int} = destructureMe()` to do destructuring of a return value
     * `"My String Interpolation is ${X, Y: Z}"` to add `{X: *value-of-X*, Y: *value-of-Z*}` to the string.
-    * `A {x(), y()}` to call `A x()` then `A y()` via [sequence building](#sequence-building)
-        and return them in an object with fields `X` and `Y`, i.e., `{X: A x(), Y: A y()}`.
+    * `A {x(), Y}` to call `A x()` then `A Y` via [sequence building](#sequence-building)
+        and return them in an object with fields `X` and `Y`, i.e., `{X: A x(), Y: A Y}`.
+    * `A {L1: x(), L2: Y}` to do sequence building with renamed fields, i.e.,
+        `{L1: A x(), L2: A Y}`.
 * `~` to declare a template type, e.g., `array~t` to indicate an array with a new generic type `t`,
     or `myGenericFunction(Value: ~u): u` to define a function that takes a generic type `u` and returns it.
     See [generic/template classes](#generictemplate-classes) and
@@ -730,7 +732,7 @@ SomeThing := someType(X: 5, Y: 6, Z: -7)
 
 TODO: types of functions, shouldn't really have `new`.
 TODO: we should discuss the things functions do have, like `myFunction Inputs`
-and `myFunction Outputs` as well as `myFunction um`.
+and `myFunction Outputs`.
 
 ## type overloads (generics only)
 
@@ -4608,12 +4610,16 @@ functions' signatures to return futures.  Instead, functions return the
 value that they will receive after any futures are completed (and we recommend
 a timeout `uh` being present for a result error).  If the caller wants to
 treat the function as a future, i.e., to run many such futures in parallel,
-then they ask for it as a future using `um` before the function name, which
+then they ask for it as a future using `Um` before the function name, which
 returns the `um~t` type, where `t` is the normal function's return type.
-You can also type the variable explicitly as `um t` and then void using `um`
-before the function name.
-TODO: is `um myFunction(...)` compatible with generic specification, e.g.,
-`MyValue: um string` or `MyArray: um array[int]`?
+You can also type the variable explicitly as `um t` and then void using `Um`
+before the function name.  Note there could be an issue with the default name
+for an `um~t` type, but we can resolve that by always using namespaces if
+we want a default-name `um`, e.g., `MyNamespace Um: um~t` for a default-named
+future variable.
+TODO: maybe use a different variable here, like `Ff` for "future factory",
+e.g., for `Ff someVeryLongRunningFunction(...)`.  then if people want to
+switch out the future implementation or instantiate their own factories, they can.
 
 ```
 someVeryLongRunningFunction(Int): string
@@ -4631,7 +4637,7 @@ print("the result is $(MyName) many seconds later")
 # this does it as a future
 print("starting a future, won't make progress unless polled")
 # `Future` here has the type `um string`:
-Future := um someVeryLongRunningFunction(10)
+Future := Um someVeryLongRunningFunction(10)
 # Also ok: `Future: um string = someVeryLongRunningFunction(10)`
 print("this `print` executes right away")
 Result: string = Future
@@ -4649,20 +4655,16 @@ after(Seconds: int, Return: string): string
     Return
 
 FuturesArray[]: um string
-# no need to use `um after` here since `FuturesArray`
+# no need to use `Um after(...)` here since `FuturesArray`
 # elements are already typed as `um string`:
 FuturesArray append(after(Seconds: 2, Return: "hello"))
 FuturesArray append(after(Seconds: 1, Return: "world"))
 ResultsArray := decide(FuturesArray)
 print(ResultsArray) # prints `["hello", "world"]`
 
-# here we use sequence building to ensure we're creating futures:
-# TODO: is this distinguishable from a type specification um{Greeting, Noun}?
-#       probably because Greeting/Noun are specified themselves so they
-#       wouldn't count as types.  but we can have generic specifications
-#       that include actual values, like `fixedArray[N: 5, int]`, but that
-#       does use `[]` instead of `{}`.
-FuturesObject := um {
+# here we use sequence building to ensure we're creating futures,
+# i.e., `Um {A, B}` has type `{um a, um b}` and executes `A`/`B` asynchronously.
+FuturesObject := Um {
     Greeting: after(Seconds: 2, Return: "hello")
     Noun: after(Seconds: 1, Return: "world")
 }
