@@ -4573,6 +4573,9 @@ We could also do crazier stuff with function returns as well:
 ```
 # this is the same function signature as `myFunction(X: int): str`
 # TODO: does `myFunction(X: int) Then: str` or `, Then: str` also work?
+# TODO: does this make a case for a `void` return type that should never `return`?
+#       or do we just throw a compile error if people try to return
+#       inside a `Then`'d function?
 myFunction(X: int, Then: then~str): null
     innerFunction(Y: int): dbl
         if Y == 123
