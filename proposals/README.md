@@ -127,6 +127,8 @@ we simply always `extend` the class.
     * use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
     * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
     * use `a: y` to declare `a` as a constructor that builds instances of type `y`
+    * while declaring *and defining* something, you can avoid the type if you want the compiler to infer it,
+        e.g., `A := someExpression()`
 * when not declaring things, `:` is not used; e.g., `if` statements do not require a trailing `:` like python
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object type, `W` is an optional field
@@ -824,6 +826,8 @@ In case a function returns another function, you must use the default function n
 to call the other function inline, e.g., `getFunction(X) fn(Y, Z)` will call the
 second function with `(Y, Z)` arguments, or define the function as a temporary,
 e.g., `theFunction := getFunction(X), theFunction(Y, Z)`.
+TODO: is this still necessary, or can we just do `getFunction(X)(Y, Z)`?  we don't have any
+overloads for `CapitalName(Z)` that i'm aware of.
 
 Note that methods defined on classes can be prefaced by member access (e.g., ` `, `::`, or `;;`),
 and that path will still be used for function specification, even though member access has
@@ -842,9 +846,7 @@ and including these parentheses would help others follow the flow.  Even better 
 add descriptive variables as intermediate steps.
 
 Deep dive!  Function calls are higher priority than member access because `someMethod() FinalField`
-would compile as `someMethod( ()::FinalField )` otherwise, which would evaluate to `someMethod(Null)`
-since `()::FinalField` is accessing the `FinalField` field on the null argument object `()`, for
-which there is no field value (i.e, a null field value).  
+would compile as `someMethod( ()::FinalField )` otherwise, which would be a weird compile error.  
 
 TODO: if you don't supply all the arguments, you should get a new function that prefills
 all the arguments you supplied and keeps as its own arguments the ones you didn't.
@@ -1455,8 +1457,13 @@ Date := date(@hide DateString!)
 
 # functions
 
-Functions are named using `lowerCamelCase` identifiers.
- ```
+Functions are named using `lowerCamelCase` identifiers.  The syntax to declare
+a function is `lowerCamelCaseName(FunctionArguments...): returnType`, but if
+you are also defining the function the `returnType` is optional (but generally
+recommended for multiline definitions).  Defining the function can occur inline
+with `:=` or over multiple lines using an indented block (without `=`).
+
+```
 # declaring a function with no arguments that returns a big integer
 v(): int
 
@@ -4575,13 +4582,12 @@ We could also do crazier stuff with function returns as well:
 ```
 # this is the same function signature as `myFunction(X: int): str`
 # TODO: does `myFunction(X: int) Then: str` or `, Then: str` also work?
-# TODO: does this make a case for a `void` return type that should never `return`?
-#       or do we just throw a compile error if people try to return
-#       inside a `Then`'d function?
-myFunction(X: int, Then: then~str): null
+# the `never` return type means that this function can't use `return ...`;
+# i.e., you must use `Then exit(...)` to return a value from this function
+myFunction(X: int, Then: then Str~u): never
     innerFunction(Y: int): dbl
         if Y == 123
-            Then eject("123")       # early return from `myFunction`
+            Then exit("123")    # early return from `myFunction`
         Y dbl() orPanic()
     for Y: int < X
         innerFunction(Y)
