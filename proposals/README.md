@@ -4550,15 +4550,15 @@ TODO: can we use an `um` internally inside `do`?
 
 TODO:
 Probably could rewire conditionals to accept an additional "argument", something like
-a `Then` that can have a namespace for nesting purposes, or just be named.
+a `Then` that can have a namespace for nesting purposes.
 ```
 if SomeCondition, Then:
     # do stuff
-    if SomeOtherCondition, NamedThen: then
+    if SomeOtherCondition, Named Then:
         if SomethingElse1
             Then exit()
         if SomethingElse2
-            NamedThen exit()
+            Named Then exit()
     # do other stuff
 
 Result := what SomeValue, Then:
@@ -4571,15 +4571,16 @@ Result := what SomeValue, Then:
 ```
 We could also do crazier stuff with function returns as well:
 ```
-# TODO: should this be `myFunction(X: int): int, Fn:` ?  maybe this is not worth it for the confusing syntax.
-myFunction(X: int), Fn: int
+# this is the same function signature as `myFunction(X: int): str`
+# TODO: does `myFunction(X: int) Then: str` or `, Then: str` also work?
+myFunction(X: int, Then: then~str): null
     innerFunction(Y: int): dbl
         if Y == 123
-            Fn eject(123)       # early return from `myFunction`
+            Then eject("123")       # early return from `myFunction`
         Y dbl() orPanic()
     for Y: int < X
         innerFunction(Y)
-    return 3 
+    Then exit("3")
 ```
 
 TODO: Can we write other conditionals/loops/etc. in terms of `do/loop` to make it easier to compile
