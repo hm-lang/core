@@ -4671,6 +4671,11 @@ while True
         Cease
             break
     # also OK:
+    # TODO: this syntax isn't great.
+    # the correct way is `if not Co take() is((Value.) := print(Value)) $(break)`
+    # but the `not` is confusing.  should we allow `if Bool else $(...)`? where
+    # `else` inverts the boolean, e.g., `Bool else == not Bool`?  we'd need to do
+    # `Bool else()` for a method for consistency.
     if Co take() is((Value.):
         print(Value)
     ) else
@@ -6049,7 +6054,7 @@ tree := oneOf(
 
 When checking a `tree` type for its internal structure, you can use `isLeaf()` or `isBranch()`
 if you just need a boolean, but if you need to manipulate one of the internal types, you should
-use `::is(fn(InternalType): null): bool` or `;;is(fn(InternalType;): null)` if you need to modify
+use `::is(fn(InternalType): null): bool` or `;;is(fn(InternalType;): null): bool` if you need to modify
 it, where `internalType` is either `leaf` or `branch` in this case.  For example:
 
 ```
