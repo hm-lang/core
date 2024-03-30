@@ -339,8 +339,8 @@ another class's instance, like `int(MyNumberString)` which converts `MyNumberStr
 (presumably a `string` type) into a big integer.
 
 There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
-`what`,
-which are function-like but will consume the rest of the statement.
+`what`, `in`,
+which are function-like but may consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
 `NonNull`, `NotNull`, `Unused`,
@@ -5373,7 +5373,7 @@ range~Number t := extend(iterator t) {
         Null
 }
 
-for (Index: index) in range(LessThan: index(10))
+for Index: in range(LessThan: index(10))
     print(Index)
 # prints "0" to "9"
 ```
@@ -5830,10 +5830,10 @@ for OtherIndex := index(3), OtherIndex < 7
 # for-loop iterating over non-number elements:
 vector2 := {X: dbl, Y: dbl}
 Array: vector2[] = [{X: 5, Y: 3}, {X: 10, Y: 17}]
-for (Vector2: vector2) in Array     # `for (Vector2:) in Array` also works.
+for Vector2: in Array       # `for (Vector2:) in Array` also works.
     print(Vector2)
 
-# if the variable is already declared, you avoid the parentheses:
+# if the variable is already declared, you avoid the declaration `:` or `;`:
 # NOTE the variable should be writeable!
 IteratingVector; vector2
 for IteratingVector in Array
@@ -6461,12 +6461,12 @@ variableAccess := oneOf(Mutable, Readonly)
 caller~[t, VariableAccess] := {
     Callees[ptr callee {t, VariableAccess}];
     @if VariableAccess == Readonly
-        ::runCallbacks(T: t) := for (Ptr) in Callees $(Ptr call(T)) 
+        ::runCallbacks(T: t) := for Ptr: in Callees $(Ptr call(T)) 
     @if VariableAccess == Mutable
-        ::runCallbacks(T; t) := for (Ptr) in Callees $(Ptr call(T;)) 
+        ::runCallbacks(T; t) := for Ptr: in Callees $(Ptr call(T;)) 
     # probably can do this with shorthand:
     # ::runCallbacks(@access(T, VariableAccess) t): null
-    #       for (Ptr) in Callees $(Ptr call(@access(T, VariableAccess)))
+    #       for Ptr: in Callees $(Ptr call(@access(T, VariableAccess)))
 }
 audio := singleton(caller {sample[], Mutable}) {
     # this `audio` class will call the `call` method on the `callee` class.
@@ -6806,7 +6806,7 @@ sequence := extend(tokenMatcher) {
     ;;renew(My Array; grammarMatcher[]) := Null
 
     ::match(Index;, ToMatch Array: token[]): bool
-        for (GrammarMatcher) in My Array
+        for GrammarMatcher: in My Array
             if not Grammar match(Index;, ToMatch Array, GrammarMatcher)
                 return False
         return True
@@ -6857,7 +6857,7 @@ repeatMatcher := extend(tokenMatcher) {
             #       maybe `in My Array, GrammarMatcher:` or `iterate My Array, GrammarMatcher:`
             #           or `with My Array, GrammarMatcher:`
             #       or `for GrammarMatcher:, in My Array`
-            for (GrammarMatcher) in My Array
+            for GrammarMatcher: in My Array
                 # always check the escape sequence, Until:
                 if Grammar match(Index;, ToMatch Array, My Until)
                     return True
