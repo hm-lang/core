@@ -4530,8 +4530,8 @@ loop(fn(Do: do~exit): null): exit
 
 # TODO: discussion about `do $(..., EndResult), exit Exit. $(ExitResult)` should have
 #       a return type of `oneOf(endResult, exitResult)`.
-@referenceableAs(then, co)
-do~exit := extend(withable) {
+@referenceableAs(then)
+do~exit := {
     # exits the `with` with the corresponding `exit` value.  example:
     #   Value ;= 0
     #   what loop((Do; do str):
@@ -4549,11 +4549,6 @@ do~exit := extend(withable) {
     #           print(String)       # should print "exited at 17"
     ;;exit(Exit.): jump
 
-    # returns control back to the calling function, but pauses execution
-    # TODO: allows resuming via `resume()`
-    @hideFrom(then)
-    ;;yield(Exit.): jump
-
     # like a `continue` statement; will bring control flow back to
     # the start of the `with` block.  example:
     #   Value ;= 0
@@ -4565,7 +4560,7 @@ do~exit := extend(withable) {
     #       Do loop()
     #   )
     #   # should print "2", "4", "6", "8"
-    @hideFrom(then, co)
+    @hideFrom(then)
     ;;loop(): jump
 }
 ```
@@ -4624,28 +4619,54 @@ so `Then eject` has no purpose.  well, it would be needed for nested if statemen
 
 ## coroutines
 
-We use `Co yield(...)` to interrupt control flow, but be able to resume
-it again later if desired.  Internally, `co~t` is a reference to `do~t`
-but without access to the `loop()` method.
+Coroutines use the `co~t` class, which has a `yield` method to interrupt
+control flow
 
 ```
-countdown(Int., Co; co int?): never
+# TODO: *maybe* extend `do oneOf(Cease, Value: t)`
+co~t := {
+    # returns control back to the calling function, but pauses execution
+    ;;yield(T.): jump
+
+    @alias ;;give(T.) := ;;yield(T.)
+
+    # returns control back to the calling function, but without a value;
+    # indicates that this coroutine is done.
+    ;;cease(): jump
+
+    @alias ;;quit() := ;;cease()
+    @alias ;;exit() := ;;cease()
+
+    # TODO: this should be hidden from the generator
+    # TODO: maybe rename to `take()` so we have `give()` and `take()`.
+    #       can go back to `quit` or `exit` then.
+    ;;next(): oneOf(Cease, Value: t)
+}
+```
+
+We use `Co yield(...)` to interrupt control flow, but be able to resume
+it again later if desired.
+
+```
+# TODO:
+countdown(Int., Co; co int): never
     while Int > 0
         Co yield(--Int)
-    # TODO: should there be a signal to quit a coroutine without returning
-    #       a value?  e.g., `done()`.  how would we distinguish the return
-    #       value of a `loop()` which was `done()`?
-    Co exit()   # exits with `Null`
+    Co cease()
 
 # implicit usage
 for Int: in countdown(20)
     print(Int)      # prints 19, 18, ..., 0
 
 # explicit usage
-loop((Do: do int?):
-    # TODO: how do we use this explicitly??
-    countdown(Co; Do, 20)
-)
+# TODO: is this what we want explicit usage to look like?
+Co ;= countdown(20)
+while True
+    what Co next()
+        Value.
+            print(Value)
+        Cease
+            break
 ```
 
 # futures
