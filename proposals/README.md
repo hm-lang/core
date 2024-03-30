@@ -1028,6 +1028,19 @@ Note that `something() NestedField` becomes `(something())::NestedField` due to
 the function call having higher precedence.  (You can also use destructuring if you want
 to keep a variable for multiple uses: `{NestedField} := something()`.)
 
+## prefix and postfix question marks `?`
+
+The `?` operator binds strongly, so `x a?` is equivalent to `x oneOf(a, null)` and not
+`oneOf(x a, null)`.  Generally speaking, if you want your entire variable to be nullable,
+it should be defined as `X?: int`.  `X: int?` works in this instance, but if you have
+generic classes (like `array~elementType`), then `X: array int?` would define an array
+of nullable integers.  This is actually a compile error; containers generally need to have
+non-null value types in hm-lang.  Instead, to make a nullable array of integers, you'd use
+`X?: array int`.
+
+TODO: prefix `?`
+
+
 ## prefix and postfix exclamation points `!`
 
 The operator `!` is always unary (except when combined with equals for not equals,
@@ -4501,7 +4514,7 @@ TODO: don't require `[ok?, uh]` and `[ok?: null, uh]`; the `null` type itself
 is non-null, so `[ok: null, ...]` should be fine.  (`[ok: Null]` would trigger the
 compilation warning about using `[ok?: Null, ...]`.)
 
-# do/loop for control flow
+# then
 
 You can write your own `assert` or `return`-like statements using `do` logic.  The `do`
 class has a method to return early if desired.  Calling `Do exit(...)` shortcircuits the
@@ -4517,7 +4530,7 @@ loop(fn(Do: do~exit): null): exit
 
 # TODO: discussion about `do $(..., EndResult), exit Exit. $(ExitResult)` should have
 #       a return type of `oneOf(endResult, exitResult)`.
-@referenceableAs(then)
+@referenceableAs(then, co)
 do~exit := extend(withable) {
     # exits the `with` with the corresponding `exit` value.  example:
     #   Value ;= 0
@@ -4536,6 +4549,11 @@ do~exit := extend(withable) {
     #           print(String)       # should print "exited at 17"
     ;;exit(Exit.): jump
 
+    # returns control back to the calling function, but pauses execution
+    # TODO: allows resuming via `resume()`
+    @hideFrom(then)
+    ;;yield(Exit.): jump
+
     # like a `continue` statement; will bring control flow back to
     # the start of the `with` block.  example:
     #   Value ;= 0
@@ -4547,7 +4565,7 @@ do~exit := extend(withable) {
     #       Do loop()
     #   )
     #   # should print "2", "4", "6", "8"
-    @hideFrom(then)
+    @hideFrom(then, co)
     ;;loop(): jump
 }
 ```
@@ -4555,8 +4573,6 @@ do~exit := extend(withable) {
 TODO: can we use an `um` internally inside `do`?
 
 ```
-# functions seem a bit cumbersome; we should just be able to return a `forLoop`
-
 TODO:
 Probably could rewire conditionals to accept an additional "argument", something like
 a `Then` that can have a namespace for nesting purposes.
@@ -4606,6 +4622,32 @@ if(SomeCondition, (Then):
 The downside here is that `return` will definitely only work inside the function to return from `Then`,
 so `Then eject` has no purpose.  well, it would be needed for nested if statements.
 
+## coroutines
+
+We use `Co yield(...)` to interrupt control flow, but be able to resume
+it again later if desired.  Internally, `co~t` is a reference to `do~t`
+but without access to the `loop()` method.
+
+```
+countdown(Int., Co; co int?): never
+    while Int > 0
+        Co yield(--Int)
+    # TODO: should there be a signal to quit a coroutine without returning
+    #       a value?  e.g., `done()`.  how would we distinguish the return
+    #       value of a `loop()` which was `done()`?
+    Co exit()   # exits with `Null`
+
+# implicit usage
+for Int: in countdown(20)
+    print(Int)      # prints 19, 18, ..., 0
+
+# explicit usage
+loop((Do: do int?):
+    # TODO: how do we use this explicitly??
+    countdown(Co; Do, 20)
+)
+```
+
 # futures
 
 hm-lang wants to make it very simple to do async code, without additional
@@ -4653,7 +4695,8 @@ print("the result is $(Result) many seconds later")
 That is the basic way to resolve a future, but you can also use
 the `::decide(): t` method for an explicit conversion from `um t`
 to `t`.  Ultimately futures are more useful when combined for
-parallelism.  Here is an example:
+parallelism.  Here are two examples, one using an array of futures
+and one using an object of futures:
 
 ```
 after(Seconds: int, Return: string): string
@@ -4682,8 +4725,6 @@ an overload defined for `decide`, which can be used like with the
 `FuturesArray` example above.  Similarly all object types with `um`
 fields have a `decide` function that awaits all internal fields that
 are futures before returning.
-
-TODO: coroutines/yield logic.
 
 # standard container classes (and helpers)
 
