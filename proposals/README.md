@@ -4619,54 +4619,62 @@ so `Then eject` has no purpose.  well, it would be needed for nested if statemen
 
 ## coroutines
 
-Coroutines use the `co~t` class, which has a `yield` method to interrupt
-control flow
+Coroutines use an outer `co~t` class with an inner `ci~t` class.  (`i` for inner and
+`o` for outer.)  The outer class has methods to grab the next value from the inner
+coroutine.
 
 ```
-# TODO: *maybe* extend `do oneOf(Cease, Value: t)`
 co~t := {
-    # returns control back to the calling function, but pauses execution
-    ;;yield(T.): jump
+    ;;renew(My fn(Ci: ci t): never): null
 
-    @alias ;;give(T.) := ;;yield(T.)
+    ;;take(): oneOf(Cease, Value: t)
+
+    @alias ;;next() := ;;take()
+}
+
+# TODO: *maybe* extend `do oneOf(Cease, Value: t)`
+ci~t := {
+    # returns control back to the calling function, but pauses execution
+    # inside this inner coroutine.
+    ;;give(T.): jump
+
+    @alias ;;yield(T.) := ;;give(T.)
 
     # returns control back to the calling function, but without a value;
     # indicates that this coroutine is done.
-    ;;cease(): jump
+    ;;exit(): jump
 
-    @alias ;;quit() := ;;cease()
-    @alias ;;exit() := ;;cease()
-
-    # TODO: this should be hidden from the generator
-    # TODO: maybe rename to `take()` so we have `give()` and `take()`.
-    #       can go back to `quit` or `exit` then.
-    ;;next(): oneOf(Cease, Value: t)
+    @alias ;;quit() := ;;exit()
 }
 ```
 
-We use `Co yield(...)` to interrupt control flow, but be able to resume
-it again later if desired.
-
 ```
-# TODO:
-countdown(Int., Co; co int): never
-    while Int > 0
-        Co yield(--Int)
-    Co cease()
+# TODO: find a good way to do `Ci; ci int` more concisely if possible.
+countdown := extend(co int) {
+    ;;renew(My Int.) := Co renew((Ci; ci int):
+        while My Int > 0
+            Ci give(--My Int)
+        Ci exit()
+    )
+}
 
 # implicit usage
 for Int: in countdown(20)
     print(Int)      # prints 19, 18, ..., 0
 
 # explicit usage
-# TODO: is this what we want explicit usage to look like?
 Co ;= countdown(20)
 while True
-    what Co next()
+    what Co take()
         Value.
             print(Value)
         Cease
             break
+    # also OK:
+    if Co take() is((Value.):
+        print(Value)
+    ) else
+        break
 ```
 
 # futures
