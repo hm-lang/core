@@ -4671,14 +4671,9 @@ while True
         Cease
             break
     # also OK:
-    # TODO: this syntax isn't great.
-    # the correct way is `if not Co take() is((Value.) := print(Value)) $(break)`
-    # but the `not` is confusing.  should we allow `if Bool else $(...)`? where
-    # `else` inverts the boolean, e.g., `Bool else == not Bool`?  we'd need to do
-    # `Bool else()` for a method for consistency.
-    if Co take() is((Value.):
+    if Co take() is Value.
         print(Value)
-    ) else
+    else
         break
 ```
 
@@ -6079,6 +6074,15 @@ Tree is((Branch;):
     # this operation can affect/modify the `Tree` variable.
     Branch Left someOperation()
 )
+
+# TODO: can we ensure that all bool-returning statements do stuff like this?
+#       or do we need to annotate functions somehow?
+# some syntactic sugar for `if Tree is((Branch;): ...)) $(pass) else $(print("not a branch"))`
+if Tree is Branch;
+    Branch Left someOperation()
+    print("a branch")
+else
+    print("not a branch") 
 ```
 
 If you need to manipulate most of the internal types, use `what` to narrow the type
