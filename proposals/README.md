@@ -4565,6 +4565,9 @@ do~exit := {
 }
 ```
 
+TODO: should `then` have an `else()` method that will avoid executing
+the current block?
+
 TODO: can we use an `um` internally inside `do`?
 
 ```
@@ -6037,6 +6040,8 @@ If no value is zero, then the first specified value is default.
 
 ## declaring more complicated types via `oneOf`
 
+Take this example `oneOf`.
+
 ```
 tree := oneOf(
     leaf: {Value; int}
@@ -6077,6 +6082,10 @@ Tree is((Branch;):
 
 # TODO: can we ensure that all bool-returning statements do stuff like this?
 #       or do we need to annotate functions somehow?
+# TODO: can we do this without an `if`, e.g., `Tree is Branch; $(doStuffWith(Branch;))`
+#       maybe we need to require an `if` so that we can use `then` logic.
+# TODO: how do we annotate that the return type exits with the result of the block
+#       and not a `bool`?
 # some syntactic sugar for `if Tree is((Branch;): ...)) $(pass) else $(print("not a branch"))`
 if Tree is Branch;
     Branch Left someOperation()
@@ -6112,6 +6121,19 @@ oneOf(...~t) := {
     # returns true if this `oneOf` is of type `T`, also allowing access
     # to the underlying value by passing it into the function.
     ;:is(fn(T;:): null): bool
+
+    # TODO: is this the correct signature for a `if Tree is Branch; $(fn block...)` grammar?
+    # the outer function returns true to indicate
+    # that the inner function should be executed.
+    # the inner function never returns directly; it
+    # passes control back to parent scope by using
+    # `Then exit(U)` for some instance `U` of `u`.
+    # TODO: it'd probably be good to have `block` wrapper type here, e.g.,
+    #       `:;.is(Block[Declaring:;. t, exit: ~u]): bool`
+    # where `Block[Declaring: ~a, ~exit]` looks like `Declaring: a $(block with exit type `exit`)`
+    # TODO: codify we can use `Then~u` or `GenericClass[specification]` in situations like this,
+    #       where we don't want to redundantly add the type for a default-named argument.
+    ;:is(fn(T;:, Then~u): never): bool
 }
 ```
 
@@ -6140,6 +6162,16 @@ weirdNumber := oneOf(u8, i32, dbl)
 
 myFunction(IntOrString, WeirdNumber): dbl
     return dbl(IntOrString) * WeirdNumber
+```
+
+However, you can also achieve the same thing using namespaces,
+if you don't want to add specific names for the `oneOf`s.
+
+```
+# TODO: can we do `A OneOf(int, str), B OneOf(u8, i32, dbl)` for the variable declaration
+#       and then just use `dbl(A OneOf) * B OneOf` in the block?
+myFunction(A OneOf: oneOf(int, str), B OneOf: oneOf(u8, i32, dbl): dbl):
+    return dbl(A OneOf) * B OneOf
 ```
 
 Again, this fans out into multiple function overloads for each of the cases
