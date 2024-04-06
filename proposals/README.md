@@ -3868,7 +3868,9 @@ as taking a generic type that needs to extend both `t1` and `t2` classes.
 You can also define the type with `lowerCamelCase` and then use it as a namespace
 in `UpperCamelCase`, whenever the type is more complicated:
 `myComplicatedConstraintType := allOf(t1, oneOf(t2, t3))` and declaring the class as
-`newGeneric~MyComplicatedConstraintType t`.
+`newGeneric~MyComplicatedConstraintType t`, which might be a more readable way to do
+`newGeneric~AllOf(t1, oneOf(t2, t3)) t`, especially if `myComplicatedConstraintType`
+is a helpful name.
 
 ### brackets for generics
 
@@ -6170,6 +6172,8 @@ if you don't want to add specific names for the `oneOf`s.
 ```
 # TODO: can we do `A OneOf(int, str), B OneOf(u8, i32, dbl)` for the variable declaration
 #       and then just use `dbl(A OneOf) * B OneOf` in the block?
+#       should type declarations go on the left? `OneOf(int, str) A`?
+#       this is how we're doing it for narrowing generic types, e.g., `myClass~OneOf(int, str) a`
 myFunction(A OneOf: oneOf(int, str), B OneOf: oneOf(u8, i32, dbl): dbl):
     return dbl(A OneOf) * B OneOf
 ```
