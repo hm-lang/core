@@ -3756,13 +3756,6 @@ and giving access to the underlying data.
 
 ## generic/template classes
 
-TODO: do generic types need a different syntax than generic values, e.g.,
-`fixedArray~[N: count, type]` for a fixed-count array with `type` elements.
-TODO: is `~[N: count, type]` consistent with things, or should it be
-`fixedArray[N: count, ~type]`?
-TODO: discussion on `type` being the "Default name" for a type, so you can do
-`fixedArray[N: 5, int]` without specifying `fixedArray[N: 5, type: int]`.
-
 TODO: ensure we use the `hm~[ok?, uh]` notation correctly everywhere, i.e.,
 require nullable types to be specified as ok in the template.  although this
 does make the modifier templates annoying, since a common use case will be
@@ -3872,6 +3865,7 @@ in `UpperCamelCase`, whenever the type is more complicated:
 `newGeneric~AllOf(t1, oneOf(t2, t3)) t`, especially if `myComplicatedConstraintType`
 is a helpful name.
 
+
 ### brackets for generics
 
 Brackets are used to create containers, e.g., `Y: "Y-Naught", Z: 10, [X: 3, (Y): 4, Z]`
@@ -3952,9 +3946,71 @@ Note one gotcha in the above:  due to operator precedence,
 `pair int[str]` is a pair of stores.  Brackets bind more strongly
 than spaces, and they are interpreted left to right.
 
-TODO: we probably should allow `pair[int]` and `array[int]` where the overload is
-`array~[type] := array type`.  That way you can write `pair[int][]` if you want
-an array of pairs.
+### default named types
+
+To convert between `myGeneric~oneType` and `myGeneric[type1, type2, ...]`
+declarations, we can use the default name for a type, `type`.  Essentially,
+`myGeneric oneType` is equivalent to `myGeneric[type: oneType]`.
+Note that `myGeneric~t` will assume that `t` is default-named, and this works
+for any type name `t` for the single-generic class case, but it's only `type`
+in the multi-generic case that is considered default, i.e., `myGeneric~[type]`.
+
+One consequence is that you can use e.g. `array[int]` for `array int` if that
+makes your type declarations easier.  Another consequence is that because
+`myGeneric~type` is the same as `myGeneric~[type]`, you are not allowed
+to define overloads for both.  (And this is the case for any `abc` type
+like `myGeneric~abc`, although that changes how the class is defined.)
+
+```
+aClass~[x, y, N: count] := array[{X, Y}, Count: N]
+
+# either one of these is ok, but not both!
+aClass~z := aClass[x: z, y: z, N: 256]
+# second one defined will get an error.
+aClass~[type] := aClass[x: type, y: type, N: 100]
+```
+
+Similar to default-named arguments in functions, default-named generics
+allow you to specify the generic without directly using the type name.
+For example:
+
+```
+# use the default-name `type` here:
+aClass~[type, N: count] := aClass[x: type, y: type, N]
+
+# so that we can do this:
+AnInstance: aClass[dbl, N: 3]
+# equivalent but not idiomatic: `AnInstance: aClass[type: dbl, N: 3]`.
+```
+
+Similar to default-named arguments in functions, there are restrictions.
+You are not able to create multiple default-named types in your generic
+signature, e.g., `myGeneric~[A type, B type]`.
+
+TODO: maybe allow this if we use `First` and `Second` namespaces.
+
+### generic overloads must use the original class or a descendant
+
+To avoid potential confusion, overloading a generic type must use
+the original class or a descendant of the original class for any
+overloads.  Some examples:
+
+```
+someClass~[x, y, N: count] := { ... }
+
+# this is OK:
+someClass~[type, N: count] := someClass[x: type, y: type, N]
+
+# this is also OK:
+childClass~z := extend(someClass[x: z, y: z, N: 256]) {
+    # additional child methods
+    ...
+}
+someClass~z := childClass z
+
+# this is NOT OK:
+someClass~[t, u, v] := { ...some totally different class... }
+```
 
 ### tuples are not allowed
 
