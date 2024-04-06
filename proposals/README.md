@@ -3881,16 +3881,80 @@ as long as they are named, e.g., `A := 1, B := 2, C := 3, [A, B, C]`, can be con
 into a store.  Because containers are by default insertion-ordered, they can implicitly
 be converted into an array depending on the type of the receiving variable.
 
-The reasons we use brackets for generics is to distinguish passing in a specific type
+The reason we use brackets for generics is to distinguish passing in a specific type
 that is a `{}` type.  For example, `myGeneric{N: 3, t: int}` corresponds to specifying
 `myGeneric~whateverType` with `whateverType` equalling `{N: 3, t: int}`, while
 `otherGeneric[N: 3, t: int]` corresponds to specifying `otherGeneric~[N: int, t]`.
+Note that we can overload generic types for single types and stored types (e.g.,
+`array int` vs. `array[Count: 3, int]`), which is especially helpful for creating
+your own `hm` result class based on the stored type `hm~[uh, ok]` which can become
+`SomeNamespace uh := oneOf(Oops, MyBad), hm~t := hm[ok: t, SomeNamespace uh]`.
 
-TODO: does this work ok for nested generics.  e.g., `myGeneric~[x, y]` and then
-an array of them? `myGeneric[x: int, y: dbl][]`.  seems like it should be ok.
-does it work for the store syntax shortcut (e.g., `MyStore: value[id]` for 
-`MyStore: store[value, id]`)?  or does this make it look like `value` should
-be generic?
+Due to operator precedence, we might get arrays or stores depending on how the
+brackets get added to your type.  Here is an example with an overload for multiple
+generic types.
+
+```
+pair~[first, second] := {First, Second}
+pair~t := pair[first: t, second: t]
+
+# examples using pair~t: ======
+# an array of pairs:
+PairArray[]: pair int = [{First: 1, Second: 2}, {First: 3, Second: 4}]
+# this declaration is equivalent: `PairArray: (pair int)[]`.
+
+# a pair of arrays:
+PairOfArrays: pair int[] = {First: [1, 2], Second: [3, 4]}
+
+# a store of pairs:
+PairStore[str]: pair int = ["hi there": {First: 1, Second: 2}]
+# this declaration is equivalent: `PairStore: (pair int)[str]`
+
+# a pair of stores:
+PairOfStores: pair int[str] = {First: ["hello": 1], Second: ["world": 2]}A
+
+# examples using pair~[first, second]: ======
+# an array of pairs:
+PairArray[]: pair[first: int, second: dbl] = [
+    {First: 1, Second: 2.3}
+    {First: 100, Second: 0.5}
+]
+# note that this declaration is equivalent:
+# `PairArray: pair[first: int, second: dbl][]`
+
+# a pair of arrays:
+PairOfArrays: pair[first[]: int, second[]: dbl] = {
+    First: [1, 2]
+    Second: [3.4, 4.5]
+}
+# note this declaration is equivalent:
+# `PairOfArrays: pair[first: int[], second: dbl[]]`
+
+# a store of pairs:
+PairStore[str]: pair[first: int, second: dbl] = [
+    "hi there": {First: 1, Second: 2.3}
+]
+# note that this declaration is equivalent:
+# `PairStore: pair[first: int, second: dbl][str]`
+
+# a pair of stores:
+PairOfStores: pair[first[str]: int, second[str]: dbl] = [
+    "hi there": {First: 1, Second: 2.3}
+]
+# note this declaration is equivalent:
+# `StoreOfPairs: pair[first: int[str], second: dbl[str]]`
+```
+
+Note one gotcha in the above:  due to operator precedence,
+`pair[first: int, second: dbl][]` is an array of pairs while
+`pair int[]` is a pair of arrays, and similarly for stores;
+`pair[first: int, second: dbl][str]` is a store of pairs while
+`pair int[str]` is a pair of stores.  Brackets bind more strongly
+than spaces, and they are interpreted left to right.
+
+TODO: we probably should allow `pair[int]` and `array[int]` where the overload is
+`array~[type] := array type`.  That way you can write `pair[int][]` if you want
+an array of pairs.
 
 ### tuples are not allowed
 
