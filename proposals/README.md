@@ -318,15 +318,16 @@ print(counter())    # 124
 ```
 # defining a function that takes two type constructors as arguments,
 # one of them being named, and returns a type constructor:
-doSomething(~x, namedNew: ~y): new oneOf(x, y)
+doSomething(~x, namedNew: ~y): oneOf(new[x], new[y])
     # if random(dbl) < 0.5 $(x) else $(namedNew)
 
 someType := doSomething(int, namedNew: dbl) # int or dbl with 50-50 probability
 ```
 
-Note you could also return `oneOf(new x, new y)` in the above example,
-but there is no difference between that and `new oneOf(x, y)`, so the
-latter is more idiomatic.
+Note you could also return `new[oneOf(x, y)]` in the above example,
+but that subtly changes the return value to a type that can be either `x` or `y`
+and can switch from one to the other.  `oneOf(new[x], new[y])` will be either
+`x` or `y`, but does not allow switching.
 
 ## variable and function names
 
@@ -353,7 +354,7 @@ are reserved namespaces for variables that cannot be null, and `First` and `Seco
 are reserved for binary operations like `&&` and `*`.
 See [namespaces](#namespaces) for more details.
 Other reserved keywords: `new` for returning a class constructor, e.g.,
-`myFunction(): new oneOf(int, dbl)` for returning either an `int` or `dbl` constructor.
+`myFunction(): new[oneOf(int, dbl)]` for returning either an `int` or `dbl` constructor.
 There are some reserved variable names, like `I`, `Me`, and `My`, which can only
 be used as a reference to the current class instance, and `You` and `Your` which
 can only be used as a reference to a different instance of the same type.
@@ -1799,13 +1800,15 @@ print(doSomething(dbl)) # returns 123.0
 print(doSomething(u8))  # returns u8(123)
 ```
 
-For returning a class/constructor, we need to use the syntax `new x` (or
-`new~t` if it's a generic type `t`), because `doSomething(): x` returns
+For returning a class/constructor, we need to use the syntax `new[x]` (or
+`new[any]` if it's any type), because `doSomething(): x` returns
 an instance `X` of class `x`.  Since returning an instance is by far the
 most common case, we optimize for that rather than for returning a class.
 
 ```
-randomClass(): new any
+# it's preferable to return a more specific value here, like
+# `new[oneOf(int, dbl, string)]`, but `new[any]` works as well.
+randomClass(): new[any]
     if random(dbl) < 0.5
         int
     elif random(dbl) < 0.5
@@ -1820,7 +1823,7 @@ function arguments but without an argument list (e.g., `className: t`
 instead of `fn(Args): t`).
 
 ```
-doSomething(~x, namedNew: ~y): new~oneOf(x, y)
+doSomething(~x, namedNew: ~y): new[oneOf(x, y)]
     return if random(dbl) < 0.5 $(x) else $(namedNew)
 
 print(doSomething(int, namedNew: dbl))  # will print `int` or `dbl` with 50-50 probability
@@ -5008,10 +5011,10 @@ array~[of: nonNull] := extend(container[id: index, value: of]) {
 
     ;;pop(Index: index = -1): of
 
-    # returns a copy of this array, but sorted:
-    # TODO: should we appropriate `You` and `Your` for an 'other' type?
-    #       e.g., `::compare(Your): ...` for an other, or `::sort(): you` to return a new type?
-    ::sort(): me
+    # returns a copy of this array, but sorted.
+    # uses `you` instead of `me` mostly to indicate that `me` doesn't change,
+    # but that is optional.
+    ::sort(): you
 
     # sorts this array in place:
     ;;sort(): null
