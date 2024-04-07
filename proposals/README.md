@@ -4237,9 +4237,19 @@ TODO: are classes some sort of unevaluated sequence builder?
 probably they are actually evaluated sequence builders.
 TODO: can we make `extend` go away and just do `hm~[ok, uh] := oneOf(ok, uh) { ...extra-methods... }`
 via sequence building?
+or maybe `OneOf(~ok, ~uh) hm[ok, uh] := { ...extra-methods... }` -- not a big fan.
+or maybe `hm~[ok, uh] := OneOf(ok, uh) { ...extra-methods... }`.
+if we're doing sequence building, should it be `classA {other methods}`
+or `ClassA {other methods}`?  `ClassA {otherMethods}` would probably evaluate like
+a normal sequence builder.  `classA {other methods}` looks like generic specification, however.
+we'd need to stop supporting definitions like `array int` and always require `array[int]`.
+it's probably not a bad idea and it's only one more character, as it removes one of the gotchas
+with *brackets for generics*.  then we could do `hm[ok, uh] := oneOf(ok, uh) { ... }`
+and we could do futures as `um { ... }` which might make more sense than `Um`.
 
 TODO: talk about conditionals in sequence building.
 E.g., `{ myMethod(), if Value $(someMethod()) else $(otherMethod()) }`
+Everything is scoped to the LHS, however, so `if Value` would be `if Lhs Value`.
 
 # aliases
 
