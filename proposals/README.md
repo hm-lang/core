@@ -3811,7 +3811,7 @@ Generic := generic[string]()
 Generic Value = "3"
 print(Generic method(i32(2)))    # prints "3333335" which is i32("3" * (2 + 5)) + 2
 
-specific~[of] := generic[of] {
+specific~[of] := extend(generic[of]) {
     ;;renew(My Scale; of = 1) := Null
 
     ::method(~U): u
@@ -4203,6 +4203,33 @@ via sequence building?  i'm not sure i want this anymore, however.
 `x {something(), OtherThing}` would have value as `{Something: x something(), OtherThing: x OtherThing}`,
 e.g., in case `x` is a class name and `something()` and `OtherThing` are static functions/variables.
 we probably can support this but don't want to make the grammar too context dependent.
+however it would push people towards single inheritance, which might be nice.  you could multiply
+inherit via `childClass := allOf(parentClass1, parentClass2) { ... }`.
+
+```
+parentClass := {
+    ;;renew(My Name; str) := Null
+    ::myMethod() := print("hello, ${My Name}")
+    ::overrideable() ;= print("oh no")
+}
+
+childClass := parentClass {
+    ChildValue: int
+    ;;aNewMethod(): null
+        My Name += "!"
+    ::overrideable() := print("oh yes")
+}
+
+# literal sequence building looks like this.
+# would this be allowable syntax to build a class?
+# if not, then we probably want to disallow `childClass := parentClass { ... }`
+childClass := {
+    parentClass ChildValue: int
+    parentClass;;aNewMethod(): null
+        My Name += "!"
+    parentClass::overrideable := print("oh yes")
+}
+```
 
 TODO: talk about conditionals in sequence building.
 E.g., `{ myMethod(), if Value $(someMethod()) else $(otherMethod()) }`
@@ -4686,7 +4713,7 @@ We could also do crazier stuff with function returns as well:
 # TODO: does `myFunction(X: int) Then: str` or `, Then: str` also work?
 # the `never` return type means that this function can't use `return ...`;
 # i.e., you must use `Then exit(...)` to return a value from this function
-myFunction(X: int, Then: then Str~u): never
+myFunction(X: int, Then: then[~of: str]): never
     innerFunction(Y: int): dbl
         if Y == 123
             Then exit("123")    # early return from `myFunction`
@@ -4715,21 +4742,21 @@ Coroutines use an outer `co~t` class with an inner `ci~t` class.  (`i` for inner
 coroutine.
 
 ```
-co~t := {
-    ;;renew(My fn(Ci: ci t): never): null
+co~[of] := {
+    ;;renew(My fn(Ci: ci[of]): never): null
 
-    ;;take(): oneOf(Cease, Value: t)
+    ;;take(): oneOf(Cease, Value: of)
 
     @alias ;;next() := ;;take()
 }
 
-# TODO: *maybe* extend `do oneOf(Cease, Value: t)`
-ci~t := {
+# TODO: *maybe* extend `do oneOf(Cease, Value: of)`
+ci~[of] := {
     # returns control back to the calling function, but pauses execution
     # inside this inner coroutine.
-    ;;give(T.): jump
+    ;;give(Of.): jump
 
-    @alias ;;yield(T.) := ;;give(T.)
+    @alias ;;yield(Of.) := ;;give(Of.)
 
     # returns control back to the calling function, but without a value;
     # indicates that this coroutine is done.
@@ -4740,9 +4767,12 @@ ci~t := {
 ```
 
 ```
-# TODO: find a good way to do `Ci; ci int` more concisely if possible.
-countdown := extend(co int) {
-    ;;renew(My Int.) := Co renew((Ci; ci int):
+# TODO: find a good way to do `Ci; ci[int]` more concisely if possible.
+#       probably `Ci[int];` is ok, but this also looks like a set definition.
+#       do we disallow set/array/store definitions like `MyX[]: int` or `MyZ[str]: dbl`
+#       in order to support `Co[int];` more easily?
+countdown := extend(co[int]) {
+    ;;renew(My Int.) := Co renew((Ci; ci[int]):
         while My Int > 0
             Ci give(--My Int)
         Ci exit()
@@ -4779,11 +4809,11 @@ value that they will receive after any futures are completed (and we recommend
 a timeout `uh` being present for a result error).  If the caller wants to
 treat the function as a future, i.e., to run many such futures in parallel,
 then they ask for it as a future using `Um` before the function name, which
-returns the `um~t` type, where `t` is the normal function's return type.
-You can also type the variable explicitly as `um t` and then void using `Um`
+returns the `um~[of]` type, where `of` is the normal function's return type.
+You can also type the variable explicitly as `um[of]` and then void using `Um`
 before the function name.  Note there could be an issue with the default name
-for an `um~t` type, but we can resolve that by always using namespaces if
-we want a default-name `um`, e.g., `MyNamespace Um: um~t` for a default-named
+for an `um~[of]` type, but we can resolve that by always using namespaces if
+we want a default-name `um`, e.g., `MyNamespace Um: um~[of]` for a default-named
 future variable.
 TODO: maybe use a different variable here, like `Ff` for "future factory",
 e.g., for `Ff someVeryLongRunningFunction(...)`.  then if people want to
@@ -4804,17 +4834,17 @@ print("the result is $(MyName) many seconds later")
 
 # this does it as a future
 print("starting a future, won't make progress unless polled")
-# `Future` here has the type `um string`:
+# `Future` here has the type `um[string]`:
 Future := Um someVeryLongRunningFunction(10)
-# Also ok: `Future: um string = someVeryLongRunningFunction(10)`
+# Also ok: `Future: um[string] = someVeryLongRunningFunction(10)`
 print("this `print` executes right away")
 Result: string = Future
 print("the result is $(Result) many seconds later")
 ```
 
 That is the basic way to resolve a future, but you can also use
-the `::decide(): t` method for an explicit conversion from `um t`
-to `t`.  Ultimately futures are more useful when combined for
+the `::decide(): of` method for an explicit conversion from `um[of]`
+to `of`.  Ultimately futures are more useful when combined for
 parallelism.  Here are two examples, one using an array of futures
 and one using an object of futures:
 
@@ -4823,16 +4853,16 @@ after(Seconds: int, Return: string): string
     sleep(Seconds)
     Return
 
-FuturesArray[]: um string
+FuturesArray[]: um[string]
 # no need to use `Um after(...)` here since `FuturesArray`
-# elements are already typed as `um string`:
+# elements are already typed as `um[string]`:
 FuturesArray append(after(Seconds: 2, Return: "hello"))
 FuturesArray append(after(Seconds: 1, Return: "world"))
 ResultsArray := decide(FuturesArray)
 print(ResultsArray) # prints `["hello", "world"]`
 
 # here we use sequence building to ensure we're creating futures,
-# i.e., `Um {A, B}` has type `{um a, um b}` and executes `A`/`B` asynchronously.
+# i.e., `Um {A, B}` has type `{um[a], um[b]}` and executes `A`/`B` asynchronously.
 FuturesObject := Um {
     Greeting: after(Seconds: 2, Return: "hello")
     Noun: after(Seconds: 1, Return: "world")
