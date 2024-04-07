@@ -2149,7 +2149,7 @@ myOverload(Y: str): null
 
 # case 2, present output:
 myOverload(Y: str): {X: int}
-    return {X: int(Y) panic("should be an integer")}
+    {X: int(Y) orPanic("should be an integer")}
 
 # case 3, nullable output (not compatible with case 1):
 myOverload(Y: str): {X?: int}
@@ -2554,7 +2554,7 @@ in these cases, both `Field1` and `Field2` must not be already declared.
 This notation is a bit more flexible than JavaScript, since we're
 allowed to reassign existing variables while destructuring.  In JavaScript,
 `const {Field1, Field2} = doStuff()` declares and defines the fields `Field1` and `Field2`,
-but `{Field1, Field2} = doStuff()`, i.e., reassignment in hm-lang, is an error.
+but `{Field1, Field2} = doStuff()`, i.e., reassignment in hm-lang, is an error in JS.
 
 Some worked examples follow, including field renaming.
 
@@ -2564,7 +2564,7 @@ fraction(In: string, Io; dbl): {RoundDown: int, RoundUp: int}
     RoundDown := Io round(Down)
     RoundUp := Io round(Up)
     Io -= RoundDown
-    return {RoundDown, RoundUp}
+    {RoundDown, RoundUp}
 
 # destructuring
 Io ;= 1.234
@@ -2610,7 +2610,7 @@ Note, however, that nested fields won't help the compiler determine the function
 
 ```
 nest(X: int, Y: str): {W: {Z: {A: int}, B: str, C: str}}
-    return {W: {Z: {A: X}, B: Y, C: Y * X}}
+    {W: {Z: {A: X}, B: Y, C: Y * X}}
 
 # defines `A`, `B`, and `C` in the outside scope:
 {W: Z: A:, W: B:, W: C:} = nest(X: 5, Y: "hi")
@@ -3862,8 +3862,6 @@ as long as they are named, e.g., `A := 1, B := 2, C := 3, [A, B, C]`, can be con
 into a store.  Because containers are by default insertion-ordered, they can implicitly
 be converted into an array depending on the type of the receiving variable.
 
-The reason we use brackets for generics is to distinguish from class inheritance
-(e.g., `myChildClass := myParentClass { ;;newChildClassMethod(...) := ... }`).
 Note that we can overload generic types for single types and stored types (e.g.,
 `array[int]` vs. `array[Count: 3, int]`), which is especially helpful for creating
 your own `hm` result class based on the stored type `hm~[uh, ok]` which can become
@@ -4201,7 +4199,10 @@ Results := MyClass getValue() {
 ```
 
 TODO: can we make `extend` go away and just do `hm~[ok, uh] := oneOf(ok, uh) { ...extra-methods... }`
-via sequence building?
+via sequence building?  i'm not sure i want this anymore, however.
+`x {something(), OtherThing}` would have value as `{Something: x something(), OtherThing: x OtherThing}`,
+e.g., in case `x` is a class name and `something()` and `OtherThing` are static functions/variables.
+we probably can support this but don't want to make the grammar too context dependent.
 
 TODO: talk about conditionals in sequence building.
 E.g., `{ myMethod(), if Value $(someMethod()) else $(otherMethod()) }`
@@ -4359,13 +4360,13 @@ Tests are written as indented blocks with a `@test` annotation.
 ```
 @private
 privateFunction(X: int, Y: int): {Z: str}
-    return "$(X):$(Y)"
+    "$(X):$(Y)"
 
 @protected
 protectedFunction(X: int, Y: int): {Z: str}
     {Z;} = privateFunction(X, Y)
     Z += "!"
-    return {Z}
+    {Z}
 
 publicFunction(X1: int, Y1: int, X2: int, Y2: int): null
     print(protectedFunction(X: X1, Y: Y1) Z, privateFunction(X: X2, Y: Y2))
@@ -6582,7 +6583,7 @@ internally, so that the `caller` will no longer call the `callee`.
 ```
 variableAccess := oneOf(Mutable, Readonly)
 caller~[t, VariableAccess] := {
-    Callees[ptr callee {t, VariableAccess}];
+    Callees[ptr[callee[t, VariableAccess]]];
     @if VariableAccess == Readonly
         ::runCallbacks(T: t) := for Ptr: in Callees $(Ptr call(T)) 
     @if VariableAccess == Mutable
@@ -6591,7 +6592,7 @@ caller~[t, VariableAccess] := {
     # ::runCallbacks(@access(T, VariableAccess) t): null
     #       for Ptr: in Callees $(Ptr call(@access(T, VariableAccess)))
 }
-audio := singleton(caller {sample[], Mutable}) {
+audio := singleton(caller[sample[~Count], Mutable]) {
     # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
@@ -6599,13 +6600,12 @@ audio := singleton(caller {sample[], Mutable}) {
     DeltaT: flt
 }
 
-# TODO: we probably shouldn't allow `;` here.
-audioCallee := extend(callee {sample[];}) {
+audioCallee := extend(callee[sample[~Count], Mutable]) {
     Frequency; flt = 440
     Phase; flt = 0
 
-    ;;call(Array; @fixedCount sample[]): null
-        for Index: index < Array count()
+    ;;call(Array; sample[Count]): null
+        for Index: index < Count
             Array[Index] = sample(Mono: \\math sin(2 * \\math Pi * My Phase))
             Phase += My Frequency * Audio DeltaT
 
