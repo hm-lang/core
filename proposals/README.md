@@ -4718,6 +4718,12 @@ Result := what SomeValue, Then: then[str]
             Then exit("Early return for `what`")
         ...
     ...
+
+# TODO: is `if SomeCondition, Then: $(...)` equivalent to
+# ```
+# if SomeCondition
+# Then:
+#   ...
 ```
 
 When using `then`, it's recommended to always exit explicitly, but like with the
@@ -4725,6 +4731,9 @@ non-`then` version, the conditional block will exit with the value of the last
 executed line.  There is a rawer version of this syntax that does require an
 explicit exit, but also doesn't allow any `return` functions.
 TODO: can we even recommend using this syntax anywhere or should we scrap it?
+it could be useful if we have identical function handling in separate conditional
+branches, where we could predefine `myFunction(Then): never $(...)` and then
+use as `if SomeCondition, myFunction` and later `if OtherCondition, myFunction`.
 
 ```
 if SomeCondition, (Then): never
@@ -4739,22 +4748,42 @@ if SomeCondition, (Then): never
 
 ## function blocks
 
-TODO: `myFunction(X: int), Block: block[str]`
+Similar to conditionals, we allow defining functions with `block` in order
+to allow low-level flow control.  Declarations like `myFunction(X: int): str`,
+however, will be equivalent to `myFunction(X: int), Block: block[str]` or
+the more raw form `myFunction(X: int, Block: block[str]): never`.  Thus
+there is no way to overload a function defined with `block` statements compared
+to one that is not defined explicitly with `block`.
 
 ```
-# this is the same function signature as `myFunction(X: int): str`
-# TODO: does `myFunction(X: int) Block: str` or `, Block: str` also work?
-# the `never` return type means that this function can't use `return ...`;
-# i.e., you must use `Then exit(...)` to return a value from this function
-myFunction(X: int, Then: then[str]): never
+# the `never` return type means that this function can't use `return`, either
+# explicitly via `return ...` or implicitly by leaving a value as the last
+# evaluated statement (which can occur if you don't use `Block exit(...)`
+# or `Block loop(...)` on the last line of the function block).
+# i.e., you must use `Block exit(...)` to return a value from this function.
+myFunction(X: int, Block: block[str]): never
     innerFunction(Y: int): dbl
         if Y == 123
-            Then exit("123")    # early return from `myFunction`
+            Block exit("123")    # early return from `myFunction`
         Y dbl() orPanic()
     for Y: int < X
         innerFunction(Y)
-    Then exit("3")
+    Block exit("normal exit")
+
+# this definition essentially is syntactical sugar for the one above.
+myFunction(X: int), Block: block[str]
+    innerFunction(Y: int): dbl
+        if Y == 123
+            Block exit("123")    # early return from `myFunction`
+        Y dbl() orPanic()
+    for Y: int < X
+        innerFunction(Y)
+    "normal exit"
 ```
+
+We'll need to use look ahead for these cases to see that the function
+is being declared/defined, since there is no `:` immediately after
+`myFunction`.
 
 ## for/while loops
 
