@@ -4722,11 +4722,25 @@ Result := what SomeValue, Then: then[str]
 
 When using `then`, it's recommended to always exit explicitly, but like with the
 non-`then` version, the conditional block will exit with the value of the last
-executed line.
+executed line.  There is a rawer version of this syntax that does require an
+explicit exit, but also doesn't allow any `return` functions.
+TODO: can we even recommend using this syntax anywhere or should we scrap it?
+
+```
+if SomeCondition, (Then): never
+    if OtherCondition
+        if NestedCondition
+            return X    # NOT ALLOWED
+    else
+        Then exit("whatever")
+    # COMPILE ERROR, this function returns here if
+    # `OtherCondition && !NestedCondition`.
+```
 
 ## function blocks
 
-We could also do crazier stuff with function returns as well:
+TODO: `myFunction(X: int), Block: block[str]`
+
 ```
 # this is the same function signature as `myFunction(X: int): str`
 # TODO: does `myFunction(X: int) Block: str` or `, Block: str` also work?
@@ -4741,6 +4755,8 @@ myFunction(X: int, Then: then[str]): never
         innerFunction(Y)
     Then exit("3")
 ```
+
+## for/while loops
 
 TODO: Can we write other conditionals/loops/etc. in terms of `indent/block` to make it easier to compile
 from fewer primitives?  E.g., `while Condition, Do: $(... Do exit(3) ...)`, where
