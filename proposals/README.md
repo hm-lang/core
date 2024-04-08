@@ -4477,26 +4477,24 @@ hm~[ok, uh] := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   # example with implicit `do` (like a guard/control flow):
-    #   implicitDo(): hm[ok: null, uh: str]
+    #   # example with implicit `block` (like a guard/control flow):
+    #   implicitBlock(): hm[ok: null, uh: str]
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert()
     #       print(Result)
     #
-    #   # example with explicit `do` that does the same thing as implicit:
-    #   explicitDo(): hm[ok: null, uh: str]
-    #       loop((Do; hm[ok: null, uh: str]):
-    #           Result := doSomething(1.234) assert(Do;)
+    #   # example with explicit `block` that does the same thing as implicit:
+    #   explicitBlock(): hm[ok: null, uh: str]
+    #       indent((Block; block[hm[ok: null, uh: str]]):
+    #           Result := doSomething(1.234) assert(Block;)
     #           print(Result)
-    #           Do exit(null)
+    #           Block exit(null)
     #       )
     #   ```
-    # TODO: rename to `Block` instead of `Do`.  ensure only that `uh` is one of
-    #       the return options for block, the block can have other outputs.
-    ..assert(Do; do uh): ok
+    ..assert(Block; block[uh]): ok
         what Me
             Ok: $(Ok)
-            Uh: $(debug error(Uh), Do exit(Uh))
+            Uh: $(debug error(Uh), Block exit(Uh))
 
     # The API is `Ok := Hm assert(Uh: "custom error if not `ok`")`.
     # This will moot `Me` and shortcircuit a failure (i.e., if `result`
@@ -4508,18 +4506,17 @@ hm~[ok, uh] := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   implicitDo(): hm[ok: null, uh: oneOf(InvalidDoSomething, OtherError)]
+    #   implicitBlock(): hm[ok: null, uh: oneOf(InvalidDoSomething, OtherError)]
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
-    # TODO: redo as `Block` instead of `Do`.
-    ..assert(New Uh: ~exit, Do; do exit): ok
+    ..assert(New Uh: ~woe, Block; block[woe]): ok
         what Me
             Ok: $(Ok)
             Uh:
                 debug error(Uh)
-                Do exit(New Uh)
+                Block exit(New Uh)
 
     ..orPanic(String := ""): ok
         what Me
@@ -4632,50 +4629,46 @@ TODO: don't require `[ok?, uh]` and `[ok?: null, uh]`; the `null` type itself
 is non-null, so `[ok: null, ...]` should be fine.  (`[ok: Null]` would trigger the
 compilation warning about using `[ok?: Null, ...]`.)
 
-# then
+# blocks
 
-You can write your own `assert` or `return`-like statements using `do` logic.  The `do`
-class has a method to return early if desired.  Calling `Do exit(...)` shortcircuits the
+You can write your own `assert` or `return`-like statements using `block` logic.  The `block`
+class has a method to return early if desired.  Calling `Block exit(...)` shortcircuits the
 rest of the block (and possibly other nested blocks).  This is annotated by using the `jump`
-return value.  You can also call `Do loop()` to return to the start of the block.
-You don't usually create a `do` instance; you'll use it in combination with
-the `loop` function.
-
+return value.  You can also call `Block loop()` to return to the start of the block.
+You don't usually create a `block` instance; you'll use it in combination with the global
+`indent` function.
 
 ```
-# loop function which returns whatever value the `Do` exits the loop with.
-loop(fn(Do: do~exit): null): exit
+# indent function which returns whatever value the `Block` exits the loop with.
+indent(fn(Block: block~[of]): never): of
 
-# TODO: discussion about `do $(..., EndResult), exit Exit. $(ExitResult)` should have
-#       a return type of `oneOf(endResult, exitResult)`.
 @referenceableAs(then)
-do~exit := {
-    # exits the `with` with the corresponding `exit` value.  example:
+block~[of] := {
+    # exits the `indent` with the corresponding `of` value.  example:
     #   Value ;= 0
-    #   what loop((Do; do str):
+    #   what indent((Block; block[str]): never
     #       Old Value := Value
     #       Value = Value // 2 + 9
     #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
     #       if Old Value == Value
-    #           Do exit("exited at $(Old Value)")
-    #       # note we need to `loop` otherwise we'll break out
-    #       # of the `with` without a return value; i.e.,
-    #       # the `exit String.` block below would not trigger,
-    #       Do loop()
+    #           Block exit("exited at $(Old Value)")
+    #       # note we need to `loop` otherwise we won't satisfy the `never`
+    #       # part of the indent function.
+    #       Block loop()
     #   )
     #       String.
     #           print(String)       # should print "exited at 17"
-    ;;exit(Exit.): jump
+    ;;exit(Of.): jump
 
     # like a `continue` statement; will bring control flow back to
-    # the start of the `with` block.  example:
+    # the start of the `indent` block.  example:
     #   Value ;= 0
-    #   loop((Do; do str):
-    #       if ++Value > 10 $(Do exit("done"))
+    #   indent((Block; block[str]):
+    #       if ++Value >= 10 $(Block exit("done"))
     #       if Value % 2
-    #           Do loop()
+    #           Block loop()
     #       print(Value)
-    #       Do loop()
+    #       Block loop()
     #   )
     #   # should print "2", "4", "6", "8"
     @hideFrom(then)
@@ -4686,7 +4679,7 @@ do~exit := {
 TODO: should `then` have an `else()` method that will avoid executing
 the current block?
 
-TODO: can we use an `um` internally inside `do`?
+TODO: can we use an `um` internally inside `block`?
 
 ```
 TODO:
@@ -4726,21 +4719,13 @@ myFunction(X: int, Then: then[~of: str]): never
     Then exit("3")
 ```
 
-TODO: Can we write other conditionals/loops/etc. in terms of `do/loop` to make it easier to compile
-from fewer primitives?  E.g., `while Condition, Do: $(... Do eject(3) ...)`.
-
-TODO: should `Then` be in a function format, e.g.,
-```
-if(SomeCondition, (Then):
-    ...
-)
-```
-The downside here is that `return` will definitely only work inside the function to return from `Then`,
-so `Then eject` has no purpose.  well, it would be needed for nested if statements.
+TODO: Can we write other conditionals/loops/etc. in terms of `indent/block` to make it easier to compile
+from fewer primitives?  E.g., `while Condition, Do: $(... Do exit(3) ...)`, where
+`do` is a thin wrapper over `block`?
 
 ## coroutines
 
-Coroutines use an outer `co~t` class with an inner `ci~t` class.  (`i` for inner and
+Coroutines use an outer `co~[of]` class with an inner `ci~[of]` class.  (`i` for inner and
 `o` for outer.)  The outer class has methods to grab the next value from the inner
 coroutine.
 
@@ -4753,7 +4738,7 @@ co~[of] := {
     @alias ;;next() := ;;take()
 }
 
-# TODO: *maybe* extend `do oneOf(Cease, Value: of)`
+# TODO: *maybe* extend `block[oneOf(Cease, Value: of)]`
 ci~[of] := {
     # returns control back to the calling function, but pauses execution
     # inside this inner coroutine.
