@@ -4485,13 +4485,13 @@ hm~[ok, uh] := extend(oneOf(ok, uh)) {
     #
     #   # example with explicit `block` that does the same thing as implicit:
     #   explicitBlock(): hm[ok: null, uh: str]
-    #       indent((Block; block[hm[ok: null, uh: str]]):
-    #           Result := doSomething(1.234) assert(Block;)
+    #       indent((Block: block[hm[ok: null, uh: str]]):
+    #           Result := doSomething(1.234) assert(Block)
     #           print(Result)
     #           Block exit(null)
     #       )
     #   ```
-    ..assert(Block; block[uh]): ok
+    ..assert(Block: block[uh]): ok
         what Me
             Ok: $(Ok)
             Uh: $(debug error(Uh), Block exit(Uh))
@@ -4511,7 +4511,7 @@ hm~[ok, uh] := extend(oneOf(ok, uh)) {
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
-    ..assert(New Uh: ~woe, Block; block[woe]): ok
+    ..assert(New Uh: ~woe, Block: block[woe]): ok
         what Me
             Ok: $(Ok)
             Uh:
@@ -4640,13 +4640,19 @@ You don't usually create a `block` instance; you'll use it in combination with t
 
 ```
 # indent function which returns whatever value the `Block` exits the loop with.
-indent(fn(Block: block~[of]): never): of
+indent(fn(Block: block[~of]): never): of
+# indent function which populates `Block Declaring` with the value passed in.
+indent(~Declaring., fn(Block: block[~of, declaring]): never): of
 
 @referenceableAs(then)
-block~[of] := {
+block~[of, declaring := null] := {
+    # variables defined only for the lifetime of this block's scope.
+    # TODO: give examples, or maybe remove, if this breaks cleanup with the `jump` ability
+    Declaring; declaring
+
     # exits the `indent` with the corresponding `of` value.  example:
     #   Value ;= 0
-    #   what indent((Block; block[str]): never
+    #   what indent((Block: block[str]): never
     #       Old Value := Value
     #       Value = Value // 2 + 9
     #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
@@ -4658,12 +4664,12 @@ block~[of] := {
     #   )
     #       String.
     #           print(String)       # should print "exited at 17"
-    ;;exit(Of.): jump
+    ::exit(Of.): jump
 
     # like a `continue` statement; will bring control flow back to
     # the start of the `indent` block.  example:
     #   Value ;= 0
-    #   indent((Block; block[str]):
+    #   indent((Block: block[str]):
     #       if ++Value >= 10 $(Block exit("done"))
     #       if Value % 2
     #           Block loop()
@@ -4672,19 +4678,29 @@ block~[of] := {
     #   )
     #   # should print "2", "4", "6", "8"
     @hideFrom(then)
-    ;;loop(): jump
+    ::loop(): jump
 }
 ```
 
 TODO: should `then` have an `else()` method that will avoid executing
-the current block?
+the current block?  probably not, we are already running the `if`'s `then` block
+by the time we create the `Then`, so we shouldn't be able to jump to the other branch.
 
 TODO: can we use an `um` internally inside `block`?
 
-```
-TODO:
-Probably could rewire conditionals to accept an additional "argument", something like
-a `Then` that can have a namespace for nesting purposes.
+## then statements
+
+We can rewrite conditionals to accept an additional `then` "argument".  For `if`/`elif`
+statements, the syntax is `if Expression, Then:` to have the compiler guess the `then`'s
+return type, or `elif Expression, WhateverName: then[whateverType]` to explicitly provide it
+and also rename `Then` to `WhateverName`.  Similarly for `what` statements, e.g.,
+`what Expression, WhateverName: then[whatever]` or `what Expression, Then:`.  `else`
+statements of course elide the expression as `else Then:` or `else Whatever: then[elseType]`.
+Note that we use a `:` here because we're declaring an instance of `then`; if we don't use
+`then` logic we don't use `:` for conditionals.  Also note that `then` is a thin wrapper
+around the `block` class (i.e., a reference that removes the `::loop()` method that
+doesn't make sense for a `then`).
+
 ```
 if SomeCondition, Then:
     # do stuff
@@ -4695,7 +4711,7 @@ if SomeCondition, Then:
             Named Then exit()
     # do other stuff
 
-Result := what SomeValue, Then:
+Result := what SomeValue, Then: then[str]
     5
         ...
         if OtherCondition
@@ -4703,13 +4719,20 @@ Result := what SomeValue, Then:
         ...
     ...
 ```
+
+When using `then`, it's recommended to always exit explicitly, but like with the
+non-`then` version, the conditional block will exit with the value of the last
+executed line.
+
+## function blocks
+
 We could also do crazier stuff with function returns as well:
 ```
 # this is the same function signature as `myFunction(X: int): str`
-# TODO: does `myFunction(X: int) Then: str` or `, Then: str` also work?
+# TODO: does `myFunction(X: int) Block: str` or `, Block: str` also work?
 # the `never` return type means that this function can't use `return ...`;
 # i.e., you must use `Then exit(...)` to return a value from this function
-myFunction(X: int, Then: then[~of: str]): never
+myFunction(X: int, Then: then[str]): never
     innerFunction(Y: int): dbl
         if Y == 123
             Then exit("123")    # early return from `myFunction`
