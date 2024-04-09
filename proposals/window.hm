@@ -1,16 +1,23 @@
+#(#
+WISHLIST
+* very similar API between terminal UI and graphical UI
+* upgrading the program to a GUI should be as easy as starting
+    the window in GUI mode.
+* downgrading the program to a terminal should similarly work,
+    ideally without sacrificing too many features.
+* probably should upgrade coordinates to pairs of `f32`s.
+#)#
 
-uh := oneOf(
+
+Window uh := oneOf(
     InvalidArgument
     # TODO...
 )
-hm~ok := hm{ok, uh}
+hm[of] := hm[ok: of, Window uh]
 
 window := {
-    # Returns true iff the window is fullscreen.
-    ::fullscreen(): bool
-    # Sets fullscreen if the passed-in `Bool` is true,
-    # otherwise sets windowed mode; swaps the previous value into `Bool` (if `;`).
-    ;;fullscreen(Bool;.): null
+    terminal(): terminalWindow
+    graphics(): graphicsWindow
 
     # Returns the actual window size, i.e., the real-estate available for drawing.
     ::size(): size2i
@@ -32,79 +39,42 @@ window := {
     # returns what was in the clipboard.
     ;;clipboard(String): string
 
+    # Grabs the next window event to handle.
+    ;;poll(): windowEvent
+}
+
+terminalWindow := extend(window) {
+
+}
+
+graphicsWindow := extend(window) {
+    # Returns true iff the window is fullscreen.
+    ::fullscreen(): bool
+    # Sets fullscreen if the passed-in `Bool` is true,
+    # otherwise sets windowed mode; swaps the previous value into `Bool` (if `;`).
+    ;;fullscreen(Bool;.): null
+
     ::resolution() := My Pixels size()
     ;;resolution(Size2i) := My Pixels size(Size2i)
 
     # Function to get pixels to draw to.
     ;;draw(fn(~QpuPixels;): t) := fn(My Pixels;)
-
-    # Grabs window events to handle.
-    ;;pull(): windowEvent[]
-        My AccumulatingEvents[(WindowAccumulatingEvents;) := WindowAccumulatingEvents pull()]
-
-    @private {
-        Pixels;
-        Background; color
-        # TODO: better word for mutex, maybe `locked`?
-        AccumulatingEvents; guarded windowAccumulatingEvents
-    }
-}
-
-@private windowAccumulatingEvents {
-    # TODO: could add `Text`, etc., to accumulate events
-    @private Events[]; windowEvent
-
-    # TODO: probably want to pass in a winit (or whatever framework) event here.
-    append(WindowEvent): null
-        if WindowEvent is((KeyboardEvent):
-            My Modifiers checkDelta(
-                KeyboardEvent Key
-                KeyboardEvent Pressed
-            )
-        )
-        My Events append(WindowEvent)
-        # TODO: could update Text and put it all into one.
-    
-    pull(): windowEvent[]
-        Results[]; windowEvent
-        Results <-> My Events
-        Results 
-
-    Modifiers; {
-        Control: i32
-        Shift: i32
-        Meta: i32
-        Alt: i32
-
-        ;;checkDelta(Key, State: windowEvent keyEvent state): null
-            if State isRepeated()
-                return
-            what Key
-                Control
-                    My Control += if State isPressed() $(1) else $(-1)
-                Shift
-                    My Shift += if State isPressed() $(1) else $(-1)
-                Meta
-                    My Meta += if State isPressed() $(1) else $(-1)
-                Alt
-                    My Alt += if State isPressed() $(1) else $(-1)
-    }
 }
 
 windowEvent := oneOf(
     # A resize event, with the new internal window size.
-    ResizeEvent: size2i
+    resizeEvent: size2i
     # A sequence of runes (e.g., layout and locale included).
-    TextEvent: string
+    textEvent: string
     # A physical, named key.
-    KeyEvent: {Key, Modifiers, State: oneOf(Pressed, Released, Repeated)}
+    keyEvent: {Key, Modifiers, State: oneOf(Pressed, Released, Repeated)}
     # Mouse button, e.g., left mouse button or right mouse button.
-    MouseButtonEvent: {Position: vector2i, Button: u8, Modifiers, State: oneOf(Pressed, Released)}
+    mouseButtonEvent: {Position: vector2i, Button: u8, Modifiers, State: oneOf(Pressed, Released)}
     # The mouse moving.  The position is relative to the top-left of the shown pixels
     # (i.e., in case of letterboxing, coordinates can be < 0 or >= the Window Resolution).
-    MouseMoveEvent: {Delta: vector2i, Position: vector2i, Modifiers}
+    mouseMoveEvent: {Delta: vector2i, Position: vector2i, Modifiers}
     # The mouse is scrolling.
-    MouseWheelEvent: {Delta: i32, Modifiers}
+    mouseWheelEvent: {Delta: i32, Modifiers}
 )
 
 modifiers := {
@@ -132,7 +102,7 @@ pixels := {
     # Tries to resize the image.  Can fail if the new size is too large (OOM)
     # or if the size is invalid (e.g., negative values).
     @hideFrom(cpuPixels, gpuPixels)
-    ;;size(New->Size2i): hm{ok: size2i, uh}
+    ;;size(New Size2i): hm{ok: size2i, uh}
 
     # Color getter via coordinates.  Can fail if the coordinates are out of bounds (OOB).
     # Can also be expensive if the pixels aren't up-to-date on the CPU.
@@ -308,7 +278,7 @@ shader~{globalData?: gpuData, vertexData?: gpuData, fragmentData?: gpuData} := {
     #   }, draw(Shading;):
     #       Pixels draw(Shading;, MyVertices, MyTriangles)
     #   )
-    ::shade(GlobalData, Draw->fn(Shading): null): null
+    ::shade(GlobalData, Draw fn(Shading): null): null
 }
 
 gpuData := fieldsOf(u32, f32, vector2f, vector3f, vector4f, matrix3f, matrix4f)
@@ -329,6 +299,9 @@ font := {
 caret := {
     Top; vector2i
     Height; i32
+
+    ;;moveUp(): null
+    ;;moveDown(): null
 }
 
 fontOptions := {

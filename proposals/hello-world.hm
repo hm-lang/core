@@ -1,0 +1,14 @@
+main(): i32
+    print("hello world!")
+    Window := window terminal()
+    Caret ;= Window caret()
+    Window draw(Caret;, "Hello, world!")
+    loop
+        match Window poll(Timeout: Seconds: 1)
+            # TODO: add a nice way to do `X, X something(Y)`,
+            #       sequence building might work, but might not return the full value.
+            #       e.g., `X {, something(Y)}` would return `{X, X something(Y)}`.
+            keyEvent(Key: 'q', State: Pressed)
+            keyEvent(Key: 'q', Modifiers: Ctrl: True, State: Pressed)
+                break
+    0
