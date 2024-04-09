@@ -155,13 +155,9 @@ we simply always `extend` the class.
         and return them in an object with fields `X` and `Y`, i.e., `{X: A x(), Y: A Y}`.
     * `A {L1: x(), L2: Y}` to do sequence building with renamed fields, i.e.,
         `{L1: A x(), L2: A Y}`.
-* `~` to declare a template type, e.g., `array~[of]` to indicate an array with a new generic type `of`,
-    or `myGenericFunction(Value: ~u): u` to define a function that takes a generic type `u` and returns it.
-    See [generic/template classes](#generictemplate-classes) and
-    [generic/template functions](#generictemplate-functions) for more details.  Specifying a generic type
-    does *not* require `~`, so `myGenericClass~[of]` can be specified as e.g. `myGenericClass[int]`.
-    TODO: can we remove `~` for declarations so it's more consistent between declaration and specification?
-    TODO: if we can't, add a multi-generic example.
+* `~` to declare a template type within a function, e.g., `myGenericFunction(Value: ~u): u` to declare
+    a function that takes a generic type `u` and returns it.  For more details, see
+    [generic/template functions](#generictemplate-functions).
 * `$` for inline block and lambda arguments
     * `if Condition $(doThing()) else $(doOtherThing())` for [inline blocks](#block-parentheses-and-commas)
     * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
@@ -742,10 +738,10 @@ and `myFunction Outputs`.
 ## type overloads (generics only)
 
 Similar to defining a function overload, we can define type overloads for generic types.
-For example, the generic result class in hm-lang is `hm~[ok, uh: nonNull]`, which
+For example, the generic result class in hm-lang is `hm[ok, uh: nonNull]`, which
 encapsulates an ok value (`ok`) or a non-nullable error (`uh`).  For your custom class you
 may not want to specify `hm[ok: myOkType, uh: myClassUh]` all the time for your custom
-error type `myClassUh`, so you can define `hm~[of] := hm[ok: of, uh: myClassUh]` and
+error type `myClassUh`, so you can define `hm[of] := hm[ok: of, uh: myClassUh]` and
 use e.g. `hm[int]` to return an integer or an error of type `myClassUh`.  Shadowing variables is
 invalid in hm-lang, but overloads are valid.  Note however that we disallow redefining
 an overload, as that would be the equivalent of shadowing.
@@ -789,7 +785,7 @@ e.g., `myFunction(A: 3, B: 2, ...MyObject)` will call `myFunction(A: 3, B: 4, C:
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `--`    | unary decrement           | unary:  `--A`     |               |
 |           |   `++`    | unary increment           | unary:  `++A`     |               |
-|           |   `~`     | template/generic scope    | binary: `a~b`     |               |
+|           |   `~`     | template/generic scope    | unary:  `~b`      |               |
 |   4       |   `<>`    | bitwise flip              | unary:  `<>A`     | RTL           |
 |           |   `-`     | unary minus               | unary:  `-A`      |               |
 |           |   `+`     | unary plus                | unary:  `+A`      |               |
@@ -1038,7 +1034,7 @@ to keep a variable for multiple uses: `{NestedField} := something()`.)
 The `?` operator binds strongly, so `x a?` is equivalent to `x oneOf(a, null)` and not
 `oneOf(x a, null)`.  Generally speaking, if you want your entire variable to be nullable,
 it should be defined as `X?: int`.  `X: int?` works in this instance, but if you have
-generic classes (like `array[~elementType]`), then `X[]: int?` or `X[]?: int` would define an array
+generic classes (like `array[elementType]`), then `X[]: int?` or `X[]?: int` would define an array
 of nullable integers.  This is actually a compile error; containers generally need to have
 non-null value types in hm-lang.  Instead, to make a nullable array of integers, you'd use
 `X?: array[int]` or `X?: int[]`.
@@ -1304,7 +1300,7 @@ is null on it.  For example, the signed types `s8` defines null as `-128` like t
 ```
 s8 := extend(i8) {
     # TODO: This should probably be auto-defined when an `isNull` method is added:
-    ;;renew(New I8): hm~null
+    ;;renew(New I8): hm[ok: null, uh: TODO]
         I8 = New I8
         assert(!Me isNull())
 
@@ -1774,8 +1770,6 @@ should we use `$$L` for the number of parentheses it needs to escape?
 
 Generally speaking you can use generic/template programming for this case,
 which infers the types based on instances of the type.
-TODO: can we avoid using ~ and just infer that a new type is a generic type?
-e.g., `doSomething(X): x` if `x` is not in scope anywhere?
 
 ```
 # generic function taking an instance of `x` and returning one.
@@ -2416,7 +2410,7 @@ writeable or not.  Similarly, we can use templates like `:;.` for
 readonly-reference/writeable-reference/temporary.
 
 ```
-myClass~[of] := {
+myClass[of] := {
     X; of
 
     ;;take(X; of):
@@ -2435,7 +2429,7 @@ myClass~[of] := {
 Alternatively, we can rely on some boilerplate that the language will add for us, e.g.,
 
 ```
-myClass~[of] := {
+myClass[of] := {
     X; of
 
     # these are added automatically by the compiler since `X; t` is defined.
@@ -2917,7 +2911,14 @@ Result := copy(Value: Vector3)    # prints "got vector3(X: 0, Y: 5, Z: 0)".
 Vector3 == Result           # equals True
 ```
 
-TODO: we likely want to support `copy~t(Value: t): t` as another way to specify the generic type.
+Alternatively, you can add the new types in brackets just after the function name,
+e.g., `copy[of: myTypeConstraints](Value: of): of`, which allows you to specify any
+type constraints (`myTypeConstraints` being optional).  Note that types defined with
+`~` are always "default named", but to get a default name in the type brackets
+you need to use `of`; see [default named generic types](#default-named-generic-types).
+
+TODO: probably need some discussion and examples, what about `copy[value](Value): value`?
+does this need to be passed by name `copy(Value: 1)`?
 
 ### argument *name* generics: with associated generic type
 
@@ -3155,7 +3156,7 @@ exampleClass := {
     # adding `My` to the arg name will automatically set `My X` to the passed in `X`.
 
     # create a different constructor.  constructors use the class reference `i` and must
-    # return either an `i` or a `hm[ok: i, ~uh]` for any error type `uh`.
+    # return either an `i` or a `hm[ok: i, uh]` for any error type `uh`.
     # this constructor returns `i`:
     i(K: int) := i(X: K * 1000)
 
@@ -3725,7 +3726,7 @@ someExample := {
     Value: int
     ;;renew(Int): null
         My Value = Int
-    # in your own code, prefer adding `~t new(SomeExample): t`
+    # in your own code, prefer adding `t new(SomeExample): t`
     # outside of this class body as the more idiomatic way
     # to convert `SomeExample` to a different type.
     ::to(): ~t
@@ -3754,7 +3755,7 @@ you can define multiple methods like this as long as they are distinguishable ov
 (Note that arguments to the passed-in function can distinguish overloads, so
 `;;[fn(ThingToModify;): ~t]: t` and `;;[fn(OtherThing;): ~t]: t` are distinguishable.)
 With containers, values are keyed by some ID, so we do `;;[Id, fn(Value;): ~t]: t`
-(or `hm[ok: t, ~uh]` as the return type in case of errors).  But if you have a class like a mutex
+(or `hm[ok: t, uh]` as the return type in case of errors).  But if you have a class like a mutex
 or a guard, where there is no ID needed to access the underlying data, you simply use e.g.
 `Mutex[fn(Data;) := Data someMethod()]`.
 
@@ -3767,14 +3768,14 @@ TODO: discuss how `null` can be used as a type in most places.  unless we
 want to explicitly allow for it only if we use `{id?}` for example.
 
 TODO: maybe allow default types.  maybe this is a use-case for `:=` inside
-the braces, e.g., `hm~[ok ?:= null, uh]`.
+the braces, e.g., `hm[ok ?:= null, uh]`.
 
-To create a generic class, you put the expression `~[types...]` after the
-class identifier, or `~[of]` for a single template type, where `of` is the
+To create a generic class, you put the expression `[types...]` after the
+class identifier, or `[of]` for a single template type, where `of` is the
 [default name for a generic type](#default-named-generic-types).  For example, we use
-`mySingleGenericClass~[of] := {...}` or `myMultiGenericClass~[type1, type2] := {...}`
+`mySingleGenericClass[of] := {...}` or `myMultiGenericClass[type1, type2] := {...}`
 for single/multiple generics, respectively, to define the generic class.
-When specifying the types of the generic class, we omit the `~` so it's just
+When specifying the types of the generic class, we use
 `mySingleGenericClass[int]` (for an `of`-defined generic class) or
 `myMultiGenericClass[type1: int, type2: str]` (for a multi-type generic).
 Note that any static/class methods defined on the class can still be accessed
@@ -3783,25 +3784,25 @@ like this: `mySingleGenericClass[int] myClassFunction(...)` or
 
 ```
 # create a class with two generic types, `id` and `value`:
-genericClass~[id, value] := {
+genericClass[id, value] := {
     ;;renew(My Id: id, My Value: value): null
 }
 # also equivalent:
 # genericClass := {Id: ~id, Value: ~value}
-# TODO: is this equivalent?
+# TODO: is this equivalent?  probably??
 # genericClass := {~Id, ~Value}
 
 # creating an instance using type inference:
 ClassInstance := genericClass(Id: 5, Value: "hello")
  
-# creating an instance with template/generic types specified (no ~ needed):
+# creating an instance with template/generic types specified:
 OtherInstance := genericClass[id: dbl, value: string](Id: 3, Value: "4")
 ```
 
 You can also have virtual generic methods on generic classes, which is not allowed by C++.
 
 ```
-generic~[of] := {
+generic[of] := {
     Value; of
 
     # virtual on account of declaration with `;`:
@@ -3814,7 +3815,7 @@ Generic := generic[string]()
 Generic Value = "3"
 print(Generic method(i32(2)))    # prints "3333335" which is i32("3" * (2 + 5)) + 2
 
-specific~[of] := extend(generic[of]) {
+specific[of] := extend(generic[of]) {
     ;;renew(My Scale; of = 1) := Null
 
     ::method(~U): u
@@ -3846,9 +3847,8 @@ MyStore1 ;= store[id: MyNamespace id, value: value]()
 MyStore2 ;= store[MyNamespace id, value]()
 ```
 
-To constrain a generic type, use `~[type1: constraints1, type2: constraints2]` 
-for the multi-generics case, and similarly for the single generic case.  The
-`constraints1/2` are simply another type like `nonNull` or `number`, or even a combination
+To constrain a generic type, use `[type: constraints, ...]`.  In this expression,
+`constraints` is simply another type like `nonNull` or `number`, or even a combination
 of classes like `union(container[id, value], number)`.  It may be recommended for more
 complicated type constraints to define the constraints like this:
 `myComplicatedConstraintType := allOf(t1, oneOf(t2, t3))` and declaring the class as
@@ -3867,15 +3867,15 @@ be converted into an array depending on the type of the receiving variable.
 
 Note that we can overload generic types for single types and stored types (e.g.,
 `array[int]` vs. `array[Count: 3, int]`), which is especially helpful for creating
-your own `hm` result class based on the stored type `hm~[uh, ok]` which can become
-`SomeNamespace uh := oneOf(Oops, MyBad), hm~[of] := hm[ok: of, SomeNamespace uh]`.
+your own `hm` result class based on the stored type `hm[uh, ok]` which can become
+`SomeNamespace uh := oneOf(Oops, MyBad), hm[of] := hm[ok: of, SomeNamespace uh]`.
 Here are some examples:
 
 ```
-pair~[first, second] := {First, Second}
-pair~[of] := pair[first: of, second: of]
+pair[first, second] := {First, Second}
+pair[of] := pair[first: of, second: of]
 
-# examples using pair~[of]: ======
+# examples using pair[of]: ======
 # an array of pairs:
 PairArray[]: pair[int] = [{First: 1, Second: 2}, {First: 3, Second: 4}]
 # this declaration is equivalent: `PairArray: pair[int][]`.
@@ -3890,7 +3890,7 @@ PairStore[str]: pair[int] = ["hi there": {First: 1, Second: 2}]
 # a pair of stores:
 PairOfStores: pair[int[str]] = {First: ["hello": 1], Second: ["world": 2]}A
 
-# examples using pair~[first, second]: ======
+# examples using pair[first, second]: ======
 # an array of pairs:
 PairArray[]: pair[first: int, second: dbl] = [
     {First: 1, Second: 2.3}
@@ -3931,9 +3931,9 @@ are useful for generics with a single type requirement, and can be
 used for overloads, e.g.:
 
 ```
-aClass~[x, y, N: count] := array[{X, Y}, Count: N]
+aClass[x, y, N: count] := array[{X, Y}, Count: N]
 
-aClass~[of] := aClass[x: of, y: of, N: 100]
+aClass[of] := aClass[x: of, y: of, N: 100]
 ```
 
 Similar to default-named arguments in functions, default-named generics
@@ -3942,7 +3942,7 @@ For example:
 
 ```
 # use the default-name `type` here:
-aClass~[of, N: count] := aClass[x: of, y: of, N]
+aClass[of, N: count] := aClass[x: of, y: of, N]
 
 # so that we can do this:
 AnInstance: aClass[dbl, N: 3]
@@ -3951,7 +3951,7 @@ AnInstance: aClass[dbl, N: 3]
 
 Similar to default-named arguments in functions, there are restrictions.
 You are not able to create multiple default-named types in your generic
-signature, e.g., `myGeneric~[A of, B of]`.
+signature, e.g., `myGeneric[A of, B of]`.
 
 TODO: maybe allow this if we use `First` and `Second` namespaces.
 
@@ -3962,20 +3962,20 @@ the original class or a descendant of the original class for any
 overloads.  Some examples:
 
 ```
-someClass~[x, y, N: count] := { ... }
+someClass[x, y, N: count] := { ... }
 
 # this is OK:
-someClass~[of, N: count] := someClass[x: of, y: of, N]
+someClass[of, N: count] := someClass[x: of, y: of, N]
 
 # this is also OK:
-childClass~[of] := extend(someClass[x: of, y: of, N: 256]) {
+childClass[of] := extend(someClass[x: of, y: of, N: 256]) {
     # additional child methods
     ...
 }
-someClass~[of] := childClass[of]
+someClass[of] := childClass[of]
 
 # this is NOT OK:
-someClass~[t, u, v] := { ...some totally different class... }
+someClass[t, u, v] := { ...some totally different class... }
 ```
 
 ### tuples are not allowed
@@ -3984,8 +3984,8 @@ TODO: rethink this now that we don't allow specifying generics like `array int`.
 
 One might conceive of a tuple type like `[x, y, z]` for types `x`, `y`, `z`,
 but adding such a feature to hm-lang would make it hard to distinguish between
-passing in a single generic (e.g., for `myGeneric~[of]`) versus passing in multiple
-generics (e.g., for `otherGenerics~[x, y, z]`).  Would `tuple := [x, y, z]`
+passing in a single generic (e.g., for `myGeneric[of]`) versus passing in multiple
+generics (e.g., for `otherGenerics[x, y, z]`).  Would `tuple := [x, y, z]`
 with `otherGenerics tuple` trigger the single-generic or multi-generic resolution?
 We'd like to make it clear when single or multi-generics are being used, since you
 can make overloads for both.
@@ -4000,7 +4000,7 @@ object types.
 
 ### default field names with generics
 
-Note that generic classes like `generic~[of] := {Of}` will always have a field named `Of`
+Note that generic classes like `generic[of] := {Of}` will always have a field named `Of`
 regardless of the specified type.  We don't make this like a generic name; `generic[int]`
 would *not* be equivalent to `{Int: int}`; `generic[int]` is `{Of: int}`.  This is mostly
 to avoid confusion when passing in two types that are the same like `store[id: int, value: int]`.
@@ -4026,7 +4026,7 @@ All classes have a few compiler-provided methods which cannot be overridden.
     but this method keeps `Me` constant (readonly).  You can overload as well.
 * `i(...): me` class constructors for any `;;renew(...): null` methods.
 * `i(...): hm[ok: me, uh]` class or error constructors for any methods defined as
-    `;;renew(...): hm[ok: i, ~uh]`
+    `;;renew(...): hm[ok: i, uh]`
 * `;;renew(...): null` for any `i(...): me` class constructors.
     This allows any writeable variable to reset without doing `X = x(...)`,
     which may be painful for long variable names, and instead do `X renew(...)`.
@@ -4201,7 +4201,7 @@ Results := MyClass getValue() {
 } # COMPILE ERROR
 ```
 
-TODO: can we make `extend` go away and just do `hm~[ok, uh] := oneOf(ok, uh) { ...extra-methods... }`
+TODO: can we make `extend` go away and just do `hm[ok, uh] := oneOf(ok, uh) { ...extra-methods... }`
 via sequence building?  i'm not sure i want this anymore, however.
 `x {something(), OtherThing}` would have value as `{Something: x something(), OtherThing: x OtherThing}`,
 e.g., in case `x` is a class name and `something()` and `OtherThing` are static functions/variables.
@@ -4466,7 +4466,7 @@ E.g., `myFunction(StringArgument?: MyHm)` to pass in `MyHm` if it's ok or null i
 and `String ?:= MyHm` to grab it as a local variable.
 
 ```
-hm~[ok, uh] := extend(oneOf(ok, uh)) {
+hm[ok, uh] := extend(oneOf(ok, uh)) {
     # The API is `Ok := Hm assert()`, which will bubble up this `uh`
     # if the result was an error.  Note that we use the `loop` API
     # which normally is implicit but can be used explicitly if needed.
@@ -4640,12 +4640,12 @@ You don't usually create a `block` instance; you'll use it in combination with t
 
 ```
 # indent function which returns whatever value the `Block` exits the loop with.
-indent(fn(Block: block[~of]): never): of
+indent(fn(Block: block[~t]): never): t
 # indent function which populates `Block Declaring` with the value passed in.
-indent(~Declaring., fn(Block: block[~of, declaring]): never): of
+indent(~Declaring., fn(Block: block[~t, declaring]): never): t
 
 @referenceableAs(then)
-block~[of, declaring := null] := {
+block[of, declaring := null] := {
     # variables defined only for the lifetime of this block's scope.
     # TODO: give examples, or maybe remove, if this breaks cleanup with the `jump` ability
     Declaring; declaring
@@ -4793,12 +4793,12 @@ from fewer primitives?  E.g., `while Condition, Do: $(... Do exit(3) ...)`, wher
 
 ## coroutines
 
-Coroutines use an outer `co~[of]` class with an inner `ci~[of]` class.  (`i` for inner and
+Coroutines use an outer `co[of]` class with an inner `ci[of]` class.  (`i` for inner and
 `o` for outer.)  The outer class has methods to grab the next value from the inner
 coroutine.
 
 ```
-co~[of] := {
+co[of] := {
     ;;renew(My fn(Ci: ci[of]): never): null
 
     ;;take(): oneOf(Cease, Value: of)
@@ -4807,7 +4807,7 @@ co~[of] := {
 }
 
 # TODO: *maybe* extend `block[oneOf(Cease, Value: of)]`
-ci~[of] := {
+ci[of] := {
     # returns control back to the calling function, but pauses execution
     # inside this inner coroutine.
     ;;give(Of.): jump
@@ -4865,11 +4865,11 @@ value that they will receive after any futures are completed (and we recommend
 a timeout `uh` being present for a result error).  If the caller wants to
 treat the function as a future, i.e., to run many such futures in parallel,
 then they ask for it as a future using `Um` before the function name, which
-returns the `um~[of]` type, where `of` is the normal function's return type.
+returns the `um[of]` type, where `of` is the normal function's return type.
 You can also type the variable explicitly as `um[of]` and then void using `Um`
 before the function name.  Note there could be an issue with the default name
-for an `um~[of]` type, but we can resolve that by always using namespaces if
-we want a default-name `um`, e.g., `MyNamespace Um: um~[of]` for a default-named
+for an `um[of]` type, but we can resolve that by always using namespaces if
+we want a default-name `um`, e.g., `MyNamespace Um: um[of]` for a default-named
 future variable.
 TODO: maybe use a different variable here, like `Ff` for "future factory",
 e.g., for `Ff someVeryLongRunningFunction(...)`.  then if people want to
@@ -4935,7 +4935,7 @@ are futures before returning.
 # standard container classes (and helpers)
 
 ```
-container~[id, value] := {
+container[id, value] := {
     # Returns `Null` if `Id` is not in this container,
     # otherwise the `value` instance at that `Id`.
     # NOTE: the value will be readonly since `Me` is readonly.
@@ -5029,13 +5029,13 @@ Array uh := oneOf(
     OutOfMemory
     # TODO: etc...
 )
-hm~u := hm[ok: u, Array uh]
+hm[of] := hm[ok: of, Array uh]
 
 # some relevant pieces of the class definition
 # Note that `container[id, value]` must have a non-null `value` type, so
-# declaring `array~[of: nonNull]` is a bit verbose compared to just `array~[of]`.
-array~[of: nonNull] := extend(container[id: index, value: of]) {
-    # TODO: a lot of these methods need to return `hm~u`.
+# declaring `array[of: nonNull]` is redundant; you could just use `array[of]`.
+array[of: nonNull] := extend(container[id: index, value: of]) {
+    # TODO: a lot of these methods need to return `hm[of]`.
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(Me): bool
         return My count() > 0
@@ -5095,7 +5095,7 @@ array~[of: nonNull] := extend(container[id: index, value: of]) {
     ::[Index, fn(Of): ~u]: hm u
 
     # Note: You can use the `;:` const template for function arguments.
-    # e.g., `myArray~[of] := array[of] { ;:[Index, fn(Of;:): ~u] := array;:[Index, fn] }`
+    # e.g., `myArray[of] := extend(array[of]) { ;:[Index, fn(Of;:): ~u] := array;:[Index, fn] }`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`Of?;`) is null, but you switch to
@@ -5288,9 +5288,9 @@ uh := oneOf(
     OutOfMemory
     # TODO: etc...
 )
-hm~ok := hm[ok, uh]
+hm[of] := hm[ok: of, uh]
 
-store~[id: hashable, value: nonNull] := extend(container[id, value]) {
+store[id: hashable, value: nonNull] := extend(container[id, value]) {
     # Returns Null if `Id` is not in the store.
     ::[Id]?: value
 
@@ -5316,7 +5316,7 @@ store~[id: hashable, value: nonNull] := extend(container[id, value]) {
     # returns a copy of the value at ID, too.
     ;;[Id]: hm value
 
-    # TODO: a lot of these methods need to return `hm~ok`.
+    # TODO: a lot of these methods need to return `hm[of]`.
     # no-copy getter: which will create a default value instance if it's not present at Id.
     ;;[Id, fn(Value): ~t]: t
 
@@ -5362,14 +5362,14 @@ like `unorderedStore`.
 
 ```
 @private
-indexedStoreElement~[id, value] := {
+indexedStoreElement[id, value] := {
     NextIndex; index
     PreviousIndex; index
     Id: id
     Value; value
 }
 
-insertionOrderedStore~[id, value] := extend(store) {
+insertionOrderedStore[id, value] := extend(store) {
     # due to sequence building, we can use @private {...} to set @private for
     # each of the fields inside this block.
     @private {
@@ -5454,7 +5454,7 @@ to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [el
 The default-named variable name for a set of any type is `Set`.
 
 ```
-set~[of: hashable] := extend(container[id: of, value: true]) {
+set[of: hashable] := extend(container[id: of, value: true]) {
     # Returns `True` iff `Of` is in the set, otherwise Null.
     # NOTE: the `true` type is only satisfied by the instance `True`;
     # this is not a boolean return value.
@@ -5477,10 +5477,10 @@ set~[of: hashable] := extend(container[id: of, value: true]) {
     #   `Set[X, fn(Maybe True?;): $(Maybe True = if Condition $(True) else $(Null))]`
     # TODO: if we used `True?` as the identifier everywhere we wouldn't need to do `Maybe True`, e.g.,
     #   `Set[X, fn(True?;): $(True? = if Condition $(True) else $(Null))]`
-    ;;[Of, fn(Maybe True?; true): ~of]: of
+    ;;[Of, fn(Maybe True?; true): ~t]: t
 
     # Fancy getter for whether `Of` is in the set or not.
-    ::[Of, fn(Maybe True?): ~of]: of
+    ::[Of, fn(Maybe True?): ~t]: t
 
     ::count(): count
 
@@ -5527,7 +5527,7 @@ and `from` selects multiple (or no) IDs from the set (`k from ids(o)`).
 For example, here is a way to create an iterator over some incrementing values:
 
 ```
-range~[of: number] := extend(iterator[of]) {
+range[of: number] := extend(iterator[of]) {
     @private
     NextValue: of = 0
 
@@ -5575,11 +5575,11 @@ The way we achieve that is through using an array iterator:
 # the iterator will become an array iterator.  this allows us to check for
 # `@only` annotations (e.g., if `Iterator` was not allowed to change) and
 # throw a compile error.
-next(Iterator; iterator[~of] @becomes(arrayIterator[of]), Array: array[of])?: of
-    Iterator = arrayIterator[of]()
+next(Iterator; iterator[~t] @becomes(arrayIterator[t]), Array: array[t])?: t
+    Iterator = arrayIterator[t]()
     Iterator;;next(Array)
 
-arrayIterator~[of] := extend(iterator[of]) {
+arrayIterator[of] := extend(iterator[of]) {
     Next; index
     ;;renew(Start: index = 0):
         My Next = Start
@@ -5610,7 +5610,7 @@ we should be able to translate one into the other.
 TODO: think of a good mechanism for this.
 
 ```
-array~[of] := {
+array[of] := {
     # const iteration, with no-copy if possible:
     ::forEach(fn(Of): loop): null
         for Index: index < My count()
@@ -6020,7 +6020,7 @@ maybe we just look at `print` and add the newlines at the start.  Each thread sh
 have its own tab stop.  E.g.,
 
 ```
-array~[of] := {
+array[of] := {
     ...
     ::print(): null
         if My count() == 0
@@ -6054,7 +6054,7 @@ masks for a similar class type that allows multiple options at once.
 
 Enums are by default the smallest standard integral type that holds all values,
 but they can be signed types (in contrast to masks which are unsigned).
-If desired, you can specify the underlying enum type using `oneOf~i8(...)` instead
+If desired, you can specify the underlying enum type using `oneOf[i8](...)` instead
 of `oneOf(...)`, but this will be a compile error if the type is not big enough to
 handle all options.
 
@@ -6291,7 +6291,7 @@ a copy and any changes to the new variables will not be reflected in `Tree`.
 ```
 # TODO: not sure this notation is the best.
 #       this probably needs to be a macro.
-oneOf(...~t) := {
+oneOf(..., ~t) := {
     # returns true if this `oneOf` is of type `T`, also allowing access
     # to the underlying value by passing it into the function.
     ;:is(fn(T;:): null): bool
@@ -6305,9 +6305,11 @@ oneOf(...~t) := {
     # TODO: it'd probably be good to have `block` wrapper type here, e.g.,
     #       `:;.is(Block[Declaring:;. t, exit: ~u]): bool`
     # where `Block[Declaring: ~a, ~exit]` looks like `Declaring: a $(block with exit type `exit`)`
-    # TODO: codify we can use `Then~[u]` or `GenericClass[specification]` in situations like this,
+    # TODO: codify we can use `Then[u]` or `GenericClass[specification]` in situations like this,
     #       where we don't want to redundantly add the type for a default-named argument.
-    #       i.e., `Then: then~[u]`
+    #       i.e., `Then: then[u]` should be able to be `Then[u]`.
+    #       we might need to remove the `Array[]: int` syntax and use `Array: int[]` instead,
+    #       although i really like `Array[]: int`....
     ;:is(fn(T;:, Then[~u]): never): bool
 }
 ```
@@ -6668,7 +6670,7 @@ internally, so that the `caller` will no longer call the `callee`.
 
 ```
 variableAccess := oneOf(Mutable, Readonly)
-caller~[t, VariableAccess] := {
+caller[t, VariableAccess] := {
     Callees[ptr[callee[t, VariableAccess]]];
     @if VariableAccess == Readonly
         ::runCallbacks(T: t) := for Ptr: in Callees $(Ptr call(T)) 
