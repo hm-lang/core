@@ -1,0 +1,47 @@
+lineId := dll[line] id
+
+editor := {
+    Lines; dll[line]
+    TopLine; lineId
+    CurrentLine; lineId
+    Cursor;
+
+    # TODO: goDown, goUp
+
+    # TODO: previousLine
+    ;;nextLine(): hm[ok: null, uh: oneOf(NoNextLine)]
+        what My Lines next(My CurrentLine)
+            LineId:
+                My CurrentLine = LineId
+                I maybeUpdateTopLine()
+            NoNextLine
+                return NoNextLine
+            InvalidLine
+                I resetLines()
+
+    ;;resetLines():
+        My TopLine = My Lines first()
+        My CurrentLine = My TopLine
+
+    ;;maybeUpdateTopLine():
+        # TODO
+        null
+
+    ;;draw(Window;, Rectangle): bool
+}
+
+# Represents a single line in a file.
+# This can be rendered over multiple rows in the terminal.
+line := {
+    String
+    RowOffsets[]; count
+
+    ::rowCount() := My RowOffsets count()
+
+    # Returns true if the line was fully drawn,
+    # or false if part/all of it was missing.
+    # This method takes up the entire width of the rectangle
+    # and will update the rectangle's top to the bottom
+    # of the last row that this line rendered to.
+    ;;draw(Window;, Rectangle;, Cursor): bool
+}
