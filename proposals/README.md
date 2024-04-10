@@ -4640,9 +4640,6 @@ TODO: should this be valid if `ok` is already a nullable type?  e.g.,
 `myFunction(): hm[ok: oneOf(int, null), uh: str]`.
 we probably should compile-error-out on casting to `Int ?:= myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
-TODO: don't require `[ok?, uh]` and `[ok?: null, uh]`; the `null` type itself
-is non-null, so `[ok: null, ...]` should be fine.  (`[ok: Null]` would trigger the
-compilation warning about using `[ok?: Null, ...]`.)
 
 # blocks
 
@@ -4697,10 +4694,6 @@ block[of, declaring := null] := {
 }
 ```
 
-TODO: should `then` have an `else()` method that will avoid executing
-the current block?  probably not, we are already running the `if`'s `then` block
-by the time we create the `Then`, so we shouldn't be able to jump to the other branch.
-
 TODO: can we use an `um` internally inside `block`?
 
 ## then statements
@@ -4734,21 +4727,32 @@ Result := what SomeValue, Then: then[str]
         ...
     ...
 
-# TODO: is `if SomeCondition, Then: $(...)` equivalent to
-# ```
-# if SomeCondition
-# Then:
-#   ...
+# note that grammatically commas are equivalent to newlines,
+# so you can also write conditions like this:
+if SomeCondition
+Then:
+    print("`Then` on a newline is ok but not idiomatic")
+    ...
+
+# prefer using commas as it's slightly more readable.
+# if you are running out of space, try using parentheses.
+if (
+        Some Long Condition
+    &&  Some OtherFact
+    &&  NeedThis Too
+), Then:
+    print("good")
+    ...
 ```
 
 When using `then`, it's recommended to always exit explicitly, but like with the
 non-`then` version, the conditional block will exit with the value of the last
 executed line.  There is a rawer version of this syntax that does require an
-explicit exit, but also doesn't allow any `return` functions.
-TODO: can we even recommend using this syntax anywhere or should we scrap it?
-it could be useful if we have identical function handling in separate conditional
-branches, where we could predefine `myFunction(Then): never $(...)` and then
-use as `if SomeCondition, myFunction` and later `if OtherCondition, myFunction`.
+explicit exit, but also doesn't allow any `return` functions since we are literally
+defining a `(Then): never` with its block inline.  This syntax is not recommended
+unless you have identical block handling in separate conditional branches, but
+even that probably could be better served by pulling out a function to call in
+both blocks.
 
 ```
 if SomeCondition, (Then): never
@@ -4759,6 +4763,17 @@ if SomeCondition, (Then): never
         Then exit("whatever")
     # COMPILE ERROR, this function returns here if
     # `OtherCondition && !NestedCondition`.
+
+# here's an example where we re-use a function for the block.
+myBlock(Then): never
+    ... complicated logic ...
+    Then exit("made it")
+
+# TODO: will this syntax work?
+if SomeCondition, myBlock
+elif SomeThingElse
+    print("don't use it here")
+else myBlock
 ```
 
 ## function blocks
