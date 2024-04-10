@@ -65,7 +65,7 @@ with null, since `callWithNullable(SomeValue?: Null)` is equivalent to
 
 When calling a function, we don't need to use `myFunction(X: X)` if we have a local
 variable named `X` that shadows the function's argument named `X`.  We can just
-call `myFunction(X)` for readonly reference (`X: X`), `otherFunction(Y;)` for a writeable
+call `myFunction(X)` for readonly reference (`X: X`), `otherFunction(Y;)` for a writable
 reference (`Y; Y`), or `tmpFunction(Z!)` to pass in as a temporary `Z. Z!`.  While
 technically we might want the `:;.` on the left-hand side of the variable we're passing in
 (e.g., `otherFunction(;Y)`), we keep it on the right-hand side for consistency of how
@@ -120,10 +120,10 @@ we simply always `extend` the class.
 * `lowerCamelCase` identifiers like `x` are function/type-like, see [here](#variable-and-function-names)
 * `UpperCamelCase` identifiers like `X` are instance-like, see [here](#variable-and-function-names)
 * use `#` for [comments](#comments)
-* outside of arguments, use `:` for readonly declarations and `;` for writeable declarations
-* for an argument, `:` is a readonly reference, `;` is a writeable reference, and `.` is a temporary
+* outside of arguments, use `:` for readonly declarations and `;` for writable declarations
+* for an argument, `:` is a readonly reference, `;` is a writable reference, and `.` is a temporary
     (i.e., passed by value), see [pass-by-reference or pass-by-value](#pass-by-reference-or-pass-by-value)
-* use `:` to declare readonly things, `;` to declare writeable things.
+* use `:` to declare readonly things, `;` to declare writable things.
     * use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
     * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
     * use `a: y` to declare `a` as a constructor that builds instances of type `y`
@@ -132,7 +132,7 @@ we simply always `extend` the class.
 * when not declaring things, `:` is not used; e.g., `if` statements do not require a trailing `:` like python
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object type, `W` is an optional field
-        passed by readonly reference, `X` is a readonly reference, `Y` is a writeable reference,
+        passed by readonly reference, `X` is a readonly reference, `Y` is a writable reference,
         and `Z` is passed by value.  See [argument objects](#argument-objects) for more details.
     * `(SomeInstance x(), SomeInstance Y;, W: "hi", Z. 1.23)` to instantiate an argument object instance
         with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
@@ -185,7 +185,7 @@ MutableVar ;= 321
 # declaring a readonly array
 MyArray[]: elementType      # also ok: `MyArray: elementType[]`
 
-# defining a writeable array:
+# defining a writable array:
 ArrayVar ;= [1, 2, 3, 4]    # also ok: `ArrayVar[]; int = [...]`
                             # also ok: `ArrayVar; int[] = [...]`
 ArrayVar[5] = 5     # ArrayVar == [1, 2, 3, 4, 0, 5]
@@ -198,7 +198,7 @@ ArrayVar[1]!        # returns 2, zeroes out ArrayVar[1]
 # declaring a readonly store
 MyStore[idType]: valueType   # also ok: `MyStore: valueType[idType]`
 
-# defining a writeable store:
+# defining a writable store:
 VotesStore[str]; int = ["Cake": 5, "Donuts": 10, "Cupcakes": 3]
 # We can also infer types implicitly via `VotesStore ;= ["Cake": 5, ...]`?
 VotesStore["Cake"]        # 5
@@ -213,7 +213,7 @@ VotesStore::["Cupcakes"]  # Null
 # declaring a readonly set
 MySet[elementType]:     # also ok: `MySet: [elementType]`
 
-# defining a writeable set:
+# defining a writable set:
 SomeSet[str] ;= ["friends", "family", "fatigue"]
 # Also ok: we can do `SomeSet ;= [str]["friends", ...]`
 SomeSet::["friends"]    # `True`
@@ -230,7 +230,7 @@ doSomething(With: int, X; int, Y; int): null
 
 # defining a void function
 doSomething(With: int, X; int, Y; int): null
-    # because `X` and `Y` are defined with `;`, they are writeable
+    # because `X` and `Y` are defined with `;`, they are writable
     # in this scope and their changes will persist back into the
     # caller's scope.
     X = With + 4
@@ -244,7 +244,7 @@ With := 1000
 X ;= 1
 Y ;= 2
 # Note that readonly arguments (`:`) are the default,
-# so you need to specify `;` for writeable arguments.
+# so you need to specify `;` for writable arguments.
 doSomething(With, X;, Y;)
 
 # calling a function with argument renaming:
@@ -963,9 +963,9 @@ another object.  The `::` operator ensures that the RHS operand is read only, no
 so that both LHS and RHS variables remain constant.  Oppositely, the `;;` scope operator passes
 the RHS operand as writable, and therefore cannot be used if the LHS variable is readonly.
 The implicit member access operator ` ` is equivalent to `::` when the LHS is a readonly variable
-and `;;` when the LHS is a writeable variable.  When declaring class methods, `::` and `;;` can be
-unary prefixes to indicate readonly/writeable-instance class methods.  They are shorthand for adding a
-readonly/writeable `I/Me/My` as an argument.
+and `;;` when the LHS is a writable variable.  When declaring class methods, `::` and `;;` can be
+unary prefixes to indicate readonly/writable-instance class methods.  They are shorthand for adding a
+readonly/writable `I/Me/My` as an argument.
 
 ```
 exampleClass := {
@@ -995,11 +995,11 @@ NestedClass[1] X = 1.234        # creates a default [0] and [1], sets [1]'s X to
 NestedClass[3] I[4] = "oops"    # creates a default [2] and [3], sets [3]'s I to ["", "", "", "", "oops"]
 ```
 
-For class methods, `;;` (`::`) selects the overload with a writeable (readonly) class
+For class methods, `;;` (`::`) selects the overload with a writable (readonly) class
 instance, respectively.  For example, the `array` class has overloads for sorting, (1) which
 does not change the instance but returns a sorted copy of the array (`::sort(): me`), and
 (2) one which sorts in place (`;;sort(): null`).  The ` ` (member access) operator will use
-`I:` if the LHS is a readonly variable or `I;` if the LHS is writeable.  Some examples in code:
+`I:` if the LHS is a readonly variable or `I;` if the LHS is writable.  Some examples in code:
 
 ```
 # there are better ways to get a median, but just to showcase member access:
@@ -1014,12 +1014,12 @@ getMedianSlow(Array[]: int): hm[ok: int, uh: string]
 getMedianSlow(Array[]; int): hm[ok: int, uh: string]
     if Array count() == 0
         return uh("no elements in array, can't get median.")
-    Array sort()    # same as `Array;;sort()` since `Array` is writeable.
+    Array sort()    # same as `Array;;sort()` since `Array` is writable.
     ok(Array[Array count() // 2])
 ```
 
 Note that if the LHS is readonly, you will not be able to use a `;;` method.
-To sum up, if the LHS is writeable, you can use `;;` or `::`, and ` ` (member access) will
+To sum up, if the LHS is writable, you can use `;;` or `::`, and ` ` (member access) will
 effectively be `;;`.  If the LHS is readonly, you can only use `::` and ` `, which are equivalent.
 
 Subscripts have the same binding strength as member access operators since they are conceptually
@@ -1196,7 +1196,7 @@ to be consistent.
 
 Variables are named using `UpperCamelCase` identifiers.  The `:` symbol is used
 to declare deeply constant, non-reassignable variables, and `;` is used to declare
-writeable, reassignable variables.  Note when passed in as arguments to a function,
+writable, reassignable variables.  Note when passed in as arguments to a function,
 `:` has a slightly different meaning; a variable with `:` is readonly and not
 necessarily deeply constant.  That will be discussed more later.
 
@@ -1231,13 +1231,13 @@ W ;= int(7)
 ```
 
 Note that we use `;` and `:` as if it were an annotation on the variable name (rather
-than the type) so that we don't have to worry about needlessly complex types like a writeable
-array of a constant integer.  Constant variables are deeply constant, and writeable
+than the type) so that we don't have to worry about needlessly complex types like a writable
+array of a constant integer.  Constant variables are deeply constant, and writable
 variables are modifiable/reassignable, and we only have to think about this
 (as programmers using the language) at the level of the variable itself,
 not based on the type of the variable.  The underlying type is the same for both
-readonly and writeable variables (i.e., a writeable type), but the variable is only
-allowed to mutate the memory if it is declared as a writeable variable with `;`.
+readonly and writable variables (i.e., a writable type), but the variable is only
+allowed to mutate the memory if it is declared as a writable variable with `;`.
 
 ## nullable variable types
 
@@ -1253,7 +1253,7 @@ Note that `null` should come last for casts to work correctly (e.g., `oneOf(null
 would cast to null rather than `int(1234)`).  Normally the first value in a `oneOf` is the
 default, but if `null` or `Null` is an option, then null is the default.  
 
-In either case, you can use `;` instead of `:` to indicate that the variable is writeable.
+In either case, you can use `;` instead of `:` to indicate that the variable is writable.
 Note that if you are defining a nullable variable inline (e.g., with `:=` or `;=`), you should
 prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a compiler error
 if a declared variable is nullable but `?` is not used, since we want the programmer to be
@@ -1348,7 +1348,7 @@ truthyOr(First ~A?., Second A.): a
 ## nested/object types
 
 You can declare an object type inline with nested fields.  The nested fields defined
-with `:` are readonly, and `;` are writeable.
+with `:` are readonly, and `;` are writable.
 
 ```
 Vector; {X: dbl, Y: dbl, Z: dbl} = {X: 4, Y: 3, Z: 1.5}
@@ -1378,25 +1378,25 @@ vector3 := {X: dbl, Y: dbl, Z: dbl}
 Vector3 := vector3(X: 5, Y: 10)
 ```
 
-We also allow type definitions with writeable fields, e.g. `{X; int, Y; dbl}`.
+We also allow type definitions with writable fields, e.g. `{X; int, Y; dbl}`.
 Depending on how the variable is defined, however, you may not be able to change
 the fields once they are set.  If you define the variable with `;`, then you
-can reassign the variable and thus modify the writeable fields.  But if you define the
+can reassign the variable and thus modify the writable fields.  But if you define the
 variable with `:`, the object fields are readonly, regardless of the field definitions.
 Readonly fields on an object are normally deeply constant, unless the instance is
-writeable and is reset (either via `renew` or reassignment).  This allows you to
+writable and is reset (either via `renew` or reassignment).  This allows you to
 effectively change any internal readonly fields, but only in the constructor.
 
 ```
-# mixMatch has one writeable field and one readonly field:
+# mixMatch has one writable field and one readonly field:
 mixMatch := {Wr; dbl, Ro: dbl}
 
-# when defined with `;`, the object `MutableMix` is writeable: mutable and reassignable.
+# when defined with `;`, the object `MutableMix` is writable: mutable and reassignable.
 MutableMix; mixMatch = {Wr: 3, Ro: 4}
-MutableMix = mixMatch(Wr: 6, Ro: 3) # OK, MutableMix is writeable and thus reassignable
+MutableMix = mixMatch(Wr: 6, Ro: 3) # OK, MutableMix is writable and thus reassignable
 MutableMix renew(Wr: 100, Ro: 300)  # OK, will update `Ro` to 300 and `Wr` to 100
-MutableMix Wr += 4                  # OK, MutableMix is writeable and this field is writeable
-MutableMix Ro -= 1                  # COMPILE ERROR, MutableMix is writeable but this field is readonly
+MutableMix Wr += 4                  # OK, MutableMix is writable and this field is writable
+MutableMix Ro -= 1                  # COMPILE ERROR, MutableMix is writable but this field is readonly
                                     # if you want to modify the `Ro` field, you need to reassign
                                     # the variable completely or call `renew`.
 
@@ -1410,10 +1410,10 @@ ReadonlyMix Ro -= 1                     # COMPILE ERROR, ReadonlyMix is readonly
 # NOTE that in general, calling a function with variables defined by `;` is a different
 # overload than calling with `:`.  Mutable argument variables imply that the arguments will
 # be mutated inside the function, and because they are passed by reference, escape the function
-# block with changes.  Data classes have overloads with writeable arguments, which imply that
+# block with changes.  Data classes have overloads with writable arguments, which imply that
 # the data class will take over the argument (via moot).  This implies a move (not copy) operation.
 MyMixMatch := mixMatch(Mut; 5, Imm; 3)  # `;` is useful for taking arguments via a move.
-# see section on writeable/readonly arguments for more information.
+# see section on writable/readonly arguments for more information.
 ```
 
 Note that hm-lang takes a different approach than C++ when it comes to constant/readonly fields
@@ -1429,7 +1429,7 @@ afterwards by other methods... except for the constructor if it's called again (
 We can create deeply nested objects by adding valid identifiers with consecutive `:`.  E.g.,
 `(X: Y: 3)` is the same as `(X: (Y: 3))`.
 
-## temporarily locking writeable variables
+## temporarily locking writable variables
 
 You can also make a variable readonly
 for the remainder of the current block by using `@lock` before the variable name.
@@ -1438,12 +1438,12 @@ Also note that the variable may not be deeply constant, e.g., if lambdas are cal
 which modify it, but you will not be able to explicitly modify it.
 
 ```
-X; int = 4  # defined as writeable and reassignable
+X; int = 4  # defined as writable and reassignable
 
 if SomeCondition
     @lock X = 7 # locks X after assigning it to the value of 7.
                 # For the remainder of this indented block, you can use X but not reassign it.
-                # You also can't use writeable, i.e., non-const, methods on X.
+                # You also can't use writable, i.e., non-const, methods on X.
 else
     @lock X # lock X to whatever value it was for this block.
             # You can still use X but not reassign/mutate it.
@@ -1915,7 +1915,7 @@ cross(First Vector3, Second Vector3) := vector3(
 
 One final note is that operations like `+` should be order independent, whereas `+=` should be
 order dependent, since the method would look like this: `;;+=(Vector2)`, which is
-equivalent to `+=(Me;, Vector2)`, where the first argument is writeable.  These
+equivalent to `+=(Me;, Vector2)`, where the first argument is writable.  These
 two arguments can be distinguished because of the writeability.
 
 ## function overloads
@@ -2042,10 +2042,10 @@ someFunction(Y := 3): dbl
     return dbl(Y)
 ```
 
-Note that writeable arguments `;` are distinct overloads, which indicate either mutating
+Note that writable arguments `;` are distinct overloads, which indicate either mutating
 the external variable, taking it, or swapping it with some other value, depending on
 the behavior of the function.  Temporaries are also allowed, so defaults can be defined
-for writeable arguments.
+for writable arguments.
 
 What are some of the practical outcomes of these overloads?  Suppose
 we define present and missing argument overloads in the following way:
@@ -2217,13 +2217,13 @@ method, while variables that may require large allocations should only implement
 `;;renew(Other Me): null` (essentially a C++ copy constructor).  This is done
 by default for most hm-lang classes.
 
-Functions can also be defined with writeable or readonly reference arguments, e.g., via
+Functions can also be defined with writable or readonly reference arguments, e.g., via
 `MutableArgument; typeOfTheWriteable` and `ReadonlyArgument: typeOfTheReadonly` in the
 arguments list, which are passed by reference.  This choice has three important
 effects: (1) readonly variables may not be deeply constant (see section on
 [passing by reference gotchas](#passing-by-reference-gotchas)), (2) you can modify
-writeable argument variables inside the function definition, and (3) any
-modifications to a writeable argument variable inside the function block persist
+writable argument variables inside the function definition, and (3) any
+modifications to a writable argument variable inside the function block persist
 in the outer scope.  Note that pass-by-constant-reference arguments are the default,
 so `fn(Int): null` is the same as `fn(Int: int): null`.
 TODO: maybe autogenerate a `fn(Int.): null` function for default arguments.
@@ -2253,12 +2253,12 @@ based on the caller using `.`, `:`, or `;`.  Some examples:
 ```
 # this function passes by value and won't modify the external variable
 check(Arg123. string): string
-    Arg123 += "-tmp"    # OK since Arg123 is defined as writeable, implicit in `.`
+    Arg123 += "-tmp"    # OK since Arg123 is defined as writable, implicit in `.`
     return Arg123
 
 # this function passes by reference and will modify the external variable
 check(Arg123; string): string
-    Arg123 += "-writeable"  # OK since Arg123 is defined as writeable via `;`.
+    Arg123 += "-writable"  # OK since Arg123 is defined as writable via `;`.
     return Arg123
 
 # this function passes by constant reference and won't allow modifications
@@ -2271,20 +2271,20 @@ check(Arg123. MyValue copy())   # returns "great-tmp".  needs `copy` since
 print(MyValue)                  # prints "great"
 check(Arg123: MyValue)          # returns "great-readonly"
 print(MyValue)                  # prints "great"
-check(Arg123; MyValue)          # returns "great-writeable"
-print(MyValue)                  # prints "great-writeable"
+check(Arg123; MyValue)          # returns "great-writable"
+print(MyValue)                  # prints "great-writable"
 ```
 
 Note that if you try to call a function with a readonly reference argument,
 but there is no overload defined for it, this will be an error.  Similarly
-for writeable-reference or temporary variable arguments.
+for writable-reference or temporary variable arguments.
 
 ```
 onlyReadonly(A: int): str
     return str(A) * A
 
 MyA ;= 10
-onlyReadonly(A; MyA)        # COMPILE ERROR, no writeable overload for `onlyReadonly(A;)`
+onlyReadonly(A; MyA)        # COMPILE ERROR, no writable overload for `onlyReadonly(A;)`
 onlyReadonly(A. int(MyA))   # COMPILE ERROR, no temporary overload for `onlyReadonly(A.)`
 
 print(onlyReadonly(A: 3))       # OK, prints "333"
@@ -2318,7 +2318,7 @@ print(onlyTemporary(C. 3))      # OK, prints "10"
 print(onlyTemporary(C. MyC!))   # OK, prints "12"
 ```
 
-Note there is an important distinction between variables defined as writeable inside a block
+Note there is an important distinction between variables defined as writable inside a block
 versus inside a function argument list.  Mutable block variables are never reference types.
 E.g., `B ;= A` is always a copy of `A`, so `B` is never a reference to the variable at `A`.
 For a full example:
@@ -2402,14 +2402,14 @@ void fn(const string &String);  // constant reference just for `fn(Str:)`
 
 Implementation detail: while `.` corresponds to finality as a sentence ender, and thus might
 appear to relate most closely to a readonly type, we choose to use `:` as readonly and `;` as
-writeable references due to the similarity between `:` and `;`; therefore `.` can be the
+writable references due to the similarity between `:` and `;`; therefore `.` can be the
 odd-one-out corresponding to a non-reference, pass-by-value type.
 
 If you want to define multiple overloads, you can use the template `;:` (or `:;`) declaration
-syntax for writeable/readonly references.  There will be some annotation/macros which can be
-used while before compiling, e.g., `@writeable`/`@readonly` to determine if the variable is
-writeable or not.  Similarly, we can use templates like `:;.` for
-readonly-reference/writeable-reference/temporary.
+syntax for writable/readonly references.  There will be some annotation/macros which can be
+used while before compiling, e.g., `@writable`/`@readonly` to determine if the variable is
+writable or not.  Similarly, we can use templates like `:;.` for
+readonly-reference/writable-reference/temporary.
 
 ```
 myClass[of] := {
@@ -2451,7 +2451,7 @@ For example, this function call passes `Array[3]` by reference, even if `Array[3
 
 ```
 Array; int[] = [0, 1, 2, 3, 4]
-myFunction(Array[3];)   # passed as writeable reference
+myFunction(Array[3];)   # passed as writable reference
 myFunction(Array[3]:)   # passed as readonly reference
 myFunction(Array[3])    # also passed as readonly reference, it's the default.
 ```
@@ -2524,7 +2524,7 @@ notActuallyConstant(MyInt) # prints "Int before 123", then "Int middle 246", the
 ```
 
 Because of this, one should be careful about assuming that a readonly argument is deeply constant;
-it may only be not-writeable from your scope's reference to the variable.
+it may only be not-writable from your scope's reference to the variable.
 
 In cases where we know the function won't do self-referential logic,
 we can try to optimize and pass by value automatically.  However, we
@@ -2538,16 +2538,16 @@ If the return type from a function has multiple fields, we can grab them
 using the notation `{Field1:, Field2;} = doStuff()`, where `doStuff` has
 a function signature of `(): {Field1: field1, Field2: field2, ...}`, and
 `...` are potentially ignored return fields.  In the example, we're declaring
-`Field1` as readonly and `Field2` as writeable, but any combination of `;`
+`Field1` as readonly and `Field2` as writable, but any combination of `;`
 and `:` are possible.  If we already have `Field1` or `Field2` declared,
 we should avoid using `:` or `;` in the destructuring;
 `{Field1, Field2} = doStuff()` should suffice.  Of course, they should
-be previously declared as writeable if we are reassigning them via destructuring,
+be previously declared as writable if we are reassigning them via destructuring,
 otherwise it's a compiler error.  We can also get the remaining fields in their
 own object, e.g., `{Field1:, ...OtherFields:} = doStuff()`, which will have
 `OtherFields` as type `{Field2: field2, ...}`.  Note you can also do
 `{Field1, Field2} := doStuff()` to define `Field1` and `Field2` as readonly,
-or `{Field1, Field2} ;= doStuff()` to define `Field1` and `Field2` as writeable;
+or `{Field1, Field2} ;= doStuff()` to define `Field1` and `Field2` as writable;
 in these cases, both `Field1` and `Field2` must not be already declared.
 
 This notation is a bit more flexible than JavaScript, since we're
@@ -2571,7 +2571,7 @@ Io ;= 1.234
 
 # === calling the function with variable renaming ===
 Greeting := "hello!"
-InputOutput ;= 1.234     # note `;` so it's writeable.
+InputOutput ;= 1.234     # note `;` so it's writable.
 # just like when we define an argument for a function, the newly scoped variable goes on the left,
 # so too for destructuring return arguments.  this one uses the default type of `RoundDown`:
 {IntegerPart; RoundDown} = fraction(In: Greeting, Io; InputOutput)
@@ -2643,8 +2643,8 @@ call can do just about anything (including fetching data from a remote server).
 
 ```
 call := {
-    # TODO: need to distinguish between readonly and writeable references.
-    #       this can be done on the pointer (e.g., Ptr[]; for writeable
+    # TODO: need to distinguish between readonly and writable references.
+    #       this can be done on the pointer (e.g., Ptr[]; for writable
     #       and Ptr[]: for readonly) or here somehow.
     Input[str]; ptr any
     # we need to distinguish between the caller asking for specific fields
@@ -2791,7 +2791,7 @@ greet(Noun: "World")
 greet(Noun: string); null
     print("Overwriting!")
 # it's not ok if we use `greet(Noun: string): null` when redefining, since that looks like
-# we're switching from writeable to readonly.
+# we're switching from writable to readonly.
 ```
 
 It needs to be clear what function overload is being redefined (i.e., having the same function signature),
@@ -2956,7 +2956,7 @@ IntResult := logger(5)    # prints "got 5" and returns the integer 5.
 DblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
 ```
 
-Note that you can use `myFunction(~T;)` for a writeable argument.
+Note that you can use `myFunction(~T;)` for a writable argument.
 
 ### argument name generics: with different type
 
@@ -3075,7 +3075,7 @@ MyResult1 := SomeClass!..temporaryMethod()
 MyResult2 := someClass("temporary")..temporaryMethod()
 ```
 
-Note that you can overload a class method with readonly instance `::`, writeable
+Note that you can overload a class method with readonly instance `::`, writable
 instance `;;` versions, and temporary instance versions `..`.
 Callers are recommended to be explicit and use `::`, `;;`, or `..` instead of ` ` (member access).
 See the section on member access operators for how resolution of ` ` works in this case.
@@ -3106,13 +3106,13 @@ Instance functions can be different from instance to instance.
 They cannot be overridden by child classes but they can be overwritten.  I.e.,
 if a child class defines the instance function of a parent class, it overwrites the parent's
 instance function; calling one calls the other.  To declare an instance function, we simply
-declare a writeable function, without a `Me/My/I`, inside the class definition.
+declare a writable function, without a `Me/My/I`, inside the class definition.
 In addition instance functions must be pure functions so that they can be copied freely.
 TODO: we maybe should allow instance functions access to `Me/My/I`, implicitly; the `Me/My/I` will change
 to the next instance when copied.
 
 Class constructors are methods (1) which are defined using `;;renew(Args...)`,
-which also allow you to renew the class instance as long as the variable is writeable.
+which also allow you to renew the class instance as long as the variable is writable.
 The first `renew` method defined in the class is also the default constructor,
 which will be called with default-constructed arguments (if any) if a default
 instance of the class is needed.  It is a compiler error if a `;;renew()` method
@@ -3182,7 +3182,7 @@ exampleClass := {
         # this is the default implementation that all instances will start with.
         return string(My X + Int)
 
-    # same as the other reassignable method above, but with a writeable instance.
+    # same as the other reassignable method above, but with a writable instance.
     ;;reassignableMutableMethod(Int); null
         # this is the default implementation that all instances will start with.
         My X -= Int
@@ -4033,10 +4033,10 @@ All classes have a few compiler-provided methods which cannot be overridden.
 * `i(...): hm[ok: me, uh]` class or error constructors for any methods defined as
     `;;renew(...): hm[ok: i, uh]`
 * `;;renew(...): null` for any `i(...): me` class constructors.
-    This allows any writeable variable to reset without doing `X = x(...)`,
+    This allows any writable variable to reset without doing `X = x(...)`,
     which may be painful for long variable names, and instead do `X renew(...)`.
 * `;;renew(...): hm[uh]` for any `i(...): hm[ok: me, uh]` construct or error class functions
-    This allows any writeable variable to reset without doing `X = x(...) assert()`,
+    This allows any writable variable to reset without doing `X = x(...) assert()`,
     which may be painful for long variable names, and instead do `X renew(...) assert()`.
 
 ## singletons
@@ -4116,11 +4116,11 @@ MyBuilder := myBuilder() {
 MyBuilder2 ;= myBuilder() { set("Def", 987), set("Uvw", 321) }
 ```
 
-By default, if the left-hand side of the sequence builder is writeable (readonly),
-the methods being called on the right will be the writeable (readonly) versions.
+By default, if the left-hand side of the sequence builder is writable (readonly),
+the methods being called on the right will be the writable (readonly) versions.
 E.g., `myBuilder()` is the left-hand side for the sequence builder, and `{ set... }`
 is the right; and in this case, `myBuilder()` is a temporary which defaults to
-writeable.  You can explicitly ask for the readonly (or writeable) version of a
+writable.  You can explicitly ask for the readonly (or writable) version of a
 method using `::` (or `;;`) like this, although it will be a compile-error if
 you are trying to write a readonly variable.
 
@@ -4128,7 +4128,7 @@ The return value of the sequence builder also depends on the LHS.
 If it is a temporary, the return value will be the temporary after it has been called
 with all the methods in the RHS of the sequence builder.  E.g., from the above example,
 a `myBuilder` instance with all the `set` methods called.  Otherwise, if the LHS
-is a reference (either readonly or writeable), the return value of the sequence
+is a reference (either readonly or writable), the return value of the sequence
 builder will be an object with all the fields built out of the RHS methods.
 Some examples of the LHS being a reference follow:
 
@@ -4952,7 +4952,7 @@ container[id, value] := {
     # Returns `Null` if `Id` is not in this container,
     # otherwise the `value` instance at that `Id`.
     # In contrast with the `::[Id]?: value` method, this
-    # returns a *writeable* reference to the value.
+    # returns a *writable* reference to the value.
     # If in reference form, you can set this to `Null`
     # to delete the element from the container.
     ;;[Id]?: value
@@ -4966,7 +4966,7 @@ container[id, value] := {
 
     # Gets the existing value at `Id` if present,
     # otherwise inserts a default value at `Id`,
-    # and returns a writeable reference to it.
+    # and returns a writable reference to it.
     # WARNING: the container may add more than one default value,
     # e.g., in the case of asking for an element at an array
     # index much higher than the current size of the array.
@@ -4998,7 +4998,7 @@ An array contains a list of elements in contiguous memory.  You can
 define an array explicitly using the notation `Array: array[elementType]` for the
 type `elementType` or implicitly via `Array[]: elementType` or `Array: elementType[]`.
 E.g. `MyArray: int[]` or `MyArray: array[int]` for a readonly integer array.
-The writeable versions of course use `;` instead of `:`.  Note that arrays
+The writable versions of course use `;` instead of `:`.  Note that arrays
 are ID'd by an `index` type, but using `MyVar[index]: elementType` would
 create a [store](#stores).
 
@@ -5013,14 +5013,14 @@ MyArray[]: dbl = [1.2, 3, 4.5]      # converts all to dbl
 MyArray append(5)   # COMPILE ERROR: MyArray is readonly
 MyArray[1] += 5     # COMPILE ERROR: MyArray is readonly
 
-# writeable integer array:
-Array; int[]        # declaring a writeable, default-named integer array
+# writable integer array:
+Array; int[]        # declaring a writable, default-named integer array
 Array append(5)     # now Array == [5]
 Array[3] += 30      # now Array == [5, 0, 0, 30]
 Array[4] = 300      # now Array == [5, 0, 0, 30, 300]
 Array[2] -= 5       # now Array == [5, 0, -5, 30, 300]
 
-# writeable string array:
+# writable string array:
 StringArray[]; string = ["hi", "there"]
 print(StringArray pop())    # prints "there".  now StringArray == ["hi"]
 ```
@@ -5125,18 +5125,18 @@ will be initialized to the default value of the element type, e.g., 0 for number
 
 Fixed-count arrays can be passed in without a copy to functions taking
 an array as a readonly argument, but will be of course copied into a 
-resizable array if the argument is writeable.  Some examples:
+resizable array if the argument is writable.  Some examples:
 
 ```
 # readonly array of count 4
 Int4: int[4] = [-1, 5, 200, 3450]
-# writeable array of fixed-count 3:
+# writable array of fixed-count 3:
 Vector3; dbl[3] = [1.5, 2.4, 3.1]
 print("Vector3 is {$(Vector3[0]), $(Vector3[1]), $(Vector3[2])}")
 
-# a function with a writeable argument:
+# a function with a writable argument:
 doSomething(Array; dbl[]): dbl[2]
-    # you wouldn't actually use a writeable array argument, unless you did
+    # you wouldn't actually use a writable array argument, unless you did
     # some computations using the array as a workspace.
     # PRETENDING TO DO SOMETHING USEFUL WITH Array:
     return [Array pop(), Array pop()]
@@ -5506,7 +5506,7 @@ set[of: hashable] := extend(container[id: of, value: true]) {
 ```
 
 Like the IDs in stores, items added to a set become deeply constant,
-even if the set variable is writeable.
+even if the set variable is writable.
 
 TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
 
@@ -5817,7 +5817,7 @@ because a `return` from such a function should technically only get you out of t
 block and not out of the function that has `what` inside.
 
 Note that variable declarations can be argument style, i.e., including
-temporary declarations (`.`), readonly references (`:`), and writeable
+temporary declarations (`.`), readonly references (`:`), and writable
 references (`;`), since we can avoid copies if we wish.  This is only
 really useful for allocated values like `str`, `int`, etc.  However, note
 that temporary declarations via `.` can only be used if the argument to
@@ -5988,7 +5988,7 @@ for Special; int < 4
 
 # you can do a for-loop with an existing variable.
 # this allows you to start at a different value, and keep the last value from the for loop.
-# NOTE the variable should be writeable!
+# NOTE the variable should be writable!
 IteratingIndex ;= 3
 for IteratingIndex < 7
     print(IteratingIndex)
@@ -6011,7 +6011,7 @@ for Vector2: in Array       # `for (Vector2:) in Array` also works.
     print(Vector2)
 
 # if the variable is already declared, you avoid the declaration `:` or `;`:
-# NOTE the variable should be writeable!
+# NOTE the variable should be writable!
 IteratingVector; vector2
 for IteratingVector in Array
     print(IteratingVector)
@@ -6251,7 +6251,7 @@ if Tree isLeaf()
 # `Tree` is internally of type `leaf`:
 Tree is((Leaf) := print(Leaf))
 
-# narrowing to a `branch` type that is writeable.  `Tree` was writeable, so `Branch` can be.
+# narrowing to a `branch` type that is writable.  `Tree` was writable, so `Branch` can be.
 # the nested function only executes if `Tree` is internally of type `branch`:
 Tree is((Branch;):
     print(Branch Left, " ", Branch Right)
@@ -6954,8 +6954,8 @@ Grammar := singleton() {
             ClassName
             oneOfMatcher([
                 operatorMatcher(":=")
-                doNotAllow(operatorMatcher(";="), "Classes cannot be writeable.")
-                doNotAllow(operatorMatcher("?;="), "Classes cannot be nullable/writeable.")
+                doNotAllow(operatorMatcher(";="), "Classes cannot be writable.")
+                doNotAllow(operatorMatcher("?;="), "Classes cannot be nullable/writable.")
                 doNotAllow(operatorMatcher("?:="), "Classes cannot be nullable.")
             ])
             optionalMatcher(ExtendParentClasses)
@@ -7093,7 +7093,7 @@ or is the syntax unambiguous enough to not need them?
 
 TODO
 
-# object format
+# transpiling
 
 Every variable instance has two different storage layouts, one for "only type" and one for
 "dynamic type."  "Only-type" variables require no extra memory to determine what type they are.
@@ -7164,6 +7164,79 @@ almost sounds like virtual memory with mappings.  that should probably be non-st
 TODO: discuss having all instance methods in some special virtual table, e.g., possibly 
 with additional reflection information (for things like `@for method in mutators(myClass)`
 macro code).
+
+## object format
+
+We'll use the following example hm-lang class and other functions for transpilation examples.
+
+```
+exampleClass := {
+    A; f32
+    B; f32
+
+    ;;renew(My X: i32, My Y: i32):
+        My A = X - Y
+        My B = X + Y
+
+    ::readonlyMethod(Z: i32): i32
+        My X * My Y - Z
+
+    ;;writableMethod(Q: f32): f32
+        My A *= Q
+        My B *= 1.0 / (1.0 + abs(Q))
+        My A * My B
+}
+
+exampleFunction(X: i64, A: dbl): {Y: i64, B: dbl}
+    {Y: X - 1, B: A * X}
+```
+
+## C API
+
+```
+// example_class.h
+typedef struct example_class {
+    float A;
+    float B;
+    int32_t X;
+    int32_t Y;
+}   example_class_t;
+
+typedef struct example_class_renew_input_X_Y {
+    int32_t X;
+    int32_t Y;
+}   example_class_renew_input_X_Y_t;
+
+typedef struct example_class_readonly_method_input_Z_t {
+    int32_t Z;
+}   example_class_readonly_method_input_Z_t;
+
+typedef struct example_class_writable_method_input_Q_t {
+    float Q;
+}   example_class_writable_method_input_Q_t;
+
+void example_class_renew_X_Y(example_class_t *My, example_class_renew_input_X_Y_t input);
+int32_t example_class_readonly_method_input_Z_output_i32(
+    const example_class_t *My, example_class_readonly_method_input_Z_t input
+);
+float example_class_writable_method_input_Q_output_f32(
+    example_class_t *My, example_class_writable_method_input_Q_t input
+);
+
+typedef struct example_function_input_A_X_t {
+    double A;
+    int64 X;
+}   example_function_input_A_X_t;
+
+typedef struct example_function_output_B_Y_t {
+    double B;
+    int64 Y;
+}   example_function_output_B_Y_t;
+
+example_function_output_B_Y_t example_function_input_A_X_output_B_Y(
+    example_function_input_A_X_t input
+);
+```
 
 # compiling
 
