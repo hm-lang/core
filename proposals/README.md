@@ -145,7 +145,9 @@ we simply always `extend` the class.
     * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
     * For generic/template classes, e.g., classes like `array[Count, of]` for a fixed array of size
         `Count` with elements of type `of`, or `store[id: str, value: int]` to create a map/dictionary
-        of strings mapped to integers.
+        of strings mapped to integers.  See [generic/template classes](#generictemplate-classes).
+    * For generic/template functions with type constraints, e.g., `myFunction[of: nonNull](X: of, Y: int): of`
+        where `of` is the generic type.  See [generic/template functions](#generictemplate-functions) for more.
 * `{}` for objects/types
     * `{X: dbl, Y: dbl}` to declare a class with two double-precision fields, `X` and `Y`
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
@@ -3185,6 +3187,9 @@ exampleClass := {
         # this is the default implementation that all instances will start with.
         My X -= Int
 
+    # TODO: i'm not super excited by this notation, since we'll use `parentClass someMethod()`
+    #       inside child class overrides for non-static methods and this looks very similar
+    #       (but is static).  should we use an annotation like @static or @class?
     # some examples of class functions (2):
     # this pure function does not require an instance, and cannot use instance variables:
     i someStaticFunction(Y; int): int

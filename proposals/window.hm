@@ -16,19 +16,19 @@ Window uh := oneOf(
 hm[of] := hm[ok: of, Window uh]
 
 window := {
-    terminal(): terminalWindow
-    graphics(): graphicsWindow
+    i terminal(): terminalWindow
+    i graphics(): graphicsWindow
 
     # Returns the actual window size, i.e., the real-estate available for drawing.
-    ::size(): size2i
+    ::size(): size2f
     # Sets the window size, returning the old value if the attempt was successful.
-    ;;size(Size2i): hm size2i
+    ;;size(Size2f): hm[size2f]
     # TODO: add these eventually when we think we have a consistent API:
     #[#
     # Sets the minimum window size, i.e., for a resizable window.
-    ;;minSize(Size2i): hm size2i
+    ;;minSize(Size2f): hm[size2f]
     # Sets the maximum window size, i.e., for a resizable window.
-    ;;maxSize(Size2i): hm size2i
+    ;;maxSize(Size2f): hm[size2f]
     #]#
 
     # Returns the current data in the clipboard,
@@ -41,29 +41,41 @@ window := {
 
     # Grabs the next window event to handle.
     ;;poll(): windowEvent
+    # Grabs the next window event, with a timeout in case no events occur.
+    ;;poll(Timeout: duration): windowEvent
+
+    # Accumulates window events over a frame.
+    # The `Duration` returned is that since the last `poll` or `frame` call.
+    ;;frame(DesiredFps: f32): {Events: windowEvent[], Duration}
 }
 
-terminalWindow := extend(window) {
-
+terminalWindow := extend(window, l2) {
 }
 
-graphicsWindow := extend(window) {
+graphicsWindow := extend(window, l3) {
     # Returns true iff the window is fullscreen.
     ::fullscreen(): bool
     # Sets fullscreen if the passed-in `Bool` is true,
-    # otherwise sets windowed mode; swaps the previous value into `Bool` (if `;`).
-    ;;fullscreen(Bool;.): null
+    # otherwise sets windowed mode.  Returns the previous result if successful.
+    ;;fullscreen(Bool): hm[bool]
 
     ::resolution() := My Pixels size()
-    ;;resolution(Size2i) := My Pixels size(Size2i)
+    ;;resolution(Size2f) := My Pixels size(Size2f)
+}
 
+l2 := {
+    # Writes some text to the l2.
+    ;;draw(Caret;, String): null
+}
+
+l3 := {
     # Function to get pixels to draw to.
-    ;;draw(fn(~QpuPixels;): t) := fn(My Pixels;)
+    ;;draw(fn(~QpuPixels;): ~t) := fn(My Pixels;)
 }
 
 windowEvent := oneOf(
     # A resize event, with the new internal window size.
-    resizeEvent: size2i
+    resizeEvent: size2f
     # A sequence of runes (e.g., layout and locale included).
     textEvent: string
     # A physical, named key.
@@ -75,6 +87,8 @@ windowEvent := oneOf(
     mouseMoveEvent: {Delta: vector2i, Position: vector2i, Modifiers}
     # The mouse is scrolling.
     mouseWheelEvent: {Delta: i32, Modifiers}
+    # Polling for events timed out.
+    TimeoutEvent
 )
 
 modifiers := {
@@ -97,12 +111,12 @@ pixels := {
     ;;load(FilePath): null
 
     # Current size of the image.
-    ::size(): size2i
+    ::size(): size2f
 
     # Tries to resize the image.  Can fail if the new size is too large (OOM)
     # or if the size is invalid (e.g., negative values).
     @hideFrom(cpuPixels, gpuPixels)
-    ;;size(New Size2i): hm{ok: size2i, uh}
+    ;;size(New Size2f): hm{ok: size2f, uh}
 
     # Color getter via coordinates.  Can fail if the coordinates are out of bounds (OOB).
     # Can also be expensive if the pixels aren't up-to-date on the CPU.
@@ -155,7 +169,7 @@ pixels := {
         State ;= state pixelsId CpuOnly
 
         # The current image size.
-        Size; size2i
+        Size; size2f
 
         # Row-major order, with rows being rows of pixels across the screen left->right,
         # with `Pixels[0]` being the top row and `Pixels[Height - 1]` the bottom row.
@@ -291,7 +305,7 @@ font := {
         # vector for each rune in the pixels.
         @private My Coordinates[rune]: vector2i
         # size of each glyph in the texture.
-        @private My GlyphSize: size2i
+        @private My GlyphSize: size2f
     ) := null
 }
 
@@ -319,14 +333,14 @@ fontStyle := anyOrNoneOf(
     Chaos # add pseudorandom jitter to drawn runes
 )
 
-vector2~t := {X; t, Y; t}
-vector2i := vector2 i32
-vector2f := vector2 f32
+vector2[of] := {X; of, Y; of}
+vector2i := vector2[i32]
+vector2f := vector2[f32]
 
-size2~t := {Width; t, Height; t}
-size2i := size2 i32
-size2f := size2 f32
+size2[of] := {Width; of, Height; of}
+size2f := size2[i32]
+size2f := size2[f32]
 
-index2~t := {Column; t, Row; t}
-index2i := index2 i32
-index2f := index2 f32
+index2[of] := {Column; of, Row; of}
+index2i := index2[i32]
+index2f := index2[f32]

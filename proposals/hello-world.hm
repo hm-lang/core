@@ -12,7 +12,7 @@ main(): i32
             #       i.e., `X {, {something(Y)}}` should return
             #       `{X, X {something(Y)}}` which is right.
             #       may need to use `copy()` in the first slot to avoid the compiler removing it.
-            #       e.g., `X {copy(), {something(Y)}}`
+            #       e.g., `X {copy(), {something(Y)}}` or `X {{}, {something(Y)}}`
             #       does that look better here?
             #       `keyEvent(Key: 'q', State: Pressed) {copy(), {modifiers(Ctrl: True)}}`
             keyEvent(Key: 'q', State: Pressed)
