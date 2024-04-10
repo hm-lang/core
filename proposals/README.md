@@ -1412,7 +1412,7 @@ ReadonlyMix Ro -= 1                     # COMPILE ERROR, ReadonlyMix is readonly
 # be mutated inside the function, and because they are passed by reference, escape the function
 # block with changes.  Data classes have overloads with writable arguments, which imply that
 # the data class will take over the argument (via moot).  This implies a move (not copy) operation.
-MyMixMatch := mixMatch(Mut; 5, Imm; 3)  # `;` is useful for taking arguments via a move.
+MyMixMatch := mixMatch(Wr; 5, Ro; 3)  # `;` is useful for taking arguments via a move.
 # see section on writable/readonly arguments for more information.
 ```
 
@@ -1427,7 +1427,7 @@ afterwards by other methods... except for the constructor if it's called again (
 ### automatic deep nesting
 
 We can create deeply nested objects by adding valid identifiers with consecutive `:`.  E.g.,
-`(X: Y: 3)` is the same as `(X: (Y: 3))`.
+`{X: Y: 3}` is the same as `{X: {Y: 3}}`.
 
 ## temporarily locking writable variables
 
@@ -1546,10 +1546,10 @@ and instances.  As a type, `(X: dbl, Y; int, Z. str)` differs from the object
 type `{X: dbl, Y; int, Z; str}`, for more than just the reason that `.` is invalid
 in an object type.  When instantiated, argument objects with `;` and `:` fields
 contain references to variables; objects get their own copies.  For convenience,
-we'll use *argument type* for an argument object type and *argument instance* for
+we'll use *arguments type* for an argument object type and *arguments instance* for
 an argument object instance.
 
-Because they contain references, argument instances cannot outlive the lifetime
+Because they contain references, arguments instances cannot outlive the lifetime
 of the variables they contain.
 
 ```
@@ -1571,12 +1571,13 @@ returnA(Q: int): a
     (X, Y;, Z. "world")
 ```
 
-Note that we can return argument instances from functions, but they must be
-defined with variables whose lifetimes outlive the argument instance.  For example:
+Note that we can return arguments instances from functions, but they must be
+defined with variables whose lifetimes outlive the input arguments instance.
+For example:
 
 ```
 X := 4.56
-returnA(Q; int): (X: dbl, Y; int, Z. str)       # inline argument type
+returnA(Q; int): (X: dbl, Y; int, Z. str)       # inline arguments type
     Q *= 37
     # X has a lifetime that outlives this function.
     # Y has the lifetime of the passed-in variable, which exceeds the return type.
@@ -1608,6 +1609,15 @@ copy(
 )
 
 ```
+
+We can create deeply nested argument objects by adding valid identifiers with consecutive `:`/`;`/`.`.
+E.g., `(X: Y: 3)` is the same as `(X: (Y: 3))`.  This can be useful for a function signature
+like `run(After: duration, fn(): ~t): t`.  `duration` is a built-in type that can be built
+out of units of time like `Seconds`, `Minutes`, `Hours`, etc., so we can do something like
+`run(After: Seconds: 3, () := print("hello world!"))`, which will automatically pass
+`(Seconds: 3)` into the `duration` constructor.  Of course, if you need multiple units of time,
+you'd use `run(After: (Seconds: 6, Minutes: 1), () := print("hello world!"))` or to be explicit
+you'd use `run(After: duration(Seconds: 6, Minutes: 1), () := print("hello world!"))`.
 
 
 ### default-name arguments in functions
@@ -1969,7 +1979,8 @@ fibonacci(Times: dbl): int
     OtherRatio: dbl = (1.0 - \\math sqrt(5)) * 0.5
     return round((GoldenRatio^Times - OtherRatio^Times) / \\math sqrt(5))
 # TODO: is this still correct?  we're specifying by name then filtering by type.
-# COMPILE ERROR: function overloads of `fibonacci` must have unique argument names, not argument types.
+# COMPILE ERROR: function overloads of `fibonacci` must have unique argument names,
+#                not argument types.
 
 # NOTE: if the second function returned a `dbl`, then we actually could distinguish between
 # the two overloads.  This is because default names for each return would be `Int` and `Dbl`,

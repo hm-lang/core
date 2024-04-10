@@ -14,8 +14,8 @@ main(): i32
             #       may need to use `copy()` in the first slot to avoid the compiler removing it.
             #       e.g., `X {copy(), {something(Y)}}` or `X {{}, {something(Y)}}`
             #       does that look better here?
-            #       `keyEvent(Key: 'q', State: Pressed) {copy(), {modifiers(Ctrl: True)}}`
+            #       `keyEvent(Key: 'q', State: Pressed) {copy(), {modifiers(Control: True)}}`
             keyEvent(Key: 'q', State: Pressed)
-            keyEvent(Key: 'q', Modifiers: Ctrl: True, State: Pressed)
+            keyEvent(Key: 'q', Modifiers: Control: True, State: Pressed)
                 break
     0
