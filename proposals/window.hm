@@ -6,6 +6,7 @@ WISHLIST
 * downgrading the program to a terminal should similarly work,
     ideally without sacrificing too many features.
 * probably should upgrade coordinates to pairs of `f32`s.
+    well, we're using pixel coordinates, so maybe `i32`s are still ok.
 #)#
 
 

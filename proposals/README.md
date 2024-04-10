@@ -4045,10 +4045,10 @@ All classes have a few compiler-provided methods which cannot be overridden.
     `;;renew(...): hm[ok: i, uh]`
 * `;;renew(...): null` for any `i(...): me` class constructors.
     This allows any writable variable to reset without doing `X = x(...)`,
-    which may be painful for long variable names, and instead do `X renew(...)`.
-* `;;renew(...): hm[uh]` for any `i(...): hm[ok: me, uh]` construct or error class functions
+    which may be painful for long type names `x`, and instead do `X renew(...)`.
+* `;;renew(...): hm[uh]` for any `i(...): hm[ok: me, uh]` construct-or-error class functions
     This allows any writable variable to reset without doing `X = x(...) assert()`,
-    which may be painful for long variable names, and instead do `X renew(...) assert()`.
+    which may be painful for long type names `x`, and instead do `X renew(...) assert()`.
 
 ## singletons
 
@@ -4586,7 +4586,6 @@ Result is((Ok) := print("Ok: ", Ok))
 Result is((Uh) := print("Uh: ", Uh))
 
 # or if you're sure it's that thing, or want the program to terminate if not:
-# TODO: do we want to make the api `Ok := Result assert("for sure", OrPanic)` using an `OrPanic` guard?
 Ok := Result orPanic("for sure")
 ```
 
