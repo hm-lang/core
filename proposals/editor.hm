@@ -1,10 +1,27 @@
 lineId := dll[line] id
 
 editor := {
+    FilePath;
     Lines; dll[line]
     TopLine; lineId
     CurrentLine; lineId
     Cursor;
+
+    ;;renew(FilePath) := I load(FilePath)
+
+    ;;load(FilePath): hm[fileReader uh]
+        My Lines renew()
+        FileReader ;= FilePath reader() assert()
+        LineId?;
+        for String: in FileReader
+            LineId = My Lines insert(After?: LineId, String)
+        My FilePath = FilePath
+    
+    ;;save(FilePath): hm[fileWriter uh]
+        FileWriter ;= FilePath writer() assert()
+        for Line: in My Lines
+            FileWriter print(Line String)
+        My FilePath = FilePath
 
     # TODO: goDown, goUp
 
@@ -33,10 +50,11 @@ editor := {
 # Represents a single line in a file.
 # This can be rendered over multiple rows in the terminal.
 line := {
-    String
     RowOffsets[]; count
 
     ::rowCount() := My RowOffsets count()
+
+    ;;renew(My String;) := Null
 
     # Returns true if the line was fully drawn,
     # or false if part/all of it was missing.
