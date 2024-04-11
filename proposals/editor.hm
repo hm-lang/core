@@ -54,6 +54,7 @@ line := {
 
     ::rowCount() := My RowOffsets count()
 
+    # TODO: need to split apart string into syntax pieces.
     ;;renew(My String;) := Null
 
     # Returns true if the line was fully drawn,
@@ -62,4 +63,13 @@ line := {
     # and will update the rectangle's top to the bottom
     # of the last row that this line rendered to.
     ;;draw(Window;, Rectangle;, Cursor): bool
+        ByteOffset; count
+        while ByteOffset < My String byteCount()
+            if Rectangle height() <= 0
+                return false
+            PreviousByteOffset := ByteOffset
+            My RowOffsets append(PreviousByteOffset)
+            # TODO: need to render FG/BG colors, etc.
+            Window draw(My String, ByteOffset;, Rectangle;, Cursor)
+        True
 }
