@@ -2828,19 +2828,19 @@ means that the return type is nullable.  The possible combinations are therefore
 * `nullableFunction?(...Args): returnType` is a nullable function,
   which, if non-null, will return a non-null `returnType` instance.
   Conversely, if `nullableFunction` is null, trying to call it will return null.
-  You can also declare this as `nullableFunction?: returnType(...Args)`.
+  You can also declare this as `nullableFunction?: returnType(...Args)`
+  or `nullableFunction: returnType(...Args)?`.
 
 * `nullableReturnFunction(...Args)?: returnType` is a non-null function
-  which can return a nullable instance of `returnType`.  You can declare
-  this as `nullableReturnFunction: oneOf(returnType, null)(...Args)` as well.
-  TODO: is `returnType?(...Args)` ok as well?
+  which can return a nullable instance of `returnType`.  You can also
+  declare this as `nullableReturnFunction: returnType?(...Args)`.
 
 * `superNullFunction?(...Args)?: returnType` is a nullable function
   which can return a null `returnType` instance, even if the function is non-null.
   I.e., if `superNullFunction` is null, trying to call it will return null,
   but even if it's not null `superNullFunction` can still return null.
-  You can also declare this as `superNullFunction?: oneOf(returnType, null)(...Args)`.
-  TODO: is `returnType?(...Args)` ok as well?
+  You can also declare this as `superNullFunction?: returnType?(...Args)`
+  or `superNullFunction: returnType?(...Args)?`.
 
 Some examples:
 
@@ -2887,12 +2887,9 @@ Child optionalMethod(5.4)   # returns 5
 # if the instance is passed into a function which takes a parent class,
 # that function scope can reassign the method to Null (since the parent
 # class has no restrictions).
-# TODO: `Child::optionalMethod = Null` looks wrong (no modifying a :: variable) but it should be right
-#       (we only want to modify the ::optionalMethod overload, not an ;;optionalMethod overload).
-#       we probably need to specify the whole function overload here.
+# TODO: we probably need to specify the whole function overload here.
 Child optionalMethod = Null
-# TODO: does this work? but might look like trying to do a `?; int` function.
-Child optionalMethod?(Me, Z: dbl); int = Null
+# TODO: but this looks like defining the function to return Null.
 Child::optionalMethod?(Z: dbl); int = Null      # should be the same
 # TODO: maybe need to erase it.
 erase(Child, optionalMethod?(Me, Z: dbl); int)
@@ -3183,10 +3180,6 @@ exampleClass := {
     ;;addSomething(Int): null
         My X += Int
 
-    # TODO: make `;` virtual functions.
-    # TODO: either use `:;myMethod(); null` for virtual methods or don not allow redefinable methods.
-    # TODO: should we distinguish between virtual (overridable) and non-virtual (non-overridable)
-    #       methods?  if so, we can use `myFn();` for virtual and `myFn():` for non-virtual.
     # this reassignable method is defined on a per-instance basis. changing it on one class instance
     # will be isolated from any changes on another class instance.
     ::reassignableMethod(Int); string
@@ -3821,8 +3814,8 @@ You can also have virtual generic methods on generic classes, which is not allow
 generic[of] := {
     Value; of
 
-    # virtual on account of declaration with `;`:
-    ::method(~U); u
+    # not a `@final` method, so this can be extended/overridden:
+    ::method(~U): u
         OtherOf: Of = My Value * (U + 5)
         U + u(OtherOf) orPanic()
 }
