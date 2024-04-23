@@ -567,9 +567,9 @@ Other types which have a fixed amount of memory:
 * `uXYZ` : unsigned integer which can hold values from 0 to `2^XYZ - 1`, inclusive,
     where `XYZ` is 128 to 512 in steps of 64, and generically we can use
     `unsigned[Bits: count] := what Bits $(8 $(u8), 16 $(u16), 32 $(u32), ...)`
-* `count` : `i64` under the hood, intended to be >= 0 to indicate the amount of something.
-* `index` : signed integer, `i64` under the hood.  for indexing arrays starting at 0.
-* `ordinal` : signed integer, `i64` under the hood.  for indexing arrays starting at 1.
+* `count` : `s64` under the hood, intended to be >= 0 to indicate the amount of something.
+* `index` : signed integer, `s64` under the hood.  for indexing arrays starting at 0.
+* `ordinal` : signed integer, `s64` under the hood.  for indexing arrays starting at 1.
 
 and similarly for `i8` to `i512`, using two's complement.  For example,
 `i8` runs from -128 to 127, inclusive, and `u8(i8(-1))` equals `255`.
@@ -759,7 +759,7 @@ same for `A + B` and `A - B`.  `A // B` is safe.  instead of making hm-lang alwa
 we should probably switch to `multiply(~First A, Second A): hm[ok: a, NumberConversion uh]` and then have
 `A1 * A2` always give an `a` result by panicking if we run out of memory.  i.e.,
 ```
-int Me * (You): me
+int::*(You): me
     Result := multiply(Me, You)
     Result orPanic()
 ```
@@ -1246,6 +1246,9 @@ symbol, `?`, placed after the variable name.  E.g., `X?: int` declares a variabl
 can be an integer or null.  The default value for an optional type is `Null`.
 TODO: if `Array[]: int` can be typed as `Array: int[]`, then we can probably use
 `X: int?` for an `X?: int` type.
+TODO: do we want to rename `null` to `absent`?  essentially we want the feature for
+function calls, e.g., `fn(X?: int): q`
+and container types, e.g.,`
 
 For an optional type with more than one non-null type, we use `Y?: oneOf(someType, anotherType)`
 or equivalently, `Y: oneOf(someType, anotherType, null)` (where `null` comes last).
@@ -1337,11 +1340,11 @@ truthyOr(First ~A?., Second A.): a
             if NonNull A
                 NonNull A
             else
-                Other A
-        Null $(Other A)
+                Second A
+        Null $(Second A)
         # TODO: is there a better, rust-like syntax like??
         # NonNull A: if NonNull A $(NonNull A)
-        # _ $(Other A)
+        # Any $(Second A)
 ```
 
 
@@ -4850,6 +4853,13 @@ ci[of] := {
 #       probably `Ci[int];` is ok, but this also looks like a set definition.
 #       do we disallow set/array/store definitions like `MyX[]: int` or `MyZ[str]: dbl`
 #       in order to support `Co[int];` more easily?
+#       we probably can interpret any `UpperSnakeCase` variables of `lowerCamelCase` types
+#       as instances of those types.  so `Xyz[int]:`
+#       would first lookup `xyz` and see if it was generic,
+#       and if so, use `Xyz: xyz[int]`, but if not, then
+#       use `Xyz: [int]` (a set of ints).
+#       would this be confusing for `Array[int]:` vs.
+#       `AlsoAnArray[]: int`?
 countdown := extend(co[int]) {
     ;;renew(My Int.) := Co renew((Ci; ci[int]):
         while My Int > 0
