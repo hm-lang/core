@@ -142,6 +142,14 @@ we simply always `extend` the class.
     * `Store[id]: value` to declare a store (i.e., map/dict), or `Store: value[id]`
     * `Set[element]:` or `Set: [element]` to declare a set with `element` type instances as elements
     * `Array[]: element` or `Array: element[]` to declare an array with `element` type instances as elements
+    * TODO: do we want to remove support for `Array: element[]`, `Set: [element]`, and `Store: value[id]`,
+        requiring the use of the inline way?  if so, then we'll need to support returning arrays from
+        functions like `getArray(Args...)[]: arrayElement` which isn't pretty.
+    * TODO: do we want to remove support for fast container declarations and require explicit
+        `MyArray: array[element]`, `MyDictionary: store[id: int, value: string]`, `SeenValues: set[int]`?
+        this would make it easier to parse `MyArgument[types...]` as `MyArgument: myArgument[types...]`
+        but i think that's clear enough if `myArgument` is a known, in-scope type, but it might
+        help prevent confusion.  ultimately we should see if they represent similar concepts under the hood.
     * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
     * For generic/template classes, e.g., classes like `array[Count, of]` for a fixed array of size
         `Count` with elements of type `of`, or `store[id: str, value: int]` to create a map/dictionary
@@ -1551,6 +1559,9 @@ in an object type.  When instantiated, argument objects with `;` and `:` fields
 contain references to variables; objects get their own copies.  For convenience,
 we'll use *arguments type* for an argument object type and *arguments instance* for
 an argument object instance.
+
+TODO: do `[]` need to be argument objects as well for the intent of calling
+container methods like `Store[5, (Value;) := ++Value]`?
 
 Because they contain references, arguments instances cannot outlive the lifetime
 of the variables they contain.
@@ -4897,16 +4908,10 @@ functions' signatures to return futures.  Instead, functions return the
 value that they will receive after any futures are completed (and we recommend
 a timeout `uh` being present for a result error).  If the caller wants to
 treat the function as a future, i.e., to run many such futures in parallel,
-then they ask for it as a future using `Um` before the function name, which
+then they ask for it as a future using `@um` before the function name, which
 returns the `um[of]` type, where `of` is the normal function's return type.
-You can also type the variable explicitly as `um[of]` and then void using `Um`
-before the function name.  Note there could be an issue with the default name
-for an `um[of]` type, but we can resolve that by always using namespaces if
-we want a default-name `um`, e.g., `MyNamespace Um: um[of]` for a default-named
-future variable.
-TODO: maybe use a different variable here, like `Ff` for "future factory",
-e.g., for `Ff someVeryLongRunningFunction(...)`.  then if people want to
-switch out the future implementation or instantiate their own factories, they can.
+You can also type the variable explicitly as `um[of]` and then void using `@um`
+before the function name.
 
 ```
 someVeryLongRunningFunction(Int): string
@@ -4924,7 +4929,7 @@ print("the result is $(MyName) many seconds later")
 # this does it as a future
 print("starting a future, won't make progress unless polled")
 # `Future` here has the type `um[string]`:
-Future := Um someVeryLongRunningFunction(10)
+Future := @um someVeryLongRunningFunction(10)
 # Also ok: `Future: um[string] = someVeryLongRunningFunction(10)`
 print("this `print` executes right away")
 Result: string = Future
@@ -4943,7 +4948,7 @@ after(Seconds: int, Return: string): string
     Return
 
 FuturesArray[]: um[string]
-# no need to use `Um after(...)` here since `FuturesArray`
+# no need to use `@um after(...)` here since `FuturesArray`
 # elements are already typed as `um[string]`:
 FuturesArray append(after(Seconds: 2, Return: "hello"))
 FuturesArray append(after(Seconds: 1, Return: "world"))
@@ -4951,8 +4956,8 @@ ResultsArray := decide(FuturesArray)
 print(ResultsArray) # prints `["hello", "world"]`
 
 # here we use sequence building to ensure we're creating futures,
-# i.e., `Um {A, B}` has type `{um[a], um[b]}` and executes `A`/`B` asynchronously.
-FuturesObject := Um {
+# i.e., `@um {A, B}` has type `{A: um[a], B: um[b]}` and executes `A`/`B` asynchronously.
+FuturesObject := @um {
     Greeting: after(Seconds: 2, Return: "hello")
     Noun: after(Seconds: 1, Return: "world")
 }
@@ -5227,6 +5232,10 @@ to avoid overloading the term `map` which is used when transforming values such 
 because `map`, `key`, and `value` have little to do with each other; we don't "unlock" anything
 with a C++ `map`'s key: we look up a value.
 
+TODO: we could rename `store` to `lookup`, e.g., `Lookup[5]` sounds good but
+`Lookup[5] = 3` doesn't make a lot of sense.  maybe `keep` for `Keep[5] = 3`
+or something else?
+
 A store can look up, insert, and delete elements by key quickly (ideally amortized
 at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a store, e.g.,
 `VariableName: store[id: idType, value: valueType]`, or you can use an implicit method
@@ -5319,7 +5328,8 @@ Some relevant pieces of the class definition:
 ```
 uh := oneOf(
     OutOfMemory
-    # TODO: etc...
+    MissingId
+    # etc...
 )
 hm[of] := hm[ok: of, uh]
 
@@ -5329,7 +5339,7 @@ store[id: hashable, value: nonNull] := extend(container[id, value]) {
 
     # Gets the existing value at `Id` if present,
     # otherwise inserts a default `value` into the store and returns it.
-    ;;[Id]: hm value
+    ;;[Id]: hm[value]
 
     # Ejects the possibly null value at `Id` and returns it.
     # A subsequent, immediate call to `::[Id]` returns Null.
@@ -5347,9 +5357,8 @@ store[id: hashable, value: nonNull] := extend(container[id, value]) {
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at ID, too.
-    ;;[Id]: hm value
+    ;;[Id]: hm[value]
 
-    # TODO: a lot of these methods need to return `hm[of]`.
     # no-copy getter: which will create a default value instance if it's not present at Id.
     ;;[Id, fn(Value): ~t]: t
 
@@ -5374,14 +5383,14 @@ store[id: hashable, value: nonNull] := extend(container[id, value]) {
     # the ID will be deleted from the store.  conversely, if the value was Null, but
     # the passed-in function turns it into something non-null, the ID/value will be added
     # to the store.
-    ;;[Id, fn(Value?;): ~t]: t
+    ;;[Id, fn(Value?;): ~t]: hm[ok: t, uh: OutOfMemory]
 
     # getter and modifier in one definition, with the `;:` "template mutability" operator:
     # will return an error for the const store (`My:`) if Id is not in the store.
-    ;:[Id, fn(Value;:): ~t]: hm t
+    ;:[Id, fn(Value;:): ~t]: hm[t]
 
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
-    ;:[Id, fn(Value?;:): ~t]: t
+    ;:[Id, fn(Value?;:): ~t]: hm[ok: t, uh: OutOfMemory]
 }
 ```
 
@@ -5477,9 +5486,6 @@ insertionOrderedStore[id, value] := extend(store) {
 
 ## sets
 
-TODO: if we rename map -> store, should we rename set -> bag or something else?  set is usually overloaded
-with setting something, although that's mostly obviated by the `x(New X: int)` syntax.
-
 A set contains some elements, and makes checking for the existence of an element within
 fast, i.e., O(1).  Like with store IDs, the set's element type must satisfy certain properties
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set elementType`
@@ -5487,19 +5493,26 @@ to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [el
 The default-named variable name for a set of any type is `Set`.
 
 ```
+uh := oneOf(
+    OutOfMemory
+    # etc...
+)
+hm[of] := hm[ok: of, uh]
+
 set[of: hashable] := extend(container[id: of, value: true]) {
     # Returns `True` iff `Of` is in the set, otherwise Null.
     # NOTE: the `true` type is only satisfied by the instance `True`;
-    # this is not a boolean return value.
+    # this is not a boolean return value but can easily be converted to boolean.
     ::[Of]?: true
 
     # Adds `Of` to the set and returns `True` if
     # `Of` was already in the set, otherwise `Null`.
-    ;;[Of]?: true 
+    # this can be an error in case of running out of memory.
+    ;;[Of]: hm[true?]
 
     # Ejects `Of` if it was present in the set, returning `True` if true
     # and `Null` if not.
-    # A subsequent, immediate call to `::[Of]` returns Null.
+    # A subsequent, immediate call to `::[Of]?` returns Null.
     ;;[Of]!?: true 
 
     # Modifier for whether `Of` is in the set or not.
@@ -5520,15 +5533,16 @@ set[of: hashable] := extend(container[id: of, value: true]) {
     # TODO: generalize with iterator or container:
     # Unions this set with another set, returning True if all the elements
     # in the other set were already in this set, otherwise False.
-    ;;[Other Me]: bool
+    # can error if running out of memory.
+    ;;[You]: hm[bool]
 
     # Removes the last element added to the set if this set is
     # insertion ordered, otherwise any convenient element.
-    # Throws if there is no element available.
-    ;;pop(): of
+    # Returns an error if there is no element available.
+    ;;pop(): hm[of]
 
-    @alias ;;pop(Id) ?:= ;;[Id]!
-    @alias ;;remove(Id) ?:= ;;[Id]!
+    @alias ;;pop(Of) ?:= ;;[Of]!
+    @alias ;;remove(Of) ?:= ;;[Of]!
     ...
 }
 ```
