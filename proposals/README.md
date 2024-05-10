@@ -77,6 +77,8 @@ an instance of `int`.  See [default-named arguments](#default-name-arguments-in-
 This is also true if namespaces are used, e.g., `myFunction(Named Int): str`.  We can also
 avoid the readonly declaration (`:`) since it is the default, but you can use
 `myFunction(Int;): str` for a function which can mutate the passed-in integer.
+This also works for generic classes like `myGeneric[of]` where `of` is a template type;
+`myFunction(MyGeneric[int];)` is short for `myFunction(MyGeneric; myGeneric[int])`.
 
 Class methods technically take an argument for `Me/My/I` everywhere, but instead of
 writing `myMethod(Me, X: int): str`, we can write `::myMethod(X: int): str`.
@@ -154,7 +156,10 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * `Array[]: element` or `Array: element[]` to declare an array with `element` type instances as elements
     * TODO: do we want to remove support for `Array: element[]`, `Set: [element]`, and `Store: value[id]`,
         requiring the use of the inline way?  if so, then we'll need to support returning arrays from
-        functions like `getArray(Args...)[]: arrayElement` which isn't pretty.
+        functions like `getArray(Args...)[]: arrayElement` which isn't pretty.  i guess you could do
+        `getArray(Args...): array[arrayElement]` which isn't awful but is less concise compared to
+        `getArray(Args...): arrayElement[]`.  i'm leaning towards this, however, due to the confusion
+        it might entail with `getArray(MyGeneric[int];)` looking like a short-cut for `set`.
     * TODO: do we want to remove support for fast container declarations and require explicit
         `MyArray: array[element]`, `MyDictionary: store[id: int, value: string]`, `SeenValues: set[int]`?
         this would make it easier to parse `MyArgument[types...]` as `MyArgument: myArgument[types...]`
@@ -1663,12 +1668,16 @@ f(Int: 7)   # ok but overly verbose
 ```
 
 If passing functions as an argument where the function name doesn't matter,
-the default-named argument for a function is `fn`.  When *declaring* a function
-with a function argument, the default name must be used (`fn`); when *defining*
-a lambda function for use inside a function, the default name can be omitted.
+the default-named argument for a function is `fn`.  When *defining* a function
+with a function argument, the default name must be used (`fn`); when declaring
+the function, or when creating a lambda function for use inside the function,
+the default name can be omitted.
 
 ```
-# default name `fn` must be used when declaring the function `q`,
+# declaring a function doesn't require the default name:
+q((): bool): null
+
+# when defining the function, the default name `fn` must be used,
 # so that it can be used inside the function block.
 q(fn(): bool): null
     if fn()
@@ -1708,6 +1717,8 @@ q(():
 MyVariable; value       # with or without `value`
     myInitialization + OfMyVariable
 ```
+
+TODO: discussion on generics like `myGeneric[of]` working like `myFunction(MyGeneric[string];)`.
 
 ### the name of a called function in an argument object
 
@@ -4590,7 +4601,7 @@ hm[ok, uh] := extend(oneOf(ok, uh)) {
 
     # TODO: should we use `to` here or is there a better way to indicate casting?
     # it's technically something like `oneOf(ok, null)(Result: hm[ok, uh]): oneOf(ok, null)`
-    # which is pretty verbose.
+    # which is pretty verbose.  could use `(Me.): oneOf(ok, null)` for implicit conversion
     ..to(): oneOf(ok, null)
 }
 
@@ -4724,7 +4735,8 @@ statements of course elide the expression as `else Then:` or `else Whatever: the
 Note that we use a `:` here because we're declaring an instance of `then`; if we don't use
 `then` logic we don't use `:` for conditionals.  Also note that `then` is a thin wrapper
 around the `block` class (i.e., a reference that removes the `::loop()` method that
-doesn't make sense for a `then`).
+doesn't make sense for a `then`).  If you want to just give the type without renaming,
+you can do `if Whatever, Then[myIfBlockType]:`, etc.
 
 ```
 if SomeCondition, Then:
@@ -4840,13 +4852,15 @@ from fewer primitives?  E.g., `while Condition, Do: $(... Do exit(3) ...)`, wher
 
 ## coroutines
 
+TODO: move this below containers
+
 Coroutines use an outer `co[of]` class with an inner `ci[of]` class.  (`i` for inner and
 `o` for outer.)  The outer class has methods to grab the next value from the inner
 coroutine.
 
 ```
 co[of] := {
-    ;;renew(My fn(Ci: ci[of]): never): null
+    ;;renew(My fn(Ci[of]): never): null
 
     ;;take(): oneOf(Cease, Value: of)
 
@@ -4870,19 +4884,8 @@ ci[of] := {
 ```
 
 ```
-# TODO: find a good way to do `Ci; ci[int]` more concisely if possible.
-#       probably `Ci[int];` is ok, but this also looks like a set definition.
-#       do we disallow set/array/store definitions like `MyX[]: int` or `MyZ[str]: dbl`
-#       in order to support `Co[int];` more easily?
-#       we probably can interpret any `UpperSnakeCase` variables of `lowerCamelCase` types
-#       as instances of those types.  so `Xyz[int]:`
-#       would first lookup `xyz` and see if it was generic,
-#       and if so, use `Xyz: xyz[int]`, but if not, then
-#       use `Xyz: [int]` (a set of ints).
-#       would this be confusing for `Array[int]:` vs.
-#       `AlsoAnArray[]: int`?
 countdown := extend(co[int]) {
-    ;;renew(My Int.) := Co renew((Ci; ci[int]):
+    ;;renew(My Int.) := Co renew((Ci[int];):
         while My Int > 0
             Ci give(--My Int)
         Ci exit()
@@ -4991,15 +4994,17 @@ Container uh := oneOf(
 
 hm[of] := hm[ok: of, Container uh]
 
-# TODO: should we rename `id` to `name` or `lookup`?
+# TODO: should we rename `id` to `name` or `lookup` or `at`?
 container[id, value: nonNull] := {
     # Returns `Null` if `Id` is not in this container,
     # otherwise the `value` instance at that `Id`.
-    # TODO: return argument object or copy here?
-    #       i think i prefer getters/copiers rather than argument-object logic
-    #       but we should test what it's like to make our own argument-object class.
-    #       also should test what it should look like to make a copy, etc.
-    #       but this also makes explicit that passing in `X: Array[5]` would be a reference.
+    # This is wrapped in an argument object to enable passing by reference.
+    # TODO: do we like this?  it looks a bit like SFO logic that we killed off.
+    # USAGE:
+    #   # Get the value at `Id: 5` and make a copy of it:
+    #   Value ?:= Container[Id: 5]
+    #   # Get the value at `Id: 7` and keep a mutable reference to it:
+    #   (Value?;) = Container[Id
     :;[Id]: (Value?:;)
 
     # no-copy getter, which passes in a Null to the callback
@@ -5015,7 +5020,13 @@ container[id, value: nonNull] := {
 
     # safe setter.
     # returns an error if we ran out of memory trying to add the new value.
-    ;;at(Id, Put. value): hm[null]
+    ;;put(Id, Value.): hm[null]
+
+    # safe swapper.  replaces the value at `Id` with the `Value` passed in,
+    # and puts the previous value into `Value`.  the new or old value can
+    # be null which means to delete what was there or that nothing was present.
+    # returns an error if we ran out of memory trying to add the new value.
+    ;;swap(Id, Value?;): hm[null]
     
     @alias ::has(Id) := My[Id] != Null
     @alias ::contains(Id) := My[Id] != Null
@@ -5033,6 +5044,7 @@ container[id, value: nonNull] := {
 
     # iterate over IDs.
     ::ids(): (Iterator[(Id)].)
+
 }
 ```
 
@@ -5107,7 +5119,7 @@ array[of] := extend(container[id: index, value: nonNull(of)]) {
     # otherwise increases the size of the array with default values and returns the
     # one at `Index`.  This has a possibility of panicking because it requires an increase
     # in memory; if that's important to check, use `;;at(Index): hm[of]`.
-    ;;[Index]: of
+    ;:[Index]: (Of;:)
 
     # Gets the existing value at `Index` or creates a default if needed.
     # Can return an error if we run out of memory because this method can
