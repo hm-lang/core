@@ -113,6 +113,16 @@ The equivalent of an interface in hm-lang is simply an abstract class.  This way
 we don't need two different keywords to `extend` or `implement` a class or interface,
 we simply always `extend` the class.
 
+## safety
+
+hm-lang supports "safe" versions of functions where it's possible that we'd run out of
+memory or otherwise throw.  By default, `Array[100] = 123` will increase the size
+of the array if necessary, and this could potentially throw in a memory-constrained
+environment (or if the index was large).  If you need to check for these situations,
+there is a safe API, e.g., `Result := Array at(100, Put: 123)` and `Result` can then
+be checked for `isUh()`, etc.  For convenience for cases where you don't care about
+memory, these safe functions are a bit more verbose than the unchecked functions.
+
 
 # general syntax
 
@@ -4973,22 +4983,28 @@ are futures before returning.
 # standard container classes (and helpers)
 
 ```
-container[id, value] := {
-    # Returns `Null` if `Id` is not in this container,
-    # otherwise the `value` instance at that `Id`.
-    # NOTE: the value will be readonly since `Me` is readonly.
-    # NOTE: this is a reference to the value in the container,
-    # which will be copied unless it's being passed into a
-    # function's arguments.
-    ::[Id]?: value
+# TODO: should this be `container uh` instead of `Container uh`?
+Container uh := oneOf(
+    OutOfMemory
+    # etc.
+)
 
+hm[of] := hm[ok: of, Container uh]
+
+# TODO: should we rename `id` to `name` or `lookup`?
+container[id, value: nonNull] := {
     # Returns `Null` if `Id` is not in this container,
     # otherwise the `value` instance at that `Id`.
-    # In contrast with the `::[Id]?: value` method, this
-    # returns a *writable* reference to the value.
-    # If in reference form, you can set this to `Null`
-    # to delete the element from the container.
-    ;;[Id]?: value
+    # TODO: return argument object or copy here?
+    #       i think i prefer getters/copiers rather than argument-object logic
+    #       but we should test what it's like to make our own argument-object class.
+    #       also should test what it should look like to make a copy, etc.
+    #       but this also makes explicit that passing in `X: Array[5]` would be a reference.
+    :;[Id]: (Value?:;)
+
+    # no-copy getter, which passes in a Null to the callback
+    # if the container does not have the given `Id`.
+    ::[Id, fn(Value?): ~t]: t
 
     # Returns the value at `Id`, if present, while mooting
     # it in the container.  This may remove the `id` from
@@ -4997,33 +5013,34 @@ container[id, value] := {
     # Returns Null if not present.
     ;;[Id]!?: value
 
-    # Gets the existing value at `Id` if present,
-    # otherwise inserts a default value at `Id`,
-    # and returns a writable reference to it.
-    # WARNING: the container may add more than one default value,
-    # e.g., in the case of asking for an element at an array
-    # index much higher than the current size of the array.
-    ;;[Id]: value
+    # safe setter.
+    # returns an error if we ran out of memory trying to add the new value.
+    ;;at(Id, Put. value): hm[null]
     
     @alias ::has(Id) := My[Id] != Null
     @alias ::contains(Id) := My[Id] != Null
 
     # Returns the number of elements in this container.
     ::count(): count
+
+    # can implicitly convert to an iterator (with writeable/readonly references).
+    # the iterator needs to be returned in an argument object
+    # because it holds a reference to `Me`.
+    (Me;:): (Iterator[(Id, Value;:)].)
+
+    # iterate over values.
+    ;:values(): (Iterator[(Value;:)].)
+
+    # iterate over IDs.
+    ::ids(): (Iterator[(Id)].)
 }
 ```
 
-TODO: discussion on how it's not allowed to have a nullable element in containers, e.g., `store[id: string, value: oneOf(int, null)]`.
-Probably should do `store[NonNull id, NonNull value]` or similar.
-This is because `Store[X] = Null` should delete the ID specified by `X` from the store.  Plus, we already have handling for
-nullable values from the store, if we ask for the element at a ID and it's not present in the store.  Similarly for arrays;
-`Array[3] = Null` should delete the fourth item in the array (although you could argue that we'd maybe like to keep other
-elements from moving down).  If the elements should represent optional things, then
-we should use the `optional` type.
-
-TODO: clean up usage of "optional" when we really mean "nullable", so that we can distinguish between the two.
-Or figure out a way to not distinguish between optional and nullable (e.g., allow null in Store or Array??).
-Ideally we can think of nullable types as optional.
+TODO: discuss the expected behavior of what happens if you delete an element
+out of a container when iterating over it (not using the iterator itself, if
+it supports delete).  for the default implementation, iterators will only
+hold an index to an element in the container, and if that index no longer
+indexes an element, we can stop iteration.
 
 ## arrays
 
@@ -5070,41 +5087,49 @@ Array uh := oneOf(
 hm[of] := hm[ok: of, Array uh]
 
 # some relevant pieces of the class definition
-# Note that `container[id, value]` must have a non-null `value` type, so
-# declaring `array[of: nonNull]` is redundant; you could just use `array[of]`.
-array[of: nonNull] := extend(container[id: index, value: of]) {
+# Note that `container[id, value]` must have a non-null `value` type,
+# but `array` can have nullable entries if desired, so convert to `nonNull`
+# if necessary to extend `container`.
+# TODO: check notation: `nonNull(~t) := if nullable(t) $(unNull(t)) else t`
+array[of] := extend(container[id: index, value: nonNull(of)]) {
     # TODO: a lot of these methods need to return `hm[of]`.
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(Me): bool
         return My count() > 0
 
     # Returns the value in the array if `Index < My count()`, otherwise Null.
-    # TODO: discuss if Index < 0, do we take from end of the array?
-    #       or do we want a new type, e.g., `fromEnd(-1)`
+    # If `Index < 0`, take from the end of the array, e.g., `Array[-1]` is the last element
+    # and `Array[-2]` is the second-to-last element.  If `Index < -Array count()` then
+    # we will also return Null.
     ::[Index]?: of
 
-    # TODO: ref type?  or can we assume it's a ref type because it's a container (e.g., `[]`)
     # Gets the existing value at `Index` if the array count is larger than `Index`,
     # otherwise increases the size of the array with default values and returns the
-    # one at `Index`.
+    # one at `Index`.  This has a possibility of panicking because it requires an increase
+    # in memory; if that's important to check, use `;;at(Index): hm[of]`.
     ;;[Index]: of
 
+    # Gets the existing value at `Index` or creates a default if needed.
+    # Can return an error if we run out of memory because this method can
+    # expand the array if `Index >= ::count()`.
+    ;;at(Index, Put. of): hm[of]
+
     # Returns the value at Array[Index] while resetting it to the default value.
-    # The reason we don't eject the element like we do with a store or a set is that
-    # we need to preserve the invariant that `Array[Index]!` followed by `!Array::[Index]`
-    # should be true, and we don't want to depend on the next element in the array for
-    # the follow-up condition, i.e., if we remove the value and pull every later value down.
+    # We don't bring down subsequent values, e.g., `Index+1` to `Index`, (1) for
+    # performance, and (2) we need to preserve the invariant that `Array[Index]!`
+    # followed by `!Array::[Index]` should be true, which would be impossible
+    # to guarantee if we shifted all subsequent elements down.
     ;;[Index]!: of
 
     ::count(): count
 
     ;;append(Of): null
 
-    ;;pop(Index: index = -1): of
+    # returns an error if no element at that index (e.g., array isn't big enough).
+    ;;pop(Index: index = -1): hm[of]
 
     # returns a copy of this array, but sorted.
-    # uses `you` instead of `me` mostly to indicate that `me` doesn't change,
-    # but that is optional.
+    # uses `you` instead of `me` to indicate that `me` doesn't change.
     ::sort(): you
 
     # sorts this array in place:
@@ -5117,6 +5142,8 @@ array[of: nonNull] := extend(container[id: index, value: of]) {
     # USAGE: `Of ?; = of(...), My[Index] <-> Of`
     # TODO: is there better notation here?, e.g., `;;[Index] <-> (Of?;): null` or something with `swap`?
     ;;[Index, Of?;]: null
+
+    # TODO: use `[]` for the unsafe API, `all()` or `put()` for the safe API (returning a `hm`)
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the index into the passed-in function by reference (`;`).
@@ -5505,6 +5532,8 @@ set[of: hashable] := extend(container[id: of, value: true]) {
     # this is not a boolean return value but can easily be converted to boolean.
     ::[Of]?: true
 
+    # TODO: use `[]` for the unsafe API, `all()` or `put()` for the safe API (returning a `hm`)
+
     # Adds `Of` to the set and returns `True` if
     # `Of` was already in the set, otherwise `Null`.
     # this can be an error in case of running out of memory.
@@ -5530,18 +5559,23 @@ set[of: hashable] := extend(container[id: of, value: true]) {
 
     ::count(): count
 
-    # TODO: generalize with iterator or container:
-    # Unions this set with another set, returning True if all the elements
-    # in the other set were already in this set, otherwise False.
+    # Unions this set with values from an iterator, returning True if
+    # all the values from the iterator were already in this set, otherwise False.
     # can error if running out of memory.
-    ;;[You]: hm[bool]
+    ;;all(Iterator[of].): hm[bool]
+
+    # can convert to an iterator.
+    (Me): (Iterator[(Of)].)
+
+    @hide ;:values(): (Iterator[(True;:)])
+    @hide ;:ids(): (Iterator[(Of)])
 
     # Removes the last element added to the set if this set is
     # insertion ordered, otherwise any convenient element.
     # Returns an error if there is no element available.
     ;;pop(): hm[of]
+    ;;pop(Of) ?:= ;;[Of]!
 
-    @alias ;;pop(Of) ?:= ;;[Of]!
     @alias ;;remove(Of) ?:= ;;[Of]!
     ...
 }
@@ -5961,6 +5995,9 @@ and other containers of precise types, as well as recursive containers thereof.
 ```
 # TODO: there should maybe be a way to avoid using `extend(...)` for all interfaces.
 #       maybe we can do `@override ::hash(~Builder): null` for common interfaces
+# TODO: maybe something like `myHashableClass := { ... }, assert(hashable(myHashableClass))`.
+#       even better, maybe the callers should be responsible for checking if a class is
+#       hashable (or whatever).
 myHashableClass := extend(hashable) {
     Id: u64
     Name; string
