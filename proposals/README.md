@@ -154,17 +154,6 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * `Store[id]: value` to declare a store (i.e., map/dict), or `Store: value[id]`
     * `Set[element]:` or `Set: [element]` to declare a set with `element` type instances as elements
     * `Array[]: element` or `Array: element[]` to declare an array with `element` type instances as elements
-    * TODO: do we want to remove support for `Array: element[]`, `Set: [element]`, and `Store: value[id]`,
-        requiring the use of the inline way?  if so, then we'll need to support returning arrays from
-        functions like `getArray(Args...)[]: arrayElement` which isn't pretty.  i guess you could do
-        `getArray(Args...): array[arrayElement]` which isn't awful but is less concise compared to
-        `getArray(Args...): arrayElement[]`.  i'm leaning towards this, however, due to the confusion
-        it might entail with `getArray(MyGeneric[int];)` looking like a short-cut for `set`.
-    * TODO: do we want to remove support for fast container declarations and require explicit
-        `MyArray: array[element]`, `MyDictionary: store[id: int, value: string]`, `SeenValues: set[int]`?
-        this would make it easier to parse `MyArgument[types...]` as `MyArgument: myArgument[types...]`
-        but i think that's clear enough if `myArgument` is a known, in-scope type, but it might
-        help prevent confusion.  ultimately we should see if they represent similar concepts under the hood.
     * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
     * For generic/template classes, e.g., classes like `array[Count, of]` for a fixed array of size
         `Count` with elements of type `of`, or `store[id: str, value: int]` to create a map/dictionary
@@ -1271,7 +1260,8 @@ TODO: if `Array[]: int` can be typed as `Array: int[]`, then we can probably use
 `X: int?` for an `X?: int` type.
 TODO: do we want to rename `null` to `absent`?  essentially we want the feature for
 function calls, e.g., `fn(X?: int): q`
-and container types, e.g.,`
+and container types, e.g., `{X?: possiblyNull(), Y: ...}` becomes `{Y: ...}` if `X` is null,
+or `Store[Id] = Null` to remove `Id` from the store.
 
 For an optional type with more than one non-null type, we use `Y?: oneOf(someType, anotherType)`
 or equivalently, `Y: oneOf(someType, anotherType, null)` (where `null` comes last).
@@ -3229,6 +3219,7 @@ exampleClass := {
     # TODO: i'm not super excited by this notation, since we'll use `parentClass someMethod()`
     #       inside child class overrides for non-static methods and this looks very similar
     #       (but is static).  should we use an annotation like @static or @class?
+    #       OR maybe we need to change to `ParentClass someMethod()` inside the child classes.
     # some examples of class functions (2):
     # this pure function does not require an instance, and cannot use instance variables:
     i someStaticFunction(Y; int): int
@@ -4022,24 +4013,30 @@ someClass[of] := childClass[of]
 someClass[t, u, v] := { ...some totally different class... }
 ```
 
-### tuples are not allowed
+### type tuples
 
-TODO: rethink this now that we don't allow specifying generics like `array int`.
+One can conceive of a tuple type like `[x, y, z]` for nested types `x`, `y`, `z`.
+Note that these are *not* order dependent, so `[z, x, y]` is the same tuple type,
+so they are grammatically equivalent to a `store` of types.  Using the spread
+operator, we can supply a tuple type to a generic class, e.g.,
 
-One might conceive of a tuple type like `[x, y, z]` for types `x`, `y`, `z`,
-but adding such a feature to hm-lang would make it hard to distinguish between
-passing in a single generic (e.g., for `myGeneric[of]`) versus passing in multiple
-generics (e.g., for `otherGenerics[x, y, z]`).  Would `tuple := [x, y, z]`
-with `otherGenerics tuple` trigger the single-generic or multi-generic resolution?
-We'd like to make it clear when single or multi-generics are being used, since you
-can make overloads for both.
+```
+tupleType := [x, y, z]
 
-The biggest argument for tuples is returning multiple values (with possibly different
-types) from a function, but this can be readily obtained using `{}` with the requisite
-fields, e.g., `{X, Y, Z}` for types `x`, `y`, and `z`.  Named fields also increase
-readability, so e.g. `{LikelyIndex: index, ExpectedCount: count}` can improve others'
-understanding of your code.  As such, tuples are unnecessary due to easily declared
-object types.
+# with some other definition `myGeneric[w, x, y, z] := {...}`:
+someSpecification := myGeneric[...tupleType, w: int]
+
+# you can even override one of your supplied tupleType values with your own.
+anotherSpec := myGeneric[...tupleType, w: str, x: overridingTupleTypeXWithThis]
+```
+
+When returning multiple values from a function, tuple types are the wrong approach.
+Use `{}` with the requisite fields, e.g., `{X, Y, Z}` for types `x`, `y`, and `z`.
+Named fields also increase readability, so e.g. `{LikelyIndex: index, ExpectedCount: count}`
+can improve others' understanding of your code.
+
+TODO: discussion on what it would mean to return a tuple type.  would this be
+a way to return class constructors?
 
 
 ### default field names with generics
@@ -4364,6 +4361,9 @@ print(Vector2)
 # you can also destructure imports like this:
 {vector2} := \/vector2
 ```
+
+TODO: discussion on how the formatter will move imports to the bottom
+of the file so you can see the main part of your code instantly.
 
 TODO: how to import functions, i.e., to distinguish from classes?
 e.g., is `{vector2} := \/vector2` a function or a class definition?
