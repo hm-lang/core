@@ -847,12 +847,8 @@ TODO: discussion on `~`
 Function calls are assumed whenever a function identifier (i.e., `lowerCamelCase`)
 occurs before a parenthetical expression.  E.g., `print(X)` where `X` is a variable name or other
 primitive constant (like `5`), or `anyFunctionName(Any + Expression / Here)`.
-In case a function returns another function, you must use the default function name `fn`
-to call the other function inline, e.g., `getFunction(X) fn(Y, Z)` will call the
-second function with `(Y, Z)` arguments, or define the function as a temporary,
-e.g., `theFunction := getFunction(X), theFunction(Y, Z)`.
-TODO: is this still necessary, or can we just do `getFunction(X)(Y, Z)`?  we don't have any
-overloads for `CapitalName(Z)` that i'm aware of.
+In case a function returns another function, you can also chain like this:
+`getFunction(X)(Y, Z)` to call the returned function with `(Y, Z)`.
 
 Note that methods defined on classes can be prefaced by member access (e.g., ` `, `::`, or `;;`),
 and that path will still be used for function specification, even though member access has
@@ -6410,8 +6406,7 @@ variables will be null if the `Tree` is not of that type, but they will also be
 a copy and any changes to the new variables will not be reflected in `Tree`.
 
 ```
-# TODO: not sure this notation is the best.
-#       this probably needs to be a macro.
+# TODO: probably should switch to `oneOf[...] := {...}`
 oneOf(..., ~t) := {
     # returns true if this `oneOf` is of type `T`, also allowing access
     # to the underlying value by passing it into the function.
@@ -6426,12 +6421,7 @@ oneOf(..., ~t) := {
     # TODO: it'd probably be good to have `block` wrapper type here, e.g.,
     #       `:;.is(Block[Declaring:;. t, exit: ~u]): bool`
     # where `Block[Declaring: ~a, ~exit]` looks like `Declaring: a $(block with exit type `exit`)`
-    # TODO: codify we can use `Then[u]` or `GenericClass[specification]` in situations like this,
-    #       where we don't want to redundantly add the type for a default-named argument.
-    #       i.e., `Then: then[u]` should be able to be `Then[u]`.
-    #       we might need to remove the `Array[]: int` syntax and use `Array: int[]` instead,
-    #       although i really like `Array[]: int`....
-    ;:is(fn(T;:, Then[~u]): never): bool
+    ;:.is(fn(T;:., Then[~u]): never): bool
 }
 ```
 
@@ -6467,6 +6457,8 @@ if you don't want to add specific names for the `oneOf`s.
 
 ```
 # TODO: probably can do `A OneOf(int, str), B OneOf(u8, i32, dbl)` for args here.
+#       or should we do `A OneOf[int, str]`, etc.?  we could require `oneOf[...]`
+#       for types, like a generic.
 myFunction(A OneOf: oneOf(int, str), B OneOf: oneOf(u8, i32, dbl)): dbl
     return dbl(A OneOf) * B OneOf
 ```
@@ -6543,6 +6535,8 @@ Options ;= nonMutuallyExclusiveType()
 Options == 0        # True; masks start at 0, or `None`,
                     # so `Options == None` is also true.
 Options |= X        # TODO: make sure it's ok to implicitly add the mask type here.
+                    #       maybe it's only ok if no `X` is in scope, otherwise
+                    #       you need to make it explicit.
 Options |= nonMutuallyExclusiveType Z   # explicit mask type
 
 Options hasX()  # True
