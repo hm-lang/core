@@ -191,6 +191,16 @@ MutableVar; int
 # declaring + defining a variable:
 ReadonlyVar := 123
 MutableVar ;= 321
+
+# you can also define a variable using an indented block;
+# the last line will be used to initialize the variable.
+# here we use an implicit type (whatever `SomeHelperValue + 4` is).
+MyVar:
+    # this helper variable will be descoped after calculating `MyVar`.
+    SomeHelperValue := someComputation(3)
+    SomeHelperValue + 4
+OtherVar; explicitType
+    "asdf" + "jkl;"
 ```
 
 ```
@@ -1262,6 +1272,9 @@ TODO: do we want to rename `null` to `absent`?  essentially we want the feature 
 function calls, e.g., `fn(X?: int): q`
 and container types, e.g., `{X?: possiblyNull(), Y: ...}` becomes `{Y: ...}` if `X` is null,
 or `Store[Id] = Null` to remove `Id` from the store.
+we could use `Store[Id] = Absent` and `Present` for non-absent.
+TODO: find a good way to infer types, e.g., like this (or maybe `@infer y` instead of `~y`):
+e.g., `nonNull[x] = if x == nullable(~y) $(y) else $(x)`.
 
 For an optional type with more than one non-null type, we use `Y?: oneOf(someType, anotherType)`
 or equivalently, `Y: oneOf(someType, anotherType, null)` (where `null` comes last).
@@ -1356,8 +1369,14 @@ truthyOr(First ~A?., Second A.): a
                 Second A
         Null $(Second A)
         # TODO: is there a better, rust-like syntax like??
-        # NonNull A: if NonNull A $(NonNull A)
-        # Any $(Second A)
+        #   NonNull A: if NonNull A $(NonNull A)
+        #   Any $(Second A)
+        # maybe
+        #   NonNull A: and NonNull A $(NonNull A)
+        #   Any $(Second A)
+        # TODO: maybe even (maybe make `and` equivalent to `,`??):
+        #   NonNull A:, NonNull A $(NonNull A)
+        #   Any $(Second A)
 ```
 
 
@@ -1700,12 +1719,6 @@ q(():
 )
 # equivalent to `q(() := X)`
 # also equivalent to `q((): $(X))`
-# TODO: should this also work as a definition for `MyVariable`?
-#       makes sense to me.  = can be equivalent to a newline + tab (block) for function definitions.
-#       however, this may break `what` statements that define new values but don't initialize.
-#       e.g., `what Result $(Ok: $(doSomethingWith(Ok), looksLikeVariableInitialization()))`
-MyVariable; value       # with or without `value`
-    myInitialization + OfMyVariable
 ```
 
 TODO: discussion on generics like `myGeneric[of]` working like `myFunction(MyGeneric[string];)`.
@@ -4723,6 +4736,18 @@ block[of, declaring := null] := {
 ```
 
 TODO: can we use an `um` internally inside `block`?
+
+## blocks to define a variable
+
+TODO: i don't think this makes much sense to do explicitly, e.g.,
+```
+MyInt, Block[int]:
+    if someCondition()
+        Block exit(3)
+    Block loop()
+```
+
+Mostly because we can't type `MyInt` as `;` or `:` in this way.
 
 ## then statements
 
