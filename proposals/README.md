@@ -1274,10 +1274,11 @@ allowed to mutate the memory if it is declared as a writable variable with `;`.
 ## nullable variable types
 
 To make it easy to indicate when a variable can be nullable, we reserve the question mark
-symbol, `?`, placed after the variable name.  E.g., `X?: int` declares a variable `X` that
+symbol, `?`, placed after the variable name like `X?: int` or after a simple type like
+`X: int?`.  Either example declares a variable `X` that
 can be an integer or null.  The default value for an optional type is `Null`.
-TODO: if `Array[]: int` can be typed as `Array: int[]`, then we can probably use
-`X: int?` for an `X?: int` type.
+TODO: discussion on whether we want to force using the `?` as part of the identifier,
+e.g., refer to `X?: int` as `X?` everywhere.
 TODO: do we want to rename `null` to `absent`?  essentially we want the feature for
 function calls, e.g., `fn(X?: int): q`
 and container types, e.g., `{X?: possiblyNull(), Y: ...}` becomes `{Y: ...}` if `X` is null,
