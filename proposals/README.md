@@ -770,8 +770,6 @@ use e.g. `hm[int]` to return an integer or an error of type `myClassUh`.  Shadow
 invalid in hm-lang, but overloads are valid.  Note however that we disallow redefining
 an overload, as that would be the equivalent of shadowing.
 
-TODO: merge this and the `default named generic types` section.
-
 # operators and precedence
 
 Operator priority.
@@ -869,8 +867,15 @@ add descriptive variables as intermediate steps.
 Deep dive!  Function calls are higher priority than member access because `someMethod() FinalField`
 would compile as `someMethod( ()::FinalField )` otherwise, which would be a weird compile error.  
 
-TODO: if you don't supply all the arguments, you should get a new function that prefills
-all the arguments you supplied and keeps as its own arguments the ones you didn't.
+We don't allow for implicitly currying functions in hm-lang,
+but you can explicitly curry like this:
+
+```
+someFunction(X: int, Y; dbl, Z. str):
+    print("something cool with $(X), $(Y), and $(Z)")
+
+curriedFunction(Z. str) := someFunction(X: 5, Y; 2.4, Z.)
+```
 
 ## namespaces
 
@@ -1055,11 +1060,20 @@ The `?` operator binds strongly, so `x a?` is equivalent to `x oneOf(a, null)` a
 `oneOf(x a, null)`.  Generally speaking, if you want your entire variable to be nullable,
 it should be defined as `X?: int`.  `X: int?` works in this instance, but if you have
 generic classes (like `array[elementType]`), then `X[]: int?` or `X[]?: int` would define an array
-of nullable integers.  This is actually a compile error; containers generally need to have
-non-null value types in hm-lang.  Instead, to make a nullable array of integers, you'd use
-`X?: array[int]` or `X?: int[]`.
+of nullable integers.  To make a nullable array of integers, you'd use
+`X?: array[int]`, `X?[]: int`, or `X?: int[]`.
 
-TODO: prefix `?`
+Prefix `?` can be used to short-circuit function evaluation if an argument is null.
+for a function like `doSomething(X?: int)`, we can use `doSomething(X: ?MyValueForX)`
+to indicate that we don't want to call `doSomething` if `MyValueForX` is null;
+we'll simply return `Null`.  E.g., `doSomething(X: ?MyValueForX)` is equivalent
+to `if MyValueForX == Null $(Null) else $(doSomething(X: MyValueForX))`.
+TODO: should this be `doSomething(?X: MyValueForX)`?  it probably depends on
+how we want to do things if variables are null.  can we require postfix `?`
+everywhere on a variable name e.g. `MyValueForX?: int` will always be referred to
+as `MyValueForX?` unless we determine it's not null, then we can use `MyValueForX`?
+however with references, we can't assume it will stay non-null unless we pop it
+into a function like `MyValueForX? is((Int): print(Int))`
 
 
 ## prefix and postfix exclamation points `!`
