@@ -1286,6 +1286,7 @@ or `Store[Id] = Null` to remove `Id` from the store.
 we could use `Store[Id] = Absent` and `Present` for non-absent.
 TODO: find a good way to infer types, e.g., like this (or maybe `@infer y` instead of `~y`):
 e.g., `nonNull[x] = if x == nullable(~y) $(y) else $(x)`.
+or maybe `if x == oneOf[~y, null] $(y) else $(x)`.
 
 For an optional type with more than one non-null type, we use `Y?: oneOf(someType, anotherType)`
 or equivalently, `Y: oneOf(someType, anotherType, null)` (where `null` comes last).
@@ -5917,6 +5918,9 @@ indent(fn(Block: block[~t]): never): t
 # indent function which populates `Block Declaring` with the value passed in.
 indent(~Declaring., fn(Block: block[~t, declaring]): never): t
 
+# TODO: can we use `block[of: int, declaring; string]` to make
+#       `Declaring: declaring` convert into `Declaring; string`??
+#       maybe we need another symbol for it, e.g., `Declaring~: declaring`
 @referenceableAs(then)
 block[of, declaring := null] := {
     # variables defined only for the lifetime of this block's scope.
@@ -6113,7 +6117,7 @@ a timeout `uh` being present for a result error).  If the caller wants to
 treat the function as a future, i.e., to run many such futures in parallel,
 then they ask for it as a future using `@um` before the function name, which
 returns the `um[of]` type, where `of` is the normal function's return type.
-You can also type the variable explicitly as `um[of]` and then void using `@um`
+You can also type the variable explicitly as `um[of]` and then avoid using `@um`
 before the function name.
 
 ```
@@ -6134,6 +6138,8 @@ print("starting a future, won't make progress unless polled")
 # `Future` here has the type `um[string]`:
 Future := @um someVeryLongRunningFunction(10)
 # Also ok: `Future: um[string] = someVeryLongRunningFunction(10)`
+# TODO: can `~` by itself count as the `auto` keyword?
+# probably also ok: `Future: um[~] = someVeryLongRunningFunction(10)`
 print("this `print` executes right away")
 Result: string = Future
 print("the result is $(Result) many seconds later")
@@ -6226,7 +6232,6 @@ otherEnum := oneOf(
 Here is an example enum with just specified values, all inline:
 
 ```
-# TODO: probably `bool` can fit in a `u1`, which we could specify in a struct.
 bool := oneOf(False: 0, True: 1)
 ```
 
@@ -6385,13 +6390,8 @@ Tree is((Branch;):
     Branch Left someOperation()
 )
 
-# TODO: can we ensure that all bool-returning statements do stuff like this?
-#       or do we need to annotate functions somehow?
-# TODO: can we do this without an `if`, e.g., `Tree is Branch; $(doStuffWith(Branch;))`
-#       maybe we need to require an `if` so that we can use `then` logic.
-# TODO: how do we annotate that the return type exits with the result of the block
-#       and not a `bool`?
-# some syntactic sugar for `if Tree is((Branch;): ...)) $(pass) else $(print("not a branch"))`
+# you can also use this in a conditional; note we don't wrap in a lambda function
+# because we're using fancier `Block` syntax.
 if Tree is Branch;
     Branch Left someOperation()
     print("a branch")
@@ -6424,18 +6424,15 @@ a copy and any changes to the new variables will not be reflected in `Tree`.
 oneOf(..., ~t) := {
     # returns true if this `oneOf` is of type `T`, also allowing access
     # to the underlying value by passing it into the function.
-    ;:is(fn(T;:): null): bool
+    # we return `never` here because we don't want people to use the
+    # value and expect it to return something based on the callback's return type,
+    # or be confused if it should always return true if the internal type is `t`.
+    ;:is(fn(T;:): null): never
 
-    # TODO: is this the correct signature for a `if Tree is Branch; $(fn block...)` grammar?
-    # the outer function returns true to indicate
-    # that the inner function should be executed.
-    # the inner function never returns directly; it
-    # passes control back to parent scope by using
-    # `Then exit(U)` for some instance `U` of `u`.
-    # TODO: it'd probably be good to have `block` wrapper type here, e.g.,
-    #       `:;.is(Block[Declaring:;. t, exit: ~u]): bool`
-    # where `Block[Declaring: ~a, ~exit]` looks like `Declaring: a $(block with exit type `exit`)`
-    ;:.is(fn(T;:., Then[~u]): never): bool
+    # the signature for `if Tree is Branch; $(#[do stuff with `Branch`]#)`
+    # the method returns true iff the block should be executed.
+    # the block itself can return a value to the parent scope.
+    ;:.is(), Block[declaring:;. t, exit: ~u]: bool
 }
 ```
 
