@@ -307,8 +307,8 @@ myClass := {
 
 ```
 # combining two classes
-aOrB := oneOf(a, b)
-aAndB := union(a, b)
+aOrB := oneOf[a, b]
+aAndB := union[a, b]
 allOf := union      # in case symmetry between `oneOf` and `allOf` makes more sense.
 ```
 
@@ -338,15 +338,15 @@ print(counter())    # 124
 ```
 # defining a function that takes two type constructors as arguments,
 # one of them being named, and returns a type constructor:
-doSomething(~x, namedNew: ~y): oneOf(new[x], new[y])
+doSomething(~x, namedNew: ~y): oneOf[new[x], new[y]]
     # if random(dbl) < 0.5 $(x) else $(namedNew)
 
 someType := doSomething(int, namedNew: dbl) # int or dbl with 50-50 probability
 ```
 
-Note you could also return `new[oneOf(x, y)]` in the above example,
+Note you could also return `new[oneOf[x, y]]` in the above example,
 but that subtly changes the return value to a type that can be either `x` or `y`
-and can switch from one to the other.  `oneOf(new[x], new[y])` will be either
+and can switch from one to the other.  `oneOf[new[x], new[y]]` will be either
 `x` or `y`, but does not allow switching.
 
 ## variable and function names
@@ -374,7 +374,7 @@ are reserved namespaces for variables that cannot be null, and `First` and `Seco
 are reserved for binary operations like `&&` and `*`.
 See [namespaces](#namespaces) for more details.
 Other reserved keywords: `new` for returning a class constructor, e.g.,
-`myFunction(): new[oneOf(int, dbl)]` for returning either an `int` or `dbl` constructor.
+`myFunction(): new[oneOf[int, dbl]]` for returning either an `int` or `dbl` constructor.
 There are some reserved variable names, like `I`, `Me`, and `My`, which can only
 be used as a reference to the current class instance, and `You` and `Your` which
 can only be used as a reference to a different instance of the same type.
@@ -599,7 +599,7 @@ The corresponding generic is `signed[Bits: count]`.  We also define the
 symmetric integers `s8` to `s512` using two's complement, but disallowing
 the lowest negative value of the corresponding `i8` to `i512`, e.g.,
 -128 for `s8`.  This allows you to fit in a null type with no extra storage,
-e.g., `oneOf(s8, null)` is exactly 8 bits, since it uses -128 for null.
+e.g., `oneOf[s8, null]` is exactly 8 bits, since it uses -128 for null.
 (See [nullable classes](#nullable-classes) for more information.)
 Symmetric integers are useful when you want to ensure that `-Symmetric`
 is actually the opposite sign of `Symmetric`; `-i8(-128)` is still `i8(-128)`.
@@ -646,11 +646,11 @@ B: u8 = A & 255                     # OK, communicates intent and puts `A` into 
 C: u8 = A clamp(Min: 0, Max: 255)   # OK, communicates a different intent.
 ```
 
-Casting to a complex type, e.g., `oneOf(int, str)(SomeValue)` will pass through `SomeValue`
+Casting to a complex type, e.g., `oneOf[int, str](SomeValue)` will pass through `SomeValue`
 if it is an `int` or a `str`, otherwise try `int(SomeValue)` if that is allowed, and finally
 `str(SomeValue)` if that is allowed.  If none of the above are allowed, the compiler will
 throw an error.  Note that nullable types absorb errors in this way (and become null), so
-`oneOf(int, null)(SomeSafeCast)` will be null if the cast was invalid, or an `int` if the
+`oneOf[int, null](SomeSafeCast)` will be null if the cast was invalid, or an `int` if the
 cast was successful.
 
 To define a conversion from one class to another, you can define a global function
@@ -666,7 +666,7 @@ scaled8 := {
     @private
     my Scale := 32
 
-    my new(Flt): hm[ok: me, uh: oneOf(Negative, TooBig)]
+    my new(Flt): hm[ok: me, uh: oneOf[Negative, TooBig]]
         ScaledValue := round(Flt * my Scale)
         if ScaledValue < 0
             return Negative
@@ -714,7 +714,7 @@ internal types, see
 ```
 # implementation note: `int` should come first so it gets tried first;
 # `dbl` will eat up many values that are integers, including `4`.
-X; oneOf(int, dbl) = 4
+X; oneOf[int, dbl] = 4
 ...
 if x == int
     print("X is an integer")
@@ -1056,8 +1056,9 @@ to keep a variable for multiple uses: `{NestedField} := something()`.)
 
 ## prefix and postfix question marks `?`
 
-The `?` operator binds strongly, so `x a?` is equivalent to `x oneOf(a, null)` and not
-`oneOf(x a, null)`.  Generally speaking, if you want your entire variable to be nullable,
+TODO: why? give a motivating example.
+The `?` operator binds strongly, so `x a?` is equivalent to `x oneOf[a, null]` and not
+`oneOf[x a, null]`.  Generally speaking, if you want your entire variable to be nullable,
 it should be defined as `X?: int`.  `X: int?` works in this instance, but if you have
 generic classes (like `array[elementType]`), then `X[]: int?` or `X[]?: int` would define an array
 of nullable integers.  To make a nullable array of integers, you'd use
@@ -1172,18 +1173,18 @@ so `Q := X < Y > Z` instantiates `Q` as a boolean, not as this internal class.
 
 ## and/or/xor operators
 
-The `or` operation `X or Y` has type `oneOf(x, y)` (for `X: x` and `Y: y`).
+The `or` operation `X or Y` has type `oneOf[x, y]` (for `X: x` and `Y: y`).
 If `X` evaluates to truthy (i.e., `!!X == True`), then the return value of `X or Y` will be `X`.
 Otherwise, the return value will be `Y`.  Note in a conditional, e.g., `if X or Y`, we'll always
 cast to boolean implicitly (i.e., `if bool(X or Y)` explicitly).
 
-Similarly, the `and` operation `X and Y` also has type `oneOf(x, y)`.  If `X` is falsey,
+Similarly, the `and` operation `X and Y` also has type `oneOf[x, y]`.  If `X` is falsey,
 then the return value will be `X`.  If `X` is truthy, the return value will be `Y`.
 Again, in a conditional, we'll cast `X and Y` to a boolean.
 
 Thus, `and` and `or` act the same as JavaScript `&&` and `||`, for ease of transition.
 However, to make things more consistent with the `xor` operator, if your return value
-is nullable, `X or Y` will be `oneOf(x, y, null)` and `X and Y` will be `oneOf(y, null)`.
+is nullable, `X or Y` will be `oneOf[x, y, null]` and `X and Y` will be `oneOf[y, null]`.
 The result will be `Null` if both (either) operands are falsey for `or` (`and`).
 
 ```
@@ -1193,13 +1194,13 @@ NullableOr ?:= X or Y       # NullableOr ?:= if X $(X) elif Y $(Y) else $(Null)
 NullableAnd ?:= X and Y     # NullableAnd ?:= if !!X and !!Y $(Null) else $(Y)
 ```
 
-The exclusive-or operation `X xor Y` has type `oneOf(x, y, null)`, and will return `Null`
+The exclusive-or operation `X xor Y` has type `oneOf[x, y, null]`, and will return `Null`
 if both `X` and `Y` are truthy or if they are both falsy.  If just one of the operands
 is truthy, the result will be the truthy operand.  An example implementation:
 
 ```
-# you can define it as nullable via `xor(~X, ~Y): oneOf(x, y, null)` or like this:
-xor(~X, ~Y)?: oneOf(x, y)
+# you can define it as nullable via `xor(~X, ~Y): oneOf[x, y, null]` or like this:
+xor(~X, ~Y)?: oneOf[x, y]
     XIsTrue := bool(X)
     YIsTrue := bool(Y)
     if XIsTrue
@@ -1288,9 +1289,9 @@ TODO: find a good way to infer types, e.g., like this (or maybe `@infer y` inste
 e.g., `nonNull[x] = if x == nullable(~y) $(y) else $(x)`.
 or maybe `if x == oneOf[~y, null] $(y) else $(x)`.
 
-For an optional type with more than one non-null type, we use `Y?: oneOf(someType, anotherType)`
-or equivalently, `Y: oneOf(someType, anotherType, null)` (where `null` comes last).
-Note that `null` should come last for casts to work correctly (e.g., `oneOf(null, int)(1234)`
+For an optional type with more than one non-null type, we use `Y?: oneOf[someType, anotherType]`
+or equivalently, `Y: oneOf[someType, anotherType, null]` (where `null` comes last).
+Note that `null` should come last for casts to work correctly (e.g., `oneOf[null, int](1234)`
 would cast to null rather than `int(1234)`).  Normally the first value in a `oneOf` is the
 default, but if `null` or `Null` is an option, then null is the default.  
 
@@ -1300,7 +1301,7 @@ prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a comp
 if a declared variable is nullable but `?` is not used, since we want the programmer to be
 aware of the fact that the variable could be null, even though the program will take care
 of null checks automatically and safely.  The `?` operator is required for any `oneOf` that
-could take on a `Null` value, e.g., `oneOf(Null, Bread, Tomato, Mozzarella)`.
+could take on a `Null` value, e.g., `oneOf[Null, Bread, Tomato, Mozzarella]`.
 
 One of the cool features of hm-lang is that we don't require the programmer
 to check for null on a nullable type before using it.  The executable will automatically
@@ -1316,7 +1317,7 @@ someClass := { ::someMethod(): int }
 
 Nullable?; someClass = Null
 
-Value ?:= Nullable someMethod() # `Value` has type `oneOf(int, null)` now,
+Value ?:= Nullable someMethod() # `Value` has type `oneOf[int, null]` now,
                                 # so it needs to be defined with `?`
 
 # eventually we want to support things like this, where the compiler
@@ -1863,7 +1864,7 @@ most common case, we optimize for that rather than for returning a class.
 
 ```
 # it's preferable to return a more specific value here, like
-# `new[oneOf(int, dbl, string)]`, but `new[any]` works as well.
+# `new[oneOf[int, dbl, string]]`, but `new[any]` works as well.
 randomClass(): new[any]
     if random(dbl) < 0.5
         int
@@ -1879,7 +1880,7 @@ function arguments but without an argument list (e.g., `className: t`
 instead of `fn(Args): t`).
 
 ```
-doSomething(~x, namedNew: ~y): new[oneOf(x, y)]
+doSomething(~x, namedNew: ~y): new[oneOf[x, y]]
     return if random(dbl) < 0.5 $(x) else $(namedNew)
 
 print(doSomething(int, namedNew: dbl))  # will print `int` or `dbl` with 50-50 probability
@@ -1892,7 +1893,7 @@ that have the same name.  This is obvious because we wouldn't be able to disting
 the two arguments inside the function body.
 
 ```
-myFun(X: int, X: dbl): oneOf(int, dbl) = X      # COMPILER ERROR.  duplicate identifiers
+myFun(X: int, X: dbl): oneOf[int, dbl] = X      # COMPILER ERROR.  duplicate identifiers
 ```
 
 However, there are times where it is useful for a function to have two arguments with the same
@@ -2127,7 +2128,7 @@ Y?; int = ... # Y is maybe null, maybe non-null
 
 # the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
 Z := overloaded(Y?) # also OK, but not idiomatic: `Z := overloaded(Y?: Y)`
-# Z has type `oneOf(dbl, string)` due to the different return types of the overloads.
+# Z has type `oneOf[dbl, string]` due to the different return types of the overloads.
 ```
 
 The reason behind this behavior is that in hm-lang, an argument list is conceptually an object
@@ -2176,7 +2177,7 @@ X ?:= if Y != Null $(overloaded(Y)) else $(Null)
 # if it is Null, the function will not be called and Null will be returned instead.
 X ?:= overloaded(?Y)
 
-# either way, X has type `oneOf(string, null)`.
+# either way, X has type `oneOf[string, null]`.
 ```
 
 You can use prefix `?` with multiple arguments; if any argument with prefix `?` is null,
@@ -2710,7 +2711,7 @@ call := {
     Input[str]; ptr any
     # we need to distinguish between the caller asking for specific fields
     # versus asking for the whole output.
-    Output?; oneOf(multipleOutputs: any[str], oneOutput: any)
+    Output?; oneOf[multipleOutputs: any[str], oneOutput: any]
     # things printed to stdout via `print`:
     Print[]; string
     # things printed to stderr via `error`:
@@ -2865,7 +2866,7 @@ but before the argument list.  E.g., `optionalFunction?(...Args): returnType` fo
 function and swapping `:` for `;` to create a reassignable function.
 When calling a nullable function, unless the function is explicitly checked for non-null,
 the return type will be nullable.  E.g., `X ?:= optionalFunction(...Args)` will have a
-type of `oneOf(returnType, null)`.  Nullable functions are checked by the executable, so the
+type of `oneOf[returnType, null]`.  Nullable functions are checked by the executable, so the
 programmer doesn't necessarily have to do it.
 
 A nullable function has `?` before the argument list; a `?` after the argument list
@@ -3911,7 +3912,7 @@ To constrain a generic type, use `[type: constraints, ...]`.  In this expression
 `constraints` is simply another type like `nonNull` or `number`, or even a combination
 of classes like `union(container[id, value], number)`.  It may be recommended for more
 complicated type constraints to define the constraints like this:
-`myComplicatedConstraintType := allOf(t1, oneOf(t2, t3))` and declaring the class as
+`myComplicatedConstraintType := allOf[t1, oneOf[t2, t3]]` and declaring the class as
 `newGeneric~[of: myComplicatedConstraintType]`, which might be a more readable way to do
 if `myComplicatedConstraintType` is a helpful name.
 
@@ -3928,7 +3929,7 @@ be converted into an array depending on the type of the receiving variable.
 Note that we can overload generic types for single types and stored types (e.g.,
 `array[int]` vs. `array[Count: 3, int]`), which is especially helpful for creating
 your own `hm` result class based on the stored type `hm[uh, ok]` which can become
-`SomeNamespace uh := oneOf(Oops, MyBad), hm[of] := hm[ok: of, SomeNamespace uh]`.
+`SomeNamespace uh := oneOf[Oops, MyBad], hm[of] := hm[ok: of, SomeNamespace uh]`.
 Here are some examples:
 
 ```
@@ -4267,13 +4268,19 @@ Results := MyClass getValue() {
 } # COMPILE ERROR
 ```
 
-TODO: can we make `extend` go away and just do `hm[ok, uh] := oneOf(ok, uh) { ...extra-methods... }`
+TODO: can we make `extend` go away and just do `hm[ok, uh] := oneOf[ok, uh] { ...extra-methods... }`
 via sequence building?  i'm not sure i want this anymore, however.
 `x {something(), OtherThing}` would have value as `{Something: x something(), OtherThing: x OtherThing}`,
 e.g., in case `x` is a class name and `something()` and `OtherThing` are static functions/variables.
 we probably can support this but don't want to make the grammar too context dependent.
 however it would push people towards single inheritance, which might be nice.  you could multiply
-inherit via `childClass := allOf(parentClass1, parentClass2) { ... }`.
+inherit via `childClass := allOf[parentClass1, parentClass2] { ... }`.
+actually this might be more internally consistent than an `extend` keyword.  note that methods are
+`;;myMethod()` so `x {;;myMethod(): int, ...}` would correctly parse as `x;;myMethod(): int`,
+which is how we would define a new method outside of the class.  however, we should ensure that
+this internal consistency works for variables `x {InstanceVar1: int, ...}` parsing as
+`x InstanceVar1: int` might actually be fine as well.  classes might actually just be sequence builders
+since we're defining stuff and not calling stuff (`x {something()}` is clearly a function call).
 
 ```
 parentClass := {
@@ -4314,10 +4321,10 @@ warn on finding aliases.
 Aliases can be used for simple naming conventions, e.g.:
 
 ```
-options := anyOrNoneOf(
-    oneOf(AlignInheritX := 0, AlignCenterX, AlignLeft, AlignRight)
+options := anyOrNoneOf[
+    oneOf[AlignInheritX := 0, AlignCenterX, AlignLeft, AlignRight]
     @alias InheritAlignX := AlignInheritX
-)
+]
 
 Options := options InheritAlignX    # converts to `options AlignInheritX` on next format.
 ```
@@ -4535,7 +4542,7 @@ E.g., `myFunction(StringArgument?: MyHm)` to pass in `MyHm` if it's ok or null i
 and `String ?:= MyHm` to grab it as a local variable.
 
 ```
-hm[ok, uh] := extend(oneOf(ok, uh)) {
+hm[ok, uh] := extend(oneOf[ok, uh]) {
     # The API is `Ok := Hm assert()`, which will bubble up this `uh`
     # if the result was an error.  Note that we use the `loop` API
     # which normally is implicit but can be used explicitly if needed.
@@ -4575,7 +4582,7 @@ hm[ok, uh] := extend(oneOf(ok, uh)) {
     #       else
     #           ok(Dbl sqrt())
     #
-    #   implicitBlock(): hm[ok: null, uh: oneOf(InvalidDoSomething, OtherError)]
+    #   implicitBlock(): hm[ok: null, uh: oneOf[InvalidDoSomething, OtherError]]
     #       # will return early if an invalid type.
     #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
@@ -4625,9 +4632,9 @@ hm[ok, uh] := extend(oneOf(ok, uh)) {
     ..map(fn(Ok.): t, fn(Uh.): t): t
 
     # TODO: should we use `to` here or is there a better way to indicate casting?
-    # it's technically something like `oneOf(ok, null)(Result: hm[ok, uh]): oneOf(ok, null)`
-    # which is pretty verbose.  could use `(Me.): oneOf(ok, null)` for implicit conversion
-    ..to(): oneOf(ok, null)
+    # it's technically something like `oneOf[ok, null](Result: hm[ok, uh]): oneOf[ok, null]`
+    # which is pretty verbose.  could use `(Me.): oneOf[ok, null]` for implicit conversion
+    ..to(): oneOf[ok, null]
 }
 
 Result := if X $( ok(3) ) else $( uh("oh no") )
@@ -4683,14 +4690,14 @@ that `assert` will return the correct uh subclass for the module that it is in;
 ## automatically converting errors to null
 
 If a function returns a `hm` type, e.g., `myFunction(...): hm[ok, uh]`,
-then we can automatically convert its return value into a `oneOf(ok, null)`, i.e.,
+then we can automatically convert its return value into a `oneOf[ok, null]`, i.e.,
 a nullable version of the `ok` type.  This is helpful for things like type casting;
 instead of `MyInt := what int(MyDbl) $(Ok. $(Ok), Uh: $(-1))` you can do
 `MyInt := int(MyDbl) ?? -1`.  Although, there is another less-verbose option that
 doesn't use nulls:  `int(MyDbl) map((Uh) := -1)`.
 
 TODO: should this be valid if `ok` is already a nullable type?  e.g.,
-`myFunction(): hm[ok: oneOf(int, null), uh: str]`.
+`myFunction(): hm[ok: oneOf[int, null], uh: str]`.
 we probably should compile-error-out on casting to `Int ?:= myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
 
@@ -4698,10 +4705,10 @@ it's not clear whether `Int` is null due to an error or due to the return value.
 
 ```
 # TODO: should this be `container uh` instead of `Container uh`?
-Container uh := oneOf(
+Container uh := oneOf[
     OutOfMemory
     # etc.
-)
+]
 
 hm[of] := hm[ok: of, Container uh]
 
@@ -4803,10 +4810,10 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 `stack` for a contiguous list that grows in one direction only.
 
 ```
-Array uh := oneOf(
+Array uh := oneOf[
     OutOfMemory
     # TODO: etc...
-)
+]
 hm[of] := hm[ok: of, Array uh]
 
 # some relevant pieces of the class definition
@@ -5076,11 +5083,11 @@ change places inside the store and/or collide with an existing ID.
 Some relevant pieces of the class definition:
 
 ```
-uh := oneOf(
+uh := oneOf[
     OutOfMemory
     MissingId
     # etc...
-)
+]
 hm[of] := hm[ok: of, uh]
 
 store[id: hashable, value: nonNull] := extend(container[id, value]) {
@@ -5243,10 +5250,10 @@ to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [el
 The default-named variable name for a set of any type is `Set`.
 
 ```
-uh := oneOf(
+uh := oneOf[
     OutOfMemory
     # etc...
-)
+]
 hm[of] := hm[ok: of, uh]
 
 set[of: hashable] := extend(container[id: of, value: true]) {
@@ -5626,14 +5633,14 @@ The `what` operation is also useful for narrowing in on `oneOf` variable types.
 E.g., suppose we have the following:
 
 ```
-status := oneOf(Unknown, Alive, Dead)
+status := oneOf[Unknown, Alive, Dead]
 vector3 := {X; dbl, Y; dbl, Z; dbl}
 
-update := oneOf(
+update := oneOf[
     status
     position: vector3
     velocity: vector3
-)
+]
 # example usage:
 Update0 := update status Alive
 Update1 := update position(X: 5.0, Y: 7.0, Z: 3.0)
@@ -5675,10 +5682,10 @@ There is no need to pass a value as a mutable reference, e.g., `what MyValue;`;
 since we can infer this if any internal matching block uses `;`.
 
 ```
-whatever := oneOf(
+whatever := oneOf[
     str
     card: {Name: str, Id: u64}
-)
+]
 
 Whatever ;= whatever str("this could be a very long string, don't copy if you don't need to")
 
@@ -6056,12 +6063,12 @@ coroutine.
 co[of] := {
     ;;renew(My fn(Ci[of]): never): null
 
-    ;;take(): oneOf(Cease, Value: of)
+    ;;take(): oneOf[Cease, Value: of]
 
     @alias ;;next() := ;;take()
 }
 
-# TODO: *maybe* extend `block[oneOf(Cease, Value: of)]`
+# TODO: *maybe* extend `block[oneOf[Cease, Value: of]]`
 ci[of] := {
     # returns control back to the calling function, but pauses execution
     # inside this inner coroutine.
@@ -6191,20 +6198,20 @@ masks for a similar class type that allows multiple options at once.
 
 Enums are by default the smallest standard integral type that holds all values,
 but they can be signed types (in contrast to masks which are unsigned).
-If desired, you can specify the underlying enum type using `oneOf[i8](...)` instead
-of `oneOf(...)`, but this will be a compile error if the type is not big enough to
-handle all options.
+If desired, you can specify the underlying enum type using `@i8 oneOf[...]` instead
+of `oneOf[...]`, but this will be a compile error if the type is not big enough to
+handle all options (or if the enum requires more complicated storage due to non-integer values).
 
 Here is an example enum with some values that aren't specified.  Even though
 the values aren't specified, they are deterministically chosen.
 
 ```
-myEnum := oneOf(
+myEnum := oneOf[
     FirstValueDefaultsToZero
     SecondValueIncrements
     ThirdValueIsSpecified: 123
     FourthValueIncrements
-)
+]
 assert myEnum FirstValueDefaultsToZero == 0
 assert myEnum SecondValueIncrements == 1
 assert myEnum ThirdValueIsSpecified == 123
@@ -6222,17 +6229,18 @@ Crazy := 15
 # `otherEnum OtherValue1 = 0`,
 # `otherEnum Super = 12`,
 # and `otherEnum OtherValue2 = 15`.
-otherEnum := oneOf(
+otherEnum := oneOf[
     OtherValue1
     Super
     OtherValue2: Crazy
-)
+]
 ```
 
 Here is an example enum with just specified values, all inline:
 
 ```
-bool := oneOf(False: 0, True: 1)
+# fits in a `u1`.
+bool := oneOf[False: 0, True: 1]
 ```
 
 Enums provide a few extra additional methods for free as well, including
@@ -6264,21 +6272,21 @@ enumerations, not the number +1 after the last enum value.  This can be confusin
 in case you use non-standard enumerations (i.e., with values less than 0):
 
 ```
-sign := oneOf(
+sign := oneOf[
     Negative: -1
     Zero: 0
     Positive: 1
-)
+]
 
 print("sign has $(sign count()) values")   # 3
 print("starting at $(sign min()) and going to $(sign max())")     # -1 and 1
 
-weird := oneOf(
+weird := oneOf[
     X: 1
     Y: 2
     Z: 3
     Q: 9
-)
+]
 
 print(weird count())   # prints 4
 print(weird min())     # prints 1
@@ -6288,15 +6296,17 @@ print(weird max())     # prints 9
 ### default values for a `oneOf`
 
 Note that the default value for a `oneOf` is the first value, unless `null` is an option.
-E.g., `oneOf(OptionA, OptionB)` defaults to `OptionA` but `oneOf(OptionC, Null)` would
-default to `Null` and `oneOf(type1, type2, null)` defaults to the `null` type.  Nulls are
+E.g., `oneOf[OptionA, OptionB]` defaults to `OptionA` but `oneOf[OptionC, Null]` would
+default to `Null` and `oneOf[type1, type2, null]` defaults to the `null` type.  Nulls are
 highly encouraged to come last in a `oneOf`, because they will match any input, so
-casting like this: `oneOf(null, int)(1234)` would actually become `Null` rather than
+casting like this: `oneOf[null, int](1234)` would actually become `Null` rather than
 the expected value `1234`, since casts are attempted in order of the `oneOf` types.
-For the extremely pedantic, `oneOf(Null, X)` should collapse to `oneOf(X)` based on the
+For the extremely pedantic, `oneOf[Null, X]` should collapse to `oneOf[X]` based on the
 rules surrounding `Null` (i.e., they disappear from functions and argument lists), but
 we allow this breach of consistency for convenience and clarity; `oneOf` is more a macro
 than a function.
+TODO: also i think arrays can have nulls in them, so this isn't super confusing anymore.
+although generics aren't really arrays, they are stores/maps.
 
 ### testing enums with lots of values
 
@@ -6305,7 +6315,7 @@ than testing each value against the various possibilities.  Also note that you d
 to explicitly set each enum value; they start at 0 and increment by default.
 
 ```
-option := oneOf(
+option := oneOf[
     Unselected
     NotAGoodOption
     ContentWithLife
@@ -6313,7 +6323,7 @@ option := oneOf(
     BestOptionStillComing
     OopsYouMissedIt
     NowYouWillBeSadForever
-)
+]
 
 print("number of options should be 7:  $(option count())")
 
@@ -6353,13 +6363,13 @@ If no value is zero, then the first specified value is default.
 Take this example `oneOf`.
 
 ```
-tree := oneOf(
+tree := oneOf[
     leaf: {Value; int}
     branch: {
         Left; tree
         Right; tree
     }
-)
+]
 ```
 
 When checking a `tree` type for its internal structure, you can use `isLeaf()` or `isBranch()`
@@ -6420,8 +6430,7 @@ variables will be null if the `Tree` is not of that type, but they will also be
 a copy and any changes to the new variables will not be reflected in `Tree`.
 
 ```
-# TODO: probably should switch to `oneOf[...] := {...}`
-oneOf(..., ~t) := {
+oneOf[..., ~t] := {
     # returns true if this `oneOf` is of type `T`, also allowing access
     # to the underlying value by passing it into the function.
     # we return `never` here because we don't want people to use the
@@ -6429,6 +6438,7 @@ oneOf(..., ~t) := {
     # or be confused if it should always return true if the internal type is `t`.
     ;:is(fn(T;:): null): never
 
+    # type narrowing.
     # the signature for `if Tree is Branch; $(#[do stuff with `Branch`]#)`
     # the method returns true iff the block should be executed.
     # the block itself can return a value to the parent scope.
@@ -6441,7 +6451,8 @@ oneOf(..., ~t) := {
 The default name for a `oneOf` argument is `OneOf`.  E.g.,
 
 ```
-myFunction(OneOf: oneOf(int, str)): dbl
+# this is short for `myFunction(OneOf: oneOf[int, str]): dbl`:
+myFunction(OneOf[int, str]): dbl
     return dbl(OneOf)
 
 print(myFunction(123))      # prints 123.0
@@ -6456,8 +6467,8 @@ If you need to use multiple `oneOf`s in a function and still want them to be
 default-named, it's recommended to give specific names to each `oneOf`, e.g.,
 
 ```
-intOrString := oneOf(int, str)
-weirdNumber := oneOf(u8, i32, dbl)
+intOrString := oneOf[int, str]
+weirdNumber := oneOf[u8, i32, dbl]
 
 myFunction(IntOrString, WeirdNumber): dbl
     return dbl(IntOrString) * WeirdNumber
@@ -6467,10 +6478,8 @@ However, you can also achieve the same thing using namespaces,
 if you don't want to add specific names for the `oneOf`s.
 
 ```
-# TODO: probably can do `A OneOf(int, str), B OneOf(u8, i32, dbl)` for args here.
-#       or should we do `A OneOf[int, str]`, etc.?  we could require `oneOf[...]`
-#       for types, like a generic.
-myFunction(A OneOf: oneOf(int, str), B OneOf: oneOf(u8, i32, dbl)): dbl
+# arguments short for `A OneOf: oneOf[int, str]` and `B OneOf: oneOf[u8, i32, dbl]`.
+myFunction(A OneOf[int, str], B OneOf[u8, i32, dbl]): dbl
     return dbl(A OneOf) * B OneOf
 ```
 
@@ -6509,11 +6518,11 @@ TODO: should this be `containsThisValue()` to be consistent with containers?
 TODO: is there a way to make this `anyOf` and use 0 as the `Null` value?
 
 ```
-food := anyOrNoneOf(
+food := anyOrNoneOf[
     Carrots
     Potatoes
     Tomatoes
-)
+]
 # this creates a mask with `food Carrots == 1`,
 # `food Potatoes == 2`, and `food Tomatoes == 4`.
 # there is also a default `food None == 0`.
@@ -6529,12 +6538,12 @@ And here is an example with specified values.
 
 ```
 # the mask is required to specify types that are powers of two:
-nonMutuallyExclusiveType := anyOrNoneOf(
+nonMutuallyExclusiveType := anyOrNoneOf[
     X: 1
     Y: 2
     Z: 4
     T: 32
-)
+]
 # `nonMutuallyExclusiveType None` is automatically defined as 0.
 
 # has all the same static methods as enum, though perhaps they are a bit surprising:
@@ -6565,12 +6574,12 @@ Options hasT()  # True
 We can also create a mask with one or more `oneOf` fields, e.g.:
 
 ```
-options := anyOrNoneOf(
-    oneOf(AlignCenterX, AlignLeft, AlignRight)
-    oneOf(AlignCenterY, AlignTop, AlignBottom)
+options := anyOrNoneOf[
+    oneOf[AlignCenterX, AlignLeft, AlignRight]
+    oneOf[AlignCenterY, AlignTop, AlignBottom]
 
-    oneOf(FontVerySmall, FontSmall, FontNormal := 0, FontLarge, FontVeryLarge)
-)
+    oneOf[FontVerySmall, FontSmall, FontNormal := 0, FontLarge, FontVeryLarge]
+]
 ```
 
 It is a compiler error to assign multiple values from the same `oneOf`:
@@ -6582,7 +6591,7 @@ Options; options = AlignCenterX | AlignRight     # COMPILER ERROR!
 Note that internally, an `OR` combination of the `oneOf` values may actually be valid;
 it may be another one of the `oneOf` values in order to save bits.  Otherwise, each
 new value in the `oneOf` would need a new power of 2.  For example, we can represent
-`oneOf(AlignCenterX, AlignLeft, AlignRight)` with only two powers of two, e.g.,
+`oneOf[AlignCenterX, AlignLeft, AlignRight]` with only two powers of two, e.g.,
 `AlignCenterX = 4`, `AlignLeft = 8`, and `AlignRight = 12`.  Because of this, there
 is special logic with `|` and `&` for `oneOf` values in masks.
 
@@ -6594,7 +6603,7 @@ if Options2 & AlignCenterX
 ```
 
 You can also explicitly tell the mask to avoid assigning a power of two to one of the
-`oneOf` values by setting it to zero (e.g., `oneOf(..., Value := 0, ... )`.
+`oneOf` values by setting it to zero (e.g., `oneOf[..., Value := 0, ... ]`.
 For example, the font size `oneOf` earlier could be represented by 3 powers of two, e.g.,
 `FontVerySmall = 16`, `FontSmall = 32`, `FontLarge = 64`, `FontVeryLarge = 96`.
 Note that we have the best packing if the number of non-zero values is 3 (requiring 2 powers of two),
@@ -6602,45 +6611,23 @@ Note that we have the best packing if the number of non-zero values is 3 (requir
 requiring `P` powers of two.  This is because we need one value to be the default for each
 `oneOf` in the `mask`, which will be all `P` bits set to zero; the remaining `2^P - 1`
 combinations of the `P` bits can be used for the remaining `oneOf` values.  A default
-name can thus be chosen for each `oneOf`, e.g., `oneOf(..., WhateverName := 0, ...)`.
+name can thus be chosen for each `oneOf`, e.g., `oneOf[..., WhateverName := 0, ...]`.
 
 ## named value-combinations
 
-TODO: this syntax isn't quite right for function arguments.
-Masks can also include shortcuts for various combinations using the `:=` operator, e.g.:
+You can add some named combinations by extending a mask like this.
 
 ```
-# option 1
-myMask := anyOrNoneOf(
+myMask := extend(anyOrNoneOf[
     X
     Y
+]) {
     XAndY := X | Y
-)
-# option 2
-myMask := anyOrNoneOf(
-    X
-    Y
-) with { XAndY := X | Y }
-# option 3
-myMask := anyOrNoneOf(
-    X
-    Y
-) { XAndY := X | Y }
-# option 4
-myMask := anyOrNoneOf(X, Y)
-myMask XAndY: myMask = X | Y    # or `myMask XAndY := myMask X | myMask Y`
-# option 5
-myMask := anyOrNoneOf(
-    X
-    Y
-    my XAndY := X | Y
-)
-# option 6
-myMask := anyOrNoneOf(
-    X
-    Y
-    XAndY: X | Y
-)
+}
+
+Result: myMask = XAndY
+print(Result & X) # truthy, should be 1
+print(Result & Y) # truthy, should be 2
 ```
 
 # lifetimes and closures
@@ -6795,7 +6782,7 @@ When the `callee` is descoped, it will deregister itself with the `caller`
 internally, so that the `caller` will no longer call the `callee`.
 
 ```
-variableAccess := oneOf(Mutable, Readonly)
+variableAccess := oneOf[Mutable, Readonly]
 caller[t, VariableAccess] := {
     Callees[ptr[callee[t, VariableAccess]]];
     @if VariableAccess == Readonly
@@ -6861,7 +6848,7 @@ Note on terminology:
 # list of elements that can compose the grammar.
 # doesn't include stuff like LowerCamelCase or UpperCamelCase,
 # which are not grammatically relevant.
-grammarElement := oneOf(
+grammarElement := oneOf[
     # "TypeElement" to avoid overload with type/Type
     TypeElement
     FunctionType
@@ -6883,7 +6870,7 @@ grammarElement := oneOf(
     ClassStatement
     ClassMethod
     EndOfInput
-)
+]
 
 tokenMatcher := {
     # don't have to restore the token array Index to the correct state,
@@ -6903,7 +6890,7 @@ singleTokenMatcher := extend(tokenMatcher) (
         return Index < Array count() and Array[Index++] == My Token
 )
 
-grammarMatcher := oneOf(tokenMatcher, grammarElement, token)
+grammarMatcher := oneOf[tokenMatcher, grammarElement, token]
 
 Grammar := singleton() {
     @private
