@@ -4693,332 +4693,6 @@ TODO: should this be valid if `ok` is already a nullable type?  e.g.,
 we probably should compile-error-out on casting to `Int ?:= myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
 
-# blocks
-
-You can write your own `assert` or `return`-like statements using `block` logic.  The `block`
-class has a method to return early if desired.  Calling `Block exit(...)` shortcircuits the
-rest of the block (and possibly other nested blocks).  This is annotated by using the `jump`
-return value.  You can also call `Block loop()` to return to the start of the block.
-You don't usually create a `block` instance; you'll use it in combination with the global
-`indent` function.
-
-```
-# indent function which returns whatever value the `Block` exits the loop with.
-indent(fn(Block: block[~t]): never): t
-# indent function which populates `Block Declaring` with the value passed in.
-indent(~Declaring., fn(Block: block[~t, declaring]): never): t
-
-@referenceableAs(then)
-block[of, declaring := null] := {
-    # variables defined only for the lifetime of this block's scope.
-    # TODO: give examples, or maybe remove, if this breaks cleanup with the `jump` ability
-    Declaring; declaring
-
-    # exits the `indent` with the corresponding `of` value.  example:
-    #   Value ;= 0
-    #   what indent((Block: block[str]): never
-    #       Old Value := Value
-    #       Value = Value // 2 + 9
-    #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
-    #       if Old Value == Value
-    #           Block exit("exited at $(Old Value)")
-    #       # note we need to `loop` otherwise we won't satisfy the `never`
-    #       # part of the indent function.
-    #       Block loop()
-    #   )
-    #       String.
-    #           print(String)       # should print "exited at 17"
-    ::exit(Of.): jump
-
-    # like a `continue` statement; will bring control flow back to
-    # the start of the `indent` block.  example:
-    #   Value ;= 0
-    #   indent((Block: block[str]):
-    #       if ++Value >= 10 $(Block exit("done"))
-    #       if Value % 2
-    #           Block loop()
-    #       print(Value)
-    #       Block loop()
-    #   )
-    #   # should print "2", "4", "6", "8"
-    @hideFrom(then)
-    ::loop(): jump
-}
-```
-
-TODO: can we use an `um` internally inside `block`?
-
-## blocks to define a variable
-
-TODO: i don't think this makes much sense to do explicitly, e.g.,
-```
-MyInt, Block[int]:
-    if someCondition()
-        Block exit(3)
-    Block loop()
-```
-
-Mostly because we can't type `MyInt` as `;` or `:` in this way.
-
-## then statements
-
-We can rewrite conditionals to accept an additional `then` "argument".  For `if`/`elif`
-statements, the syntax is `if Expression, Then:` to have the compiler guess the `then`'s
-return type, or `elif Expression, WhateverName: then[whateverType]` to explicitly provide it
-and also rename `Then` to `WhateverName`.  Similarly for `what` statements, e.g.,
-`what Expression, WhateverName: then[whatever]` or `what Expression, Then:`.  `else`
-statements of course elide the expression as `else Then:` or `else Whatever: then[elseType]`.
-Note that we use a `:` here because we're declaring an instance of `then`; if we don't use
-`then` logic we don't use `:` for conditionals.  Also note that `then` is a thin wrapper
-around the `block` class (i.e., a reference that removes the `::loop()` method that
-doesn't make sense for a `then`).  If you want to just give the type without renaming,
-you can do `if Whatever, Then[myIfBlockType]:`, etc.
-
-```
-if SomeCondition, Then:
-    # do stuff
-    if SomeOtherCondition, Named Then:
-        if SomethingElse1
-            Then exit()
-        if SomethingElse2
-            Named Then exit()
-    # do other stuff
-
-Result := what SomeValue, Then: then[str]
-    5
-        ...
-        if OtherCondition
-            Then exit("Early return for `what`")
-        ...
-    ...
-
-# note that grammatically commas are equivalent to newlines,
-# so you can also write conditions like this:
-if SomeCondition
-Then:
-    print("`Then` on a newline is ok but not idiomatic")
-    ...
-
-# prefer using commas as it's slightly more readable.
-# if you are running out of space, try using parentheses.
-if (
-        Some Long Condition
-    &&  Some OtherFact
-    &&  NeedThis Too
-), Then:
-    print("good")
-    ...
-```
-
-When using `then`, it's recommended to always exit explicitly, but like with the
-non-`then` version, the conditional block will exit with the value of the last
-executed line.  There is a rawer version of this syntax that does require an
-explicit exit, but also doesn't allow any `return` functions since we are literally
-defining a `(Then): never` with its block inline.  This syntax is not recommended
-unless you have identical block handling in separate conditional branches, but
-even that probably could be better served by pulling out a function to call in
-both blocks.
-
-```
-if SomeCondition, (Then): never
-    if OtherCondition
-        if NestedCondition
-            return X    # NOT ALLOWED
-    else
-        Then exit("whatever")
-    # COMPILE ERROR, this function returns here if
-    # `OtherCondition && !NestedCondition`.
-
-# here's an example where we re-use a function for the block.
-myBlock(Then): never
-    ... complicated logic ...
-    Then exit("made it")
-
-# TODO: will this syntax work?
-if SomeCondition, myBlock
-elif SomeThingElse
-    print("don't use it here")
-else myBlock
-```
-
-## function blocks
-
-Similar to conditionals, we allow defining functions with `block` in order
-to allow low-level flow control.  Declarations like `myFunction(X: int): str`,
-however, will be equivalent to `myFunction(X: int), Block: block[str]` or
-the more raw form `myFunction(X: int, Block: block[str]): never`.  Thus
-there is no way to overload a function defined with `block` statements compared
-to one that is not defined explicitly with `block`.
-
-```
-# the `never` return type means that this function can't use `return`, either
-# explicitly via `return ...` or implicitly by leaving a value as the last
-# evaluated statement (which can occur if you don't use `Block exit(...)`
-# or `Block loop(...)` on the last line of the function block).
-# i.e., you must use `Block exit(...)` to return a value from this function.
-myFunction(X: int, Block: block[str]): never
-    innerFunction(Y: int): dbl
-        if Y == 123
-            Block exit("123")    # early return from `myFunction`
-        Y dbl() orPanic()
-    for Y: int < X
-        innerFunction(Y)
-    Block exit("normal exit")
-
-# this definition essentially is syntactical sugar for the one above.
-myFunction(X: int), Block: block[str]
-    innerFunction(Y: int): dbl
-        if Y == 123
-            Block exit("123")    # early return from `myFunction`
-        Y dbl() orPanic()
-    for Y: int < X
-        innerFunction(Y)
-    "normal exit"
-```
-
-We'll need to use look ahead for these cases to see that the function
-is being declared/defined, since there is no `:` immediately after
-`myFunction`.
-
-## for/while loops
-
-TODO: Can we write other conditionals/loops/etc. in terms of `indent/block` to make it easier to compile
-from fewer primitives?  E.g., `while Condition, Do: $(... Do exit(3) ...)`, where
-`do` is a thin wrapper over `block`?
-
-## coroutines
-
-TODO: move this below containers
-
-Coroutines use an outer `co[of]` class with an inner `ci[of]` class.  (`i` for inner and
-`o` for outer.)  The outer class has methods to grab the next value from the inner
-coroutine.
-
-```
-co[of] := {
-    ;;renew(My fn(Ci[of]): never): null
-
-    ;;take(): oneOf(Cease, Value: of)
-
-    @alias ;;next() := ;;take()
-}
-
-# TODO: *maybe* extend `block[oneOf(Cease, Value: of)]`
-ci[of] := {
-    # returns control back to the calling function, but pauses execution
-    # inside this inner coroutine.
-    ;;give(Of.): jump
-
-    @alias ;;yield(Of.) := ;;give(Of.)
-
-    # returns control back to the calling function, but without a value;
-    # indicates that this coroutine is done.
-    ;;exit(): jump
-
-    @alias ;;quit() := ;;exit()
-}
-```
-
-```
-countdown := extend(co[int]) {
-    ;;renew(My Int.) := Co renew((Ci[int];):
-        while My Int > 0
-            Ci give(--My Int)
-        Ci exit()
-    )
-}
-
-# implicit usage
-for Int: in countdown(20)
-    print(Int)      # prints 19, 18, ..., 0
-
-# explicit usage
-Co ;= countdown(20)
-while True
-    what Co take()
-        Value.
-            print(Value)
-        Cease
-            break
-    # also OK:
-    if Co take() is Value.
-        print(Value)
-    else
-        break
-```
-
-# futures
-
-hm-lang wants to make it very simple to do async code, without additional
-metadata on functions like `async` (JavaScript).  It's also desirable to
-avoid even acknowledging that your function returns a future, since changing
-an inner function to return a future would then require changing all nested
-functions' signatures to return futures.  Instead, functions return the
-value that they will receive after any futures are completed (and we recommend
-a timeout `uh` being present for a result error).  If the caller wants to
-treat the function as a future, i.e., to run many such futures in parallel,
-then they ask for it as a future using `@um` before the function name, which
-returns the `um[of]` type, where `of` is the normal function's return type.
-You can also type the variable explicitly as `um[of]` and then void using `@um`
-before the function name.
-
-```
-someVeryLongRunningFunction(Int): string
-    Result ;= ""
-    for New Int < Int
-        sleep(Seconds: New Int)
-        Result += str(New Int)
-    Result
-
-# this uses the default `string` return value:
-print("starting a long running function...")
-MyName := someVeryLongRunningFunction(10)
-print("the result is $(MyName) many seconds later")
-
-# this does it as a future
-print("starting a future, won't make progress unless polled")
-# `Future` here has the type `um[string]`:
-Future := @um someVeryLongRunningFunction(10)
-# Also ok: `Future: um[string] = someVeryLongRunningFunction(10)`
-print("this `print` executes right away")
-Result: string = Future
-print("the result is $(Result) many seconds later")
-```
-
-That is the basic way to resolve a future, but you can also use
-the `::decide(): of` method for an explicit conversion from `um[of]`
-to `of`.  Ultimately futures are more useful when combined for
-parallelism.  Here are two examples, one using an array of futures
-and one using an object of futures:
-
-```
-after(Seconds: int, Return: string): string
-    sleep(Seconds)
-    Return
-
-FuturesArray[]: um[string]
-# no need to use `@um after(...)` here since `FuturesArray`
-# elements are already typed as `um[string]`:
-FuturesArray append(after(Seconds: 2, Return: "hello"))
-FuturesArray append(after(Seconds: 1, Return: "world"))
-ResultsArray := decide(FuturesArray)
-print(ResultsArray) # prints `["hello", "world"]`
-
-# here we use sequence building to ensure we're creating futures,
-# i.e., `@um {A, B}` has type `{A: um[a], B: um[b]}` and executes `A`/`B` asynchronously.
-FuturesObject := @um {
-    Greeting: after(Seconds: 2, Return: "hello")
-    Noun: after(Seconds: 1, Return: "world")
-}
-print(decide(FuturesObject)) # prints `{Greeting: "hello", Noun: "world"}`
-```
-
-Notice that all containers with `um` types for elements will have
-an overload defined for `decide`, which can be used like with the
-`FuturesArray` example above.  Similarly all object types with `um`
-fields have a `decide` function that awaits all internal fields that
-are futures before returning.
-
 # standard container classes (and helpers)
 
 ```
@@ -5832,6 +5506,56 @@ Q ?:= if Condition What + IndentTwice
 
 Which will give a compiler error since there is no internal block for the `if` statement.
 
+### then statements
+
+We can rewrite conditionals to accept an additional `then` "argument".  For `if`/`elif`
+statements, the syntax is `if Expression, Then:` to have the compiler guess the `then`'s
+return type, or `elif Expression, WhateverName: then[whateverType]` to explicitly provide it
+and also rename `Then` to `WhateverName`.  Similarly for `what` statements, e.g.,
+`what Expression, WhateverName: then[whatever]` or `what Expression, Then:`.  `else`
+statements of course elide the expression as `else Then:` or `else Whatever: then[elseType]`.
+Note that we use a `:` here because we're declaring an instance of `then`; if we don't use
+`then` logic we don't use `:` for conditionals.  Also note that `then` is a thin wrapper
+around the `block` class (i.e., a reference that removes the `::loop()` method that
+doesn't make sense for a `then`).  If you want to just give the type without renaming,
+you can do `if Whatever, Then[myIfBlockType]:`, etc.
+
+```
+if SomeCondition, Then:
+    # do stuff
+    if SomeOtherCondition, Named Then:
+        if SomethingElse1
+            Then exit()
+        if SomethingElse2
+            Named Then exit()
+    # do other stuff
+
+Result := what SomeValue, Then: then[str]
+    5
+        ...
+        if OtherCondition
+            Then exit("Early return for `what`")
+        ...
+    ...
+
+# note that grammatically commas are equivalent to newlines,
+# so you can also write conditions like this:
+if SomeCondition
+Then:
+    print("`Then` on a newline is ok but not idiomatic")
+    ...
+
+# prefer using commas as it's slightly more readable.
+# if you are running out of space, try using parentheses.
+if (
+        Some Long Condition
+    &&  Some OtherFact
+    &&  NeedThis Too
+), Then:
+    print("good")
+    ...
+```
+
 ### what statements
 
 `what` statements are comparable to `switch-case` statements in C/C++,
@@ -6092,6 +5816,10 @@ insertion order, but same contents).
 
 ## for loops
 
+TODO: Can we write other conditionals/loops/etc. in terms of `indent/block` to make it easier to compile
+from fewer primitives?  E.g., `while Condition, Do: $(... Do exit(3) ...)`, where
+`do` is a thin wrapper over `block`?
+
 ```
 # for-loop with counter that is readonly inside the for-loop's block:
 for Value: int < 10
@@ -6173,6 +5901,277 @@ maybe just add commas *after* the line instead of spaces before the line to be p
 TODO: we should also have a print macro here in case we want to stop printing,
 e.g., in case the string buffer is full (e.g., limited output).  if the print
 command triggers a stop at any point, then abort (and stop calling the method)
+
+## blocks
+
+You can write your own `assert` or `return`-like statements using `block` logic.  The `block`
+class has a method to return early if desired.  Calling `Block exit(...)` shortcircuits the
+rest of the block (and possibly other nested blocks).  This is annotated by using the `jump`
+return value.  You can also call `Block loop()` to return to the start of the block.
+You don't usually create a `block` instance; you'll use it in combination with the global
+`indent` function.
+
+```
+# indent function which returns whatever value the `Block` exits the loop with.
+indent(fn(Block: block[~t]): never): t
+# indent function which populates `Block Declaring` with the value passed in.
+indent(~Declaring., fn(Block: block[~t, declaring]): never): t
+
+@referenceableAs(then)
+block[of, declaring := null] := {
+    # variables defined only for the lifetime of this block's scope.
+    # TODO: give examples, or maybe remove, if this breaks cleanup with the `jump` ability
+    Declaring; declaring
+
+    # exits the `indent` with the corresponding `of` value.  example:
+    #   Value ;= 0
+    #   what indent((Block: block[str]): never
+    #       Old Value := Value
+    #       Value = Value // 2 + 9
+    #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
+    #       if Old Value == Value
+    #           Block exit("exited at $(Old Value)")
+    #       # note we need to `loop` otherwise we won't satisfy the `never`
+    #       # part of the indent function.
+    #       Block loop()
+    #   )
+    #       String.
+    #           print(String)       # should print "exited at 17"
+    ::exit(Of.): jump
+
+    # like a `continue` statement; will bring control flow back to
+    # the start of the `indent` block.  example:
+    #   Value ;= 0
+    #   indent((Block: block[str]):
+    #       if ++Value >= 10 $(Block exit("done"))
+    #       if Value % 2
+    #           Block loop()
+    #       print(Value)
+    #       Block loop()
+    #   )
+    #   # should print "2", "4", "6", "8"
+    @hideFrom(then)
+    ::loop(): jump
+}
+```
+
+TODO: can we use an `um` internally inside `block`?
+
+### blocks to define a variable
+
+TODO: i don't think this makes much sense to do explicitly, e.g.,
+```
+MyInt, Block[int]:
+    if someCondition()
+        Block exit(3)
+    Block loop()
+```
+
+Mostly because we can't type `MyInt` as `;` or `:` in this way.
+
+
+### then with blocks
+
+When using `then`, it's recommended to always exit explicitly, but like with the
+non-`then` version, the conditional block will exit with the value of the last
+executed line.  There is a rawer version of this syntax that does require an
+explicit exit, but also doesn't allow any `return` functions since we are literally
+defining a `(Then): never` with its block inline.  This syntax is not recommended
+unless you have identical block handling in separate conditional branches, but
+even that probably could be better served by pulling out a function to call in
+both blocks.
+
+```
+if SomeCondition, (Then): never
+    if OtherCondition
+        if NestedCondition
+            return X    # NOT ALLOWED
+    else
+        Then exit("whatever")
+    # COMPILE ERROR, this function returns here if
+    # `OtherCondition && !NestedCondition`.
+
+# here's an example where we re-use a function for the block.
+myBlock(Then): never
+    ... complicated logic ...
+    Then exit("made it")
+
+# TODO: will this syntax work?
+if SomeCondition, myBlock
+elif SomeThingElse
+    print("don't use it here")
+else myBlock
+```
+
+### function blocks
+
+Similar to conditionals, we allow defining functions with `block` in order
+to allow low-level flow control.  Declarations like `myFunction(X: int): str`,
+however, will be equivalent to `myFunction(X: int), Block: block[str]` or
+the more raw form `myFunction(X: int, Block: block[str]): never`.  Thus
+there is no way to overload a function defined with `block` statements compared
+to one that is not defined explicitly with `block`.
+
+```
+# the `never` return type means that this function can't use `return`, either
+# explicitly via `return ...` or implicitly by leaving a value as the last
+# evaluated statement (which can occur if you don't use `Block exit(...)`
+# or `Block loop(...)` on the last line of the function block).
+# i.e., you must use `Block exit(...)` to return a value from this function.
+myFunction(X: int, Block: block[str]): never
+    innerFunction(Y: int): dbl
+        if Y == 123
+            Block exit("123")    # early return from `myFunction`
+        Y dbl() orPanic()
+    for Y: int < X
+        innerFunction(Y)
+    Block exit("normal exit")
+
+# this definition essentially is syntactical sugar for the one above.
+myFunction(X: int), Block: block[str]
+    innerFunction(Y: int): dbl
+        if Y == 123
+            Block exit("123")    # early return from `myFunction`
+        Y dbl() orPanic()
+    for Y: int < X
+        innerFunction(Y)
+    "normal exit"
+```
+
+We'll need to use look ahead for these cases to see that the function
+is being declared/defined, since there is no `:` immediately after
+`myFunction`.
+
+## coroutines
+
+Coroutines use an outer `co[of]` class with an inner `ci[of]` class.  (`i` for inner and
+`o` for outer.)  The outer class has methods to grab the next value from the inner
+coroutine.
+
+```
+co[of] := {
+    ;;renew(My fn(Ci[of]): never): null
+
+    ;;take(): oneOf(Cease, Value: of)
+
+    @alias ;;next() := ;;take()
+}
+
+# TODO: *maybe* extend `block[oneOf(Cease, Value: of)]`
+ci[of] := {
+    # returns control back to the calling function, but pauses execution
+    # inside this inner coroutine.
+    ;;give(Of.): jump
+
+    @alias ;;yield(Of.) := ;;give(Of.)
+
+    # returns control back to the calling function, but without a value;
+    # indicates that this coroutine is done.
+    ;;exit(): jump
+
+    @alias ;;quit() := ;;exit()
+}
+```
+
+```
+countdown := extend(co[int]) {
+    ;;renew(My Int.) := Co renew((Ci[int];):
+        while My Int > 0
+            Ci give(--My Int)
+        Ci exit()
+    )
+}
+
+# implicit usage
+for Int: in countdown(20)
+    print(Int)      # prints 19, 18, ..., 0
+
+# explicit usage
+Co ;= countdown(20)
+while True
+    what Co take()
+        Value.
+            print(Value)
+        Cease
+            break
+    # also OK:
+    if Co take() is Value.
+        print(Value)
+    else
+        break
+```
+
+# futures
+
+hm-lang wants to make it very simple to do async code, without additional
+metadata on functions like `async` (JavaScript).  It's also desirable to
+avoid even acknowledging that your function returns a future, since changing
+an inner function to return a future would then require changing all nested
+functions' signatures to return futures.  Instead, functions return the
+value that they will receive after any futures are completed (and we recommend
+a timeout `uh` being present for a result error).  If the caller wants to
+treat the function as a future, i.e., to run many such futures in parallel,
+then they ask for it as a future using `@um` before the function name, which
+returns the `um[of]` type, where `of` is the normal function's return type.
+You can also type the variable explicitly as `um[of]` and then void using `@um`
+before the function name.
+
+```
+someVeryLongRunningFunction(Int): string
+    Result ;= ""
+    for New Int < Int
+        sleep(Seconds: New Int)
+        Result += str(New Int)
+    Result
+
+# this uses the default `string` return value:
+print("starting a long running function...")
+MyName := someVeryLongRunningFunction(10)
+print("the result is $(MyName) many seconds later")
+
+# this does it as a future
+print("starting a future, won't make progress unless polled")
+# `Future` here has the type `um[string]`:
+Future := @um someVeryLongRunningFunction(10)
+# Also ok: `Future: um[string] = someVeryLongRunningFunction(10)`
+print("this `print` executes right away")
+Result: string = Future
+print("the result is $(Result) many seconds later")
+```
+
+That is the basic way to resolve a future, but you can also use
+the `::decide(): of` method for an explicit conversion from `um[of]`
+to `of`.  Ultimately futures are more useful when combined for
+parallelism.  Here are two examples, one using an array of futures
+and one using an object of futures:
+
+```
+after(Seconds: int, Return: string): string
+    sleep(Seconds)
+    Return
+
+FuturesArray[]: um[string]
+# no need to use `@um after(...)` here since `FuturesArray`
+# elements are already typed as `um[string]`:
+FuturesArray append(after(Seconds: 2, Return: "hello"))
+FuturesArray append(after(Seconds: 1, Return: "world"))
+ResultsArray := decide(FuturesArray)
+print(ResultsArray) # prints `["hello", "world"]`
+
+# here we use sequence building to ensure we're creating futures,
+# i.e., `@um {A, B}` has type `{A: um[a], B: um[b]}` and executes `A`/`B` asynchronously.
+FuturesObject := @um {
+    Greeting: after(Seconds: 2, Return: "hello")
+    Noun: after(Seconds: 1, Return: "world")
+}
+print(decide(FuturesObject)) # prints `{Greeting: "hello", Noun: "world"}`
+```
+
+Notice that all containers with `um` types for elements will have
+an overload defined for `decide`, which can be used like with the
+`FuturesArray` example above.  Similarly all object types with `um`
+fields have a `decide` function that awaits all internal fields that
+are futures before returning.
 
 # enums and masks
 
