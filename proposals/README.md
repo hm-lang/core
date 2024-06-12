@@ -1589,6 +1589,21 @@ v(Y, X)     # equivalent
 
 ### argument objects
 
+TODO: this strays from the initial hm-lang idea of only function arguments being references.
+can we return to this ideal or are these absolutely needed?  we probably need pointers
+in some sense, but it would be nice to have some guarantees on things like this.  we
+probably need a borrow checker (like Rust):
+
+```
+Result ?:= someNullableResult()
+if Result is NonNull:
+    print(NonNull)
+    Result = someOtherFunctionPossiblyNull()
+    # this could be undefined behavior if `NonNull` is a reference to the
+    # nonnull part of `Result` but `Result` became null with `someOtherFunctionPossiblyNull()`
+    print(NonNull)
+```
+
 In hm-lang, parentheses can be used to define argument objects, both as types
 and instances.  As a type, `(X: dbl, Y; int, Z. str)` differs from the object
 type `{X: dbl, Y; int, Z; str}`, for more than just the reason that `.` is invalid
