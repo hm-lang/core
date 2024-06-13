@@ -4296,6 +4296,17 @@ which is how we would define a new method outside of the class.  however, we sho
 this internal consistency works for variables `x {InstanceVar1: int, ...}` parsing as
 `x InstanceVar1: int` might actually be fine as well.  classes might actually just be sequence builders
 since we're defining stuff and not calling stuff (`x {something()}` is clearly a function call).
+however this breaks for static variables (which are currently `x MyVar: int`).
+we probably could just get rid of static variables/functions and simplify logic here.
+alternatively we have to define instance variables as `myClass {::X: int}`, etc.
+if we do use sequence building, we actually wouldn't do `myClass := {...}`, we'd do
+`myClass {X: int, ;;myMethod(): int}`.  however we still want `{X: int, ;;myMethod(): int}`
+as an "unnamed" class, but `myClass := {X: int, ;;myMethod(): int}` still seems reasonable.
+however we still need constructors for certain classes, and constructors are static;
+maybe we allow this one exception with notation `{(Args:): x}` where `x` must be
+the type of the class, a result with the class, etc.
+yeah i think we can get rid of most static functions/variables; these can be defined
+outside the class in a static manner if desired.
 
 ```
 parentClass := {
@@ -4318,7 +4329,7 @@ childClass := {
     parentClass ChildValue: int
     parentClass;;aNewMethod(): null
         My Name += "!"
-    parentClass::overrideable := print("oh yes")
+    parentClass::overrideable() := print("oh yes")
 }
 ```
 
