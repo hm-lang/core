@@ -1342,7 +1342,7 @@ We will allow defining a nullable type by taking a type and specifying what valu
 is null on it.  For example, the signed types `s8` defines null as `-128` like this:
 
 ```
-s8 := extend(i8) {
+s8 := i8 {
     # TODO: This should probably be auto-defined when an `isNull` method is added:
     ;;renew(New I8): hm[ok: null, uh: TODO]
         I8 = New I8
@@ -2933,7 +2933,7 @@ Example optionalMethod = Null
 Example optionalMethod(3.21)    # returns Null
 
 # child classes can define a "method" that overrides the parent's optional function:
-child := extend(parent) {
+child := parent {
     ::optionalMethod(Z: dbl); int
         return ceil(My X * My Y * exp(-Z))
 }
@@ -3605,8 +3605,8 @@ TODO: parent class with getter defined, child class with copy defined.
 ## parent-child classes and method overrides
 
 You can define parent-child class relationships with the following syntax.
-For one parent, `extend(parentClassName)`. Multiple inheritance is
-allowed as well, e.g., `extend(parentOne, parentTwo, ...)`.
+For one parent, `childClass := parentClassName {#( child methods )#}`.  Multiple
+inheritance is allowed as well, via `allOf[parent1, parent2] {#( child methods )#}`.
 We can access the current class instance using `My` (or `Me`/`My`),
 and `i` (or `me`/`my`) will be the current instance's type.  Thus, `i`/`me`/`my` is
 the parent class if the instance is a parent type, or a subclass if the instance
@@ -3643,7 +3643,7 @@ animal := {
         return me(My Name)
 }
 
-snake := extend(animal) {
+snake := animal {
     # if no `renew` functions are defined,
     # child classes will inherit their parent `renew()` methods.
 
@@ -3658,7 +3658,7 @@ snake := extend(animal) {
 Snake := snake(Name: "Fred")
 Snake escape()  # prints "Fred slithers away!!"
 
-cat := extend(animal) {
+cat := animal {
     # here we define a `renew` method, so the parent `reset` methods
     # become hidden to users of this child class:
     ;;renew(): null
@@ -3690,7 +3690,7 @@ constructor like this `;;renew(ParentArgument): $( Parent renew(ParentArgument) 
 you can make it simpler like this instead:
 
 ```
-horse := extend(animal) {
+horse := animal {
     ;;renew(Animal Name: str, My Owner: str, NeighTimes: int = 0)
         for Int: int < NeighTimes
             This speak()
@@ -3770,7 +3770,7 @@ fixed-width integers should be `final` so that we don't need to worry about vtab
 or specifying `@only i64`.  classes that are `final` would not need to be marked `@only`.
 
 ```
-mythologicalCat := extend(cat) {
+mythologicalCat := cat {
     # extra field which will get sliced off when converting from
     # mythologicalCat to cat:
     Lives ;= 9
@@ -3882,6 +3882,7 @@ generic[of] := {
     Value; of
 
     # not a `@final` method, so this can be extended/overridden:
+    # TODO: maybe switch to final as `:;method(): int` and virtual as `:;method(); int`
     ::method(~U): u
         OtherOf: Of = My Value * (U + 5)
         U + u(OtherOf) orPanic()
@@ -3891,7 +3892,7 @@ Generic := generic[string]()
 Generic Value = "3"
 print(Generic method(i32(2)))    # prints "3333335" which is i32("3" * (2 + 5)) + 2
 
-specific[of] := extend(generic[of]) {
+specific[of] := generic[of] {
     ;;renew(My Scale; of = 1) := Null
 
     ::method(~U): u
@@ -4044,7 +4045,7 @@ someClass[x, y, N: count] := { ... }
 someClass[of, N: count] := someClass[x: of, y: of, N]
 
 # this is also OK:
-childClass[of] := extend(someClass[x: of, y: of, N: 256]) {
+childClass[of] := someClass[x: of, y: of, N: 256] {
     # additional child methods
     ...
 }
@@ -4118,41 +4119,40 @@ All classes have a few compiler-provided methods which cannot be overridden.
 
 ## singletons
 
-Defining a singleton class is quite easy, using the `singleton` function.  Like `extend`,
-this goes after a `lowerCamelCase` or `UpperCamelCase` declaration with `:=`, and any
-arguments inside of `singleton` are the parent classes that the singleton extends.  Standard
-singletons use `UpperCamelCase` since they are defining the variable and what it does:
+Defining a singleton class is quite easy, simply by instantiating a class when
+you define it with trailing `()` (which may include arguments you need to instantiate):
 
 ```
-AwesomeService := singleton(parentClass1, parentClass2, #(etc.)#) {
+AwesomeService := allOf[parentClass1, parentClass2, #(etc.)#] {
     UrlBase := "http://my/website/address.bazinga"
     ::get(Id: string): awesomeData 
         Json := Http get("$(My UrlBase)/awesome/$(Id)") 
         return awesomeData(Json)
-}
+}()
 ```
 
-Using `lowerCamelCase` on the LHS actually defines an abstract singleton.  These are useful
-when you want to be able to grab an instance of the concrete child-class but only through
-the parent class reference.
+Using `@singleton lowerCamelCase` on the LHS defines an abstract singleton.
+These are useful when you want to be able to grab an instance of the concrete
+child-class but only through the parent class reference.
 
 ```
 ### screen.hm ###
-screen := singleton() {
+@singleton
+screen := {
     ;;draw(Image, Vector2): null
     ;;clear(Color := color Black)
 }
 ### implementation/sdl-screen.hm ###
-# TODO: we probably can convert `singleton(\/../screen screen)` -> `singleton(\/../screen)`
-#       where we're requesting the class name of a file that's named correctly.  similar for `extend(Hm)`, etc.
-SdlScreen := singleton(\/../screen screen) {
+# TODO: we probably can convert `\/../screen screen` -> `\/../screen`
+#       where we're requesting the class name of a file that's named correctly.
+SdlScreen := \/../screen screen {
     ;;draw(Image, Vector2): null
         # actual implementation code:
         My SdlSurface draw(Image, Vector2)
 
     ;;clear(Color := color Black)
         My SdlSurface clear(Color)
-}
+}()
 ### some-other-file.hm ###
 # this is an error if we haven't imported the sdl-screen file somewhere:
 Screen; screen
@@ -4283,19 +4283,7 @@ Results := MyClass getValue() {
 } # COMPILE ERROR
 ```
 
-TODO: can we make `extend` go away and just do `hm[ok, uh] := oneOf[ok, uh] { ...extra-methods... }`
-via sequence building?  i'm not sure i want this anymore, however.
-`x {something(), OtherThing}` would have value as `{Something: x something(), OtherThing: x OtherThing}`,
-e.g., in case `x` is a class name and `something()` and `OtherThing` are static functions/variables.
-we probably can support this but don't want to make the grammar too context dependent.
-however it would push people towards single inheritance, which might be nice.  you could multiply
-inherit via `childClass := allOf[parentClass1, parentClass2] { ... }`.
-actually this might be more internally consistent than an `extend` keyword.  note that methods are
-`;;myMethod()` so `x {;;myMethod(): int, ...}` would correctly parse as `x;;myMethod(): int`,
-which is how we would define a new method outside of the class.  however, we should ensure that
-this internal consistency works for variables `x {InstanceVar1: int, ...}` parsing as
-`x InstanceVar1: int` might actually be fine as well.  classes might actually just be sequence builders
-since we're defining stuff and not calling stuff (`x {something()}` is clearly a function call).
+TODO: fix `extend` not allowing static vars/fns.
 however this breaks for static variables (which are currently `x MyVar: int`).
 we probably could just get rid of static variables/functions and simplify logic here.
 alternatively we have to define instance variables as `myClass {::X: int}`, etc.
@@ -4568,7 +4556,7 @@ E.g., `myFunction(StringArgument?: MyHm)` to pass in `MyHm` if it's ok or null i
 and `String ?:= MyHm` to grab it as a local variable.
 
 ```
-hm[ok, uh] := extend(oneOf[ok, uh]) {
+hm[ok, uh] := oneOf[ok, uh] {
     # The API is `Ok := Hm assert()`, which will bubble up this `uh`
     # if the result was an error.  Note that we use the `loop` API
     # which normally is implicit but can be used explicitly if needed.
@@ -4847,7 +4835,7 @@ hm[of] := hm[ok: of, Array uh]
 # but `array` can have nullable entries if desired, so convert to `nonNull`
 # if necessary to extend `container`.
 # TODO: check notation: `nonNull(~t) := if nullable(t) $(unNull(t)) else t`
-array[of] := extend(container[id: index, value: nonNull(of)]) {
+array[of] := container[id: index, value: nonNull(of)] {
     # TODO: a lot of these methods need to return `hm[of]`.
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(Me): bool
@@ -4916,7 +4904,7 @@ array[of] := extend(container[id: index, value: nonNull(of)]) {
     ::[Index, fn(Of): ~u]: hm u
 
     # Note: You can use the `;:` const template for function arguments.
-    # e.g., `myArray[of] := extend(array[of]) { ;:[Index, fn(Of;:): ~u] := array;:[Index, fn] }`
+    # e.g., `myArray[of] := array[of] { ;:[Index, fn(Of;:): ~u] := array;:[Index, fn] }`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`Of?;`) is null, but you switch to
@@ -5116,7 +5104,7 @@ uh := oneOf[
 ]
 hm[of] := hm[ok: of, uh]
 
-store[id: hashable, value: nonNull] := extend(container[id, value]) {
+store[id: hashable, value: nonNull] := container[id, value] {
     # Returns Null if `Id` is not in the store.
     ::[Id]?: value
 
@@ -5194,7 +5182,7 @@ indexedStoreElement[id, value] := {
     Value; value
 }
 
-insertionOrderedStore[id, value] := extend(store) {
+insertionOrderedStore[id, value] := store[id, value] {
     # due to sequence building, we can use @private {...} to set @private for
     # each of the fields inside this block.
     @private {
@@ -5282,7 +5270,7 @@ uh := oneOf[
 ]
 hm[of] := hm[ok: of, uh]
 
-set[of: hashable] := extend(container[id: of, value: true]) {
+set[of: hashable] := container[id: of, value: true] {
     # Returns `True` iff `Of` is in the set, otherwise Null.
     # NOTE: the `true` type is only satisfied by the instance `True`;
     # this is not a boolean return value but can easily be converted to boolean.
@@ -5364,7 +5352,7 @@ and `from` selects multiple (or no) IDs from the set (`k from ids(o)`).
 For example, here is a way to create an iterator over some incrementing values:
 
 ```
-range[of: number] := extend(iterator[of]) {
+range[of: number] := iterator[of] {
     @private
     NextValue: of = 0
 
@@ -5416,7 +5404,7 @@ next(Iterator; iterator[~t] @becomes(arrayIterator[t]), Array: array[t])?: t
     Iterator = arrayIterator[t]()
     Iterator;;next(Array)
 
-arrayIterator[of] := extend(iterator[of]) {
+arrayIterator[of] := iterator[of] {
     Next; index
     ;;renew(Start: index = 0):
         My Next = Start
@@ -5799,12 +5787,12 @@ hm-lang will support fast hashes for classes like `int`, `i32`, and `u64[]`,
 and other containers of precise types, as well as recursive containers thereof.
 
 ```
-# TODO: there should maybe be a way to avoid using `extend(...)` for all interfaces.
+# TODO: there should maybe be a way to avoid using extend syntax for all interfaces.
 #       maybe we can do `@override ::hash(~Builder): null` for common interfaces
 # TODO: maybe something like `myHashableClass := { ... }, assert(hashable(myHashableClass))`.
 #       even better, maybe the callers should be responsible for checking if a class is
 #       hashable (or whatever).
-myHashableClass := extend(hashable) {
+myHashableClass := hashable {
     Id: u64
     Name; string
 
@@ -6111,7 +6099,7 @@ ci[of] := {
 ```
 
 ```
-countdown := extend(co[int]) {
+countdown := co[int] {
     ;;renew(My Int.) := Co renew((Ci[int];):
         while My Int > 0
             Ci give(--My Int)
@@ -6644,10 +6632,7 @@ name can thus be chosen for each `oneOf`, e.g., `oneOf[..., WhateverName := 0, .
 You can add some named combinations by extending a mask like this.
 
 ```
-myMask := extend(anyOrNoneOf[
-    X
-    Y
-]) {
+myMask := anyOrNoneOf[X, Y] {
     XAndY := X | Y
 }
 
@@ -6819,15 +6804,15 @@ caller[t, VariableAccess] := {
     # ::runCallbacks(@access(T, VariableAccess) t): null
     #       for Ptr: in Callees $(Ptr call(@access(T, VariableAccess)))
 }
-audio := singleton(caller[sample[~Count], Mutable]) {
+audio := caller[sample[~Count], Mutable] {
     # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
     # amount of time between samples:
     DeltaT: flt
-}
+}()
 
-audioCallee := extend(callee[sample[~Count], Mutable]) {
+audioCallee := callee[sample[~Count], Mutable] {
     Frequency; flt = 440
     Phase; flt = 0
 
@@ -6907,7 +6892,7 @@ tokenMatcher := {
     ::match(Index;, Array: token[]): bool
 }
 
-singleTokenMatcher := extend(tokenMatcher) (
+singleTokenMatcher := tokenMatcher (
     ;;renew(My Token) := Null
 
     # we automatically inherit the @visibility of the parent class method
@@ -6918,7 +6903,7 @@ singleTokenMatcher := extend(tokenMatcher) (
 
 grammarMatcher := oneOf[tokenMatcher, grammarElement, token]
 
-Grammar := singleton() {
+Grammar := {
     @private
     Elements: tokenMatcher[grammarElement] = [
         TypeElement: oneOfMatcher([
@@ -7133,7 +7118,7 @@ Grammar := singleton() {
         if not Matched
             Index = Snapshot
         return Matched
-}
+}()
 
 # TODO: actually compiling code will require going through the TokenMatchers
 # in a specific order to avoid running through all options to see what fits.
@@ -7152,7 +7137,7 @@ listMatcher(GrammarMatcher) := parenthesesMatcher(repeatMatcher([
     CommaOrBlockNewline
 ])
 
-sequence := extend(tokenMatcher) {
+sequence := tokenMatcher {
     ;;renew(My Array; grammarMatcher[]) := Null
 
     ::match(Index;, ToMatch Array: token[]): bool
@@ -7164,7 +7149,7 @@ sequence := extend(tokenMatcher) {
 
 # TODO: add an argument to parentheses matcher for the type of parentheses, e.g., () [] {}
 # TODO: make `block` a type of token as well.
-parenthesesMatcher := extend(tokenMatcher) {
+parenthesesMatcher := tokenMatcher {
     ;;renew(My GrammarMatcher) := Null
 
     ::match(Index;, Array: token[]): bool
@@ -7187,7 +7172,7 @@ parenthesesMatcher := extend(tokenMatcher) {
 
 # TODO: make this a function which returns either `repeatInterruptible` and `repeatTimes`
 # this is essentially the definition for repeatInterruptible:
-repeatMatcher := extend(tokenMatcher) {
+repeatMatcher := tokenMatcher {
     # until `Until` is found, checks matches through `Array` repeatedly.
     # note that `Until` can be found at any point in the array;
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
