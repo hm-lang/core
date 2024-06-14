@@ -173,7 +173,12 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     a function that takes a generic type `u` and returns it.  For more details, see
     [generic/template functions](#generictemplate-functions).
 * `$` for inline block and lambda arguments
-    * `if Condition $(doThing()) else $(doOtherThing())` for [inline blocks](#block-parentheses-and-commas)
+    * [inline blocks](#block-parentheses-and-commas) include:
+        * `$(...)` to effectively indent `...`: `if Condition $(doThing()) else $(doOtherThing())`
+        * `$[...]` as shorthand for a new block defining `[...]`, e.g., for a return value:
+            `Array := if SomeCondition $[1, 2, 3] else $[4, 5]`
+        * `${...}` as shorthand for a new block defining `{...}`, e.g., for a return value:
+            `Result := if X > Y ${Max: X, Min: Y} else ${Min: X, Max: Y}`
     * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
         which will iterate over e.g., `MyArray = [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
 * all arguments are specified by name so order doesn't matter, although you can have default-named arguments
@@ -510,6 +515,7 @@ SomeLineContinuationExampleVariable :=
 You can use `$(` ... `)` to define a block inline.  The parentheses block "operator" is grammatically
 the same as a standard block, i.e., going to a new line and indenting to +1.
 This is useful for short `if` statements, e.g., `if SomeCondition $(doSomething())`.
+Similarly, you can return arrays or objects in blocks via `$[...]` or `${...}`, respectively.
 
 Similarly, note that commas are essentially equivalent to a new line and tabbing to the
 same indent (indent +0).  This allows you to have multiple statements on one line, in any block,
@@ -2227,9 +2233,8 @@ myOverload(Y: str): {X: int}
 myOverload(Y: str): {X?: int}
     # this is essentially an implementation of `X ?:= int(Y), return {X}`
     what int(Y)
-        # TODO: can we do `${X: Ok}` here as shorthand for `$({X: Ok})`?
-        Ok: $({X: Ok})
-        Uh: $({})
+        Ok: ${X: Ok}
+        Uh: ${}
 
 {X} := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
 {X?} := myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
