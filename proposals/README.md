@@ -1065,16 +1065,12 @@ of nullable integers.  To make a nullable array of integers, you'd use
 `X?: array[int]`, `X?[]: int`, or `X?: int[]`.
 
 Prefix `?` can be used to short-circuit function evaluation if an argument is null.
-for a function like `doSomething(X?: int)`, we can use `doSomething(X: ?MyValueForX)`
+for a function like `doSomething(X?: int)`, we can use `doSomething(?X: MyValueForX)`
 to indicate that we don't want to call `doSomething` if `MyValueForX` is null;
-we'll simply return `Null`.  E.g., `doSomething(X: ?MyValueForX)` is equivalent
+we'll simply return `Null`.  E.g., `doSomething(?X: MyValueForX)` is equivalent
 to `if MyValueForX == Null $(Null) else $(doSomething(X: MyValueForX))`.
-TODO: should this be `doSomething(?X: MyValueForX)`?  it probably depends on
-how we want to do things if variables are null.  can we require postfix `?`
-everywhere on a variable name e.g. `MyValueForX?: int` will always be referred to
-as `MyValueForX?` unless we determine it's not null, then we can use `MyValueForX`?
-however with references, we can't assume it will stay non-null unless we pop it
-into a function like `MyValueForX? is((Int): print(Int))`
+In this case that we can elide the variable name, it becomes `doSomething(?X)` for
+an `X` already in scope that could be null.
 
 
 ## prefix and postfix exclamation points `!`
