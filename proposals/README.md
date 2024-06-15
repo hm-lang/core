@@ -83,7 +83,8 @@ elide the type name; e.g., `myFunction(Int): str` will declare a function that t
 an instance of `int`.  See [default-named arguments](#default-name-arguments-in-functions).
 This is also true if namespaces are used, e.g., `myFunction(Named Int): str`.  We can also
 avoid the readonly declaration (`:`) since it is the default, but you can use
-`myFunction(Int;): str` for a function which can mutate the passed-in integer.
+`myFunction(Int;): str` for a function which can mutate the passed-in integer
+or `myFunction(Int.): str` for a function which takes a temporary integer.
 This also works for generic classes like `myGeneric[of]` where `of` is a template type;
 `myFunction(MyGeneric[int];)` is short for `myFunction(MyGeneric; myGeneric[int])`.
 
@@ -1383,14 +1384,14 @@ We will allow defining a nullable type by taking a type and specifying what valu
 is null on it.  For example, the signed types `s8` defines null as `-128` like this:
 
 ```
-s8: i8 {
+s8: allOf[i8, nullable] {
     # TODO: This should probably be auto-defined when an `isNull` method is added:
-    ;;renew(New I8): hm[ok: null, uh: TODO]
-        I8 = New I8
+    ;;renew(New I8.): hm[ok: null, uh: TODO]
+        My I8 = New I8
         assert(!Me isNull())
 
     ::isNull(): bool
-        I8 == -128
+        My I8 == -128
 }
 ```
 
@@ -1422,17 +1423,11 @@ truthyOr(First ~A?., Second A.): a
             else
                 Second A
         Null $(Second A)
-        # TODO: is there a better, rust-like syntax like??
-        #   NonNull A: if NonNull A $(NonNull A)
-        #   Any $(Second A)
-        # maybe
-        #   NonNull A: and NonNull A $(NonNull A)
-        #   Any $(Second A)
-        # TODO: maybe even (maybe make `and` equivalent to `,`??):
-        #   NonNull A:, NonNull A $(NonNull A)
-        #   Any $(Second A)
 ```
 
+We don't currently intend to support Rust-like matching, e.g.,
+`what A $( NonNull A: and bool(NonNull A) $(NonNull A), Any: $(Second A) )`,
+but that is a possibility in the future.
 
 ## nested/object types
 
@@ -1633,7 +1628,7 @@ in some sense, but it would be nice to have some guarantees on things like this.
 probably need a borrow checker (like Rust):
 
 ```
-Result?: someNullableResult()
+Result?; someNullableResult()
 if Result is NonNull:
     print(NonNull)
     Result = someOtherFunctionPossiblyNull()
@@ -1786,9 +1781,9 @@ q(():
 # equivalent to `q((): X)`
 # also equivalent to `q((): $(X))`
 ```
-TODO: discussion on why we'd pick `$(X)`, really only if we needed `$(SomeOtherCalc, X)`.
 
-TODO: discussion on generics like `myGeneric[of]` working like `myFunction(MyGeneric[string];)`.
+You only really need to use `$(X)` if you're also doing a side computation,
+e.g., `$(SomeOtherCalculation, X)`.
 
 ### the name of a called function in an argument object
 
@@ -4845,7 +4840,9 @@ create a [store](#stores).
 To define an array quickly (i.e., without a type annotation), use the notation
 `["hi", "hello", "hey"]`.
 The default-named version of an array does not depend on the element type;
-it is always `Array`.  Example usage and declarations:
+it is always `Array`.  Declared as a function argument, a default array of strings
+would thus be, e.g., `myFunction(Array[string];:.): null`.
+Example usage and declarations:
 
 ```
 # this is a readonly array:
@@ -4872,7 +4869,7 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 ```
 Array uh: oneOf[
     OutOfMemory
-    # TODO: etc...
+    # etc...
 ]
 hm[of]: hm[ok: of, Array uh]
 
