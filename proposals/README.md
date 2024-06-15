@@ -187,7 +187,10 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         * `${...}` as shorthand for a new block defining `{...}`, e.g., for a return value:
             `Result: if X > Y ${Max: X, Min: Y} else ${Min: X, Max: Y}`
     * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
-        which will iterate over e.g., `MyArray = [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
+        which will iterate over e.g., `MyArray: [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
+        * Lambda arguments need to specify which scope they attach to, by increasing
+            the number of `$` to escape parentheses, e.g., `MyArray map(str($$Int) * 2)`
+            to get `["11", "55", "1010"]` for `MyArray: [1, 5, 10]`.
 * all arguments are specified by name so order doesn't matter, although you can have default-named arguments
   for the given type which will grab an argument with that type (e.g., `Int` for an `int` type).
     * `(X: dbl, Int)` can be called with `(1234, X: 5.67)` or even `(Y, X: 5.67)` if `Y` is an `int`
@@ -1856,11 +1859,13 @@ detect(greet(Int): string
     return "hello, world!!!!" substring(Length: Int)
 )   # returns 13
 
-detect(greet: ["hi", "hey", hello"][$Int % 3] + ", world!") # returns 2
+detect(greet: ["hi", "hey", hello"][$$Int % 3] + ", world!") # returns 2
 ```
 
 Note that the last example builds a lambda function using lambda arguments;
-`$Int` attaches an `Int` argument to the nearest function that's being defined.
+`$$Int` attaches an `Int` argument to the `greet` lambda.  We need two `$`
+because `Array[$Int]` would call `["hi", ...][fn(Int): null]`.
+
 You can define a lambda function with multiple arguments using multiple lambda
 arguments.  The lambda argument names should match the arguments that the
 input function declares.
@@ -1869,13 +1874,11 @@ input function declares.
 runAsdf(fn(J: int, K: str, L: dbl): null): null
     print(fn(J: 5, K: "hay", L: 3.14))
 
-runAsdf($K * $J + str($L))   # prints "hayhayhayhayhay3.14"
+runAsdf($K * $J + str($$L))   # prints "hayhayhayhayhay3.14"
 ```
 
-TODO: how to determine that `$L` in the above expression isn't being used
-as a lambda inside of `str`?
-should we use `$$L` for the number of parentheses it needs to escape?
-seems useful.
+Note that `$K`, `$J`, and `$$L` attach to the same lambda because `$$L` is
+inside some parentheses.
 
 ### types as arguments
 
@@ -2644,7 +2647,7 @@ so we can never pass a temporary argument (e.g., `Arg. str`) into `nextGenerator
 If the return type from a function has multiple fields, we can grab them
 using the notation `{Field1:, Field2;, Field3=} doStuff()`, where `doStuff` has
 a function signature of `(): {Field1: field1, Field2: field2, Field3: field3, ...}`,
-and `...` are optional, ignored return fields.  In the example, we're declaring
+and `...` are optional ignored return fields.  In the example, we're declaring
 `Field1` as readonly, `Field2` as writable, and `Field3` is an existing variable
 that we're updating (which should be writeable), but any combination of `;`, `:`,
 and `=` are possible.  The standard case, however, is to declare (or reassign) all
