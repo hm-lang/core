@@ -3874,6 +3874,15 @@ TODO: discuss how `null` can be used as a type in most places.  unless we
 want to explicitly allow for it only if we use `{id?}` for example.
 however that is pretty painful; `null` acts differently than `Null`,
 so we should be able to do `hm[ok: null, uh: ...]` without `ok?: null`.
+however, there is some inconsistency about how we're defining things:
+```
+myGeneric[of](Y: of, Z: of): of
+    X: Y * Z
+    X
+```
+e.g., if `of` is nullable, then `X` is potentially nullable, and should
+be defined via `X?: Y * Z`.  but maybe we can avoid this by requiring non-null
+in certain template declarations.
 
 TODO: maybe allow default types.  probably can do it like `[myValue: defaultType]`
 where as long as `defaultType` is non-abstract, it will be the default type if
@@ -6358,12 +6367,8 @@ default to `Null` and `oneOf[type1, type2, null]` defaults to the `null` type.  
 highly encouraged to come last in a `oneOf`, because they will match any input, so
 casting like this: `oneOf[null, int](1234)` would actually become `Null` rather than
 the expected value `1234`, since casts are attempted in order of the `oneOf` types.
-For the extremely pedantic, `oneOf[Null, X]` should collapse to `oneOf[X]` based on the
-rules surrounding `Null` (i.e., they disappear from functions and argument lists), but
-we allow this breach of consistency for convenience and clarity; `oneOf` is more a macro
-than a function.
-TODO: also i think arrays can have nulls in them, so this isn't super confusing anymore.
-although generics aren't really arrays, they are stores/maps.
+Note that `oneOf[Null, X]` does not collapse to `oneOf[X]` because `[]` acts more like
+an array in this case, and arrays can contain `Null`.
 
 ### testing enums with lots of values
 
