@@ -4316,19 +4316,13 @@ Results := MyClass getValue() {
 
 ### classes as sequence builders
 
-TODO: fix `extend` not allowing static vars/fns.
-however this breaks for static variables (which are currently `x MyVar: int`).
-we probably could just get rid of static variables/functions and simplify logic here.
-alternatively we have to define instance variables as `myClass {::X: int}`, etc.
-if we do use sequence building, we actually wouldn't do `myClass := {...}`, we'd do
-`myClass {X: int, ;;myMethod(): int}`.  however we still want `{X: int, ;;myMethod(): int}`
-as an "unnamed" class, but `myClass := {X: int, ;;myMethod(): int}` still seems reasonable.
-however we still need constructors for certain classes, and constructors are static;
-maybe we allow this one exception with notation `{(Args:): x}` where `x` must be
-the type of the class, a result with the class, etc.
-yeah i think we can get rid of most static functions/variables; these can be defined
-outside the class in a static manner if desired.
-actually, static functions are pretty clear
+TODO: can we make static functions/variables more clear?  it's useful
+for masks, e.g., `myMask count()` and `myMask X` for a value in the mask.
+outside a class: `myClass myFn() := print("whatever")` and
+`myClass X := 5` look like instance variable declarations for `myClass {X: 5, myFn(): null}`.
+should we define classes like `MyClass {X: 5, myFn(): null}` for instance variables/functions
+and `myClass {X: 5, myFn(): null}` for static variables/functions?
+
 
 ```
 parentClass := {
