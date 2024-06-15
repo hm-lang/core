@@ -1382,17 +1382,19 @@ is null on it.  For example, the signed types `s8` defines null as `-128` like t
 
 ```
 s8: allOf[i8, nullable] {
-    # TODO: This should probably be auto-defined when an `isNull` method is added:
-    ;;renew(New I8.): hm[ok: null, uh: TODO]
+    # This should probably be auto-defined when an `isNull` method is added:
+    ;;renew(New I8): hm[ok: null, NumberConversion uh]
         My I8 = New I8
-        assert(!Me isNull())
+        assert(!Me is(null), numberConversion Unrepresentable)
 
-    ::isNull(): bool
+    # TODO: we should figure out a way not to call this on `S8 is(null)`;
+    #       we only want it on `S8? is(null)`.
+    ::is(null): bool
         My I8 == -128
 }
 ```
 
-Similarly, `f32` and `f64` indicate that `NaN` is null via `::isNull(): isNaN(Me)`,
+Similarly, `f32` and `f64` indicate that `NaN` is null via `::is(null): isNaN(Me)`,
 so that you can define e.g. a nullable `f32` in exactly 32 bits.  To get this functionality,
 you must declare your variable as type `s8?` or `f32?`, so that the nullable checks
 kick in.
@@ -3881,10 +3883,6 @@ e.g., if `of` is nullable, then `X` is potentially nullable, and should
 be defined via `X?: Y * Z`.  but maybe we can avoid this by requiring non-null
 in certain template declarations.
 
-TODO: maybe allow default types.  probably can do it like `[myValue: defaultType]`
-where as long as `defaultType` is non-abstract, it will be the default type if
-`myValue` is not specified.
-
 TODO: maybe support specifying mutability in templates, e.g., `gen[x; int]` 
 for a `gen[x]: {MyValue: x}` would result in `{MyValue; int}`.  or if this
 would be prone to errors/confusion with converting `:` into `;` where not desired,
@@ -3962,29 +3960,27 @@ field name is already a type name in the current scope.  For example:
 ```
 MyNamespace id: int
 value: {X: flt, Y: flt}
-
-# This is not idiomatic, probably should get automatically converted to below:
-MyStore1; store[id: MyNamespace id, value: value]()
-MyStore2; store[MyNamespace id, value]()
+MyStore2; store[MyNamespace id, value]
+# Equivalent to `MyStore1; store[id: MyNamespace id, value: value]`.
 ```
+
+### generic type constraints
 
 To constrain a generic type, use `[type: constraints, ...]`.  In this expression,
 `constraints` is simply another type like `nonNull` or `number`, or even a combination
-of classes like `union(container[id, value], number)`.  It may be recommended for more
+of classes like `union[container[id, value], number]`.  It may be recommended for more
 complicated type constraints to define the constraints like this:
 `myComplicatedConstraintType: allOf[t1, oneOf[t2, t3]]` and declaring the class as
 `newGeneric~[of: myComplicatedConstraintType]`, which might be a more readable way to do
 if `myComplicatedConstraintType` is a helpful name.
 
+### generic type defaults
 
-### brackets for generics
+Type defaults follow the same pattern as type constraints but the default types are
+not abstract.  So we use `[type: defaultType, ...]` where `defaultType` is a class
+that is non-abstract.
 
-Brackets are used to create containers, e.g., `Y: "Y-Naught", Z: 10, [X: 3, (Y): 4, Z]`
-to create a store with keys "X", the value of `Y` ("Y-Naught"), and "Z", with
-corresponding values 3, 4, and the value of `Z` (10).  Thus any bracketed values,
-as long as they are named, e.g., `A: 1, B: 2, C: 3, [A, B, C]`, can be converted
-into a store.  Because containers are by default insertion-ordered, they can implicitly
-be converted into an array depending on the type of the receiving variable.
+### overloading generic types
 
 Note that we can overload generic types for single types and stored types (e.g.,
 `array[int]` vs. `array[Count: 3, int]`), which is especially helpful for creating
@@ -4764,6 +4760,13 @@ it's not clear whether `Int` is null due to an error or due to the return value.
 
 # standard container classes (and helpers)
 
+Brackets are used to create containers, e.g., `Y: "Y-Naught", Z: 10, [X: 3, (Y): 4, Z]`
+to create a store with keys "X", the value of `Y` ("Y-Naught"), and "Z", with
+corresponding values 3, 4, and the value of `Z` (10).  Thus any bracketed values,
+as long as they are named, e.g., `A: 1, B: 2, C: 3, [A, B, C]`, can be converted
+into a store.  Because containers are by default insertion-ordered, they can implicitly
+be converted into an array depending on the type of the receiving variable.
+
 ```
 # TODO: should this be `container uh` instead of `Container uh`?
 Container uh: oneOf[
@@ -4888,7 +4891,7 @@ hm[of]: hm[ok: of, Array uh]
 # e.g., `nonNull[of]: if of == nullable(~y) $(y) else $(of)`.
 # or maybe `if of == oneOf[~y, null] $(y) else $(of)`.
 # or maybe `if of == oneOf[...y, null] $(y) else $(of)`.
-array[of]: container[id: index, value: nonNull(of)] {
+array[of]: container[id: index, value: nonNull[of]] {
     # TODO: a lot of these methods need to return `hm[of]`.
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(Me): bool
