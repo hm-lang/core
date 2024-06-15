@@ -15,6 +15,13 @@ between constant identifiers and non-constant identifiers with casing,
 e.g., like `UPPER_SNAKE_CASE` in other languages; you can rely on the compiler
 to stop you if you try to change a constant variable.
 
+Another change is that hm-lang uses `:` (or `;`) for declarations and `=` for reassignment,
+so that declaring a variable and specifying a variable will work the same inside and outside
+function arguments.  For example, declaring a function that takes an integer named `X`
+`myFunction(X: int): null` and declaring an integer variable named `X` uses the same syntax:
+`X: int`.  Similarly, calling a function with arguments specified as `myFunction(X: 5)` and
+defining a variable works the same outside of a function: `X: 5`.
+
 In some languages, e.g., JavaScript, objects are passed by reference and primitives
 are passed by value when calling a function with these arguments.  In hm-lang,
 arguments are passed by reference by default, for consistency.
@@ -56,7 +63,7 @@ Functions are called with named arguments always, although names can be omitted 
 certain circumstances [when calling a function](#calling-a-function).
 
 Nullable variables should always be annotated by `?`, both in a declaration
-`Y ?:= somePossiblyNullReturningFunction()` and also when used as a function
+`Y?: somePossiblyNullReturningFunction()` and also when used as a function
 argument, e.g., `callWithNullable(SomeValue?: Y)`.  This is to avoid surprises
 with null, since `callWithNullable(SomeValue?: Null)` is equivalent to
 `callWithNullable()`, which can be a different overload.
@@ -121,7 +128,7 @@ hm-lang supports "safe" versions of functions where it's possible that we'd run 
 memory or otherwise throw.  By default, `Array[100] = 123` will increase the size
 of the array if necessary, and this could potentially throw in a memory-constrained
 environment (or if the index was large).  If you need to check for these situations,
-there is a safe API, e.g., `Result := Array at(100, Put: 123)` and `Result` can then
+there is a safe API, e.g., `Result: Array at(100, Put: 123)` and `Result` can then
 be checked for `isUh()`, etc.  For convenience for cases where you don't care about
 memory, these safe functions are a bit more verbose than the unchecked functions.
 
@@ -140,7 +147,7 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
     * use `a: y` to declare `a` as a constructor that builds instances of type `y`
     * while declaring *and defining* something, you can avoid the type if you want the compiler to infer it,
-        e.g., `A := someExpression()`
+        e.g., `A: someExpression()`
 * when not declaring things, `:` is not used; e.g., `if` statements do not require a trailing `:` like python
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object type, `W` is an optional field
@@ -176,9 +183,9 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * [inline blocks](#block-parentheses-and-commas) include:
         * `$(...)` to effectively indent `...`: `if Condition $(doThing()) else $(doOtherThing())`
         * `$[...]` as shorthand for a new block defining `[...]`, e.g., for a return value:
-            `Array := if SomeCondition $[1, 2, 3] else $[4, 5]`
+            `Array: if SomeCondition $[1, 2, 3] else $[4, 5]`
         * `${...}` as shorthand for a new block defining `{...}`, e.g., for a return value:
-            `Result := if X > Y ${Max: X, Min: Y} else ${Min: X, Max: Y}`
+            `Result: if X > Y ${Max: X, Min: Y} else ${Min: X, Max: Y}`
     * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
         which will iterate over e.g., `MyArray = [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
 * all arguments are specified by name so order doesn't matter, although you can have default-named arguments
@@ -194,16 +201,22 @@ ReadonlyVar: int
 MutableVar; int
 
 # declaring + defining a variable:
-ReadonlyVar := 123
-MutableVar ;= 321
+MutableVar; 321
+
+# you can also give it an explicit type:
+ReadonlyVar: int(123)
+# TODO: should we completely kill this notation???
+ReadonlyVar: int = 123
 
 # you can also define a variable using an indented block;
 # the last line will be used to initialize the variable.
 # here we use an implicit type (whatever `SomeHelperValue + 4` is).
 MyVar:
     # this helper variable will be descoped after calculating `MyVar`.
-    SomeHelperValue := someComputation(3)
+    SomeHelperValue: someComputation(3)
     SomeHelperValue + 4
+
+# you can also give it an explicit type:
 OtherVar; explicitType
     "asdf" + "jkl;"
 ```
@@ -213,7 +226,7 @@ OtherVar; explicitType
 MyArray[]: elementType      # also ok: `MyArray: elementType[]`
 
 # defining a writable array:
-ArrayVar ;= [1, 2, 3, 4]    # also ok: `ArrayVar[]; int = [...]`
+ArrayVar; [1, 2, 3, 4]    # also ok: `ArrayVar[]; int = [...]`
                             # also ok: `ArrayVar; int[] = [...]`
 ArrayVar[5] = 5     # ArrayVar == [1, 2, 3, 4, 0, 5]
 ++ArrayVar[6]       # ArrayVar == [1, 2, 3, 4, 0, 5, 1]
@@ -227,7 +240,7 @@ MyStore[idType]: valueType   # also ok: `MyStore: valueType[idType]`
 
 # defining a writable store:
 VotesStore[str]; int = ["Cake": 5, "Donuts": 10, "Cupcakes": 3]
-# We can also infer types implicitly via `VotesStore ;= ["Cake": 5, ...]`?
+# We can also infer types implicitly via `VotesStore; ["Cake": 5, ...]`?
 VotesStore["Cake"]        # 5
 ++VotesStore["Donuts"]    # 11
 ++VotesStore["Ice Cream"] # inserts "Ice Cream" with default value, then increments
@@ -241,8 +254,8 @@ VotesStore::["Cupcakes"]  # Null
 MySet[elementType]:     # also ok: `MySet: [elementType]`
 
 # defining a writable set:
-SomeSet[str] ;= ["friends", "family", "fatigue"]
-# Also ok: we can do `SomeSet ;= [str]["friends", ...]`
+SomeSet[str]; ["friends", "family", "fatigue"]
+# Also ok: we can do `SomeSet; [str]["friends", ...]`
 SomeSet::["friends"]    # `True`
 SomeSet::["enemies"]    # Null (falsy)
 SomeSet["fatigue"]!     # removes "fatigue", returns `True` since it was present.
@@ -267,25 +280,19 @@ doSomething(With: int, X; int, Y; int): null
 doSomething(With: 5, X; 12, Y; 340)
 
 # calling a function with variables matching the argument names:
-With := 1000
-X ;= 1
-Y ;= 2
+With: 1000
+X; 1
+Y; 2
 # Note that readonly arguments (`:`) are the default,
 # so you need to specify `;` for writable arguments.
 doSomething(With, X;, Y;)
 
 # calling a function with argument renaming:
-Mean := 1000
-MutatedX ;= 1
-MutatedY ;= 2
+Mean: 1000
+MutatedX; 1
+MutatedY; 2
 doSomething(With: Mean, X; MutatedX, Y; MutatedY)
 ```
-
-TODO: is there a reason we can't just do `X; 1` instead of `X ;= 1`?  we'd save a few keystrokes.
-it's nice for copying values from function arguments into non-function scoped code, e.g., for
-refactoring, not to need to go back and do `X ;= 1` where we had `X; 1`.  it might also reduce
-confusion in definining `oneOf`s that create classes, e.g., `oneOf[z: {X: int, Y: int}, w: str]`
-and defining classes: `myClass: {X: dbl, Y: dbl, Z: dbl}`.
 
 ```
 # declaring a function that returns other values:
@@ -302,25 +309,25 @@ doSomething(X: int, Y: int): {W: int, Z: int}
 
 ```
 # declaring a simple class
-vector3 := {X: dbl, Y: dbl, Z: dbl}
+vector3: {X: dbl, Y: dbl, Z: dbl}
 
 # declaring a "complicated" class
-myClass := {
+myClass: {
     # methods which mutate the class use a `;;` prefix
-    ;;renew(My X: int) := Null
+    ;;renew(My X: int): Null
 
     # methods which keep the class readonly use a `::` prefix
     ::doSomething(Y: int): int
         My X * Y
-    # inline: `::doSomething(Y: int) := int(My X * Y)`
+    # inline: `::doSomething(Y: int): int(My X * Y)`
 }
 ```
 
 ```
 # combining two classes
-aOrB := oneOf[a, b]
-aAndB := union[a, b]
-allOf := union      # in case symmetry between `oneOf` and `allOf` makes more sense.
+aOrB: oneOf[a, b]
+aAndB: union[a, b]
+allOf[...args]: union[...args]  # in case symmetry between `oneOf` and `allOf` makes more sense.
 ```
 
 ```
@@ -331,7 +338,7 @@ doSomething(you(): str, greet(Name: str): str): str
 # calling a function with some functions as arguments
 myName(): str
     "World"
-# inline, `myName() := "World"`
+# inline, `myName(): "World"`
 doSomething(you: myName, greet(Name: str): str
     "Hello, $(Name)"
 )
@@ -340,9 +347,9 @@ doSomething(you: myName, greet(Name: str): str
 ```
 # defining a function that returns a lambda function
 makeCounter(Counter; int): fn(): int
-    fn() := ++Counter
-Counter ;= 123
-counter := makeCounter(Counter;)
+    fn(): ++Counter
+Counter; 123
+counter: makeCounter(Counter;)
 print(counter())    # 124
 ```
 
@@ -352,7 +359,7 @@ print(counter())    # 124
 doSomething(~x, namedNew: ~y): oneOf[new[x], new[y]]
     # if random(dbl) < 0.5 $(x) else $(namedNew)
 
-someType := doSomething(int, namedNew: dbl) # int or dbl with 50-50 probability
+someType: doSomething(int, namedNew: dbl) # int or dbl with 50-50 probability
 ```
 
 Note you could also return `new[oneOf[x, y]]` in the above example,
@@ -417,11 +424,11 @@ the indent, so typical practice is to tab to the operator then tab to the number
 you need for continuing a line.
 
 ```
-SomeVariable := someVeryLongFunctionNameBecauseItIsGoodToBeSpecific(10)
+SomeVariable: someVeryLongFunctionNameBecauseItIsGoodToBeSpecific(10)
     +   3             # indent at +2 ensures that 3 is added into SomeVariable.
     -   OtherVariable # don't keep adding more indents, keep at +2 from original.
 
-ArrayVariable := [
+ArrayVariable: [
     # Array elements are at indent +1 from an open parenthesis, trailing commas optional:
     1
     2
@@ -430,7 +437,7 @@ ArrayVariable := [
     5
 ]
 
-StoreVariable := [
+StoreVariable: [
     SomeValue: 100      # equivalent to "SomeValue": 100
     OtherValue: "hi"    # equivalent to "OtherValue": "hi"
 ]
@@ -438,7 +445,7 @@ StoreVariable := [
 # This is different than the `StoreVariable` because it essentially
 # is an instance of a `{SomeValue: int, OtherValue: str}` type,
 # which cannot have new fields added, even if it was mutable.
-ObjectVariable := {
+ObjectVariable: {
     SomeValue: 100
     OtherValue: "hi"
 }
@@ -449,7 +456,7 @@ The starting indent of the line is what matters, so a close parenthesis can be o
 line as an open parenthesis.
 
 ```
-SomeValue := (
+SomeValue: (
         (20 + 45)
     *   Continuing + The + Line + AtPlus2Indent - (
                 Nested * Parentheses / Are + Ok
@@ -457,7 +464,7 @@ SomeValue := (
         )
 )
 
-AnotherLineContinuationVariable := CanOptionallyStartUpHere
+AnotherLineContinuationVariable: CanOptionallyStartUpHere
     +   OkToNotHaveAPreviousLineStartingAtPlusTwoIndent * (
                 KeepGoingIfYouLike
             -   HoweverLong
@@ -469,8 +476,10 @@ Unless there are parentheses involved, all indents for subsequent line continuat
 should be the same.
 
 ```
+ExamplePlusThreeIndent; someType
+...
 ExamplePlusThreeIndent
-    :=      Hello
+    =       Hello
         +   World
         -   Continuing
 ```
@@ -487,7 +496,7 @@ if someFunctionCall(
 declaringAFunctionWithMultilineArguments(
     Times: int
     Greeting: string
-    Name: string = "World"
+    Name: string("World")   # argument with a default
 ): string
     # "return" is optional for the last line of the block:
     "$(Greeting), $(Name)! " * Times
@@ -505,7 +514,7 @@ declaringAFunctionWithPlusTwoIndentArguments(
 ): string
     return "$(Greeting), $(Name)! " * Times
 
-SomeLineContinuationExampleVariable :=
+SomeLineContinuationExampleVariable:
         OptionalExpressionExplicitlyAtPlusTwoIndent
     +   5 - someFunction(
                 AnotherOptionalExpression
@@ -600,7 +609,7 @@ Other types which have a fixed amount of memory:
 * `u64` : unsigned integer which can hold values from 0 to `2^64 - 1`, inclusive
 * `uXYZ` : unsigned integer which can hold values from 0 to `2^XYZ - 1`, inclusive,
     where `XYZ` is 128 to 512 in steps of 64, and generically we can use
-    `unsigned[Bits: count] := what Bits $(8 $(u8), 16 $(u16), 32 $(u32), ...)`
+    `unsigned[Bits: count]: what Bits $(8 $(u8), 16 $(u16), 32 $(u32), ...)`
 * `count` : `s64` under the hood, intended to be >= 0 to indicate the amount of something.
 * `index` : signed integer, `s64` under the hood.  for indexing arrays starting at 0.
 * `ordinal` : signed integer, `s64` under the hood.  for indexing arrays starting at 1.
@@ -642,20 +651,19 @@ Notice we use `assert` to shortcircuit function evaluation and return an error r
 
 ```
 # Going from a floating point number to an integer should be done carefully...
-X: dbl = 5.43
-SafeCast := X int()                     # SafeCast is a result type (`hm[ok: int, NumberConversion uh]`)
-# also OK: `SafeCast := int(X)`.
-Q := X int() assert()                   or other lambdas # returns an error since `X` is not representable as an integer
-Y := X round(Down) int() assert()       # Y = 5.  equivalent to `X floor()`
-Z := X round(Up) int() assert()         # Z = 6.  equivalent to `X ceil()`.
-R := X round() int() assert()           # R = 5.  rounds to closest integer, breaking ties at half
-                                        #         to the integer larger in magnitude.
+X: dbl(5.43)
+SafeCast: X int()                   # SafeCast is a result type (`hm[ok: int, NumberConversion uh]`)
+# also OK: `SafeCast: int(X)`.
+Q: X int() assert()                 # returns an error since `X` is not representable as an integer
+Y: X round(Down) int() assert()     # Y = 5.  equivalent to `X floor()`
+Z: X round(Up) int() assert()       # Z = 6.  equivalent to `X ceil()`.
+R: X round() int() assert()         # R = 5.  rounds to closest integer, breaking ties at half
+                                    #         to the integer larger in magnitude.
 
 # Note, representable issues arise for conversions even between different integer types.
-A: u32 = 1234
-Q: u8 = A u8() assert()             # RUN-TIME ERROR, `A` is not representable as a `u8`.
-B: u8 = A & 255                     # OK, communicates intent and puts `A` into the correct range.
-C: u8 = A clamp(Min: 0, Max: 255)   # OK, communicates a different intent.
+A: u32(1234)
+Q: A u8() assert()                  # RUN-TIME ERROR, `A` is not representable as a `u8`.
+B: u8(A & 255) assert()             # OK, communicates intent and puts `A` into the correct range.
 ```
 
 Casting to a complex type, e.g., `oneOf[int, str](SomeValue)` will pass through `SomeValue`
@@ -669,17 +677,17 @@ To define a conversion from one class to another, you can define a global functi
 or a class method, like this:
 
 ```
-scaled8 := {
+scaled8: {
     # the actual value held by a `scaled8` is `My ScaledValue / my Scale`.
     @private
     ScaledValue: u8
 
     # static/class-level variable:
     @private
-    my Scale := 32
+    my Scale: 32
 
     my new(Flt): hm[ok: me, uh: oneOf[Negative, TooBig]]
-        ScaledValue := round(Flt * my Scale)
+        ScaledValue: round(Flt * my Scale)
         if ScaledValue < 0
             return Negative
         if ScaledValue > u8 max() flt()
@@ -737,19 +745,19 @@ elif x == dbl
 You can create a new instance of the same type using the `lowerCamelCase` type:
 
 ```
-xType := x
-Y := xType(1234)
+xType: x
+Y: xType(1234)
 
 # alternatively, you can use directly:
-Y := x(1234)
+Y: x(1234)
 ```
 
 Some more examples:
 
 ```
-vector3 := {X; dbl, Y; dbl, Z; dbl}
+vector3: {X; dbl, Y; dbl, Z; dbl}
 
-MyVector3 := vector3(X: 1.2, Y: -1.4, Z: 1.6)
+MyVector3: vector3(X: 1.2, Y: -1.4, Z: 1.6)
 
 print(myVector3)                # prints `vector3`
 print(vector3 == myVector3)     # this prints true
@@ -758,13 +766,13 @@ print(vector3 == myVector3)     # this prints true
 ```
 # we'll define `someType` as vector3, but it could become
 # different than vector3 in the future.
-someType; any = myVector3
+someType; any(myVector3)
 
 ... # other logic that could change `someType`
 
 # creates a dynamical instance of vector3; the compiler doesn't know it's a vector3.
 # even though we know it comes from a vector3, `someType` is a generic `any`.
-SomeThing := someType(X: 5, Y: 6, Z: -7)
+SomeThing: someType(X: 5, Y: 6, Z: -7)
 ```
 
 TODO: types of functions, shouldn't really have `new`.
@@ -777,7 +785,7 @@ Similar to defining a function overload, we can define type overloads for generi
 For example, the generic result class in hm-lang is `hm[ok, uh: nonNull]`, which
 encapsulates an ok value (`ok`) or a non-nullable error (`uh`).  For your custom class you
 may not want to specify `hm[ok: myOkType, uh: myClassUh]` all the time for your custom
-error type `myClassUh`, so you can define `hm[of] := hm[ok: of, uh: myClassUh]` and
+error type `myClassUh`, so you can define `hm[of]: hm[ok: of, uh: myClassUh]` and
 use e.g. `hm[int]` to return an integer or an error of type `myClassUh`.  Shadowing variables is
 invalid in hm-lang, but overloads are valid.  Note however that we disallow redefining
 an overload, as that would be the equivalent of shadowing.
@@ -792,7 +800,7 @@ we should probably switch to `multiply(~First A, Second A): hm[ok: a, NumberConv
 `A1 * A2` always give an `a` result by panicking if we run out of memory.  i.e.,
 ```
 int::*(You): me
-    Result := multiply(Me, You)
+    Result: multiply(Me, You)
     Result orPanic()
 ```
 Primitive types could probably do overflow like they usually do without panicking, but it would save
@@ -886,7 +894,10 @@ but you can explicitly curry like this:
 someFunction(X: int, Y; dbl, Z. str):
     print("something cool with $(X), $(Y), and $(Z)")
 
-curriedFunction(Z. str) := someFunction(X: 5, Y; 2.4, Z.)
+curriedFunction(Z. str): someFunction(X: 5, Y; 2.4, Z.)
+
+# or you can make it almost implicit like this:
+curriedFunction: someFunction(X: 5, Y; 2.4, $$Z.)
 ```
 
 ## namespaces
@@ -947,14 +958,14 @@ Similarly, you can define new variables with namespaces, in case you need a new 
 in the current space.  This might be useful in a class method like this:
 
 ```
-myClass := {
+myClass: {
     X; dbl
 
     # this is a re-implementation of `;;x(X. dbl): dbl`
     # but is a situation where you might like to use namespaces.
     ;;doSomething(New X. dbl): dbl
         # defines a variable `X` in the namespace `Old`:
-        Old X := My X
+        Old X: My X
         My X = New X
         Old X
 ```
@@ -962,7 +973,7 @@ myClass := {
 One of the most convenient uses for namespaces is the ability to use elide argument
 names when calling functions.  E.g., if you have a function which takes a variable named `X`,
 but you already have a different one in scope, you can create a new variable with a namespace
-`ExampleNamespace X := MyNewXValue` and then pass it into the function as
+`ExampleNamespace X: MyNewXValue` and then pass it into the function as
 `myFunction(ExampleNamespace X)` instead of `myFunction(X: ExampleNamespaceX)`.
 This also works with default-named variables.
 
@@ -987,7 +998,7 @@ namespace operator binds left to right.
 
 There are some reserved namespaces which cannot be used as variable names, e.g., `Old`, `New`,
 `Other`, `NotNull`, and `NonNull`.  The latter non-nullable namespaces have a further restriction
-that the variables declared are not null. E.g., if `X ?:= nullableFunction()`, then we can do this:
+that the variables declared are not null. E.g., if `X?: nullableFunction()`, then we can do this:
 
 ```
 what X 
@@ -1020,7 +1031,7 @@ unary prefixes to indicate readonly/writable-instance class methods.  They are s
 readonly/writable `I/Me/My` as an argument.
 
 ```
-exampleClass := {
+exampleClass: {
     # this `;;` prefix is shorthand for `renew(Me;, ...): null`:
     ;;renew(My X: int, My Y: dbl): null
         print("X $(X) Y $(Y)")
@@ -1033,8 +1044,8 @@ exampleClass := {
 
 
 ```
-someClass := {X: dbl, Y: dbl, I; str[]}
-SomeClass ;= someClass(X: 1, Y: 2.3, I: ["hello", "world"])
+someClass: {X: dbl, Y: dbl, I; str[]}
+SomeClass; someClass(X: 1, Y: 2.3, I: ["hello", "world"])
 print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints ["hello", "world"]
 print(SomeClass::I[1])  # prints "world"
 print(SomeClass I[1])   # also prints "world", using ` ` (member access)
@@ -1059,7 +1070,7 @@ getMedianSlow(Array[]: int): hm[ok: int, uh: string]
     if Array count() == 0
         return uh("no elements in array, can't get median.")
     # make a copy of the array, but no longer allow access to it (via `@hide`):
-    Sorted Array := @hide Array sort()   # same as `Array::sort()` since `Array` is readonly.
+    Sorted Array: @hide Array sort()   # same as `Array::sort()` since `Array` is readonly.
     ok(Sorted Array[Sorted Array count() // 2])
 
 # sorts the array and returns the median.
@@ -1081,7 +1092,7 @@ so that operations like `A B[C]^3` mean `((A::B)[C])^3`.
 
 Note that `something() NestedField` becomes `(something())::NestedField` due to
 the function call having higher precedence.  (You can also use destructuring if you want
-to keep a variable for multiple uses: `{NestedField} := something()`.)
+to keep a variable for multiple uses: `{NestedField}: something()`.)
 
 ## prefix and postfix question marks `?`
 
@@ -1194,7 +1205,7 @@ or expressions from executing.
 Internally, `X < Y` becomes a class which holds onto a value or reference of `Y`,
 so that it can be chained.  Any future right operands take over the spot of `Y`.
 Note, hm-lang doesn't have access to this class due to not holding onto references,
-so `Q := X < Y > Z` instantiates `Q` as a boolean, not as this internal class.
+so `Q: X < Y > Z` instantiates `Q` as a boolean, not as this internal class.
 
 ## and/or/xor operators
 
@@ -1213,10 +1224,10 @@ is nullable, `X or Y` will be `oneOf[x, y, null]` and `X and Y` will be `oneOf[y
 The result will be `Null` if both (either) operands are falsey for `or` (`and`).
 
 ```
-NonNullOr := X or Y         # NonNullOr := if X $(X) else $(Y)
-NonNullAnd := X and Y       # NonNullAnd := if !X $(X) else $(Y)
-NullableOr ?:= X or Y       # NullableOr ?:= if X $(X) elif Y $(Y) else $(Null)
-NullableAnd ?:= X and Y     # NullableAnd ?:= if !!X and !!Y $(Null) else $(Y)
+NonNullOr: X or Y           # NonNullOr: if X $(X) else $(Y)
+NonNullAnd: X and Y         # NonNullAnd: if !X $(X) else $(Y)
+NullableOr?: X or Y         # NullableOr?: if X $(X) elif Y $(Y) else $(Null)
+NullableAnd?: X and Y       # NullableAnd?: if !!X and !!Y $(Null) else $(Y)
 ```
 
 The exclusive-or operation `X xor Y` has type `oneOf[x, y, null]`, and will return `Null`
@@ -1226,8 +1237,8 @@ is truthy, the result will be the truthy operand.  An example implementation:
 ```
 # you can define it as nullable via `xor(~X, ~Y): oneOf[x, y, null]` or like this:
 xor(~X, ~Y)?: oneOf[x, y]
-    XIsTrue := bool(X)
-    YIsTrue := bool(Y)
+    XIsTrue: bool(X)
+    YIsTrue: bool(Y)
     if XIsTrue
         if YIsTrue $(Null) else $(X)
     elif YIsTrue
@@ -1239,8 +1250,8 @@ xor(~X, ~Y)?: oneOf[x, y]
 Note that `xor` will thus return a nullable value, unless you do an assert.
 
 ```
-NullableXor ?:= X xor Y
-NonNullXor := X xor Y assert()     # will shortcircuit this block if `X xor Y` is null
+NullableXor?: X xor Y
+NonNullXor: X xor Y assert()     # will shortcircuit this block if `X xor Y` is null
 ```
 
 ## assignment operators
@@ -1261,7 +1272,7 @@ necessarily deeply constant.  That will be discussed more later.
 ```
 # declaring and setting a non-reassignable variable that holds a big integer
 Y: int = 5
-# also equivalent: `Y := 5` or `Y := int(5)`.
+# also equivalent: `Y: 5` or `Y: int(5)`.
 
 # using the variable:
 print(Y * 30)
@@ -1281,11 +1292,11 @@ X; int
 X += 5      # now X == 5 is True.
 
 # you can also define the value inline as well:
-W ;= 7
+W; 7
 # also equivalent, if you want to be explicit about the type.
 W; int = 7
 # also equivalent:
-W ;= int(7)
+W; int(7)
 ```
 
 Note that we use `;` and `:` as if it were an annotation on the variable name (rather
@@ -1319,8 +1330,8 @@ would cast to null rather than `int(1234)`).  Normally the first value in a `one
 default, but if `null` or `Null` is an option, then null is the default.  
 
 In either case, you can use `;` instead of `:` to indicate that the variable is writable.
-Note that if you are defining a nullable variable inline (e.g., with `:=` or `;=`), you should
-prefix the operator with a `?`, e.g., `X ?:= nullableResult(...)`.  It is a compiler error
+Note that if you are defining a nullable variable inline, you should
+prefix the operator with a `?`, e.g., `X?: nullableResult(...)`.  It is a compiler error
 if a declared variable is nullable but `?` is not used, since we want the programmer to be
 aware of the fact that the variable could be null, even though the program will take care
 of null checks automatically and safely.  The `?` operator is required for any `oneOf` that
@@ -1336,23 +1347,23 @@ returned instead (and the method will not be called).
 
 ```
 # define a class with a method called `someMethod`:
-someClass := { ::someMethod(): int }
+someClass: { ::someMethod(): int }
 
 Nullable?; someClass = Null
 
-Value ?:= Nullable someMethod() # `Value` has type `oneOf[int, null]` now,
+Value?: Nullable someMethod()   # `Value` has type `oneOf[int, null]` now,
                                 # so it needs to be defined with `?`
 
 # eventually we want to support things like this, where the compiler
 # can tell if the type is nullable or not:
 if Nullable != Null
-    NonNullValue := Nullable someMethod()   # `NonNullValue` here must be `int`.
+    NonNullValue: Nullable someMethod()   # `NonNullValue` here must be `int`.
 ```
 
 It is not allowed to implicitly cast from a nullable type to a non-nullable type,
-e.g., `Value := Nullable someMethod()`.  The compiler will require that we define
-`Value` with `?:=`, or that we explicitly cast via whatever ending type we desire,
-e.g., `Value := int(Nullable someMethod())`.  Note that `whateverType(Null)` is
+e.g., `Value: Nullable someMethod()`.  The compiler will require that we define
+`Value` with `?:`, or that we explicitly cast via whatever ending type we desire,
+e.g., `Value: int(Nullable someMethod())`.  Note that `whateverType(Null)` is
 the same as `whateverType()`, and number types (e.g., `int()` or `flt()`)  default
 to 0.
 
@@ -1365,7 +1376,7 @@ We will allow defining a nullable type by taking a type and specifying what valu
 is null on it.  For example, the signed types `s8` defines null as `-128` like this:
 
 ```
-s8 := i8 {
+s8: i8 {
     # TODO: This should probably be auto-defined when an `isNull` method is added:
     ;;renew(New I8): hm[ok: null, uh: TODO]
         I8 = New I8
@@ -1376,7 +1387,7 @@ s8 := i8 {
 }
 ```
 
-Similarly, `f32` and `f64` indicate that `NaN` is null via `::isNull() := isNaN(Me)`,
+Similarly, `f32` and `f64` indicate that `NaN` is null via `::isNull(): isNaN(Me)`,
 so that you can define e.g. a nullable `f32` in exactly 32 bits.  To get this functionality,
 you must declare your variable as type `s8?` or `f32?`, so that the nullable checks
 kick in.
@@ -1430,8 +1441,8 @@ Vector = {X: 1, Y: 7.2}
 # note, missing fields will be default-initialized.
 Vector Z == 0   # should be True.
 
-# to make an object variable readonly, use := when defining:
-Vector2 := {X: 3.75, Y: 3.25}
+# to make an object variable readonly, use : when defining:
+Vector2: {X: 3.75, Y: 3.25}
 # or you can use `:` with an explicit type specifier and then `=`:
 Vector2: {X: dbl, Y: dbl} = {X: 3.75, Y: 3.25}
 # then these operations are invalid:
@@ -1443,10 +1454,10 @@ You can define a type/interface for objects you use multiple times.
 
 ```
 # a plain-old-data class with 3 non-reassignable fields, X, Y, Z:
-vector3 := {X: dbl, Y: dbl, Z: dbl}
+vector3: {X: dbl, Y: dbl, Z: dbl}
 
 # you can use `vector3` now like any other type, e.g.:
-Vector3 := vector3(X: 5, Y: 10)
+Vector3: vector3(X: 5, Y: 10)
 ```
 
 We also allow type definitions with writable fields, e.g. `{X; int, Y; dbl}`.
@@ -1460,7 +1471,7 @@ effectively change any internal readonly fields, but only in the constructor.
 
 ```
 # mixMatch has one writable field and one readonly field:
-mixMatch := {Wr; dbl, Ro: dbl}
+mixMatch: {Wr; dbl, Ro: dbl}
 
 # when defined with `;`, the object `MutableMix` is writable: mutable and reassignable.
 MutableMix; mixMatch = {Wr: 3, Ro: 4}
@@ -1483,7 +1494,7 @@ ReadonlyMix Ro -= 1                     # COMPILE ERROR, ReadonlyMix is readonly
 # be mutated inside the function, and because they are passed by reference, escape the function
 # block with changes.  Data classes have overloads with writable arguments, which imply that
 # the data class will take over the argument (via moot).  This implies a move (not copy) operation.
-MyMixMatch := mixMatch(Wr; 5, Ro; 3)  # `;` is useful for taking arguments via a move.
+MyMixMatch: mixMatch(Wr; 5, Ro; 3)      # `;` is useful for taking arguments via a move.
 # see section on writable/readonly arguments for more information.
 ```
 
@@ -1531,14 +1542,14 @@ new statements/functions.  `@hide` has similar behavior to the `@lock` annotatio
 you can use the variable one last time with the annotation, if desired.
 
 ```
-DateString; str = "2023-01-01"
+DateString; str("2023-01-01")
 
 # after this line, `DateString` can't be accessed anymore.
-Date := date(@hide DateString)
+Date: date(@hide DateString)
 
 # note in some circumstances you may also want to include `!` to avoid copying the variable,
 # if the underlying class makes use of that same type variable internally, e.g.:
-Date := date(@hide DateString!)
+Date: date(@hide DateString!)
 # see discussion on `moot` for more information.
 ```
 
@@ -1548,26 +1559,23 @@ Functions are named using `lowerCamelCase` identifiers.  The syntax to declare
 a function is `lowerCamelCaseName(FunctionArguments...): returnType`, but if
 you are also defining the function the `returnType` is optional (but generally
 recommended for multiline definitions).  Defining the function can occur inline
-with `:=` or over multiple lines using an indented block (without `=`).
+with `:` or over multiple lines using an indented block.
 
 ```
 # declaring a function with no arguments that returns a big integer
 v(): int
 
-# setting/defining/initializing the function usually requires an indent+1 block following:
+# setting/defining/initializing the function:
 v(): int
     # `return` is optional for the last line in a block.
     # e.g., the following could have been `return 600`.
     600
 
-# but in simple cases like this you can also define inline:
-v() := 600
+# inline definition
+v(): 600
 
 # inline, but with explicit type
-v(): int = 600
-
-# inline with explicit type on the return value
-v() := int(600)
+v(): int(600)
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
@@ -1604,8 +1612,8 @@ v(X: 5.4, Y: 3)
 v(Y: 3, Y: 5.4)
 
 # if you already have variables X and Y, you don't need to re-specify their names:
-X := 5.4
-Y := 3
+X: 5.4
+Y: 3
 v(X, Y)     # equivalent to `v(X: X, Y: Y)` but the redundancy is not idiomatic.
 v(Y, X)     # equivalent
 ```
@@ -1618,7 +1626,7 @@ in some sense, but it would be nice to have some guarantees on things like this.
 probably need a borrow checker (like Rust):
 
 ```
-Result ?:= someNullableResult()
+Result?: someNullableResult()
 if Result is NonNull:
     print(NonNull)
     Result = someOtherFunctionPossiblyNull()
@@ -1636,26 +1644,26 @@ we'll use *arguments type* for an argument object type and *arguments instance* 
 an argument object instance.
 
 TODO: do `[]` need to be argument objects as well for the intent of calling
-container methods like `Store[5, (Value;) := ++Value]`?
+container methods like `Store[5, (Value;): ++Value]`?
 
 Because they contain references, arguments instances cannot outlive the lifetime
 of the variables they contain.
 
 ```
-a := (X: dbl, Y; int, Z. str)
+a: (X: dbl, Y; int, Z. str)
 
 # This is OK:
-X := 3.0
-Y ;= 123
-A := (X, Y;, Z. "hello")    # `Z` is passed by value, so it's not a reference.
+X: 3.0
+Y; 123
+A: (X, Y;, Z. "hello")    # `Z` is passed by value, so it's not a reference.
 A Y *= 37    # OK
 
 # This is not OK:
 returnA(Q: int): a
     # X and Y are defined locally here, and will be descoped at the
     # end of this function call.
-    X := Q dbl() okOr(NaN) * 4.567
-    Y ;= Q * 3
+    X: Q dbl() okOr(NaN) * 4.567
+    Y; Q * 3
     # So we can't pass X, Y as references here.  Z is fine.
     (X, Y;, Z. "world")
 ```
@@ -1665,7 +1673,7 @@ defined with variables whose lifetimes outlive the input arguments instance.
 For example:
 
 ```
-X := 4.56
+X: 4.56
 returnA(Q; int): (X: dbl, Y; int, Z. str)       # inline arguments type
     Q *= 37
     # X has a lifetime that outlives this function.
@@ -1682,9 +1690,9 @@ references, but need nesting to be the most clear.  For example:
 copy(From: (Pixels, Rectangle.), To: (Pixels;, Rectangle.): null
 
 # function usage
-Source Pixels := pixels() { #( build image )# }
-Destination Pixels ;= pixels()
-Size Rectangle := rectangle(Width: 10, Height: 7)
+Source Pixels: pixels() { #( build image )# }
+Destination Pixels; pixels()
+Size Rectangle: rectangle(Width: 10, Height: 7)
 
 copy(
     From: (
@@ -1703,10 +1711,10 @@ We can create deeply nested argument objects by adding valid identifiers with co
 E.g., `(X: Y: 3)` is the same as `(X: (Y: 3))`.  This can be useful for a function signature
 like `run(After: duration, fn(): ~t): t`.  `duration` is a built-in type that can be built
 out of units of time like `Seconds`, `Minutes`, `Hours`, etc., so we can do something like
-`run(After: Seconds: 3, () := print("hello world!"))`, which will automatically pass
+`run(After: Seconds: 3, (): print("hello world!"))`, which will automatically pass
 `(Seconds: 3)` into the `duration` constructor.  Of course, if you need multiple units of time,
-you'd use `run(After: (Seconds: 6, Minutes: 1), () := print("hello world!"))` or to be explicit
-you'd use `run(After: duration(Seconds: 6, Minutes: 1), () := print("hello world!"))`.
+you'd use `run(After: (Seconds: 6, Minutes: 1), (): print("hello world!"))` or to be explicit
+you'd use `run(After: duration(Seconds: 6, Minutes: 1), (): print("hello world!"))`.
 
 
 ### default-name arguments in functions
@@ -1718,9 +1726,9 @@ is just the `UpperCamelCase` version of the `lowerCamelCase` type.
 ```
 # this function declaration is equivalent to `f(Int: int): int`:
 f(Int): int
-    return Int + 5
+    Int + 5
 
-Z := 3
+Z: 3
 f(Z)        # ok
 f(int(4.3)) # ok
 f(5)        # ok
@@ -1758,19 +1766,20 @@ q(anotherTestFunction)  # should print "function returned false!"
 q(fn(): bool
     random() > 0.5
 )   # will print one of the above due to randomness.
-# equivalent to `q(() := random() > 0.5)`
+# equivalent to `q((): random() > 0.5)`
 
 # when defining a lambda (not declaring it), you can omit the name:
-q(() := True)
+q((): True)
 
 # or you can do multiline with a name-omitted lambda:
 X; bool
 q(():
     return X
 )
-# equivalent to `q(() := X)`
+# equivalent to `q((): X)`
 # also equivalent to `q((): $(X))`
 ```
+TODO: discussion on why we'd pick `$(X)`, really only if we needed `$(SomeOtherCalc, X)`.
 
 TODO: discussion on generics like `myGeneric[of]` working like `myFunction(MyGeneric[string];)`.
 
@@ -1866,6 +1875,7 @@ runAsdf($K * $J + str($L))   # prints "hayhayhayhayhay3.14"
 TODO: how to determine that `$L` in the above expression isn't being used
 as a lambda inside of `str`?
 should we use `$$L` for the number of parentheses it needs to escape?
+seems useful.
 
 ### types as arguments
 
@@ -1960,15 +1970,15 @@ There is one place where it is not obvious that two arguments might have the sam
 that is in method definitions.  Take for example the vector dot product:
 
 ```
-vector2 := {
-    ;;renew(My X; dbl, My Y; dbl) := Null
+vector2: {
+    ;;renew(My X; dbl, My Y; dbl): Null
 
     @orderIndependent
     ::dot(Vector2): dbl
         return My X * Vector2 X + My Y * Vector2 Y
 }
-Vector2 := vector2(1, 2)
-OtherVector2 := vector2(3, -4)
+Vector2: vector2(1, 2)
+OtherVector2: vector2(3, -4)
 print(Vector2 dot(OtherVector2))    # prints -5
 print(dot(Vector2, OtherVector2))   # equivalent, prints -5
 ```
@@ -1991,11 +2001,11 @@ allows you to avoid the compiler errors like `@orderIndependent` does.  You can 
 use `You` as the variable name which in the class body is the same as `Second Me`.
 
 ```
-vector3 := {
-    ;;renew(My X; dbl, My Y; dbl, My Z; dbl) := Null
+vector3: {
+    ;;renew(My X; dbl, My Y; dbl, My Z; dbl): Null
 
     # defined in the class body, we do it like this:
-    ::cross(You) := vector3(
+    ::cross(You): vector3(
         # you can use `You` or `Your` in this block:
         X: My Y * Your Z - My Z * Your Y
         Y: My Z * Your X - My X * Your Z
@@ -2005,7 +2015,7 @@ vector3 := {
 
 # defined outside the class body, we do it like this:
 # NOTE: both definitions are *not* required, only one.
-cross(First Vector3, Second Vector3) := vector3(
+cross(First Vector3, Second Vector3): vector3(
     X: First Vector3 Y * Second Vector3 Z - First Vector3 Z * Second Vector3 Y
     Y: First Vector3 Z * Second Vector3 X - First Vector3 X * Second Vector3 Z
     Z: First Vector3 X * Second Vector3 Y - First Vector3 Y * Second Vector3 X
@@ -2045,7 +2055,7 @@ greet(Say; string): null
     Say += " wow"
     print("$(Say), world...")
 
-MySay ;= "hello"
+MySay; "hello"
 greet(Say; MySay)   # prints "hello wow, world..."
 print(MySay)            # prints "hello wow" since MySay was modified
 ```
@@ -2055,10 +2065,10 @@ Name modifiers (i.e., `;`, `:`, and `?`) also count as different overloads.
 
 ```
 fibonacci(Times: int): int
-    Previous ;= 1
-    Current ;= 0
+    Previous; 1
+    Current; 0
     for Count: int < Times
-        NextPrevious := Current
+        NextPrevious: Current
         Current += Previous
         Previous = NextPrevious
     return Current
@@ -2074,9 +2084,9 @@ fibonacci(Times: dbl): int
 # NOTE: if the second function returned a `dbl`, then we actually could distinguish between
 # the two overloads.  This is because default names for each return would be `Int` and `Dbl`,
 # respectively, and that would be enough to distinguish the two functions.  The first overload
-# would still be default in the case of a non-matching name (e.g., `Result := fibonnaci(Times: 3)`),
-# but we could determine `Int := fibonacci(Times: 3)` to definitely be the first overload and
-# `Dbl := fibonacci(Times: 7.3)` to be the second overload.
+# would still be default in the case of a non-matching name (e.g., `Result: fibonnaci(Times: 3)`),
+# but we could determine `Int: fibonacci(Times: 3)` to definitely be the first overload and
+# `Dbl: fibonacci(Times: 7.3)` to be the second overload.
 ```
 
 There is the matter of how to determine which overload to call.  We consider
@@ -2090,11 +2100,11 @@ or `fn(X, Animal)` overload.
 
 NOTE: we cannot match a function overload that has more arguments than we supplied in
 a function call.  If we want to allow missing arguments in the function call, the declaration
-should be explicit about that; e.g., `fn(X?: int) := ...` or `fn(X := 0) := ...`.
+should be explicit about that; e.g., `fn(X?: int): ...` or `fn(X: 0): ...`.
 Similarly, we cannot match an overload that has fewer arguments than we supplied in the call.
 
 Output arguments are similar, and are also matched by name.  This is pretty obvious with
-something like `X := calling(InputArgs...)`, which will first look for an `X` output name
+something like `X: calling(InputArgs...)`, which will first look for an `X` output name
 to match.  If there is no `X` output name, then the first non-null, default-named output
 overload will be used.  E.g., if `calling(InputArgs...): dbl` was defined before
 `calling(InputArgs...): str`, then `dbl` will win.  For an output variable with an explicit
@@ -2104,10 +2114,10 @@ This might be surprising, but we want to enable easy conversions between types w
 implicitly convert to each other, so that we don't always need to be explicit about converting
 iterators to containers, etc.  If there is no default-named `Dbl: dbl` output type, we'll look
 for the first non-null, default-named output overload.  For function calls like
-`X := dbl(calling(InputArgs...))`, we will lose all `X` output name information because
+`X: dbl(calling(InputArgs...))`, we will lose all `X` output name information because
 `dbl(...)` will hide the `X` name.  In this case, we'll look for an overload with a
 default-named `Dbl: dbl` type output, then any non-null, default-named output overload.
-For calls like`X := calling(InputArgs...) Dbl`, we will explicitly pick a default-named
+For calls like`X: calling(InputArgs...) Dbl`, we will explicitly pick a default-named
 `Dbl: dbl` output overload or throw a compiler error if none exists.
 
 ### nullable input arguments
@@ -2138,7 +2148,7 @@ someFunction(Y?: int): dbl
     return if Y != Null $(1.77) else $(Y + 2.71)
 
 # default argument (case 4):
-someFunction(Y := 3): dbl
+someFunction(Y: 3): dbl
     return dbl(Y)
 ```
 
@@ -2165,7 +2175,7 @@ calling the overload that defined the missing argument case.  I.e.:
 Y?; int = ... # Y is maybe null, maybe non-null
 
 # the following calls `overloaded()` if Y is Null, otherwise `overloaded(Y)`:
-Z := overloaded(Y?) # also OK, but not idiomatic: `Z := overloaded(Y?: Y)`
+Z: overloaded(Y?) # also OK, but not idiomatic: `Z: overloaded(Y?: Y)`
 # Z has type `oneOf[dbl, string]` due to the different return types of the overloads.
 ```
 
@@ -2178,7 +2188,7 @@ the number of fields in an object using `count()`, we'll get results like this:
 
 Note that when calling a function with a nullable variable/expression, we need to
 indicate that the field is nullable if the expression itself is null (or nullable). 
-Just like when we define nullable variables, we use `?:=` or `?;=`, we need to use
+Just like when we define nullable variables, we use `?:` or `?;`, we need to use
 `?:` or `?;` (or some equivalent) when passing a nullable field.  For example:
 
 ```
@@ -2190,7 +2200,7 @@ someFunction(X: 100)    # OK, expression for X is definitely not null
 someFunction(X?: 100)   # ERROR! expression for X is definitely not null
 
 # when argument is an existing variable:
-X ?;= Null
+X?; Null
 print(someFunction(X?))  # can do `X?: X`, but that's not idiomatic.
 
 # when argument is a new nullable expression:
@@ -2208,12 +2218,12 @@ where we actually don't want to call an overload of the function if the argument
 ```
 # in other languages, you might check for null before calling a function on a value.
 # this is also valid hm-lang but it's not idiomatic:
-X ?:= if Y != Null $(overloaded(Y)) else $(Null)
+X?: if Y != Null $(overloaded(Y)) else $(Null)
 
 # instead, you should use the more idiomatic hm-lang version.
 # putting a ? *before* the argument name will check that argument;
 # if it is Null, the function will not be called and Null will be returned instead.
-X ?:= overloaded(?Y)
+X?: overloaded(?Y)
 
 # either way, X has type `oneOf[string, null]`.
 ```
@@ -2225,7 +2235,7 @@ This can also be used with the `return` function to only return if the value is 
 
 ```
 doSomething(X?: int): int
-    Y ?:= ?X * 3    # Y is Null or X*3 if X is not Null.
+    Y?: ?X * 3    # Y is Null or X*3 if X is not Null.
     return ?Y       # only returns if Y is not Null
     #( do some other stuff )#
     ...
@@ -2238,7 +2248,7 @@ We also support function overloads for outputs that are nullable.  Just like wit
 for nullable input arguments, there are some restrictions on defining overloads with (1) a
 missing output, (2) a present output, and (3) a nullable output.  The restriction is a bit
 different here, in that we cannot define (1) and (3) simultaneously for nullable outputs.
-This enables us to distinguish between, e.g., `X ?:= myOverload(Y)` and `X := myOverload(Y)`,
+This enables us to distinguish between, e.g., `X?: myOverload(Y)` and `X: myOverload(Y)`,
 which defines a nullable `X` or a non-null `X`.
 
 ```
@@ -2252,41 +2262,39 @@ myOverload(Y: str): {X: int}
 
 # case 3, nullable output (not compatible with case 1):
 myOverload(Y: str): {X?: int}
-    # this is essentially an implementation of `X ?:= int(Y), return {X}`
+    # this is essentially an implementation of `X?: int(Y), return {X}`
     what int(Y)
         Ok: ${X: Ok}
         Uh: ${}
 
-{X} := myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
-{X?} := myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
+{X}: myOverload(Y: "1234")  # calls (2) if it's defined, otherwise it's a compiler error.
+{X?}: myOverload(Y: "abc")  # calls (1) or (3) if one is defined, otherwise it's a compiler error.
 ```
 
 Note that if only Case 3 is defined, we can use a special notation to ensure that the return
 value is not null, e.g., `{NotNull X} = ...`.  This will throw a run-time error if the return
 value for `X` is null.  Note that this syntax is invalid if Case 2 is defined, since there is
 no need to assert a non-null return value in that case.
-TODO: we probably want to do `{@NotNull X}` to indicate that `X` is not null but then not
-require the namespace `NotNull` anymore.
 
 ```
 # normal call for case 3, defines an X which may be null:
-{X?:} = myOverload(Y: "123")
+{X?}: myOverload(Y: "123")
 
 # special call for case 3; if X is null, this will throw a run-time error,
 # otherwise will define a non-null X:
-{NotNull X} = myOverload(Y: "123")
+{NotNull X}: myOverload(Y: "123")
 
 # make a default for case 3, in case X comes back as null from the function
-{X := -1} = myOverload(Y: "123")
+{X: -1}: myOverload(Y: "123")
 ```
 
 If there are multiple return arguments, i.e., via an output type data class,
 e.g., `{X: dbl, Y: str}`, then we support destructuring to help nail down
 which overload should be used.  E.g., `{X:, Y:} = myOverload()` will
-look for an overload with outputs named `X` and `Y`.  However, `X := myOverload()`
-is not equivalent to `{X} := myOverload()`; if there is no destructuring
+look for an overload with outputs named `X` and `Y`.  However, `X: myOverload()`
+is not equivalent to `{X}: myOverload()`; if there is no destructuring
 on the left-hand side, it will take the default return value.  You can also
-explicitly type the return value, e.g., `Int := myOverload()` or `R: dbl = myOverload()`,
+explicitly type the return value, e.g., `Int: myOverload()` or `R: dbl = myOverload()`,
 which will look for an overload with an `int` or `dbl` return type.
 
 When matching outputs, the fields count as additional arguments, which must
@@ -2307,7 +2315,7 @@ Functions can be defined with arguments that are passed-by-value, e.g., via
 temporaries, e.g., `fn(ArgName. "my temp string")`, or with easily-copyable
 types like `dbl` or `i32` like `MyI32: i32 = 5, fn(MyArg. MyI32)`, or
 with larger-allocation types like `int` or `str` with an explicit copy:
-`MyStr := "asdf...", fn(TmpArg. str(MyStr))`.  In any case, the passed-by-value
+`MyStr: "asdf...", fn(TmpArg. str(MyStr))`.  In any case, the passed-by-value
 argument, if changed inside the function block, will have no effect on the
 things outside the function block.  Inside the function block, pass-by-value
 arguments are mutable, and can be reassigned or modified as desired.
@@ -2334,12 +2342,12 @@ and (2) child types are allowed to be passed by reference when the function asks
 for a parent type.
 
 Note that return types are never references, so one secondary difference between
-`fn(Int.) := ++Int` and `fn(Int;) := ++Int` is that a copy/temporary is required
+`fn(Int.): ++Int` and `fn(Int;): ++Int` is that a copy/temporary is required
 before calling the former and a copy is made for the return type in the latter.
 The primary difference is that the latter will modify the passed-in variable in
 the outer scope.  To avoid dangling references, any calls of `fn(Int;)` with a
 temporary will actually create a hidden `int` before the function call.  E.g.,
-`fn(Int; 12345)` will essentially become `UniquelyNamedInt ;= 12345` then
+`fn(Int; 12345)` will essentially become `UniquelyNamedInt; 12345` then
 `fn(Int; @hide UniquelyNamedInt)`, so that `UniquelyNamedInt` is hidden from the
 rest of the block.  See also [lifetimes and closures](#lifetimes-and-closures).
 
@@ -2382,7 +2390,7 @@ for writable-reference or temporary variable arguments.
 onlyReadonly(A: int): str
     return str(A) * A
 
-MyA ;= 10
+MyA; 10
 onlyReadonly(A; MyA)        # COMPILE ERROR, no writable overload for `onlyReadonly(A;)`
 onlyReadonly(A. int(MyA))   # COMPILE ERROR, no temporary overload for `onlyReadonly(A.)`
 
@@ -2390,11 +2398,11 @@ print(onlyReadonly(A: 3))       # OK, prints "333"
 print(onlyReadonly(A: MyA))     # OK, prints "10101010101010101010"
 
 onlyMutable(B; int): str
-    Result := str(B) * B
+    Result: str(B) * B
     B /= 2
     return Result
 
-MyB ;= 10
+MyB; 10
 onlyMutable(B: MyB)         # COMPILE ERROR, no readonly overload for `onlyMutable(B:)`
 onlyMutable(B. int(MyB))    # COMPILE ERROR, no temporary overload for `onlyMutable(B.)`
 
@@ -2402,14 +2410,14 @@ print(onlyMutable(B; MyB))  # OK, prints "10101010101010101010"
 print(onlyMutable(B; MyB))  # OK, prints "55555"
 
 onlyTemporary(C. int): str
-    Result ;= ""
+    Result; ""
     while C != 0
         Result append(str(C % 3))
         C /= 3
     Result reverse()
     Result
 
-MyC ;= 5
+MyC; 5
 onlyTemporary(C: MyC)       # COMPILE ERROR, no readonly overload for `onlyTemporary(C:)`
 onlyTemporary(C; MyC)       # COMPILE ERROR, no temporary overload for `onlyTemporary(C;)`
 
@@ -2419,17 +2427,17 @@ print(onlyTemporary(C. MyC!))   # OK, prints "12"
 
 Note there is an important distinction between variables defined as writable inside a block
 versus inside a function argument list.  Mutable block variables are never reference types.
-E.g., `B ;= A` is always a copy of `A`, so `B` is never a reference to the variable at `A`.
+E.g., `B; A` is always a copy of `A`, so `B` is never a reference to the variable at `A`.
 For a full example:
 
 ```
 referenceThis(A; int): int
-    B ;= A  # B is a copy of A
+    B; A  # B is a copy of A
     A *= 2
     B *= 3
     return B
 
-A ;= 10
+A; 10
 print(referenceThis(A;))    # prints 30, not 60.
 print(A)                    # A is now 20, not 60.
 ```
@@ -2439,7 +2447,7 @@ block-scoped (but hidden) variable will be created for each function call so tha
 a reference type is allowed.
 
 ```
-fn(B ;= int(3)): int
+fn(B; int(3)): int
     B += 3
     return B
 
@@ -2453,7 +2461,7 @@ fn(B?: int): int
 
 # and can be called with or without an argument:
 print(fn())         # returns 6
-MyB ;= 10
+MyB; 10
 print(fn(B; MyB))   # returns 13
 print(MyB)          # MyB is now 13 as well.
 print(fn(B; 17))    # MyB is unchanged, prints 20
@@ -2472,7 +2480,7 @@ over(Load; int): str
 over(Load. int): str
     return str(++Load)
 
-Load ;= 100
+Load; 100
 print(over(Load!))  # calls `over(Load.)` with a temporary, prints 101
 print(Load)         # Load = 0 because it was mooted, and was not modified inside the function
 
@@ -2511,7 +2519,7 @@ writable or not.  Similarly, we can use templates like `:;.` for
 readonly-reference/writable-reference/temporary.
 
 ```
-myClass[of] := {
+myClass[of]: {
     X; of
 
     ;;take(X; of):
@@ -2530,7 +2538,7 @@ myClass[of] := {
 Alternatively, we can rely on some boilerplate that the language will add for us, e.g.,
 
 ```
-myClass[of] := {
+myClass[of]: {
     X; of
 
     # these are added automatically by the compiler since `X; t` is defined.
@@ -2569,7 +2577,7 @@ in a self-referential way.  While this is allowed, it's not recommended!  Here i
 an example with an array:
 
 ```
-Array ;= [0, 1, 2, 3, 4]
+Array; [0, 1, 2, 3, 4]
 sawOffBranch(Int;): null
     Array erase(Int)
     Int *= 10
@@ -2588,16 +2596,16 @@ Containers of containers (and further nesting) require ID arrays for the pointer
 E.g., `MyStore["Ginger"][1]["Soup"]` would be a struct which contains `&MyStore`, plus the tuple `("Ginger", 1, "Soup")`.
 
 TODO: discussion on how `Array[5]` gets passed by reference when used as an argument.
-e.g., `myFunction(X; Array[5])` will do something like `Array[5, (T;) := myFunction(X; T)]`.
+e.g., `myFunction(X; Array[5])` will do something like `Array[5, (T;): myFunction(X; T)]`.
 
 Here is an example with a store.  Note that the argument is readonly, but that doesn't mean
 the argument doesn't change, especially when we're doing self-referential logic like this.
 
 ```
-Animals ;= ["hello": cat(), "world": snake(Name: "Woodsy")]
+Animals; ["hello": cat(), "world": snake(Name: "Woodsy")]
 
 doSomething(Animal): string
-    Result ;= Animal Name
+    Result; Animal Name
     Animals["world"] = cat()        # overwrites snake with cat
     Result += " $(Animal speak())"
     return Result
@@ -2610,7 +2618,7 @@ the argument appears to be readonly.  Again, it's not recommended to write your 
 but these are edge cases that might pop up in a complex code base.
 
 ```
-MyInt ;= 123
+MyInt; 123
 notActuallyConstant(Int): null
     print("Int before $(Int)")
     MyInt += Int
@@ -2627,69 +2635,64 @@ it may only be not-writable from your scope's reference to the variable.
 
 In cases where we know the function won't do self-referential logic,
 we can try to optimize and pass by value automatically.  However, we
-do want to support closures like `nextGenerator(Int; int) := () := ++Int`,
+do want to support closures like `nextGenerator(Int; int): (): ++Int`,
 which returns a function which increments the passed-in, referenced integer,
 so we can never pass a temporary argument (e.g., `Arg. str`) into `nextGenerator`.
 
 ### destructuring
 
 If the return type from a function has multiple fields, we can grab them
-using the notation `{Field1:, Field2;} = doStuff()`, where `doStuff` has
-a function signature of `(): {Field1: field1, Field2: field2, ...}`, and
-`...` are potentially ignored return fields.  In the example, we're declaring
-`Field1` as readonly and `Field2` as writable, but any combination of `;`
-and `:` are possible.  If we already have `Field1` or `Field2` declared,
-we should avoid using `:` or `;` in the destructuring;
-`{Field1, Field2} = doStuff()` should suffice.  Of course, they should
-be previously declared as writable if we are reassigning them via destructuring,
-otherwise it's a compiler error.  We can also get the remaining fields in their
-own object, e.g., `{Field1:, ...OtherFields:} = doStuff()`, which will have
-`OtherFields` as type `{Field2: field2, ...}`.  Note you can also do
-`{Field1, Field2} := doStuff()` to define `Field1` and `Field2` as readonly,
-or `{Field1, Field2} ;= doStuff()` to define `Field1` and `Field2` as writable;
-in these cases, both `Field1` and `Field2` must not be already declared.
+using the notation `{Field1:, Field2;, Field3=} doStuff()`, where `doStuff` has
+a function signature of `(): {Field1: field1, Field2: field2, Field3: field3, ...}`,
+and `...` are optional, ignored return fields.  In the example, we're declaring
+`Field1` as readonly, `Field2` as writable, and `Field3` is an existing variable
+that we're updating (which should be writeable), but any combination of `;`, `:`,
+and `=` are possible.  The standard case, however, is to declare (or reassign) all
+variables at the same time, which can be done with `{Field1, Field2}: doStuff()`
+(`{Field1, Field2}; doStuff()`) for readonly (writeable) declaration + assignment,
+or `{Field1, Field2} = doStuff()` for reassignment.
 
 This notation is a bit more flexible than JavaScript, since we're
 allowed to reassign existing variables while destructuring.  In JavaScript,
-`const {Field1, Field2} = doStuff()` declares and defines the fields `Field1` and `Field2`,
-but `{Field1, Field2} = doStuff()`, i.e., reassignment in hm-lang, is an error in JS.
+`const {Field1, Field2} = doStuff();` declares and defines the fields `Field1` and `Field2`,
+but `{Field1, Field2} = doStuff();`, i.e., reassignment in hm-lang, is an error in JS.
 
 Some worked examples follow, including field renaming.
 
 ```
 fraction(In: string, Io; dbl): {RoundDown: int, RoundUp: int}
     print(In)
-    RoundDown := Io round(Down)
-    RoundUp := Io round(Up)
+    RoundDown: Io round(Down)
+    RoundUp: Io round(Up)
     Io -= RoundDown
     {RoundDown, RoundUp}
 
 # destructuring
-Io ;= 1.234
-{RoundDown:} = fraction(In: "hello", Io;)
+Io; 1.234
+{RoundDown}: fraction(In: "hello", Io;)
 
 # === calling the function with variable renaming ===
-Greeting := "hello!"
-InputOutput ;= 1.234     # note `;` so it's writable.
+Greeting: "hello!"
+InputOutput; 1.234      # note `;` so it's writable.
 # just like when we define an argument for a function, the newly scoped variable goes on the left,
 # so too for destructuring return arguments.  this one uses the default type of `RoundDown`:
-{IntegerPart; RoundDown} = fraction(In: Greeting, Io; InputOutput)
+{IntegerPart; roundDown} fraction(In: Greeting, Io; InputOutput)
 # or if you want to put it on the right, you use the following TypeScript-friendly syntax:
-{RoundDown as IntegerPart;} = fraction(Greeting as In, InputOutput as Io;)
+{RoundDown as IntegerPart;} fraction(Greeting as In, InputOutput as Io;)
 # you can specify the return type of the renamed variable like this to do casting:
-{RoundDown as IntegerPart; int} = fraction(In: Greeting, Io; InputOutput)
+{RoundDown as IntegerPart; int} fraction(In: Greeting, Io; InputOutput)
 
 # there is no automatic de-nesting.
-Io ;= 1.234
-Result := fraction(In: "hello", Io;)
+Io; 1.234
+Result: fraction(In: "hello", Io;)
 # `Result` is an object with these fields:
 print(Result RoundDown, Result RoundUp)
 ```
 
 Note that destructuring looks different than defining a lambda function due
-to the difference in parentheses type and an extra `:=` with lambda functions.
-E.g., `{X: int, Y: str} = someFunction(Z)` is destructuring,
-but `(X: int, Y: str) := someFunction(Z)` is defining a lambda.
+to the difference in parentheses type and an extra `:` with lambda functions.
+E.g., `{X: int, Y: str} someFunction(Z)` is destructuring,
+but `(X: int, Y: str): someFunction(Z)` is defining a lambda.
 
 Note, you can also have nullable output arguments.  These will be discussed
 more in the function overload section, but here are some examples.
@@ -2697,7 +2700,7 @@ more in the function overload section, but here are some examples.
 ```
 # standard definition:
 wow(Lives: int)?: cat
-    return if Lives == 9
+    if Lives == 9
         cat()
     else
         Null
@@ -2741,7 +2744,7 @@ encountered when calling the function.  These fields are named to imply that the
 call can do just about anything (including fetching data from a remote server).
 
 ```
-call := {
+call: {
     # TODO: need to distinguish between readonly and writable references.
     #       this can be done on the pointer (e.g., Ptr[]; for writable
     #       and Ptr[]: for readonly) or here somehow.
@@ -2773,7 +2776,7 @@ call := {
     # e.g., `Call output(FieldName: 123)` will ensure
     # `{FieldName}` is defined in the return value, with a
     # default of 123 if `FieldName` is not set in the function.
-    ;;output(~Name: any) := My output(Name: @@Name, Value: Name)
+    ;;output(~Name: any): My output(Name: @@Name, Value: Name)
 
     # adds a field to the return type with a default value.
     # e.g., `Call output(Name: "FieldName", Value: 123)` will ensure
@@ -2807,9 +2810,9 @@ someFunction(X: string): int
 
 MyString: string = someFunction(X: 100)     # uses the first overload
 MyInt: int = someFunction(X: "cow")         # uses the second overload
-CheckType1 := someFunction(X: 123)          # uses the first overload since the type is `int`
-CheckType2 := someFunction(X: "asdf")       # uses the second overload since the type is `string`
-Invalid := someFunction(X: 123.4)           # COMPILE ERROR: 123.4 is not referenceable as `int` or `string`
+CheckType1: someFunction(X: 123)            # uses the first overload since the type is `int`
+CheckType2: someFunction(X: "asdf")         # uses the second overload since the type is `string`
+Invalid: someFunction(X: 123.4)             # COMPILE ERROR: 123.4 is not referenceable as `int` or `string`
 
 # example which will use the default overload:
 Call; call
@@ -2839,7 +2842,7 @@ Note that `call` is so generic that you can put any fields that won't actually
 be used in the function call.  In this, hm-lang will return an error at run-time.
 
 ```
-Call ;= call() { input(X: "4"), output(Value1: 123), output(Value2: 456) }
+Call; call() { input(X: "4"), output(Value1: 123), output(Value2: 456) }
 someFunction(Call;) assert()    # returns error since there are no overloads with {Value1, Value2}
 ```
 
@@ -2848,13 +2851,13 @@ If compile-time checks are desired, one should use the more specific
 
 ```
 # throws a compile-time error:
-Call ;= someFunction call() { input(X: "4"), output(Value1: 123), output(Value2: 456) }
+Call; someFunction call() { input(X: "4"), output(Value1: 123), output(Value2: 456) }
 # the above will throw a compile-time error, since two unexpected fields are defined for Output.
 
 # this is ok (calls first overload):
-Call2 ;= someFunction call() { input(X: "4"), output(0) }
+Call2; someFunction call() { input(X: "4"), output(0) }
 # also ok (calls second overload):
-Call3 ;= someFunction call() { input(X: 4), output("") }
+Call3; someFunction call() { input(X: 4), output("") }
 ```
 
 Note that it's also not allowed to define an overload for the `call` type yourself.
@@ -2902,7 +2905,7 @@ The syntax for declaring a nullable/optional function is to put a `?` after the 
 but before the argument list.  E.g., `optionalFunction?(...Args): returnType` for a non-reassignable
 function and swapping `:` for `;` to create a reassignable function.
 When calling a nullable function, unless the function is explicitly checked for non-null,
-the return type will be nullable.  E.g., `X ?:= optionalFunction(...Args)` will have a
+the return type will be nullable.  E.g., `X?: optionalFunction(...Args)` will have a
 type of `oneOf[returnType, null]`.  Nullable functions are checked by the executable, so the
 programmer doesn't necessarily have to do it.
 
@@ -2934,14 +2937,14 @@ Some examples:
 
 ```
 # creating an optional method in a class:
-parent := {
-    ;;renew(My X: dbl, My Y: dbl) := Null
+parent: {
+    ;;renew(My X: dbl, My Y: dbl): Null
 
     # note that this is a reassignable method, which means it is defined on a per-instance basis.
     ::optionalMethod?(Z: dbl); int
 }
 
-Example ;= parent(X: 5, Y: 1)
+Example; parent(X: 5, Y: 1)
 
 # define your own function for optionalMethod:
 Example::optionalMethod(Z: dbl); int
@@ -2955,12 +2958,12 @@ Example optionalMethod = Null
 Example optionalMethod(3.21)    # returns Null
 
 # child classes can define a "method" that overrides the parent's optional function:
-child := parent {
+child: parent {
     ::optionalMethod(Z: dbl); int
         return ceil(My X * My Y * exp(-Z))
 }
 
-Child ;= child(X: 6, Y: 2)
+Child; child(X: 6, Y: 2)
 
 Child optionalMethod(0)     # returns 12
 
@@ -3003,9 +3006,9 @@ copy(Value: ~t): t
     print("got $(Value)")
     return Value
 
-vector3 := {X: dbl, Y: dbl, Z: dbl}
-Vector3 := vector3(Y: 5)
-Result := copy(Value: Vector3)    # prints "got vector3(X: 0, Y: 5, Z: 0)".
+vector3: {X: dbl, Y: dbl, Z: dbl}
+Vector3: vector3(Y: 5)
+Result: copy(Value: Vector3)    # prints "got vector3(X: 0, Y: 5, Z: 0)".
 Vector3 == Result           # equals True
 ```
 
@@ -3040,16 +3043,16 @@ logger(~T): t
     print("got $(T)")
     return T
 
-vector3 := {X: dbl, Y: dbl, Z: dbl}
-Vector3 := vector3(Y: 5)
-Result := logger(Vector3)   # prints "got vector3(X: 0, Y: 5, Z: 0)".
+vector3: {X: dbl, Y: dbl, Z: dbl}
+Vector3: vector3(Y: 5)
+Result: logger(Vector3)     # prints "got vector3(X: 0, Y: 5, Z: 0)".
 Vector3 == Result           # equals True
 
 # implicit type request:
-IntResult := logger(5)    # prints "got 5" and returns the integer 5.
+IntResult: logger(5)        # prints "got 5" and returns the integer 5.
 
 # explicit type request:
-DblResult := logger(dbl(4))  # prints "got 4.0" and returns 4.0
+DblResult: logger(dbl(4))   # prints "got 4.0" and returns 4.0
 ```
 
 Note that you can use `myFunction(~T;)` for a writable argument.
@@ -3080,7 +3083,7 @@ in this situation means memory corresponding to variables not passed in to the f
 or memory in other locations, e.g., on the hard disk.)  Earlier proposals of hm-lang distinguished
 between these types of functions notationally, but this is no longer required.
 
-For examples of pure functions: `fn(X: dbl) := X^2` is pure, as well as most mathematical
+For examples of pure functions: `fn(X: dbl): X^2` is pure, as well as most mathematical
 functions (`sin`, `cos`, `atan`, etc.).
 
 Examples of impure functions include reading data from a file, which is non-deterministic,
@@ -3092,7 +3095,7 @@ since they use data within the class instance to determine the result of the fun
 ```
 # we want to pass in a function here:
 check(fn(Int): bool, Int): int
-    Result := if fn(Int)
+    Result: if fn(Int)
         Int // 2
     else
         2 * Int + 1
@@ -3100,7 +3103,7 @@ check(fn(Int): bool, Int): int
     return Result
 
 # but suppose we have a class which has a method that looks like this function:
-exampleClass := {
+exampleClass: {
     CheckTimes; int
 
     ;;someMethod(Int): bool
@@ -3141,7 +3144,7 @@ be problematic (thread contention), similarly for random.
 
 A class is defined with a `lowerCamelCase` identifier.
 Class definitions must be constant/non-reassignable, so they are declared using
-the `:=` symbol.  Variables defined within the class body are known as instance
+the `:` symbol.  Variables defined within the class body are known as instance
 variables, and functions defined within the class body can have three types:
 (1) class instance methods (or methods for short), (2) class functions (i.e., static
 methods in C++), and (3) instance functions.
@@ -3160,15 +3163,15 @@ to the class instance `SomeClass` being present.  Calling a class method does no
 the `..`, `;;`, or `::` prefix, but it is allowed, e.g.,
 
 ```
-SomeClass ;= someClass("hello!")
+SomeClass; someClass("hello!")
 SomeClass someMethod()      # ok
 SomeClass::someMethod()     # also ok
 SomeClass someMutatingMethod()  # ok
 SomeClass;;someMutatingMethod() # also ok
 # you can get a temporary by using moot (!):
-MyResult1 := SomeClass!..temporaryMethod()
+MyResult1: SomeClass!..temporaryMethod()
 # or you can get a temporary by creating a new class instance:
-MyResult2 := someClass("temporary")..temporaryMethod()
+MyResult2: someClass("temporary")..temporaryMethod()
 ```
 
 Note that you can overload a class method with readonly instance `::`, writable
@@ -3188,12 +3191,12 @@ And of course, class methods can also be overridden by child classes (see sectio
 
 Class functions (2) can't depend on the instance, i.e., `I/Me/My`, and must be declared
 with a `this` before the function name in order to distinguish from class methods
-(and instance functions), e.g., `this myStaticFunction() := print("hi")`.  They can
+(and instance functions), e.g., `this myStaticFunction(): print("hi")`.  They can
 be called from the class name, e.g., `x myClassFunction()`, or
 from an instance of the class, e.g., `X myClassFunction()`.  Note that because of this,
 we're not allowed to define class functions with the same overload as instance methods.
 Similar to class functions are class variables, which are defined in an analogous way:
-`my StaticVariable := 123`, and which cannot shadow any class instance variables,
+`my StaticVariable: 123`, and which cannot shadow any class instance variables,
 since `X StaticVariable` and `x StaticVariable` should be the same thing.
 
 Instance functions (3) normally can't depend on any instance variables, but are declared
@@ -3221,7 +3224,7 @@ When defining methods or functions of all kinds, note that you can use `me` (or 
 to refer to the current class instance type.  E.g.,
 
 ```
-myClass := {
+myClass: {
     ::copy(): me    # OK
         print("logging a copy")
         return me(Me)   # or fancier copy logic
@@ -3236,7 +3239,7 @@ might have the same name as a class instance variable.
 ## class example
 
 ```
-exampleClass := {
+exampleClass: {
     # class instance variables can be defined here.
     # if they are public, a public constructor like `exampleClass(X;:. int)` will be created.
     X; int
@@ -3250,13 +3253,13 @@ exampleClass := {
     # (although avoid doing work if possible).
     ;;renew(X; int): null
         My X = X!
-    # or short-hand: `;;renew(My X; int) := Null`
+    # or short-hand: `;;renew(My X; int): Null`
     # adding `My` to the arg name will automatically set `My X` to the passed in `X`.
 
     # create a different constructor.  constructors use the class reference `i` and must
     # return either an `i` or a `hm[ok: i, uh]` for any error type `uh`.
     # this constructor returns `i`:
-    i(K: int) := i(X: K * 1000)
+    i(K: int): i(X: K * 1000)
 
     # some more examples of class methods (1):
     # prefix `::` (`;;`) is shorthand for adding `My: my` (`My; my`) as an argument.
@@ -3297,7 +3300,7 @@ exampleClass := {
     # this function does not require an instance, and cannot use instance variables,
     # but it can read (but not write) global variables (or other files):
     i someStaticImpureFunction(): int
-        YString := read(File: "Y")
+        YString: read(File: "Y")
         return int(?YString) ?? 7
 
     # class instance functions (3) can be defined here; this is a *pure function*
@@ -3312,14 +3315,14 @@ exampleClass := {
         print("hello!")
 }
 
-Example; exampleClass = (X: 5)  # also equivalent, `Example ;= exampleClass(X: 5)`
+Example; exampleClass = (X: 5)  # also equivalent, `Example; exampleClass(X: 5)`
 print(Example doSomething(7))   # should print 12
 Example = exampleClass(X: 7)    # note: variable can be reassigned.
 Example X -= 3                  # internal fields can be reassigned as well.
 
 # note that if you define an instance of the class as readonly, you can only operate
 # on the class with functions that do not mutate it.
-ConstVar := exampleClass(X: 2)
+ConstVar: exampleClass(X: 2)
 ConstVar X += 3                 # COMPILER ERROR! `ConstVar` is readonly.
 ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is readonly.
 ```
@@ -3331,7 +3334,7 @@ of the class definition, as that would change the memory footprint of each class
 ```
 # static function that constructs a type or errors out
 exampleClass(Z: dbl): hm[ok: exampleClass, uh: str]
-    X := Z round() int() assert(Uh: "Need `round(Z)` representable as an `int`.")
+    X: Z round() int() assert(Uh: "Need `round(Z)` representable as an `int`.")
     exampleClass(X)
 
 # static function
@@ -3361,8 +3364,8 @@ or `{exampleClass::myAddedMethod(Y: int): int} = \\library/module`.
 Note that we recommend using named fields for constructors rather than static
 class functions to create new instances of the class.  This is because named fields
 are self descriptive and don't require named static functions for readability.
-E.g., instead of `MyDate := dateClass fromIsoString("2020-05-04")`, just use
-`MyDate := dateClass(IsoString: "2020-05-04")` and define the
+E.g., instead of `MyDate: dateClass fromIsoString("2020-05-04")`, just use
+`MyDate: dateClass(IsoString: "2020-05-04")` and define the
 `;;renew(IsoString: string)` method accordingly.
 
 ## unicode/localization support
@@ -3372,10 +3375,11 @@ may seem a bit strange in other alphabets.  To set a custom "UpperCamelCase" def
 for an instance of the class, use this notation:
 
 ```
-örsted := {
-    # define a custom default name:
-    I := Örsted
-    ... other class methods ...
+örsted: {
+    # define a custom UpperCamelCase name.
+    I: Örsted 
+
+    ... usual class methods ...
 }
 
 # Now we can use `Örsted` to mean a default-named variable of the class `örsted`:
@@ -3451,7 +3455,7 @@ with various arguments to determine the desired action.
 
 ```
 # for example, this class:
-example := {
+example: {
     @visibility
     X; str = "hello"
 }
@@ -3460,25 +3464,25 @@ W X += ", world"
 print(W X)  # prints "hello, world"
 
 # expands to this:
-example := {
+example: {
     @invisible
     X; str
 
     # getter: calls an external function with X, which can
     #         avoid a copy if the function argument is readonly.
     @visibility
-    ::x(fn(Str): ~t) := fn(My X)
+    ::x(fn(Str): ~t): fn(My X)
 
     # copy.  returns a copied value of `X`.  this method
     # has lower priority than the no-copy getter above.
     @visibility
-    ::x() := My X
+    ::x(): My X
 
     # move X from this temporary; no-copy
     # TODO: this should probably also be defined along with
-    #           ;;x()! := My X!
+    #           ;;x()!: My X!
     #       i.e., they shouldn't need to both be defined.
-    ..x() := My X!
+    ..x(): My X!
 
     # move+reset (moot)
     @visibility
@@ -3494,17 +3498,17 @@ example := {
     # modifier: allows the user to modify the value of X
     #           without copying it, using references.
     @visibility
-    ;;x(fn(Str;): ~t) := fn(My X;)
+    ;;x(fn(Str;): ~t): fn(My X;)
 
     # note that the no-copy getter and modifier can be 
     # read/write-template  defined like this:
-    ;:x(fn(Str;:): ~t) := fn(My X;:)
+    ;:x(fn(Str;:): ~t): fn(My X;:)
 }
 W = example()
 W x(fn(Str;)
     Str += ", world"
 )
-W x((Str) := print(Str))
+W x((Str): print(Str))
 ```
 
 If you define overloads for any of these methods on child classes,
@@ -3517,34 +3521,34 @@ and modifier classes.
 
 ```
 # a class with a copy method gets a getter method automatically:
-justCopyable := {
+justCopyable: {
     ::someVar(): int
         return 1000
 
     #(#
     # the following becomes automatically defined:
     ::someVar(fn(Int): ~t): t
-        SomeVar := My someVar()
+        SomeVar: My someVar()
         return fn(SomeVar)
     #)#
 }
 
 # a class with a getter method gets a copy method automatically:
-justGettable := {
+justGettable: {
     @invisible
     SomeVar; int
 
-    ::someVar(fn(Int): ~t) := fn(My SomeVar)
+    ::someVar(fn(Int): ~t): fn(My SomeVar)
 
     #(#
     # the following becomes automatically defined:
     ::someVar(): int
-        return My someVar(fn(Int) := Int)
+        return My someVar(fn(Int): Int)
     #)#
 }
 
 # a class with a swapper method gets a modifier and move+reset method automatically:
-justSwappable := {
+justSwappable: {
     @invisible
     SomeVar; int
 
@@ -3553,7 +3557,7 @@ justSwappable := {
         My SomeVar <-> Int
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers.  a default-constructed
-        # value for `SomeVar` (e.g., in this case `Int := 0`) should be allowed
+        # value for `SomeVar` (e.g., in this case `Int: 0`) should be allowed
         # since we use it in the modifier to swap out the real value into a temp.
         # if that's not allowed, you would want to define both the swapper
         # and modifier methods yourself.
@@ -3564,7 +3568,7 @@ justSwappable := {
         Temporary; int
         # swap SomeVar into Temporary:
         My someVar(Temporary;)    # could also write `My SomeVar <-> Temporary`
-        T := fn(Temporary;)
+        T: fn(Temporary;)
         # swap Temporary back into SomeVar:
         My someVar(Temporary;)
         return T!
@@ -3583,12 +3587,12 @@ justSwappable := {
 }
 
 # a class with a modifier method gets a swapper and move+reset method automatically:
-justModdable := {
+justModdable: {
     @invisible
     SomeVar; int
 
     ;;someVar(fn(Int;): ~t): t
-        T := fn(My SomeVar;)
+        T: fn(My SomeVar;)
         # you can do some checks/modifications on SomeVar here if you want,
         # though it's best not to surprise developers
         return T!
@@ -3627,13 +3631,15 @@ TODO: parent class with getter defined, child class with copy defined.
 ## parent-child classes and method overrides
 
 You can define parent-child class relationships with the following syntax.
-For one parent, `childClass := parentClassName {#( child methods )#}`.  Multiple
+For one parent, `childClass: parentClassName {#( child methods )#}`.  Multiple
 inheritance is allowed as well, via `allOf[parent1, parent2] {#( child methods )#}`.
 We can access the current class instance using `My` (or `Me`/`My`),
 and `i` (or `me`/`my`) will be the current instance's type.  Thus, `i`/`me`/`my` is
 the parent class if the instance is a parent type, or a subclass if the instance
 is a child class.  E.g., a parent class method can return a `me` type instance,
 and using the method on a subclass instance will return an instance of the subclass.
+If your parent class method truncates at all (e.g., removes information from child classes),
+make sure to return the same `parentClassName` that defines the class.
 
 We can access member variables or functions that belong to that the parent type,
 i.e., without subclass overloads, using the syntax `parentClassName someMethod(My, ...Args)`
@@ -3645,8 +3651,8 @@ because we want inheritance to be as clear as composition for how method calls w
 Some examples:
 
 ```
-animal := {
-    ;;renew(My Name: string) := Null
+animal: {
+    ;;renew(My Name: string): Null
 
     # define two methods on `animal`: `speak` and `go`.
     # these are "abstract" methods, i.e., not implemented by this base class.
@@ -3665,7 +3671,7 @@ animal := {
         return me(My Name)
 }
 
-snake := animal {
+snake: animal {
     # if no `renew` functions are defined,
     # child classes will inherit their parent `renew()` methods.
 
@@ -3677,10 +3683,10 @@ snake := animal {
     # no need to override `clone`, since we can create a snake using a name.
 }
 
-Snake := snake(Name: "Fred")
+Snake: snake(Name: "Fred")
 Snake escape()  # prints "Fred slithers away!!"
 
-cat := animal {
+cat: animal {
     # here we define a `renew` method, so the parent `reset` methods
     # become hidden to users of this child class:
     ;;renew(): null
@@ -3701,7 +3707,7 @@ cat := animal {
         return me()
 }
 
-Cat := cat()
+Cat: cat()
 Cat escape()    # prints "CAT ESCAPES DARINGLY!"
 ```
 
@@ -3712,7 +3718,7 @@ constructor like this `;;renew(ParentArgument): $( Parent renew(ParentArgument) 
 you can make it simpler like this instead:
 
 ```
-horse := animal {
+horse: animal {
     ;;renew(Animal Name: str, My Owner: str, NeighTimes: int = 0)
         for Int: int < NeighTimes
             This speak()
@@ -3724,7 +3730,7 @@ horse := animal {
         return "gallops"
 }
 
-Horse := horse(Name: "James", Owner: "Fred", NeighTimes: 1)
+Horse: horse(Name: "James", Owner: "Fred", NeighTimes: 1)
 print(Horse Owner)  # Fred
 print(Horse Name)   # James
 ```
@@ -3737,11 +3743,11 @@ While these don't look like lambda functions, they use the notation `::speak(): 
 to mean `speak(My): null`, which is fine as a lambda.
 
 ```
-WeirdAnimal := animal(
+WeirdAnimal: animal(
     Name: "Waberoo"
     ::speak(): null
         print("Meorooo")
-    ::go() := "meanders"
+    ::go(): "meanders"
     ::escape(): null
         # to call the parent method `escape()` in here, we can use this:
         animal::escape()
@@ -3792,14 +3798,14 @@ fixed-width integers should be `final` so that we don't need to worry about vtab
 or specifying `@only i64`.  classes that are `final` would not need to be marked `@only`.
 
 ```
-mythologicalCat := cat {
+mythologicalCat: cat {
     # extra field which will get sliced off when converting from
     # mythologicalCat to cat:
-    Lives ;= 9
+    Lives; 9
 }
 
 Cat; @only cat
-MythologicalCat ;= mythologicalCat()
+MythologicalCat; mythologicalCat()
 
 Cat = MythologicalCat       # COMPILER ERROR, implicit cast to `@only cat` not allowed.
 Cat = cat(MythologicalCat)  # OK.  explicit upcast is allowed.
@@ -3820,7 +3826,7 @@ are not functional without child classes overriding their abstract methods.
 You can define methods on your class that work for a variety of types.
 
 ```
-someExample := {
+someExample: {
     Value: int
     ;;renew(Int): null
         My Value = Int
@@ -3831,16 +3837,16 @@ someExample := {
         return t(My Value)
 }
 
-SomeExample := someExample(5)
+SomeExample: someExample(5)
 
 # you can use type inference here based on variable taking the return value:
 ToString: string = SomeExample to()
 
 # or you can explicitly ask like this:
-To64 := i64(SomeExample to())
+To64: i64(SomeExample to())
 
 # but you can't implicitly ask for the type.
-Unspecified := SomeExample to()     # COMPILER ERROR, specify a type for `Unspecified`
+Unspecified: SomeExample to()     # COMPILER ERROR, specify a type for `Unspecified`
 ```
 
 ## modifier pattern
@@ -3855,7 +3861,7 @@ you can define multiple methods like this as long as they are distinguishable ov
 With containers, values are keyed by some ID, so we do `;;[Id, fn(Value;): ~t]: t`
 (or `hm[ok: t, uh]` as the return type in case of errors).  But if you have a class like a mutex
 or a guard, where there is no ID needed to access the underlying data, you simply use e.g.
-`Mutex[fn(Data;) := Data someMethod()]`.
+`Mutex[fn(Data;): Data someMethod()]`.
 
 This is consistent with brackets `[]` being associated with container classes,
 and giving access to the underlying data.
@@ -3864,19 +3870,22 @@ and giving access to the underlying data.
 
 TODO: discuss how `null` can be used as a type in most places.  unless we
 want to explicitly allow for it only if we use `{id?}` for example.
+however that is pretty painful; `null` acts differently than `Null`,
+so we should be able to do `hm[ok: null, uh: ...]` without `ok?: null`.
 
-TODO: maybe allow default types.  maybe this is a use-case for `:=` inside
-the braces, e.g., `hm[ok ?:= null, uh]`.
+TODO: maybe allow default types.  probably can do it like `[myValue: defaultType]`
+where as long as `defaultType` is non-abstract, it will be the default type if
+`myValue` is not specified.
 
 TODO: maybe support specifying mutability in templates, e.g., `gen[x; int]` 
-for a `gen[x] := {MyValue: x}` would result in `{MyValue; int}`.  or if this
+for a `gen[x]: {MyValue: x}` would result in `{MyValue; int}`.  or if this
 would be prone to errors/confusion with converting `:` into `;` where not desired,
 disallow it in compiler, and support it another (more explicit) way.
 
 To create a generic class, you put the expression `[types...]` after the
 class identifier, or `[of]` for a single template type, where `of` is the
 [default name for a generic type](#default-named-generic-types).  For example, we use
-`mySingleGenericClass[of] := {...}` or `myMultiGenericClass[type1, type2] := {...}`
+`mySingleGenericClass[of]: {...}` or `myMultiGenericClass[type1, type2]: {...}`
 for single/multiple generics, respectively, to define the generic class.
 When specifying the types of the generic class, we use
 `mySingleGenericClass[int]` (for an `of`-defined generic class) or
@@ -3887,25 +3896,25 @@ like this: `mySingleGenericClass[int] myClassFunction(...)` or
 
 ```
 # create a class with two generic types, `id` and `value`:
-genericClass[id, value] := {
+genericClass[id, value]: {
     ;;renew(My Id: id, My Value: value): null
 }
 # also equivalent:
-# genericClass := {Id: ~id, Value: ~value}
+# genericClass: {Id: ~id, Value: ~value}
 # TODO: is this equivalent?  probably??
-# genericClass := {~Id, ~Value}
+# genericClass: {~Id, ~Value}
 
 # creating an instance using type inference:
-ClassInstance := genericClass(Id: 5, Value: "hello")
+ClassInstance: genericClass(Id: 5, Value: "hello")
  
 # creating an instance with template/generic types specified:
-OtherInstance := genericClass[id: dbl, value: string](Id: 3, Value: "4")
+OtherInstance: genericClass[id: dbl, value: string](Id: 3, Value: "4")
 ```
 
 You can also have virtual generic methods on generic classes, which is not allowed by C++.
 
 ```
-generic[of] := {
+generic[of]: {
     Value; of
 
     # not a `@final` method, so this can be extended/overridden:
@@ -3915,15 +3924,15 @@ generic[of] := {
         U + u(OtherOf) orPanic()
 }
 
-Generic := generic[string]()
+Generic: generic[string]()
 Generic Value = "3"
 print(Generic method(i32(2)))    # prints "3333335" which is i32("3" * (2 + 5)) + 2
 
-specific[of] := generic[of] {
-    ;;renew(My Scale; of = 1) := Null
+specific[of]: generic[of] {
+    ;;renew(My Scale; of = 1): Null
 
     ::method(~U): u
-        ParentResult := generic[of]::method(U)
+        ParentResult: generic[of]::method(U)
         return ParentResult * My Scale 
 }
 ```
@@ -3943,19 +3952,19 @@ Just like with function arguments, we can elide a generic field value if the
 field name is already a type name in the current scope.  For example:
 
 ```
-MyNamespace id := int
-value := {X: flt, Y: flt}
+MyNamespace id: int
+value: {X: flt, Y: flt}
 
 # This is not idiomatic, probably should get automatically converted to below:
-MyStore1 ;= store[id: MyNamespace id, value: value]()
-MyStore2 ;= store[MyNamespace id, value]()
+MyStore1; store[id: MyNamespace id, value: value]()
+MyStore2; store[MyNamespace id, value]()
 ```
 
 To constrain a generic type, use `[type: constraints, ...]`.  In this expression,
 `constraints` is simply another type like `nonNull` or `number`, or even a combination
 of classes like `union(container[id, value], number)`.  It may be recommended for more
 complicated type constraints to define the constraints like this:
-`myComplicatedConstraintType := allOf[t1, oneOf[t2, t3]]` and declaring the class as
+`myComplicatedConstraintType: allOf[t1, oneOf[t2, t3]]` and declaring the class as
 `newGeneric~[of: myComplicatedConstraintType]`, which might be a more readable way to do
 if `myComplicatedConstraintType` is a helpful name.
 
@@ -3965,19 +3974,19 @@ if `myComplicatedConstraintType` is a helpful name.
 Brackets are used to create containers, e.g., `Y: "Y-Naught", Z: 10, [X: 3, (Y): 4, Z]`
 to create a store with keys "X", the value of `Y` ("Y-Naught"), and "Z", with
 corresponding values 3, 4, and the value of `Z` (10).  Thus any bracketed values,
-as long as they are named, e.g., `A := 1, B := 2, C := 3, [A, B, C]`, can be converted
+as long as they are named, e.g., `A: 1, B: 2, C: 3, [A, B, C]`, can be converted
 into a store.  Because containers are by default insertion-ordered, they can implicitly
 be converted into an array depending on the type of the receiving variable.
 
 Note that we can overload generic types for single types and stored types (e.g.,
 `array[int]` vs. `array[Count: 3, int]`), which is especially helpful for creating
 your own `hm` result class based on the stored type `hm[uh, ok]` which can become
-`SomeNamespace uh := oneOf[Oops, MyBad], hm[of] := hm[ok: of, SomeNamespace uh]`.
+`SomeNamespace uh: oneOf[Oops, MyBad], hm[of]: hm[ok: of, SomeNamespace uh]`.
 Here are some examples:
 
 ```
-pair[first, second] := {First, Second}
-pair[of] := pair[first: of, second: of]
+pair[first, second]: {First, Second}
+pair[of]: pair[first: of, second: of]
 
 # examples using pair[of]: ======
 # an array of pairs:
@@ -4035,9 +4044,9 @@ are useful for generics with a single type requirement, and can be
 used for overloads, e.g.:
 
 ```
-aClass[x, y, N: count] := array[{X, Y}, Count: N]
+aClass[x, y, N: count]: array[{X, Y}, Count: N]
 
-aClass[of] := aClass[x: of, y: of, N: 100]
+aClass[of]: aClass[x: of, y: of, N: 100]
 ```
 
 Similar to default-named arguments in functions, default-named generics
@@ -4046,7 +4055,7 @@ For example:
 
 ```
 # use the default-name `type` here:
-aClass[of, N: count] := aClass[x: of, y: of, N]
+aClass[of, N: count]: aClass[x: of, y: of, N]
 
 # so that we can do this:
 AnInstance: aClass[dbl, N: 3]
@@ -4066,20 +4075,20 @@ the original class or a descendant of the original class for any
 overloads.  Some examples:
 
 ```
-someClass[x, y, N: count] := { ... }
+someClass[x, y, N: count]: { ... }
 
 # this is OK:
-someClass[of, N: count] := someClass[x: of, y: of, N]
+someClass[of, N: count]: someClass[x: of, y: of, N]
 
 # this is also OK:
-childClass[of] := someClass[x: of, y: of, N: 256] {
+childClass[of]: someClass[x: of, y: of, N: 256] {
     # additional child methods
     ...
 }
-someClass[of] := childClass[of]
+someClass[of]: childClass[of]
 
 # this is NOT OK:
-someClass[t, u, v] := { ...some totally different class... }
+someClass[t, u, v]: { ...some totally different class... }
 ```
 
 ### type tuples
@@ -4090,13 +4099,13 @@ so they are grammatically equivalent to a `store` of types.  Using the spread
 operator, we can supply a tuple type to a generic class, e.g.,
 
 ```
-tupleType := [x, y, z]
+tupleType: [x, y, z]
 
-# with some other definition `myGeneric[w, x, y, z] := {...}`:
-someSpecification := myGeneric[...tupleType, w: int]
+# with some other definition `myGeneric[w, x, y, z]: {...}`:
+someSpecification: myGeneric[...tupleType, w: int]
 
 # you can even override one of your supplied tupleType values with your own.
-anotherSpec := myGeneric[...tupleType, w: str, x: overridingTupleTypeXWithThis]
+anotherSpec: myGeneric[...tupleType, w: str, x: overridingTupleTypeXWithThis]
 ```
 
 When returning multiple values from a function, tuple types are the wrong approach.
@@ -4110,7 +4119,7 @@ a way to return class constructors?
 
 ### default field names with generics
 
-Note that generic classes like `generic[of] := {Of}` will always have a field named `Of`
+Note that generic classes like `generic[of]: {Of}` will always have a field named `Of`
 regardless of the specified type.  We don't make this like a generic name; `generic[int]`
 would *not* be equivalent to `{Int: int}`; `generic[int]` is `{Of: int}`.  This is mostly
 to avoid confusion when passing in two types that are the same like `store[id: int, value: int]`.
@@ -4150,10 +4159,10 @@ Defining a singleton class is quite easy, simply by instantiating a class when
 you define it with trailing `()` (which may include arguments you need to instantiate):
 
 ```
-AwesomeService := allOf[parentClass1, parentClass2, #(etc.)#] {
-    UrlBase := "http://my/website/address.bazinga"
+AwesomeService: allOf[parentClass1, parentClass2, #(etc.)#] {
+    UrlBase: "http://my/website/address.bazinga"
     ::get(Id: string): awesomeData 
-        Json := Http get("$(My UrlBase)/awesome/$(Id)") 
+        Json: Http get("$(My UrlBase)/awesome/$(Id)") 
         return awesomeData(Json)
 }()
 ```
@@ -4165,19 +4174,19 @@ child-class but only through the parent class reference.
 ```
 ### screen.hm ###
 @singleton
-screen := {
+screen: {
     ;;draw(Image, Vector2): null
-    ;;clear(Color := color Black)
+    ;;clear(Color: color Black)
 }
 ### implementation/sdl-screen.hm ###
 # TODO: we probably can convert `\/../screen screen` -> `\/../screen`
 #       where we're requesting the class name of a file that's named correctly.
-SdlScreen := \/../screen screen {
+SdlScreen: \/../screen screen {
     ;;draw(Image, Vector2): null
         # actual implementation code:
         My SdlSurface draw(Image, Vector2)
 
-    ;;clear(Color := color Black)
+    ;;clear(Color: color Black)
         My SdlSurface clear(Color)
 }()
 ### some-other-file.hm ###
@@ -4201,14 +4210,14 @@ method calls inside.  For example, if we were to implement a builder pattern wit
 we could combine a bunch of mutations like this:
 
 ```
-myBuilder := {
+myBuilder: {
     ;;set(String, Int): null
 }
 
 # Note, inside the `{}` we allow mutating methods because `myBuilder()` is a temporary.
 # The resulting variable will be readonly after this definition + mutation chain,
-# due to being defined with `:=`.
-MyBuilder := myBuilder() {
+# due to being defined with `:`.
+MyBuilder: myBuilder() {
     set("Abc", 123)
     set("Lmn", 456)
     set("Xyz", 789)
@@ -4216,8 +4225,8 @@ MyBuilder := myBuilder() {
 }
 
 # You can also do inline, but you should use commas here.
-# Note that this variable can be mutated after this line due to `;=`.
-MyBuilder2 ;= myBuilder() { set("Def", 987), set("Uvw", 321) }
+# Note that this variable can be mutated after this line due to `;`.
+MyBuilder2; myBuilder() { set("Def", 987), set("Uvw", 321) }
 ```
 
 By default, if the left-hand side of the sequence builder is writable (readonly),
@@ -4237,8 +4246,8 @@ builder will be an object with all the fields built out of the RHS methods.
 Some examples of the LHS being a reference follow:
 
 ```
-ReadonlyArray := [0, 100, 20, 30000, 4000]
-Results := ReadonlyArray {
+ReadonlyArray: [0, 100, 20, 30000, 4000]
+Results: ReadonlyArray {
     [2]             # returns 20
     ::sort()        # returns a sorted copy of the array; `::` is unnecessary
     ::print()       # prints unsorted array; `::` is unnecessary
@@ -4249,8 +4258,8 @@ Results := ReadonlyArray {
 # should print [0, 100, 20, 30000, 4000]
 # Results = {Int: 20, Sort: [0, 20, 100, 4000, 30000]}
 
-WriteableArray ;= [0, 100, 20, 30000, 4000]
-Results := WriteableArray {
+WriteableArray; [0, 100, 20, 30000, 4000]
+Results: WriteableArray {
     [2]             # returns 20
     sort()          # in-place sort, i.e., `;;sort()`
     ;;[3, ++$Int]   # OK, a bit verbose since `;;` is unnecessary
@@ -4274,12 +4283,12 @@ MyClass {
 }
 
 # Is equivalent to this sequence:
-Result := MyClass myMethod()
-NextMethod := Result nextMethod()
-NextMethod2 := Result nextMethod2()
-NestedField := Result NestedField
-OtherMethod := MyClass otherMethod()
-SomeField := MyClass SomeField
+Result: MyClass myMethod()
+NextMethod: Result nextMethod()
+NextMethod2: Result nextMethod2()
+NestedField: Result NestedField
+OtherMethod: MyClass otherMethod()
+SomeField: MyClass SomeField
 # This is constructed only if necessary (e.g., for a return value).
 {MyMethod: {NextMethod, NextMethod2, NestedField}, OtherMethod, SomeField}
 ```
@@ -4294,21 +4303,21 @@ This is only useful if the LHS is not a temporary, since a temporary LHS is retu
 as sequence builder's value.
 
 ```
-MyClass := {...}
+MyClass: {...}
 # MyClass is not a temporary, so we can include field names here:
-Results := MyClass {
+Results: MyClass {
     Field1: myMethod()
     Field2: nextMethod()
 }
 # The above is equivalent to the following:
-Results := {
+Results: {
     Field1: MyClass myMethod()
     Field2: MyClass nextMethod()
 }
 
 # This is a compile error because the LHS of the sequence builder
 # is a temporary, so the fields are not used in the return value.
-Results := MyClass getValue() {
+Results: MyClass getValue() {
     Field1: doSomething()
     Field2: doSomethingElse()
 } # COMPILE ERROR
@@ -4318,34 +4327,35 @@ Results := MyClass getValue() {
 
 TODO: can we make static functions/variables more clear?  it's useful
 for masks, e.g., `myMask count()` and `myMask X` for a value in the mask.
-outside a class: `myClass myFn() := print("whatever")` and
-`myClass X := 5` look like instance variable declarations for `myClass {X: 5, myFn(): null}`.
+outside a class: `myClass myFn(): print("whatever")` and
+`myClass X: 5` look like instance variable declarations for `myClass {X: 5, myFn(): null}`.
 should we define classes like `MyClass {X: 5, myFn(): null}` for instance variables/functions
 and `myClass {X: 5, myFn(): null}` for static variables/functions?
+or maybe `myClass: MyClass {X: 5, ...}`
 
 
 ```
-parentClass := {
-    ;;renew(My Name; str) := Null
-    ::myMethod() := print("hello, ${My Name}")
-    ::overrideable() ;= print("oh no")
+parentClass: {
+    ;;renew(My Name; str): Null
+    ::myMethod(): print("hello, ${My Name}")
+    ::overrideable(); print("oh no")
 }
 
-childClass := parentClass {
+childClass: parentClass {
     ChildValue: int
     ;;aNewMethod(): null
         My Name += "!"
-    ::overrideable() := print("oh yes")
+    ::overrideable(): print("oh yes")
 }
 
 # literal sequence building looks like this.
 # would this be allowable syntax to build a class?
-# if not, then we probably want to disallow `childClass := parentClass { ... }`
-childClass := {
+# if not, then we probably want to disallow `childClass: parentClass { ... }`
+childClass: {
     parentClass ChildValue: int
     parentClass;;aNewMethod(): null
         My Name += "!"
-    parentClass::overrideable() := print("oh yes")
+    parentClass::overrideable(): print("oh yes")
 }
 ```
 
@@ -4363,24 +4373,25 @@ warn on finding aliases.
 Aliases can be used for simple naming conventions, e.g.:
 
 ```
-options := anyOrNoneOf[
-    oneOf[AlignInheritX := 0, AlignCenterX, AlignLeft, AlignRight]
-    @alias InheritAlignX := AlignInheritX
-]
+options: anyOrNoneOf[
+    oneOf[AlignInheritX: 0, AlignCenterX, AlignLeft, AlignRight]
+] {
+    @alias InheritAlignX: AlignInheritX
+}
 
-Options := options InheritAlignX    # converts to `options AlignInheritX` on next format.
+Options: options InheritAlignX    # converts to `options AlignInheritX` on next format.
 ```
 
 Aliases can also be used for more complicated logic and even deprecating code.
 
 ```
-myClass := {
+myClass: {
     # TODO: we probably want to support `My` working here as well:
     # explicit constructor:
-    i(My X; int) := i()
+    i(My X; int): i()
 
     # implicit constructor:
-    ;;renew(My X; int) := null
+    ;;renew(My X; int): null
 
     # This was here before...
     # ;;myDeprecatedMethod(DeltaX: int): null
@@ -4391,7 +4402,7 @@ myClass := {
         My X += DeltaX
 }
 
-MyClass ;= myClass(X: 4)
+MyClass; myClass(X: 4)
 MyClass myDeprecatedMethod(DeltaX: 3)   # converts to `MyClass X += 3` on next format.
 ```
 
@@ -4421,26 +4432,26 @@ to invoke logic from these external files.
 
 ```
 # vector2.hm
-vector2 := {
+vector2: {
     ;;renew(My X: dbl, My Y: dbl): null
 
     @orderIndependent
-    ::dot(Vector2: vector2) := My X * Vector2 X + My Y * Vector2 Y
+    ::dot(Vector2: vector2): My X * Vector2 X + My Y * Vector2 Y
 }
 
 # main.hm
 Vector2Module: hm = \/vector2    # .hm extension must be left off.
-Vector2 := Vector2Module vector2(X: 3, Y: 4)
+Vector2: Vector2Module vector2(X: 3, Y: 4)
 print(Vector2)
 # you can also destructure imports like this:
-{vector2} := \/vector2
+{vector2}: \/vector2
 ```
 
 TODO: discussion on how the formatter will move imports to the bottom
 of the file so you can see the main part of your code instantly.
 
 TODO: how to import functions, i.e., to distinguish from classes?
-e.g., is `{vector2} := \/vector2` a function or a class definition?
+e.g., is `{vector2}: \/vector2` a function or a class definition?
 we probably want to force importing the overload to ensure that we can
 determine if it's a function or a class in the importing file.  e.g.,
 `{myFunction(MyArg1: int, MyArg2: dbl): str} = \/util`.
@@ -4459,7 +4470,7 @@ has compile-time errors they will be known at compile time, not run time.
 print(\/path/to/relative/file functionFromFile("hello, world!"))
 
 # importing a function from the math library:
-Angle := \\math atan2(X: 5, Y: -3)
+Angle: \\math atan2(X: 5, Y: -3)
 ```
 
 To import a path that has special characters, just use the special characters
@@ -4474,8 +4485,8 @@ use a backslash to escape the space, e.g., `\\library/path/with\ spaces` or
 Note that we take the entire import as
 if it were an UpperCamelCase identifier.  E.g., `\\math` acts like one identifier, `Math`,
 so `\\math atan(X, Y)` resolves like `Math atan(X, Y)`, i.e., member access or drilling down
-from `Math := \\math`.  Similarly for any relative import; `\/relative/import/file someFunction(Q)`
-correctly becomes like `File someFunction(Q)` for `File := \/relative/import/file`.
+from `Math: \\math`.  Similarly for any relative import; `\/relative/import/file someFunction(Q)`
+correctly becomes like `File someFunction(Q)` for `File: \/relative/import/file`.
 
 ## scripts
 
@@ -4492,7 +4503,7 @@ it to compiled code by converting the `.hms` file to a `.hm` file.
 Note that one downside of scripting is that what could be compile-time errors become runtime errors.
 
 TODO: figure out how we import hm scripts (`.hms` files).  Maybe something like
-`Script := import("../my_scripts/doom.hms"), Script doom()`.
+`Script: import("../my_scripts/doom.hms"), Script doom()`.
 TODO: how are we actually going to do this, e.g., need to expose public/protected functions to
 the calling code, pulling in other import dependencies should not reload code if we've already loaded
 those dependencies in other compiled files, etc.
@@ -4570,9 +4581,9 @@ In practice, you'll often specify the generic arguments like this:
 be an error string.
 
 To make it easy to handle errors being returned from other functions, hm-lang uses
-the `assert` method on a result class.  E.g., `Ok := MyHm assert()` which will convert
+the `assert` method on a result class.  E.g., `Ok: MyHm assert()` which will convert
 the `MyHm` result into the `ok` value or it will return the `uh` error in `MyHm` from
-the current function block, e.g., `Ok := what MyHm $( Ok: $(Ok), Uh: $(return Uh))`.
+the current function block, e.g., `Ok: what MyHm $( Ok: $(Ok), Uh: $(return Uh))`.
 It is something of a macro like `?` in Rust.  Note that `assert` doesn't panic.
 There are a few helpful overloads for the `assert()` method, including changing the
 error type `uh` by including it, e.g., `MyHm assert(Uh: newUhType("Bad"))`.
@@ -4581,11 +4592,11 @@ Note that we can automatically convert a result type into a nullable version
 of the `ok` type, e.g., `hm[ok: string, uh: errorCode]` can be converted into
 `string?` without issue, although as usual nulls must be made explicit with `?`.
 E.g., `myFunction(StringArgument?: MyHm)` to pass in `MyHm` if it's ok or null if not,
-and `String ?:= MyHm` to grab it as a local variable.
+and `String?: MyHm` to grab it as a local variable.
 
 ```
-hm[ok, uh] := oneOf[ok, uh] {
-    # The API is `Ok := Hm assert()`, which will bubble up this `uh`
+hm[ok, uh]: oneOf[ok, uh] {
+    # The API is `Ok: Hm assert()`, which will bubble up this `uh`
     # if the result was an error.  Note that we use the `loop` API
     # which normally is implicit but can be used explicitly if needed.
     #   ```
@@ -4598,13 +4609,13 @@ hm[ok, uh] := oneOf[ok, uh] {
     #   # example with implicit `block` (like a guard/control flow):
     #   implicitBlock(): hm[ok: null, uh: str]
     #       # will return early if an invalid type.
-    #       Result := doSomething(1.234) assert()
+    #       Result: doSomething(1.234) assert()
     #       print(Result)
     #
     #   # example with explicit `block` that does the same thing as implicit:
     #   explicitBlock(): hm[ok: null, uh: str]
     #       indent((Block: block[hm[ok: null, uh: str]]):
-    #           Result := doSomething(1.234) assert(Block)
+    #           Result: doSomething(1.234) assert(Block)
     #           print(Result)
     #           Block exit(null)
     #       )
@@ -4614,7 +4625,7 @@ hm[ok, uh] := oneOf[ok, uh] {
             Ok: $(Ok)
             Uh: $(debug error(Uh), Block exit(Uh))
 
-    # The API is `Ok := Hm assert(Uh: "custom error if not `ok`")`.
+    # The API is `Ok: Hm assert(Uh: "custom error if not `ok`")`.
     # This will moot `Me` and shortcircuit a failure (i.e., if `result`
     # is `uh`) to the calling block.  For example,
     #   ```
@@ -4626,7 +4637,7 @@ hm[ok, uh] := oneOf[ok, uh] {
     #
     #   implicitBlock(): hm[ok: null, uh: oneOf[InvalidDoSomething, OtherError]]
     #       # will return early if an invalid type.
-    #       Result := doSomething(1.234) assert(Uh: InvalidDoSomething)
+    #       Result: doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
     ..assert(New Uh: ~woe, Block: block[woe]): ok
@@ -4636,7 +4647,7 @@ hm[ok, uh] := oneOf[ok, uh] {
                 debug error(Uh)
                 Block exit(New Uh)
 
-    ..orPanic(String := ""): ok
+    ..orPanic(String: ""): ok
         what Me
             Ok: $(Ok)
             Uh:
@@ -4646,7 +4657,7 @@ hm[ok, uh] := oneOf[ok, uh] {
 
     # If ok, returns the `Ok` value; otherwise returns the passed-in value.
     # If it is expensive to create the in-case-of-error `ok` value, use 
-    # `Hm map((Uh.) := myExpensiveOkConstruction())` to create it only as necessary.
+    # `Hm map((Uh.): myExpensiveOkConstruction())` to create it only as necessary.
     ..okOr(InCaseOfError Ok.): ok
         what Me
             Ok: $(Ok)
@@ -4679,16 +4690,16 @@ hm[ok, uh] := oneOf[ok, uh] {
     ..to(): oneOf[ok, null]
 }
 
-Result := if X $( ok(3) ) else $( uh("oh no") )
+Result: if X $( ok(3) ) else $( uh("oh no") )
 if Result isOk()
     print("ok")
 
 # but it'd be nice to transform `Result` into the `Ok` value along the way.
-Result is((Ok) := print("Ok: ", Ok))
-Result is((Uh) := print("Uh: ", Uh))
+Result is((Ok): print("Ok: ", Ok))
+Result is((Uh): print("Uh: ", Uh))
 
 # or if you're sure it's that thing, or want the program to terminate if not:
-Ok := Result orPanic("for sure")
+Ok: Result orPanic("for sure")
 ```
 
 hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
@@ -4734,35 +4745,35 @@ that `assert` will return the correct uh subclass for the module that it is in;
 If a function returns a `hm` type, e.g., `myFunction(...): hm[ok, uh]`,
 then we can automatically convert its return value into a `oneOf[ok, null]`, i.e.,
 a nullable version of the `ok` type.  This is helpful for things like type casting;
-instead of `MyInt := what int(MyDbl) $(Ok. $(Ok), Uh: $(-1))` you can do
-`MyInt := int(MyDbl) ?? -1`.  Although, there is another less-verbose option that
-doesn't use nulls:  `int(MyDbl) map((Uh) := -1)`.
+instead of `MyInt: what int(MyDbl) $(Ok. $(Ok), Uh: $(-1))` you can do
+`MyInt: int(MyDbl) ?? -1`.  Although, there is another less-verbose option that
+doesn't use nulls:  `int(MyDbl) map((Uh): -1)`.
 
 TODO: should this be valid if `ok` is already a nullable type?  e.g.,
 `myFunction(): hm[ok: oneOf[int, null], uh: str]`.
-we probably should compile-error-out on casting to `Int ?:= myFunction()` since
+we probably should compile-error-out on casting to `Int?: myFunction()` since
 it's not clear whether `Int` is null due to an error or due to the return value.
 
 # standard container classes (and helpers)
 
 ```
 # TODO: should this be `container uh` instead of `Container uh`?
-Container uh := oneOf[
+Container uh: oneOf[
     OutOfMemory
     # etc.
 ]
 
-hm[of] := hm[ok: of, Container uh]
+hm[of]: hm[ok: of, Container uh]
 
 # TODO: should we rename `id` to `name` or `lookup` or `at`?
-container[id, value: nonNull] := {
+container[id, value: nonNull]: {
     # Returns `Null` if `Id` is not in this container,
     # otherwise the `value` instance at that `Id`.
     # This is wrapped in an argument object to enable passing by reference.
     # TODO: do we like this?  it looks a bit like SFO logic that we killed off.
     # USAGE:
     #   # Get the value at `Id: 5` and make a copy of it:
-    #   Value ?:= Container[Id: 5]
+    #   Value?: Container[Id: 5]
     #   # Get the value at `Id: 7` and keep a mutable reference to it:
     #   (Value?;) = Container[Id
     :;[Id]: (Value?:;)
@@ -4788,8 +4799,8 @@ container[id, value: nonNull] := {
     # returns an error if we ran out of memory trying to add the new value.
     ;;swap(Id, Value?;): hm[null]
     
-    @alias ::has(Id) := My[Id] != Null
-    @alias ::contains(Id) := My[Id] != Null
+    @alias ::has(Id): My[Id] != Null
+    @alias ::contains(Id): My[Id] != Null
 
     # Returns the number of elements in this container.
     ::count(): count
@@ -4852,18 +4863,18 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 `stack` for a contiguous list that grows in one direction only.
 
 ```
-Array uh := oneOf[
+Array uh: oneOf[
     OutOfMemory
     # TODO: etc...
 ]
-hm[of] := hm[ok: of, Array uh]
+hm[of]: hm[ok: of, Array uh]
 
 # some relevant pieces of the class definition
 # Note that `container[id, value]` must have a non-null `value` type,
 # but `array` can have nullable entries if desired, so convert to `nonNull`
 # if necessary to extend `container`.
-# TODO: check notation: `nonNull(~t) := if nullable(t) $(unNull(t)) else t`
-array[of] := container[id: index, value: nonNull(of)] {
+# TODO: check notation: `nonNull(~t): if nullable(t) $(unNull(t)) else t`
+array[of]: container[id: index, value: nonNull(of)] {
     # TODO: a lot of these methods need to return `hm[of]`.
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(Me): bool
@@ -4932,7 +4943,7 @@ array[of] := container[id: index, value: nonNull(of)] {
     ::[Index, fn(Of): ~u]: hm u
 
     # Note: You can use the `;:` const template for function arguments.
-    # e.g., `myArray[of] := array[of] { ;:[Index, fn(Of;:): ~u] := array;:[Index, fn] }`
+    # e.g., `myArray[of]: array[of] { ;:[Index, fn(Of;:): ~u]: array;:[Index, fn] }`
     
     # nullable modifier, which returns a Null if index is out of bounds of the array.
     # if the reference to the value in the array (`Of?;`) is null, but you switch to
@@ -5006,7 +5017,7 @@ print(range(10))    # prints [0,1,2,3,4,5,6,7,8,9]
 In hm-lang:
 
 ```
-fixedCountArray[of] := array[of] {
+fixedCountArray[of]: array[of] {
     @private FixedCount: count
     ;;renew(Count): null
         My FixedCount = Count
@@ -5050,9 +5061,9 @@ type `elementType[index]` would be useful for sparse data.
 To define a store (and its contents) inline, use this notation:
 
 ```
-Jim1 := "Jim C"
-Jim2 := "Jim D"
-Jim := 456
+Jim1: "Jim C"
+Jim2: "Jim D"
+Jim: 456
 # store linking string to ints:
 EmployeeIds: int[str] = [
     # option 1.A: `X: Y` syntax
@@ -5079,7 +5090,7 @@ EmployeeIds: int[str] = [
 # but required if elements are placed on the same line.
 
 # equivalent definition would occur with this first line:
-# `EmployeeIds := store[id: string, value: int] [`
+# `EmployeeIds: store[id: string, value: int] [`
 ```
 
 To define a store quickly (i.e., without a type annotation), use the notation
@@ -5125,14 +5136,14 @@ change places inside the store and/or collide with an existing ID.
 Some relevant pieces of the class definition:
 
 ```
-uh := oneOf[
+uh: oneOf[
     OutOfMemory
     MissingId
     # etc...
 ]
-hm[of] := hm[ok: of, uh]
+hm[of]: hm[ok: of, uh]
 
-store[id: hashable, value: nonNull] := container[id, value] {
+store[id: hashable, value: nonNull]: container[id, value] {
     # Returns Null if `Id` is not in the store.
     ::[Id]?: value
 
@@ -5151,7 +5162,7 @@ store[id: hashable, value: nonNull] := container[id, value] {
     # The element is removed from the store.
     ;;pop(): hm[id, value]
 
-    @alias ;;pop(Id) ?:= ;;[Id]!
+    @alias ;;pop(Id)?: My[Id]!
 
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
@@ -5203,14 +5214,14 @@ like `unorderedStore`.
 
 ```
 @private
-indexedStoreElement[id, value] := {
+indexedStoreElement[id, value]: {
     NextIndex; index
     PreviousIndex; index
     Id: id
     Value; value
 }
 
-insertionOrderedStore[id, value] := store[id, value] {
+insertionOrderedStore[id, value]: store[id, value] {
     # due to sequence building, we can use @private {...} to set @private for
     # each of the fields inside this block.
     @private {
@@ -5224,14 +5235,14 @@ insertionOrderedStore[id, value] := store[id, value] {
 
     # creates a default value if not present at the ID to pass in to the modifier:
     ;;[Id;:, fn(Value;): ~t]: t
-        Index ?:= My IdIndices[Id]
+        Index?: My IdIndices[Id]
         return if Index != Null
             My modifyAlreadyPresent(Index, fn)
         else
             My needToInsertThenModify(Id;:, fn)
 
     ::[Id, fn(Value?): ~t]: t
-        Index ?:= My IdIndices[Id]
+        Index?: My IdIndices[Id]
         return if Index != Null
             assert Index != 0
             My IndexedStore[Index, (IndexedStoreElement): t
@@ -5241,15 +5252,15 @@ insertionOrderedStore[id, value] := store[id, value] {
             fn(Null)
     
     ::forEach(Loop fn(Id, Value): loop): null
-        Index ;= My IndexedStore[0] NextIndex
+        Index; My IndexedStore[0] NextIndex
         while Index != 0
             {Value:, Id:} = My IndexedStore[Index] orPanic("broken invariant!")
-            ForLoop := Loop fn(Id, Value)
+            ForLoop: Loop fn(Id, Value)
             if ForLoop == loop Break
                 break
             Index = My IndexedStore[Index] NextIndex
         # mostly equivalent to using nested functions to avoid copies:
-        #   ForLoop := My IndexedStore[Index, (IndexedStoreElement?):
+        #   ForLoop: My IndexedStore[Index, (IndexedStoreElement?):
         #       if IndexedStoreElement == Null
         #           error("insertion-ordered store invariant was broken")
         #       Index = IndexedStoreElement NextIndex
@@ -5259,8 +5270,8 @@ insertionOrderedStore[id, value] := store[id, value] {
     # modifier for a ID'd value not yet in the store, need to insert a default first:
     @private
     ;;needToInsertThenModify(Id;:, fn(Value;): ~t): t
-        NewIndex := My NextAvailableIndex++ or reshuffle()
-        PreviouslyLastIndex := My IndexedStore[0] PreviousIndex
+        NewIndex: My NextAvailableIndex++ or reshuffle()
+        PreviouslyLastIndex: My IndexedStore[0] PreviousIndex
         My IndexedStore[NewIndex] = {
             PreviousIndex: PreviouslyLastIndex
             NextIndex: 0
@@ -5292,13 +5303,13 @@ to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [el
 The default-named variable name for a set of any type is `Set`.
 
 ```
-uh := oneOf[
+uh: oneOf[
     OutOfMemory
     # etc...
 ]
-hm[of] := hm[ok: of, uh]
+hm[of]: hm[ok: of, uh]
 
-set[of: hashable] := container[id: of, value: true] {
+set[of: hashable]: container[id: of, value: true] {
     # Returns `True` iff `Of` is in the set, otherwise Null.
     # NOTE: the `true` type is only satisfied by the instance `True`;
     # this is not a boolean return value but can easily be converted to boolean.
@@ -5346,9 +5357,9 @@ set[of: hashable] := container[id: of, value: true] {
     # insertion ordered, otherwise any convenient element.
     # Returns an error if there is no element available.
     ;;pop(): hm[of]
-    ;;pop(Of) ?:= ;;[Of]!
+    ;;pop(Of)?: My[Of]!
 
-    @alias ;;remove(Of) ?:= ;;[Of]!
+    @alias ;;remove(Of)?: My[Of]!
     ...
 }
 ```
@@ -5366,7 +5377,7 @@ TODO: make it easy to pass in a set as an argument and return a store with e.g. 
 
 ```
 fn(Fields: [~k], PickFrom: ~t[~q extends k]): t[k]
-    return Fields map((Field: str) := storeElement(Field, PickFrom[Field]))
+    return Fields map((Field: str): storeElement(Field, PickFrom[Field]))
 
 fn(PickFrom: ~o, Ids: ~k from ids(o)): pick(o, k)
     return pick(PickFrom, Ids)
@@ -5380,7 +5391,7 @@ and `from` selects multiple (or no) IDs from the set (`k from ids(o)`).
 For example, here is a way to create an iterator over some incrementing values:
 
 ```
-range[of: number] := iterator[of] {
+range[of: number]: iterator[of] {
     @private
     NextValue: of = 0
 
@@ -5392,7 +5403,7 @@ range[of: number] := iterator[of] {
             return My NextValue++
         return Null
 
-    ::peak() ?:= if My NextValue < My LessThan
+    ::peak()?: if My NextValue < My LessThan
         My NextValue 
     else
         Null
@@ -5409,7 +5420,7 @@ Thus, we need to call `Iterator next` with the container to retrieve
 the element and advance the iterator, e.g.:
 
 ```
-Array := [1,2,3]
+Array: [1,2,3]
 Iterator; iterator[int]
 assert Iterator next(Array) == 1
 assert next(Array, Iterator;) == 2  # you can use global `next`
@@ -5432,17 +5443,17 @@ next(Iterator; iterator[~t] @becomes(arrayIterator[t]), Array: array[t])?: t
     Iterator = arrayIterator[t]()
     Iterator;;next(Array)
 
-arrayIterator[of] := iterator[of] {
+arrayIterator[of]: iterator[of] {
     Next; index
     ;;renew(Start: index = 0):
         My Next = Start
 
-    ;;next(Array: array[of]) ?:= if My Next < Array count()
+    ;;next(Array: array[of])?: if My Next < Array count()
         Array[My Next++]
     else
         Null
 
-    ::peak(Array: array[of]) ?:= if My Next < Array count()
+    ::peak(Array: array[of])?: if My Next < Array count()
         Array[My Next]
     else
         Null
@@ -5450,7 +5461,7 @@ arrayIterator[of] := iterator[of] {
     # note that this function doesn't technically need to modify this
     # `arrayIterator`, but we keep it as `;;` since other container
     # iterators will generally need to update their index/ID.
-    ;;remove(Array; array[of]) ?:= if My Next < Array count()
+    ;;remove(Array; array[of])?: if My Next < Array count()
         Array remove(This Next)
     else
         Null
@@ -5463,15 +5474,15 @@ we should be able to translate one into the other.
 TODO: think of a good mechanism for this.
 
 ```
-array[of] := {
+array[of]: {
     # const iteration, with no-copy if possible:
     ::forEach(fn(Of): loop): null
         for Index: index < My count()
             # use the no-copy getter, here:
             # explicit:
-            ForLoop := My[Index, fn]
+            ForLoop: My[Index, fn]
             # implicit:
-            ForLoop := fn(My[Index];)
+            ForLoop: fn(My[Index];)
             if ForLoop == loop Break
                 break
 
@@ -5480,9 +5491,9 @@ array[of] := {
         for Index: index < My count()
             # do a swap on the value based on the passed in function:
             # explicit:
-            ForLoop := My[Index, fn]
+            ForLoop: My[Index, fn]
             # implicit:
-            ForLoop := fn(My[Index];)
+            ForLoop: fn(My[Index];)
             if ForLoop == loop Break
                 break
 
@@ -5513,7 +5524,7 @@ in C/C++ which takes up two symbols `?` and `:`).  In hm-lang, we borrow from Ko
 and write something like:
 
 ```
-X := if Condition
+X: if Condition
     doSomething()
 else
     calculateSideEffects(...) # ignored for setting X
@@ -5522,7 +5533,7 @@ else
 # now X is either the result of `doSomething()` or `DefaultValue`.
 # note, we can also do this with the `$(` `)` operator to indicate blocks, e.g..
 
-X := if Condition $( doSomething() ) else $( calculateSideEffects(...), DefaultValue )
+X: if Condition $( doSomething() ) else $( calculateSideEffects(...), DefaultValue )
 ```
 
 Note that ternary logic short-circuits operations, so that calling the function
@@ -5548,10 +5559,10 @@ the next line is considered part of the original statement and not a block.  For
 
 ```
 # WARNING, PROBABLY NOT WHAT YOU WANT:
-Q ?:= if Condition
+Q?: if Condition
         What + IndentTwice
 # actually looks to the compiler like:
-Q ?:= if Condition What + IndentTwice
+Q?: if Condition What + IndentTwice
 ```
 
 Which will give a compiler error since there is no internal block for the `if` statement.
@@ -5580,7 +5591,7 @@ if SomeCondition, Then:
             Named Then exit()
     # do other stuff
 
-Result := what SomeValue, Then: then[str]
+Result: what SomeValue, Then: then[str]
     5
         ...
         if OtherCondition
@@ -5627,7 +5638,7 @@ to the original scope.  In this example, `X` can become 5, 7, 8, or 100, with va
 side effects (i.e., printing).
 
 ```
-X := what String
+X: what String
     "hello"
         print("hello to you, too!")
         5
@@ -5647,7 +5658,7 @@ X := what String
 
 # Note again that you can use `$(` ... `)` block operators to make these inline.
 # Try to keep usage to code that can fit legibly on one line:
-Y := what String $( "hello" $(5), "world" $(7), else $(100) )
+Y: what String $( "hello" $(5), "world" $(7), else $(100) )
 ```
 
 You don't need to explicitly "break" a `case` statement like in C/C++.
@@ -5656,8 +5667,8 @@ any enclosing `for` or `while` loop.  This makes `what` statements more
 like `if` statements in hm-lang.
 
 ```
-AirQualityForecast := ["good", "bad", "really bad", "bad", "ok"]
-MehDays ;= 0
+AirQualityForecast: ["good", "bad", "really bad", "bad", "ok"]
+MehDays; 0
 for Quality: in AirQualityForecast
     what Quality
         "really bad"
@@ -5675,18 +5686,18 @@ The `what` operation is also useful for narrowing in on `oneOf` variable types.
 E.g., suppose we have the following:
 
 ```
-status := oneOf[Unknown, Alive, Dead]
-vector3 := {X; dbl, Y; dbl, Z; dbl}
+status: oneOf[Unknown, Alive, Dead]
+vector3: {X; dbl, Y; dbl, Z; dbl}
 
-update := oneOf[
+update: oneOf[
     status
     position: vector3
     velocity: vector3
 ]
 # example usage:
-Update0 := update status Alive
-Update1 := update position(X: 5.0, Y: 7.0, Z: 3.0)
-Update2 := update velocity(X: -3.0, Y: 4.0, Z: -1.0)
+Update0: update status Alive
+Update1: update position(X: 5.0, Y: 7.0, Z: 3.0)
+Update2: update velocity(X: -3.0, Y: 4.0, Z: -1.0)
 ```
 
 We can determine what the instance is internally by using `what` with
@@ -5710,7 +5721,7 @@ what Update
 ```
 
 We don't use function style here, e.g.,
-`what Update $( (Position: vector3) := print("got position update: $(Position)") )`,
+`what Update $( (Position: vector3): print("got position update: $(Position)") )`,
 because a `return` from such a function should technically only get you out of the `what`
 block and not out of the function that has `what` inside.
 
@@ -5724,12 +5735,12 @@ There is no need to pass a value as a mutable reference, e.g., `what MyValue;`;
 since we can infer this if any internal matching block uses `;`.
 
 ```
-whatever := oneOf[
+whatever: oneOf[
     str
     card: {Name: str, Id: u64}
 ]
 
-Whatever ;= whatever str("this could be a very long string, don't copy if you don't need to")
+Whatever; whatever str("this could be a very long string, don't copy if you don't need to")
 
 what Whatever!      # ensure passing as a temporary by mooting here.
     Str.
@@ -5797,7 +5808,7 @@ if the chosen salt doesn't work, however, e.g., in the situation where new cases
 were added to the `what` statement.
 
 ```
-X := what String    #salt(1234)
+X: what String    #salt(1234)
     "hello"
         print("hello to you, too!")
         5
@@ -5817,10 +5828,10 @@ and other containers of precise types, as well as recursive containers thereof.
 ```
 # TODO: there should maybe be a way to avoid using extend syntax for all interfaces.
 #       maybe we can do `@override ::hash(~Builder): null` for common interfaces
-# TODO: maybe something like `myHashableClass := { ... }, assert(hashable(myHashableClass))`.
+# TODO: maybe something like `myHashableClass: { ... }, assert(hashable(myHashableClass))`.
 #       even better, maybe the callers should be responsible for checking if a class is
 #       hashable (or whatever).
-myHashableClass := hashable {
+myHashableClass: hashable {
     Id: u64
     Name; string
 
@@ -5832,7 +5843,7 @@ myHashableClass := hashable {
         My Name hash(Builder;)    # you can use `hash` via the field.
 
     # consider doing sequence building for the hash builder:
-    ::hash(~Builder;) := Builder {
+    ::hash(~Builder;): Builder {
         hash(My Id)
         hash(My Name)
     }
@@ -5840,11 +5851,11 @@ myHashableClass := hashable {
 
 # note that defining `::hash(~Builder;)` automatically defines a `fastHash` like this:
 # fastHash(MyHashableClass, ~Salt): salt
-#   Builder := \\hash fast(Salt)
+#   Builder: \\hash fast(Salt)
 #   Builder hash(MyHashableClass)
 #   return Builder build()
 
-MyHashableClass := myHashableClass(Id: 123, Name: "Whatever")
+MyHashableClass: myHashableClass(Id: 123, Name: "Whatever")
 
 what MyHashableClass
     myHashableClass(Id: 5, Name: "Ok")
@@ -5855,7 +5866,7 @@ what MyHashableClass
         print("it was something else: $(MyHashableClass)")
 ```
 
-Note that if your `fastHash` implementation is terrible (e.g., `fastHash(Salt) := Salt`),
+Note that if your `fastHash` implementation is terrible (e.g., `fastHash(Salt): Salt`),
 then the compiler will error out after a certain number of attempts with different salts.
 
 For sets and stores, we use a hash method that is order-independent (even if the container
@@ -5894,7 +5905,7 @@ for Special; int < 4
 # you can do a for-loop with an existing variable.
 # this allows you to start at a different value, and keep the last value from the for loop.
 # NOTE the variable should be writable!
-IteratingIndex ;= 3
+IteratingIndex; 3
 for IteratingIndex < 7
     print(IteratingIndex)
 # prints 3, 4, 5, 6 each on new lines.
@@ -5902,7 +5913,7 @@ assert IteratingIndex == 7      # you can keep IteratingIndex for use outside th
 
 # you can also inline the variable's starting value,
 # but this means you don't have access to the variable outside the for loop (probably for the best).
-for OtherIndex := index(3), OtherIndex < 7
+for OtherIndex: index(3), OtherIndex < 7
     # note that `OtherIndex` is readonly inside this block, but will be updated by the for loop.
     print(OtherIndex)
 
@@ -5910,7 +5921,7 @@ for OtherIndex := index(3), OtherIndex < 7
 #       i'd prefer it go in the middle, but that would probably confuse people
 
 # for-loop iterating over non-number elements:
-vector2 := {X: dbl, Y: dbl}
+vector2: {X: dbl, Y: dbl}
 Array: vector2[] = [{X: 5, Y: 3}, {X: 10, Y: 17}]
 for Vector2: in Array       # `for (Vector2:) in Array` also works.
     print(Vector2)
@@ -5930,7 +5941,7 @@ maybe we just look at `print` and add the newlines at the start.  Each thread sh
 have its own tab stop.  E.g.,
 
 ```
-array[of] := {
+array[of]: {
     ...
     ::print(): null
         if My count() == 0
@@ -5971,15 +5982,15 @@ indent(~Declaring., fn(Block: block[~t, declaring]): never): t
 #       `Declaring: declaring` convert into `Declaring; string`??
 #       maybe we need another symbol for it, e.g., `Declaring~: declaring`
 @referenceableAs(then)
-block[of, declaring := null] := {
+block[of, declaring: null]: {
     # variables defined only for the lifetime of this block's scope.
     # TODO: give examples, or maybe remove, if this breaks cleanup with the `jump` ability
     Declaring; declaring
 
     # exits the `indent` with the corresponding `of` value.  example:
-    #   Value ;= 0
+    #   Value; 0
     #   what indent((Block: block[str]): never
-    #       Old Value := Value
+    #       Old Value: Value
     #       Value = Value // 2 + 9
     #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
     #       if Old Value == Value
@@ -5994,7 +6005,7 @@ block[of, declaring := null] := {
 
     # like a `continue` statement; will bring control flow back to
     # the start of the `indent` block.  example:
-    #   Value ;= 0
+    #   Value; 0
     #   indent((Block: block[str]):
     #       if ++Value >= 10 $(Block exit("done"))
     #       if Value % 2
@@ -6102,33 +6113,33 @@ Coroutines use an outer `co[of]` class with an inner `ci[of]` class.  (`i` for i
 coroutine.
 
 ```
-co[of] := {
+co[of]: {
     ;;renew(My fn(Ci[of]): never): null
 
     ;;take(): oneOf[Cease, Value: of]
 
-    @alias ;;next() := ;;take()
+    @alias ;;next(): I take()
 }
 
 # TODO: *maybe* extend `block[oneOf[Cease, Value: of]]`
-ci[of] := {
+ci[of]: {
     # returns control back to the calling function, but pauses execution
     # inside this inner coroutine.
     ;;give(Of.): jump
 
-    @alias ;;yield(Of.) := ;;give(Of.)
+    @alias ;;yield(Of.): I give(Of.)
 
     # returns control back to the calling function, but without a value;
     # indicates that this coroutine is done.
     ;;exit(): jump
 
-    @alias ;;quit() := ;;exit()
+    @alias ;;quit(): I exit()
 }
 ```
 
 ```
-countdown := co[int] {
-    ;;renew(My Int.) := Co renew((Ci[int];):
+countdown: co[int] {
+    ;;renew(My Int.): Co renew((Ci[int];):
         while My Int > 0
             Ci give(--My Int)
         Ci exit()
@@ -6140,7 +6151,7 @@ for Int: in countdown(20)
     print(Int)      # prints 19, 18, ..., 0
 
 # explicit usage
-Co ;= countdown(20)
+Co; countdown(20)
 while True
     what Co take()
         Value.
@@ -6171,7 +6182,7 @@ before the function name.
 
 ```
 someVeryLongRunningFunction(Int): string
-    Result ;= ""
+    Result; ""
     for New Int < Int
         sleep(Seconds: New Int)
         Result += str(New Int)
@@ -6179,13 +6190,13 @@ someVeryLongRunningFunction(Int): string
 
 # this uses the default `string` return value:
 print("starting a long running function...")
-MyName := someVeryLongRunningFunction(10)
+MyName: someVeryLongRunningFunction(10)
 print("the result is $(MyName) many seconds later")
 
 # this does it as a future
 print("starting a future, won't make progress unless polled")
 # `Future` here has the type `um[string]`:
-Future := @um someVeryLongRunningFunction(10)
+Future: @um someVeryLongRunningFunction(10)
 # Also ok: `Future: um[string] = someVeryLongRunningFunction(10)`
 # TODO: can `~` by itself count as the `auto` keyword?
 # probably also ok: `Future: um[~] = someVeryLongRunningFunction(10)`
@@ -6210,12 +6221,12 @@ FuturesArray[]: um[string]
 # elements are already typed as `um[string]`:
 FuturesArray append(after(Seconds: 2, Return: "hello"))
 FuturesArray append(after(Seconds: 1, Return: "world"))
-ResultsArray := decide(FuturesArray)
+ResultsArray: decide(FuturesArray)
 print(ResultsArray) # prints `["hello", "world"]`
 
 # here we use sequence building to ensure we're creating futures,
 # i.e., `@um {A, B}` has type `{A: um[a], B: um[b]}` and executes `A`/`B` asynchronously.
-FuturesObject := @um {
+FuturesObject: @um {
     Greeting: after(Seconds: 2, Return: "hello")
     Noun: after(Seconds: 1, Return: "world")
 }
@@ -6233,7 +6244,7 @@ are futures before returning.
 ## enumerations
 
 We can create a new type that exhaustively declares all possible values it can take.
-The syntax is `lowerCamelCase := oneOf` followed by a list of named values
+The syntax is `lowerCamelCase: oneOf` followed by a list of named values
 (each an `UpperCamelCase` identifier), with optional values they take.  Enumerations
 are mutually exclusive -- no two values may be held simultaneously.  See
 masks for a similar class type that allows multiple options at once.
@@ -6248,7 +6259,7 @@ Here is an example enum with some values that aren't specified.  Even though
 the values aren't specified, they are deterministically chosen.
 
 ```
-myEnum := oneOf[
+myEnum: oneOf[
     FirstValueDefaultsToZero
     SecondValueIncrements
     ThirdValueIsSpecified: 123
@@ -6265,13 +6276,13 @@ compile-time constants.  This uses the same logic as function arguments to
 determine what the name of the enum value is.
 
 ```
-Super := 12
-Crazy := 15
+Super: 12
+Crazy: 15
 # the following will define
 # `otherEnum OtherValue1 = 0`,
 # `otherEnum Super = 12`,
 # and `otherEnum OtherValue2 = 15`.
-otherEnum := oneOf[
+otherEnum: oneOf[
     OtherValue1
     Super
     OtherValue2: Crazy
@@ -6282,7 +6293,7 @@ Here is an example enum with just specified values, all inline:
 
 ```
 # fits in a `u1`.
-bool := oneOf[False: 0, True: 1]
+bool: oneOf[False: 0, True: 1]
 ```
 
 Enums provide a few extra additional methods for free as well, including
@@ -6292,7 +6303,7 @@ check if an enum instance `Enum` is a specific value `ThisValue` via
 `Enum isThisValue()` which will return true iff so.
 
 ```
-Test: bool = False  # or `Test := bool False`
+Test: bool = False  # or `Test: bool False`
 
 if Test == True     # OK
     print("test is true :(")
@@ -6314,7 +6325,7 @@ enumerations, not the number +1 after the last enum value.  This can be confusin
 in case you use non-standard enumerations (i.e., with values less than 0):
 
 ```
-sign := oneOf[
+sign: oneOf[
     Negative: -1
     Zero: 0
     Positive: 1
@@ -6323,7 +6334,7 @@ sign := oneOf[
 print("sign has $(sign count()) values")   # 3
 print("starting at $(sign min()) and going to $(sign max())")     # -1 and 1
 
-weird := oneOf[
+weird: oneOf[
     X: 1
     Y: 2
     Z: 3
@@ -6357,7 +6368,7 @@ than testing each value against the various possibilities.  Also note that you d
 to explicitly set each enum value; they start at 0 and increment by default.
 
 ```
-option := oneOf[
+option: oneOf[
     Unselected
     NotAGoodOption
     ContentWithLife
@@ -6369,7 +6380,7 @@ option := oneOf[
 
 print("number of options should be 7:  $(option count())")
 
-Option1 := option ContentWithLife
+Option1: option ContentWithLife
 
 # avoid doing this if you are checking many possibilities:
 if Option1 isNotAGoodOption()   # OK
@@ -6405,7 +6416,7 @@ If no value is zero, then the first specified value is default.
 Take this example `oneOf`.
 
 ```
-tree := oneOf[
+tree: oneOf[
     leaf: {Value; int}
     branch: {
         Left; tree
@@ -6432,7 +6443,7 @@ if Tree isLeaf()
 # narrowing to a `leaf` type that is readonly, while retaining a reference
 # to the original `Tree` variable.  the nested function only executes if
 # `Tree` is internally of type `leaf`:
-Tree is((Leaf) := print(Leaf))
+Tree is((Leaf): print(Leaf))
 
 # narrowing to a `branch` type that is writable.  `Tree` was writable, so `Branch` can be.
 # the nested function only executes if `Tree` is internally of type `branch`:
@@ -6472,7 +6483,7 @@ variables will be null if the `Tree` is not of that type, but they will also be
 a copy and any changes to the new variables will not be reflected in `Tree`.
 
 ```
-oneOf[..., ~t] := {
+oneOf[..., ~t]: {
     # returns true if this `oneOf` is of type `T`, also allowing access
     # to the underlying value by passing it into the function.
     # we return `never` here because we don't want people to use the
@@ -6509,8 +6520,8 @@ If you need to use multiple `oneOf`s in a function and still want them to be
 default-named, it's recommended to give specific names to each `oneOf`, e.g.,
 
 ```
-intOrString := oneOf[int, str]
-weirdNumber := oneOf[u8, i32, dbl]
+intOrString: oneOf[int, str]
+weirdNumber: oneOf[u8, i32, dbl]
 
 myFunction(IntOrString, WeirdNumber): dbl
     return dbl(IntOrString) * WeirdNumber
@@ -6560,7 +6571,7 @@ TODO: should this be `containsThisValue()` to be consistent with containers?
 TODO: is there a way to make this `anyOf` and use 0 as the `Null` value?
 
 ```
-food := anyOrNoneOf[
+food: anyOrNoneOf[
     Carrots
     Potatoes
     Tomatoes
@@ -6580,7 +6591,7 @@ And here is an example with specified values.
 
 ```
 # the mask is required to specify types that are powers of two:
-nonMutuallyExclusiveType := anyOrNoneOf[
+nonMutuallyExclusiveType: anyOrNoneOf[
     X: 1
     Y: 2
     Z: 4
@@ -6593,7 +6604,7 @@ nonMutuallyExclusiveType count() == 16
 nonMutuallyExclusiveType min() == 0
 nonMutuallyExclusiveType max() == 39   # = X | Y | Z | T
 
-Options ;= nonMutuallyExclusiveType()
+Options; nonMutuallyExclusiveType()
 Options == 0        # True; masks start at 0, or `None`,
                     # so `Options == None` is also true.
 Options |= X        # TODO: make sure it's ok to implicitly add the mask type here.
@@ -6616,11 +6627,11 @@ Options hasT()  # True
 We can also create a mask with one or more `oneOf` fields, e.g.:
 
 ```
-options := anyOrNoneOf[
+options: anyOrNoneOf[
     oneOf[AlignCenterX, AlignLeft, AlignRight]
     oneOf[AlignCenterY, AlignTop, AlignBottom]
 
-    oneOf[FontVerySmall, FontSmall, FontNormal := 0, FontLarge, FontVeryLarge]
+    oneOf[FontVerySmall, FontSmall, FontNormal: 0, FontLarge, FontVeryLarge]
 ]
 ```
 
@@ -6645,7 +6656,7 @@ if Options2 & AlignCenterX
 ```
 
 You can also explicitly tell the mask to avoid assigning a power of two to one of the
-`oneOf` values by setting it to zero (e.g., `oneOf[..., Value := 0, ... ]`.
+`oneOf` values by setting it to zero (e.g., `oneOf[..., Value: 0, ... ]`.
 For example, the font size `oneOf` earlier could be represented by 3 powers of two, e.g.,
 `FontVerySmall = 16`, `FontSmall = 32`, `FontLarge = 64`, `FontVeryLarge = 96`.
 Note that we have the best packing if the number of non-zero values is 3 (requiring 2 powers of two),
@@ -6653,15 +6664,15 @@ Note that we have the best packing if the number of non-zero values is 3 (requir
 requiring `P` powers of two.  This is because we need one value to be the default for each
 `oneOf` in the `mask`, which will be all `P` bits set to zero; the remaining `2^P - 1`
 combinations of the `P` bits can be used for the remaining `oneOf` values.  A default
-name can thus be chosen for each `oneOf`, e.g., `oneOf[..., WhateverName := 0, ...]`.
+name can thus be chosen for each `oneOf`, e.g., `oneOf[..., WhateverName: 0, ...]`.
 
 ## named value-combinations
 
 You can add some named combinations by extending a mask like this.
 
 ```
-myMask := anyOrNoneOf[X, Y] {
-    XAndY := X | Y
+myMask: anyOrNoneOf[X, Y] {
+    XAndY: X | Y
 }
 
 Result: myMask = XAndY
@@ -6767,8 +6778,8 @@ is descoped.
 ```
 # function that takes a function as an argument and returns a function
 # example usage:
-#   someFn() := "hey"
-#   otherFn := wow(someFn)
+#   someFn(): "hey"
+#   otherFn: wow(someFn)
 #   print(otherFn()) # 3
 wow(Input fn(): string): fn(): int
     return (): int
@@ -6821,18 +6832,18 @@ When the `callee` is descoped, it will deregister itself with the `caller`
 internally, so that the `caller` will no longer call the `callee`.
 
 ```
-variableAccess := oneOf[Mutable, Readonly]
-caller[t, VariableAccess] := {
+variableAccess: oneOf[Mutable, Readonly]
+caller[t, VariableAccess]: {
     Callees[ptr[callee[t, VariableAccess]]];
     @if VariableAccess == Readonly
-        ::runCallbacks(T: t) := for Ptr: in Callees $(Ptr call(T)) 
+        ::runCallbacks(T: t): for Ptr: in Callees $(Ptr call(T)) 
     @if VariableAccess == Mutable
-        ::runCallbacks(T; t) := for Ptr: in Callees $(Ptr call(T;)) 
+        ::runCallbacks(T; t): for Ptr: in Callees $(Ptr call(T;)) 
     # probably can do this with shorthand:
     # ::runCallbacks(@access(T, VariableAccess) t): null
     #       for Ptr: in Callees $(Ptr call(@access(T, VariableAccess)))
 }
-audio := caller[sample[~Count], Mutable] {
+audio: caller[sample[~Count], Mutable] {
     # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
@@ -6840,7 +6851,7 @@ audio := caller[sample[~Count], Mutable] {
     DeltaT: flt
 }()
 
-audioCallee := callee[sample[~Count], Mutable] {
+audioCallee: callee[sample[~Count], Mutable] {
     Frequency; flt = 440
     Phase; flt = 0
 
@@ -6887,7 +6898,7 @@ Note on terminology:
 # list of elements that can compose the grammar.
 # doesn't include stuff like LowerCamelCase or UpperCamelCase,
 # which are not grammatically relevant.
-grammarElement := oneOf[
+grammarElement: oneOf[
     # "TypeElement" to avoid overload with type/Type
     TypeElement
     FunctionType
@@ -6911,7 +6922,7 @@ grammarElement := oneOf[
     EndOfInput
 ]
 
-tokenMatcher := {
+tokenMatcher: {
     # don't have to restore the token array Index to the correct state,
     # consume as many tokens as you like here.  make sure to go
     # through "Grammar match(...)" in order to restore the Index
@@ -6920,8 +6931,8 @@ tokenMatcher := {
     ::match(Index;, Array: token[]): bool
 }
 
-singleTokenMatcher := tokenMatcher (
-    ;;renew(My Token) := Null
+singleTokenMatcher: tokenMatcher (
+    ;;renew(My Token): Null
 
     # we automatically inherit the @visibility of the parent class method
     # unless we specifically provide one.
@@ -6929,9 +6940,9 @@ singleTokenMatcher := tokenMatcher (
         return Index < Array count() and Array[Index++] == My Token
 )
 
-grammarMatcher := oneOf[tokenMatcher, grammarElement, token]
+grammarMatcher: oneOf[tokenMatcher, grammarElement, token]
 
-Grammar := {
+Grammar: {
     @private
     Elements: tokenMatcher[grammarElement] = [
         TypeElement: oneOfMatcher([
@@ -6945,20 +6956,11 @@ Grammar := {
             oneOfMatcher([operatorMatcher(":"), operatorMatcher(";")])
             TypeElement
         ])
-        VariableDefinition: oneOfMatcher([
-            # VariableName: type = ...
-            sequenceMatcher([VariableDeclaration, operatorMatcher("="), RhsStatement])
-            # VariableName := ...
-            sequenceMatcher([
-                VariableName
-                oneOfMatcher([
-                    operatorMatcher("?;=")
-                    operatorMatcher("?:=")
-                    operatorMatcher(";=")
-                    operatorMatcher(":=")
-                ])
-                RhsStatement
-            ])
+        VariableDefinition: sequenceMatcher([
+            VariableName
+            optionalMatcher(operatorMatcher("?"))
+            oneOfMatcher([operatorMatcher(":"), operatorMatcher(";")])
+            RhsStatement
         ])
         #(#
         # for-loops
@@ -6973,10 +6975,10 @@ Grammar := {
         for @lock Variable < UpperBoundExclusive
             ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
         # starting at number in the for loop
-        for Variable := StartingValue, Variable < UpperBoundExclusive
+        for Variable: StartingValue, Variable < UpperBoundExclusive
             ... use Variable from StartingValue ...
         #)#
-        ForLoop := oneOfMatcher([
+        ForLoop: oneOfMatcher([
             sequenceMatcher([
                 # TODO: do we even need `keywordMatcher`, `identifierMatcher`, and `operatorMatcher`?
                 #       can't we just use `singleTokenMatcher` and be done with it?
@@ -7022,31 +7024,19 @@ Grammar := {
             # (Args...): returnType
             #   BlockStatements
             sequenceMatcher([FunctionArgsWithReturnType, Block])
-            # fnName(Args...) := Statement
+            # fnName(Args...): Statement
             sequenceMatcher([
                 FunctionName 
-                listMatcher(FunctionArgument)
-                oneOfMatcher([
-                    operatorMatcher("?;=")
-                    operatorMatcher("?:=")
-                    operatorMatcher(";=")
-                    operatorMatcher(":=")
-                ])
+                FunctionArgsWithReturnType
                 RhsStatement
             ])
-            # (Args...) := Statement
+            # (Args...): Statement
             sequenceMatcher([
-                listMatcher(FunctionArgument)
-                oneOfMatcher([
-                    operatorMatcher("?;=")
-                    operatorMatcher("?:=")
-                    operatorMatcher(";=")
-                    operatorMatcher(":=")
-                ])
+                FunctionArgsWithReturnType
                 RhsStatement
             ])
         ])
-        FunctionArgument := oneOfMatcher([
+        FunctionArgument: oneOfMatcher([
             VariableDefinition
             VariableDeclaration
             FunctionDefinition
@@ -7100,10 +7090,10 @@ Grammar := {
         ClassDefinition: sequenceMatcher([
             ClassName
             oneOfMatcher([
-                operatorMatcher(":=")
-                doNotAllow(operatorMatcher(";="), "Classes cannot be writable.")
-                doNotAllow(operatorMatcher("?;="), "Classes cannot be nullable/writable.")
-                doNotAllow(operatorMatcher("?:="), "Classes cannot be nullable.")
+                operatorMatcher(":")
+                doNotAllow(operatorMatcher(";"), "Classes cannot be writable.")
+                doNotAllow(operatorMatcher("?;"), "Classes cannot be nullable/writable.")
+                doNotAllow(operatorMatcher("?:"), "Classes cannot be nullable.")
             ])
             optionalMatcher(ExtendParentClasses)
             parenthesesMatcher(repeatMatcher([ClassStatement], Until: operatorMatcher("}")))
@@ -7129,14 +7119,14 @@ Grammar := {
             ])
         ])
         EndOfInput: tokenMatcher(
-            ::match(Index;, Array: token[]) := Index >= Array count()
+            ::match(Index;, Array: token[]): Index >= Array count()
         )
     ]
 
     ::match(Index;, Array: token[], GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
-        Snapshot := Index
-        Matched := what GrammarMatcher
+        Snapshot: Index
+        Matched: what GrammarMatcher
             (TokenMatcher):
                 TokenMatcher match(Index;, Array)
             (GrammerElement):
@@ -7160,13 +7150,13 @@ Grammar := {
 
 # a list encompasses things like (), (GrammarMatcher), (GrammarMatcher, GrammarMatcher), etc.,
 # but also lists with newlines if properly tabbed.
-listMatcher(GrammarMatcher) := parenthesesMatcher(repeatMatcher([
+listMatcher(GrammarMatcher): parenthesesMatcher(repeatMatcher([
     GrammarMatcher
     CommaOrBlockNewline
 ])
 
-sequence := tokenMatcher {
-    ;;renew(My Array; grammarMatcher[]) := Null
+sequence: tokenMatcher {
+    ;;renew(My Array; grammarMatcher[]): Null
 
     ::match(Index;, ToMatch Array: token[]): bool
         for GrammarMatcher: in My Array
@@ -7177,16 +7167,16 @@ sequence := tokenMatcher {
 
 # TODO: add an argument to parentheses matcher for the type of parentheses, e.g., () [] {}
 # TODO: make `block` a type of token as well.
-parenthesesMatcher := tokenMatcher {
-    ;;renew(My GrammarMatcher) := Null
+parenthesesMatcher: tokenMatcher {
+    ;;renew(My GrammarMatcher): Null
 
     ::match(Index;, Array: token[]): bool
-        CurrentToken := Array[Index]
+        CurrentToken: Array[Index]
         if currentToken != parenthesesToken
             return False
 
         InternalIndex; index = 0
-        PartialMatch := Grammar match(InternalIndex;, CurrentToken InternalTokens, My GrammarMatcher)
+        PartialMatch: Grammar match(InternalIndex;, CurrentToken InternalTokens, My GrammarMatcher)
         if not PartialMatch
             return False
 
@@ -7200,14 +7190,14 @@ parenthesesMatcher := tokenMatcher {
 
 # TODO: make this a function which returns either `repeatInterruptible` and `repeatTimes`
 # this is essentially the definition for repeatInterruptible:
-repeatMatcher := tokenMatcher {
+repeatMatcher: tokenMatcher {
     # until `Until` is found, checks matches through `Array` repeatedly.
     # note that `Until` can be found at any point in the array;
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Array`.
-    i(My Until: GrammarMatcher = EndOfInput, My Array: GrammarMatcher[]) := i()
-    ;;renew(My Until: GrammarMatcher = EndOfInput, My Array: GrammarMatcher[]) := Null
+    i(My Until: GrammarMatcher = EndOfInput, My Array: GrammarMatcher[]): i()
+    ;;renew(My Until: GrammarMatcher = EndOfInput, My Array: GrammarMatcher[]): Null
 
     ::match(Index;, ToMatch Array: token[]): bool
         if Index >= Array count()
@@ -7317,7 +7307,7 @@ macro code).
 We'll use the following example hm-lang class and other functions for transpilation examples.
 
 ```
-exampleClass := {
+exampleClass: {
     A; f32
     B; f32
 
@@ -7404,7 +7394,7 @@ e.g., `whenever Q $(...)`.
 
 ```
 # hm-lang
-myClass := {
+myClass: {
     ::readonlyMethod(Int): null
     ;;mutatingMethod(Int): null
 }
