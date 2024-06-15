@@ -281,6 +281,12 @@ MutatedY ;= 2
 doSomething(With: Mean, X; MutatedX, Y; MutatedY)
 ```
 
+TODO: is there a reason we can't just do `X; 1` instead of `X ;= 1`?  we'd save a few keystrokes.
+it's nice for copying values from function arguments into non-function scoped code, e.g., for
+refactoring, not to need to go back and do `X ;= 1` where we had `X; 1`.  it might also reduce
+confusion in definining `oneOf`s that create classes, e.g., `oneOf[z: {X: int, Y: int}, w: str]`
+and defining classes: `myClass: {X: dbl, Y: dbl, Z: dbl}`.
+
 ```
 # declaring a function that returns other values:
 doSomething(X: int, Y: int): {W: int, Z: int}
@@ -920,6 +926,23 @@ myFunction(X: int): int
     X // 8
 ```
 
+While shadowing is not allowed, you can use `@hide` to ensure you don't use the
+other value accidentally.
+
+```
+myFunction(X: int): int
+    # nested function is OK due to namespace:
+    doStuff(Other X: int): null
+        @hide X
+        ...
+        print(X)    # COMPILE ERROR, `X` was hidden from this scope.
+        ...
+    doStuff(X)
+    doStuff(X: X // 2)
+    doStuff(X: X // 4)
+    X // 8
+```
+
 Similarly, you can define new variables with namespaces, in case you need a new variable
 in the current space.  This might be useful in a class method like this:
 
@@ -1280,8 +1303,6 @@ To make it easy to indicate when a variable can be nullable, we reserve the ques
 symbol, `?`, placed after the variable name like `X?: int` or after a simple type like
 `X: int?`.  Either example declares a variable `X` that
 can be an integer or null.  The default value for an optional type is `Null`.
-TODO: discussion on whether we want to force using the `?` as part of the identifier,
-e.g., refer to `X?: int` as `X?` everywhere.
 TODO: do we want to rename `null` to `absent`?  essentially we want the feature for
 function calls, e.g., `fn(X?: int): q`
 and container types, e.g., `{X?: possiblyNull(), Y: ...}` becomes `{Y: ...}` if `X` is null,
@@ -3847,6 +3868,11 @@ want to explicitly allow for it only if we use `{id?}` for example.
 TODO: maybe allow default types.  maybe this is a use-case for `:=` inside
 the braces, e.g., `hm[ok ?:= null, uh]`.
 
+TODO: maybe support specifying mutability in templates, e.g., `gen[x; int]` 
+for a `gen[x] := {MyValue: x}` would result in `{MyValue; int}`.  or if this
+would be prone to errors/confusion with converting `:` into `;` where not desired,
+disallow it in compiler, and support it another (more explicit) way.
+
 To create a generic class, you put the expression `[types...]` after the
 class identifier, or `[of]` for a single template type, where `of` is the
 [default name for a generic type](#default-named-generic-types).  For example, we use
@@ -4179,7 +4205,7 @@ myBuilder := {
     ;;set(String, Int): null
 }
 
-# Note, inside the `{}` we infer that mutating methods are desired.
+# Note, inside the `{}` we allow mutating methods because `myBuilder()` is a temporary.
 # The resulting variable will be readonly after this definition + mutation chain,
 # due to being defined with `:=`.
 MyBuilder := myBuilder() {
@@ -4190,7 +4216,7 @@ MyBuilder := myBuilder() {
 }
 
 # You can also do inline, but you should use commas here.
-# Note that this variable can still be mutated after this line due to `;=`.
+# Note that this variable can be mutated after this line due to `;=`.
 MyBuilder2 ;= myBuilder() { set("Def", 987), set("Uvw", 321) }
 ```
 
@@ -4235,7 +4261,9 @@ Results := WriteableArray {
 # Results = {Int: 20}
 ```
 
-In fact, `{}` acts like bash sequence builders (which also use `{}`).  E.g.,
+### nested sequence builders
+
+In fact, `{}` acts somewhat like bash sequence builders (which also use `{}`).  E.g.,
 
 ```
 # Example method sequence builder:
@@ -4247,11 +4275,13 @@ MyClass {
 
 # Is equivalent to this sequence:
 Result := MyClass myMethod()
-Result nextMethod()
-Result nextMethod2()
-Result NestedField
-MyClass otherMethod()
-MyClass SomeField
+NextMethod := Result nextMethod()
+NextMethod2 := Result nextMethod2()
+NestedField := Result NestedField
+OtherMethod := MyClass otherMethod()
+SomeField := MyClass SomeField
+# This is constructed only if necessary (e.g., for a return value).
+{MyMethod: {NextMethod, NextMethod2, NestedField}, OtherMethod, SomeField}
 ```
 
 When two sequence builders combine, e.g., `{A, B} {c(), d()}`, they execute in a deterministic
@@ -4284,6 +4314,8 @@ Results := MyClass getValue() {
 } # COMPILE ERROR
 ```
 
+### classes as sequence builders
+
 TODO: fix `extend` not allowing static vars/fns.
 however this breaks for static variables (which are currently `x MyVar: int`).
 we probably could just get rid of static variables/functions and simplify logic here.
@@ -4296,6 +4328,7 @@ maybe we allow this one exception with notation `{(Args:): x}` where `x` must be
 the type of the class, a result with the class, etc.
 yeah i think we can get rid of most static functions/variables; these can be defined
 outside the class in a static manner if desired.
+actually, static functions are pretty clear
 
 ```
 parentClass := {
