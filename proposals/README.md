@@ -208,8 +208,6 @@ MutableVar; 321
 
 # you can also give it an explicit type:
 ReadonlyVar: int(123)
-# TODO: should we completely kill this notation???
-ReadonlyVar: int = 123
 
 # you can also define a variable using an indented block;
 # the last line will be used to initialize the variable.
@@ -1099,12 +1097,12 @@ to keep a variable for multiple uses: `{NestedField}: something()`.)
 
 ## prefix and postfix question marks `?`
 
-TODO: why? give a motivating example.
+TODO: why? give a motivating example. -- probably for nested classes. `x {a: int}`.
 The `?` operator binds strongly, so `x a?` is equivalent to `x oneOf[a, null]` and not
 `oneOf[x a, null]`.  Generally speaking, if you want your entire variable to be nullable,
 it should be defined as `X?: int`.  `X: int?` works in this instance, but if you have
-generic classes (like `array[elementType]`), then `X[]: int?` or `X[]?: int` would define an array
-of nullable integers.  To make a nullable array of integers, you'd use
+generic classes (like `array[elementType]`), then `X[]: int?` or `X[]?: int` would define
+an array of nullable integers.  To make a nullable array of integers, you'd use
 `X?: array[int]`, `X?[]: int`, or `X?: int[]`.
 
 Prefix `?` can be used to short-circuit function evaluation if an argument is null.
@@ -1257,9 +1255,15 @@ NullableXor?: X xor Y
 NonNullXor: X xor Y assert()     # will shortcircuit this block if `X xor Y` is null
 ```
 
-## assignment operators
+## reassignment operators
 
-TODO: `??=`.
+Note that `:`, `;`, and `.` can assign values if they're also being declared.
+Thus, `=` is only used for reassignment.  Many binary (two operand) operators
+such as `*`, `/`, `+`, `-`, etc., also support being paired with reassignment.
+As long as `X @op Y` has the same type as `X`, then we can do `X @op = Y` for
+shorthand of `X = X @op Y` for any eligible binary operator `@op`.  Examples
+include `X -= 5`, `Y &= 0x12`, etc.
+
 TODO: discussion on `<->` being swap.  swap as a function would have required `swap(X;, Y;)`
 TODO: we probably can use `swap(X;, Y;)` as what you need to define for `<->` to work.
 to be consistent.
