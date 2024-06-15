@@ -1327,9 +1327,6 @@ function calls, e.g., `fn(X?: int): q`
 and container types, e.g., `{X?: possiblyNull(), Y: ...}` becomes `{Y: ...}` if `X` is null,
 or `Store[Id] = Null` to remove `Id` from the store.
 we could use `Store[Id] = Absent` and `Present` for non-absent.
-TODO: find a good way to infer types, e.g., like this (or maybe `@infer y` instead of `~y`):
-e.g., `nonNull[x] = if x == nullable(~y) $(y) else $(x)`.
-or maybe `if x == oneOf[~y, null] $(y) else $(x)`.
 
 For an optional type with more than one non-null type, we use `Y?: oneOf[someType, anotherType]`
 or equivalently, `Y: oneOf[someType, anotherType, null]` (where `null` comes last).
@@ -4887,6 +4884,10 @@ hm[of]: hm[ok: of, Array uh]
 # but `array` can have nullable entries if desired, so convert to `nonNull`
 # if necessary to extend `container`.
 # TODO: check notation: `nonNull(~t): if nullable(t) $(unNull(t)) else t`
+# TODO: find a good way to infer types, e.g., like this (or maybe `@infer y` instead of `~y`):
+# e.g., `nonNull[of]: if of == nullable(~y) $(y) else $(of)`.
+# or maybe `if of == oneOf[~y, null] $(y) else $(of)`.
+# or maybe `if of == oneOf[...y, null] $(y) else $(of)`.
 array[of]: container[id: index, value: nonNull(of)] {
     # TODO: a lot of these methods need to return `hm[of]`.
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
