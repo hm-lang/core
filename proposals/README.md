@@ -1895,6 +1895,8 @@ print(doSomething(dbl)) # returns 123.0
 print(doSomething(u8))  # returns u8(123)
 ```
 
+### returning a type constructor
+
 For returning a class/constructor, we need to use the syntax `new[x]` (or
 `new[any]` if it's any type), because `doSomething(): x` returns
 an instance `X` of class `x`.  Since returning an instance is by far the
@@ -1923,6 +1925,8 @@ doSomething(~x, namedNew: ~y): new[oneOf[x, y]]
 
 print(doSomething(int, namedNew: dbl))  # will print `int` or `dbl` with 50-50 probability
 ```
+
+To return multiple constructors, you can use the [type tuple syntax](#type-tuples).
 
 ### unique argument names
 
@@ -4099,8 +4103,9 @@ someClass[t, u, v]: { ...some totally different class... }
 
 One can conceive of a tuple type like `[x, y, z]` for nested types `x`, `y`, `z`.
 Note that these are *not* order dependent, so `[z, x, y]` is the same tuple type,
-so they are grammatically equivalent to a `store` of types.  Using the spread
-operator, we can supply a tuple type to a generic class, e.g.,
+so they are grammatically equivalent to a `store` of types, and their use is
+make it easy to specify types for a generic class.  This must be done using the
+spread operator `...` in the following manner.
 
 ```
 tupleType: [x, y, z]
@@ -4109,16 +4114,39 @@ tupleType: [x, y, z]
 someSpecification: myGeneric[...tupleType, w: int]
 
 # you can even override one of your supplied tupleType values with your own.
-anotherSpec: myGeneric[...tupleType, w: str, x: overridingTupleTypeXWithThis]
+# make sure the override comes last.
+anotherSpec[Override of]: myGeneric[...tupleType, w: str, x: Override of]
+
+# Note that even if `tupleType` completely specifies a generic class
+# `someGeneric[x, y, z]: {...}`, we still need to use the spread operator
+# because `someGeneric tupleType` would not be the correct syntax.  Instead:
+aSpecification: someGeneric[...tupleType]
 ```
 
-When returning multiple values from a function, tuple types are the wrong approach.
-Use `{}` with the requisite fields, e.g., `{X, Y, Z}` for types `x`, `y`, and `z`.
+Tuple types cannot be used to return multiple values from a function.  Instead,
+use `{}` with the requisite fields, e.g., `{X, Y, Z}` for types `x`, `y`, and `z`.
 Named fields also increase readability, so e.g. `{LikelyIndex: index, ExpectedCount: count}`
 can improve others' understanding of your code.
 
-TODO: discussion on what it would mean to return a tuple type.  would this be
-a way to return class constructors?
+You could theoretically use tuple types to return class constructors from a function.
+This is only really useful if there's some conditions to choose one type over another,
+so we can return constrained types as `[constraint1, ...]` or any type as `[any, ...]`.
+Of course they can be named as well, like `[namedType: constraint, ...]`.
+Here is an example with usage.
+
+```
+tuple(Dbl): [number, vector: any]
+    if abs(Dbl) < 128.0
+        [number: flt, vector: {X: flt, Y: flt}]
+    else
+        [number: dbl, vector: {X: dbl, Y: dbl}]
+
+myTuples: tuple(random() * 256.0)
+MyNumber; myTuples number(5.0)
+MyVector; myTuples vector(X: 3.0, Y: 4.0)
+```
+
+If you want to return a single constructor, use the [`new[any]` syntax](#returning-a-type-constructor).
 
 
 ### default field names with generics
