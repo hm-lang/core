@@ -3986,6 +3986,9 @@ your own `hm` result class based on the stored type `hm[uh, ok]` which can becom
 Here are some examples:
 
 ```
+# Note that in hm-lang we could define this as `pair[First of, Second of]`
+# so we don't need to specify `first: int, second: dbl`, but for illustration
+# in the following examples we'll make the generic parameters named.
 pair[first, second]: {First, Second}
 pair[of]: pair[first: of, second: of]
 
@@ -4065,9 +4068,9 @@ AnInstance: aClass[dbl, N: 3]
 
 Similar to default-named arguments in functions, there are restrictions.
 You are not able to create multiple default-named types in your generic
-signature, e.g., `myGeneric[A of, B of]`.
-
-TODO: maybe allow this if we use `First` and `Second` namespaces.
+signature, e.g., `myGeneric[A of, B of]`, unless we use `First` and
+`Second` namespaces, e.g., `myGeneric[First of, Second of]`.  These
+should only be used in cases where order intuitively matters.
 
 ### generic overloads must use the original class or a descendant
 
