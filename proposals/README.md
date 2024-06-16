@@ -3287,6 +3287,7 @@ exampleClass: {
     #       inside child class overrides for non-static methods and this looks very similar
     #       (but is static).  should we use an annotation like @static or @class?
     #       OR maybe we need to change to `ParentClass someMethod()` inside the child classes.
+    #       i think i'm leaning towards `@class someStaticFunction(Y; int): int`
     # some examples of class functions (2):
     # this pure function does not require an instance, and cannot use instance variables:
     i someStaticFunction(Y; int): int
@@ -4339,22 +4340,40 @@ or maybe `myClass: MyClass {X: 5, ...}`
 
 
 ```
+# TODO: this seems better from a sequence builder perspective: `parentClass {`
+#       but it makes child classes harder; we can keep `childClass: parentClass {`
+#       but then we're making an exception for child classes but not parent classes.
+#       plus, `className: {...}` is similar to `className: otherClass[x]`, so there's
+#       some syntax consistency here that's nice.
+#       e.g., `pair[first, second]: {First, Second}`
+#       and `pair[of]: pair[first: of, second: of]` both can keep `:`.
+#       maybe the first instance should be defined with `parentClass: {...}` and any
+#       further sequence building can be added to with `parentClass {...}`, with
+#       substitutions to make `parentClass: {X}` look like `parentClass X`.
 parentClass: {
     ;;renew(My Name; str): Null
     ::myMethod(): print("hello, ${My Name}")
     ::overrideable(); print("oh no")
+
+    i staticFunction(): 5
 }
 
+# maybe: `ParentClass childClass {` but this is hard to pass generics backwards
+# or maybe `childClass: parentClass` then newline, `childClass {...}`
+# `childClass: {parentClass, ...}`
 childClass: parentClass {
     ChildValue: int
     ;;aNewMethod(): null
         My Name += "!"
     ::overrideable(): print("oh yes")
+
+    i staticFunction(): 6
 }
 
 # literal sequence building looks like this.
-# would this be allowable syntax to build a class?
-# if not, then we probably want to disallow `childClass: parentClass { ... }`
+# probably what we want to do at this stage is make a substitution;
+# `childClass:` gets moved into wherever `parentClass` is currently,
+# e.g., as the namespace.
 childClass: {
     parentClass ChildValue: int
     parentClass;;aNewMethod(): null
@@ -4769,6 +4788,7 @@ be converted into an array depending on the type of the receiving variable.
 
 ```
 # TODO: should this be `container uh` instead of `Container uh`?
+#       may depend on how we handle static stuff.
 Container uh: oneOf[
     OutOfMemory
     # etc.
@@ -4777,6 +4797,7 @@ Container uh: oneOf[
 hm[of]: hm[ok: of, Container uh]
 
 # TODO: should we rename `id` to `name` or `lookup` or `at`?
+# TODO: rename `nonNull` to `present` or `notNull`.  definitely can't mirror `unNull`
 container[id, value: nonNull]: {
     # Returns `Null` if `Id` is not in this container,
     # otherwise the `value` instance at that `Id`.
