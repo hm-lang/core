@@ -3139,8 +3139,8 @@ A class is defined with a `lowerCamelCase` identifier.
 Class definitions must be constant/non-reassignable, so they are declared using
 the `:` symbol.  Variables defined within the class body are known as instance
 variables, and functions defined within the class body can have three types:
-(1) class instance methods (or methods for short), (2) class functions (i.e., static
-methods in C++), and (3) instance functions.
+(1) class instance methods (or methods for short), (2) class functions (i.e.,
+static methods in C++), and (3) instance functions.
 
 Class methods (1) can access instance variables and call other class methods,
 and require a `My: my`, `I; i`, or `Me. me` argument to indicate that it's an instance method.
@@ -3183,13 +3183,13 @@ all container classes have.  This also should work for multiple argument methods
 And of course, class methods can also be overridden by child classes (see section on overrides).
 
 Class functions (2) can't depend on the instance, i.e., `I/Me/My`, and must be declared
-with a `this` before the function name in order to distinguish from class methods
-(and instance functions), e.g., `this myStaticFunction(): print("hi")`.  They can
+with a `@class` annotation before the function name in order to distinguish from class methods
+(and instance functions), e.g., `@class myStaticFunction(): print("hi")`.  They can
 be called from the class name, e.g., `x myClassFunction()`, or
 from an instance of the class, e.g., `X myClassFunction()`.  Note that because of this,
 we're not allowed to define class functions with the same overload as instance methods.
 Similar to class functions are class variables, which are defined in an analogous way:
-`my StaticVariable: 123`, and which cannot shadow any class instance variables,
+`@class StaticVariable: 123`, and which cannot shadow any class instance variables,
 since `X StaticVariable` and `x StaticVariable` should be the same thing.
 
 Instance functions (3) normally can't depend on any instance variables, but are declared
@@ -3210,6 +3210,12 @@ which will be called with default-constructed arguments (if any) if a default
 instance of the class is needed.  It is a compiler error if a `;;renew()` method
 (with no arguments besides `Me/My/I;`) is defined after other `renew` methods (with arguments).
 Note that `renew` should be a class instance method (1), i.e., `;;renew(...)`.
+
+The reason why we use `@class` for static variables and functions is because
+we don't want to require defining class instance variables and functions
+with `My` in front of them, e.g., `vector2: {My X: dbl, My Y: dbl}`, but instead
+only do `vector2: {X: dbl, Y: dbl}`).  The more common use case is to add fields
+to your type, and we want to make inline class definitions super pain-free.
 
 ## class type and instance abbreviation
 
@@ -3275,25 +3281,20 @@ exampleClass: {
         # this is the default implementation that all instances will start with.
         My X -= Int
 
-    # TODO: i'm not super excited by this notation, since we'll use `parentClass someMethod()`
-    #       inside child class overrides for non-static methods and this looks very similar
-    #       (but is static).  should we use an annotation like @static or @class?
-    #       OR maybe we need to change to `ParentClass someMethod()` inside the child classes.
-    #       i think i'm leaning towards `@class someStaticFunction(Y; int): int`
     # some examples of class functions (2):
     # this pure function does not require an instance, and cannot use instance variables:
-    i someStaticFunction(Y; int): int
+    @class someStaticFunction(Y; int): int
         Y /= 2
         return Y!
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read/write global variables (or other files):
-    i someStaticImpureFunctionWithSideEffects(Y: int): null
+    @class someStaticImpureFunctionWithSideEffects(Y: int): null
         write(Y, File: "Y")
 
     # this function does not require an instance, and cannot use instance variables,
     # but it can read (but not write) global variables (or other files):
-    i someStaticImpureFunction(): int
+    @class someStaticImpureFunction(): int
         YString: read(File: "Y")
         return int(?YString) ?? 7
 
@@ -3309,7 +3310,7 @@ exampleClass: {
         print("hello!")
 }
 
-Example; exampleClass = (X: 5)  # also equivalent, `Example; exampleClass(X: 5)`
+Example; exampleClass(X: 5)
 print(Example doSomething(7))   # should print 12
 Example = exampleClass(X: 7)    # note: variable can be reassigned.
 Example X -= 3                  # internal fields can be reassigned as well.
@@ -3324,29 +3325,32 @@ ConstVar = exampleClass(X: 4)   # COMPILER ERROR! variable is readonly.
 You can also define your own custom methods/functions on a class outside of the class body.
 Note that we do not allow adding instance functions or instance variables outside
 of the class definition, as that would change the memory footprint of each class instance.
+You can also use [sequence building](#sequence-building) outside of the class to define
+a few methods, but don't use `:` since we're no longer declaring the class.
 
 ```
-# static function that constructs a type or errors out
+# static function that constructs a type or errors out (no `@class` annotation necessary)
 exampleClass(Z: dbl): hm[ok: exampleClass, uh: str]
     X: Z round() int() assert(Uh: "Need `round(Z)` representable as an `int`.")
     exampleClass(X)
-
-# static function
-exampleClass myAddedClassFunction(K: int): exampleClass
-    exampleClass(X: K * 1000)
-
-# method which keeps the class instance readonly:
-exampleClass myAddedMethod(My, Y: int): int
-    My X * 1000 + Y * 100
-
-# equivalently, a method which keeps the instance readonly:
-exampleClass::myAddedMethod(Y: int): int
-    My X * 1000 + Y * 100
 
 # a method which can mutate the class instance:
 # this could also be defined as `exampleClass anotherMethod(My;, PlusK: int): null`.
 exampleClass;;anotherMethod(PlusK: int): null
     My X += PlusK * 1000
+
+# Don't use `:` here since we're not defining a class:
+exampleClass {
+    # static function; note that no `@class` annotation is needed here.
+    # without sequence building, `exampleClass myAddedClassFunction(K: int): exampleClass`
+    # is exactly how you'd define a class function.
+    myAddedClassFunction(K: int): exampleClass
+        exampleClass(X: K * 1000)
+
+    # a method which keeps the instance readonly:
+    ::myAddedMethod(Y: int): int
+        My X * 1000 + Y * 100
+}
 ```
 
 If they are public, you can import these custom methods/functions in other files in two
@@ -4320,63 +4324,40 @@ Results: MyClass getValue() {
 } # COMPILE ERROR
 ```
 
-### classes as sequence builders
-
-TODO: can we make static functions/variables more clear?  it's useful
-for masks, e.g., `myMask count()` and `myMask X` for a value in the mask.
-outside a class: `myClass myFn(): print("whatever")` and
-`myClass X: 5` look like instance variable declarations for `myClass {X: 5, myFn(): null}`.
-should we define classes like `MyClass {X: 5, myFn(): null}` for instance variables/functions
-and `myClass {X: 5, myFn(): null}` for static variables/functions?
-or maybe `myClass: MyClass {X: 5, ...}`
-
-
-```
-# TODO: this seems better from a sequence builder perspective: `parentClass {`
-#       but it makes child classes harder; we can keep `childClass: parentClass {`
-#       but then we're making an exception for child classes but not parent classes.
-#       plus, `className: {...}` is similar to `className: otherClass[x]`, so there's
-#       some syntax consistency here that's nice.
-#       e.g., `pair[first, second]: {First, Second}`
-#       and `pair[of]: pair[first: of, second: of]` both can keep `:`.
-#       maybe the first instance should be defined with `parentClass: {...}` and any
-#       further sequence building can be added to with `parentClass {...}`, with
-#       substitutions to make `parentClass: {X}` look like `parentClass X`.
-parentClass: {
-    ;;renew(My Name; str): Null
-    ::myMethod(): print("hello, ${My Name}")
-    ::overrideable(); print("oh no")
-
-    i staticFunction(): 5
-}
-
-# maybe: `ParentClass childClass {` but this is hard to pass generics backwards
-# or maybe `childClass: parentClass` then newline, `childClass {...}`
-# `childClass: {parentClass, ...}`
-childClass: parentClass {
-    ChildValue: int
-    ;;aNewMethod(): null
-        My Name += "!"
-    ::overrideable(): print("oh yes")
-
-    i staticFunction(): 6
-}
-
-# literal sequence building looks like this.
-# probably what we want to do at this stage is make a substitution;
-# `childClass:` gets moved into wherever `parentClass` is currently,
-# e.g., as the namespace.
-childClass: {
-    parentClass ChildValue: int
-    parentClass;;aNewMethod(): null
-        My Name += "!"
-    parentClass::overrideable(): print("oh yes")
-}
-```
+### conditionals in sequence builders
 
 TODO: talk about conditionals in sequence building.
 E.g., `{ myMethod(), if Value $(someMethod()) else $(otherMethod()) }`
 Everything is scoped to the LHS, however, so `if Value` would be `if Lhs Value`.
+
+### class definitions aren't sequence builders
+
+Classes look like a type of sequence builder, but for consistency with
+other parts of the grammar, we don't actually build sequences here.
+The issue comes for parent/child classes, where we use the notation
+`childClass: parentClass {...child methods...}`.  This makes it clear that
+`childClass` is a type of `parentClass` but with additional methods.
+However, this logic would not make sense from a sequence building perspective;
+if `parentClass` expands to `{...parent methods...}` and then we'd have
+combinatorical proportions combining all parent methods with child methods
+which don't make any sense.  If instead we prefix each child method with
+`parentClass` and think about each variable/method as being a new way
+to approach `parentClass` data but in the namespace of `childClass`,
+it kinda works:
+
+```
+parentClass := {X: dbl}
+childClass: parentClass {Y: dbl, ::length(): (X**2 + Y**2)**0.5}
+# If we literally do sequence building, we'd have
+childClass: {parentClass Y: dbl, parentClass::length(): (X**2 + Y**2)**0.5}
+# and this kinda makes sense but it's not super helpful to think about,
+# because we're not allowed to add new instance variables `Y` to a parent class
+# outside of its primary definition.
+```
+
+So overall, it's not a helpful picture to think about classes as sequence
+builders.  You can use sequence building outside of a class definition to
+add new methods and class variables/functions (not instance variables/functions).
 
 # aliases
 
