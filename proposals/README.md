@@ -386,11 +386,10 @@ There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
 which are function-like but may consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
-`NonNull`, `NotNull`, `Unused`,
+`Unused`,
 and variables cannot be defined with these names.  Variables can be defined
-using these namespaces, e.g., as `Old Int`, `New X`, `Other ClassType`, or `NonNull Z`.
-In particular, `NonNull` and `NotNull`
-are reserved namespaces for variables that cannot be null, and `First` and `Second`
+using these namespaces, e.g., as `Old Int`, `New X`, `Other ClassType`, or `Unused Z`.
+In particular, `First` and `Second`
 are reserved for binary operations like `&&` and `*`.
 See [namespaces](#namespaces) for more details.
 Other reserved keywords: `new` for returning a class constructor, e.g.,
@@ -999,16 +998,7 @@ as long as the variable names don't overlap.  Like the member access operators b
 namespace operator binds left to right.
 
 There are some reserved namespaces which cannot be used as variable names, e.g., `Old`, `New`,
-`Other`, `NotNull`, and `NonNull`.  The latter non-nullable namespaces have a further restriction
-that the variables declared are not null. E.g., if `X?: nullableFunction()`, then we can do this:
-
-```
-what X 
-    NonNull X:
-        print("got non-null X: $(NonNull X)"))
-    Null
-        print("got null"))
-```
+`Other`, `Unused`.
 
 ### full list of reserved namespaces
 
@@ -1016,8 +1006,6 @@ what X
 * `Old`
 * `First` - for the first operand in a binary operation (where order matters)
 * `Second` - for the second operand in a binary operation (where order matters)
-* `NotNull` - for variables that cannot be null
-* `NonNull` - for variables that cannot be null
 * `Unused` - for variables that aren't used in this block
 
 
@@ -1406,9 +1394,10 @@ since we don't want to make users extend from a base nullable class.
 # nullish or.
 # `Nullable ?? X` to return `X` if `Nullable` is null,
 # otherwise the non-null value in `Nullable`.
+# TODO: maybe rename to `presentOr`
 nonNullOr(First ~A?., Second A.): a
     what First A
-        NonNull A: $(NonNull A)
+        NonNull: $(NonNull)
         Null $(Second A)
 
 # boolean or.
@@ -1416,16 +1405,16 @@ nonNullOr(First ~A?., Second A.): a
 # otherwise the non-null truthy value in `Nullable`.
 truthyOr(First ~A?., Second A.): a
     what A
-        NonNull A:
-            if NonNull A
-                NonNull A
+        NonNull:
+            if NonNull
+                NonNull
             else
                 Second A
         Null $(Second A)
 ```
 
 We don't currently intend to support Rust-like matching, e.g.,
-`what A $( NonNull A: and bool(NonNull A) $(NonNull A), Any: $(Second A) )`,
+`what A $( NonNull: and bool(NonNull) $(NonNull), Any: $(Second A) )`,
 but that is a possibility in the future.
 
 ## nested/object types
@@ -2273,9 +2262,12 @@ myOverload(Y: str): {X?: int}
 ```
 
 Note that if only Case 3 is defined, we can use a special notation to ensure that the return
-value is not null, e.g., `{NotNull X} = ...`.  This will throw a run-time error if the return
+value is not null, e.g., `{X: nonNull} = ...`.  This will throw a run-time error if the return
 value for `X` is null.  Note that this syntax is invalid if Case 2 is defined, since there is
 no need to assert a non-null return value in that case.
+TODO: we probably need a way to do this for results as well, maybe `{X}: myOverload() assert()`,
+which should also work for nonNull casting.  It also makes it clear there's an assertion
+that's happening.
 
 ```
 # normal call for case 3, defines an X which may be null:
@@ -2283,7 +2275,7 @@ no need to assert a non-null return value in that case.
 
 # special call for case 3; if X is null, this will throw a run-time error,
 # otherwise will define a non-null X:
-{NotNull X}: myOverload(Y: "123")
+{X: nonNull}: myOverload(Y: "123")
 
 # make a default for case 3, in case X comes back as null from the function
 {X: -1}: myOverload(Y: "123")
