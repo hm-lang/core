@@ -228,12 +228,13 @@ OtherVar; explicitType
 MyArray[]: elementType      # also ok: `MyArray: elementType[]`
 
 # defining a writable array:
-ArrayVar; [1, 2, 3, 4]    # also ok: `ArrayVar[]; int = [...]`
+ArrayVar; [1, 2, 3, 4]      # also ok: `ArrayVar[]; int = [...]`
                             # also ok: `ArrayVar; int[] = [...]`
 ArrayVar[5] = 5     # ArrayVar == [1, 2, 3, 4, 0, 5]
 ++ArrayVar[6]       # ArrayVar == [1, 2, 3, 4, 0, 5, 1]
 ArrayVar[0] += 100  # ArrayVar == [101, 2, 3, 4, 0, 5, 1]
-ArrayVar[1]!        # returns 2, zeroes out ArrayVar[1]
+ArrayVar[1]!        # returns 2, zeroes out ArrayVar[1]:
+                    # ArrayVar == [101, 0, 3, 4, 0, 5, 1]
 ```
 
 ```
@@ -246,7 +247,7 @@ VotesStore[str]; int = ["Cake": 5, "Donuts": 10, "Cupcakes": 3]
 VotesStore["Cake"]        # 5
 ++VotesStore["Donuts"]    # 11
 ++VotesStore["Ice Cream"] # inserts "Ice Cream" with default value, then increments
-VotesStore["Cupcakes"]!   # deletes from the store
+VotesStore["Cupcakes"]!   # deletes from the store (but returns `3`)
 VotesStore::["Cupcakes"]  # Null
 # now VotesStore == ["Cake": 5, "Donuts": 11, "Ice Cream": 1]
 ```
@@ -6031,7 +6032,7 @@ block[of, declaring: null]: {
 
     # exits the `indent` with the corresponding `of` value.  example:
     #   Value; 0
-    #   what indent((Block: block[str]): never
+    #   what indent((Block[str]): never
     #       Old Value: Value
     #       Value = Value // 2 + 9
     #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
@@ -6048,7 +6049,7 @@ block[of, declaring: null]: {
     # like a `continue` statement; will bring control flow back to
     # the start of the `indent` block.  example:
     #   Value; 0
-    #   indent((Block: block[str]):
+    #   indent((Block[str]):
     #       if ++Value >= 10 $(Block exit("done"))
     #       if Value % 2
     #           Block loop()
@@ -6088,25 +6089,26 @@ even that probably could be better served by pulling out a function to call in
 both blocks.
 
 ```
-if SomeCondition, (Then): never
+if SomeCondition, Block[str]:
     if OtherCondition
         if NestedCondition
-            return X    # NOT ALLOWED
+            # breaks out of `Block`
+            return X
     else
-        Then exit("whatever")
+        Block exit("whatever")
     # COMPILE ERROR, this function returns here if
     # `OtherCondition && !NestedCondition`.
 
 # here's an example where we re-use a function for the block.
-myBlock(Then): never
+MyBlock: block[str]
     ... complicated logic ...
-    Then exit("made it")
+    exit("made it")
 
-# TODO: will this syntax work?
-if SomeCondition, myBlock
+# not super excited by this syntax, but should be ok.
+if SomeCondition, MyBlock
 elif SomeThingElse
     print("don't use it here")
-else myBlock
+else MyBlock
 ```
 
 ### function blocks
@@ -6124,7 +6126,7 @@ to one that is not defined explicitly with `block`.
 # evaluated statement (which can occur if you don't use `Block exit(...)`
 # or `Block loop(...)` on the last line of the function block).
 # i.e., you must use `Block exit(...)` to return a value from this function.
-myFunction(X: int, Block: block[str]): never
+myFunction(X: int, Block[str]): never
     innerFunction(Y: int): dbl
         if Y == 123
             Block exit("123")    # early return from `myFunction`
@@ -6134,7 +6136,7 @@ myFunction(X: int, Block: block[str]): never
     Block exit("normal exit")
 
 # this definition essentially is syntactical sugar for the one above.
-myFunction(X: int), Block: block[str]
+myFunction(X: int), Block[str]:
     innerFunction(Y: int): dbl
         if Y == 123
             Block exit("123")    # early return from `myFunction`
