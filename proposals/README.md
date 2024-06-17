@@ -772,8 +772,7 @@ someType; any(myVector3)
 
 ... # other logic that could change `someType`
 
-# creates a dynamical instance of vector3; the compiler doesn't know it's a vector3.
-# even though we know it comes from a vector3, `someType` is a generic `any`.
+# creates a dynamical instance; could be vector3 or something else.
 SomeThing: someType(X: 5, Y: 6, Z: -7)
 ```
 
@@ -5634,7 +5633,7 @@ if SomeCondition, Then:
             Named Then exit()
     # do other stuff
 
-Result: what SomeValue, Then: then[str]
+Result: what SomeValue, Then[str]:
     5
         ...
         if OtherCondition
@@ -5871,7 +5870,7 @@ and other containers of precise types, as well as recursive containers thereof.
 ```
 # TODO: there should maybe be a way to avoid using extend syntax for all interfaces.
 #       maybe we can do `@override ::hash(~Builder): null` for common interfaces
-# TODO: maybe something like `myHashableClass: { ... }, assert(hashable(myHashableClass))`.
+# TODO: maybe something like `myHashableClass: { ... }, assert(myHashableClass is hashable)`.
 #       even better, maybe the callers should be responsible for checking if a class is
 #       hashable (or whatever).
 myHashableClass: hashable {
@@ -5885,11 +5884,13 @@ myHashableClass: hashable {
         Builder hash(My Id)       # you can use `hash` via the builder or...
         My Name hash(Builder;)    # you can use `hash` via the field.
 
+    # TODO: can we come up with a cleaner syntax to make this `null`?
     # consider doing sequence building for the hash builder:
-    ::hash(~Builder;): Builder {
-        hash(My Id)
-        hash(My Name)
-    }
+    ::hash(~Builder;): null
+        Builder {
+            hash(My Id)
+            hash(My Name)
+        }
 }
 
 # note that defining `::hash(~Builder;)` automatically defines a `fastHash` like this:
@@ -6017,9 +6018,9 @@ You don't usually create a `block` instance; you'll use it in combination with t
 
 ```
 # indent function which returns whatever value the `Block` exits the loop with.
-indent(fn(Block: block[~t]): never): t
+indent(fn(Block[~t]): never): t
 # indent function which populates `Block Declaring` with the value passed in.
-indent(~Declaring., fn(Block: block[~t, declaring]): never): t
+indent(~Declaring., fn(Block[~t, declaring]): never): t
 
 # TODO: can we use `block[of: int, declaring; string]` to make
 #       `Declaring: declaring` convert into `Declaring; string`??
@@ -6157,27 +6158,31 @@ Coroutines use an outer `co[of]` class with an inner `ci[of]` class.  (`i` for i
 coroutine.
 
 ```
-co[of]: {
-    ;;renew(My fn(Ci[of]): never): null
+cv[of]: oneOf[Cease, Value: of]
 
-    ;;take(): oneOf[Cease, Value: of]
+co[of]: {
+    # TODO: think about how `resumable` works, probably should be `Resumable`
+    ;;renew(My resumable(Ci[of]): never): null
+
+    ;;take(): cv[of]
 
     @alias ;;next(): I take()
 }
 
-# TODO: *maybe* extend `block[oneOf[Cease, Value: of]]`
-ci[of]: {
-    # returns control back to the calling function, but pauses execution
-    # inside this inner coroutine.
-    ;;give(Of.): jump
+ci[of]: resumable[oneOf[Cease, Value: of]] {
+    # returns control back to caller of `co;;take` with a new value.
+    ::give(Of.): jump
+        ::exit(Of!)
 
-    @alias ;;yield(Of.): I give(Of.)
+    @alias ::yield(Of.): I give(Of.)
 
-    # returns control back to the calling function, but without a value;
-    # indicates that this coroutine is done.
-    ;;exit(): jump
+    # returns control back to caller of `co;;take` but to `Cease`.
+    ::exit(): jump
+        ::exit(Cease)
 
-    @alias ;;quit(): I exit()
+    @alias ::quit(): I exit()
+
+    @hide ::exit(Of.): jump
 }
 ```
 
