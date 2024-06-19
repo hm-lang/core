@@ -793,19 +793,17 @@ an overload, as that would be the equivalent of shadowing.
 
 # operators and precedence
 
-Operator priority.
-
-TODO: almost all operations should have result-like syntax.  e.g., `A * B` can overflow (or run out of memory for `int`).
-same for `A + B` and `A - B`.  `A // B` is safe.  instead of making hm-lang always assert, however,
-we should probably switch to `multiply(~First A, Second A): hm[ok: a, NumberConversion uh]` and then have
+Almost all operations should have result-like syntax.  e.g., `A * B` can overflow (or run out of memory for `int`).
+same for `A + B` and `A - B`.  `A // B` is safe.  However, instead of making hm-lang always assert,
+we will use `multiply(~First A, Second A): hm[ok: a, NumberConversion uh]` and then have
 `A1 * A2` always give an `a` result by panicking if we run out of memory.  i.e.,
 ```
-int::*(You): me
+number::*(You): me
     Result: multiply(Me, You)
     Result orPanic()
 ```
-Primitive types could probably do overflow like they usually do without panicking, but it would save
-cycles to catch bugs like `U32: u32 = 0, while U32 >= 0 $(--U32)`.
+Primitive types will do overflow like in other languages without panicking, but you can use, e.g.,
+`multiply(One U32, Another U32)` to return an error if it overflows.
 
 TODO: add : , ; ?? postfix/prefix ?
 TODO: add ... for dereferencing.  maybe we also allow it for spreading out an object into function arguments,
