@@ -1252,9 +1252,12 @@ As long as `X @op Y` has the same type as `X`, then we can do `X @op = Y` for
 shorthand of `X = X @op Y` for any eligible binary operator `@op`.  Examples
 include `X -= 5`, `Y &= 0x12`, etc.
 
-TODO: discussion on `<->` being swap.  swap as a function would have required `swap(X;, Y;)`
-TODO: we probably can use `swap(X;, Y;)` as what you need to define for `<->` to work.
-to be consistent.
+Swapping two variables is accomplished by something like `A <-> B`.
+Swap uses `<->` since `<=>` is reserved for a future spaceship operator
+(encompassing `<`, `<=`, `==`, `=>` and `>` in one).  As a function, swap
+would require mutable variables, e.g., `@orderIndependent swap(~X;, Other X;): null`.
+If you define `swap` in this way for your custom class, it will be available
+for the shorthand notation `<->`.
 
 # variables
 
