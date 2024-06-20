@@ -1317,6 +1317,13 @@ function calls, e.g., `fn(X?: int): q`
 and container types, e.g., `{X?: possiblyNull(), Y: ...}` becomes `{Y: ...}` if `X` is null,
 or `Store[Id] = Null` to remove `Id` from the store.
 we could use `Store[Id] = Absent` and `Present` for non-absent.
+I like `absent` but not `present` unfortunately, as it has other connotations.
+maybe `missing` and `found`, or `deny`/`hide`/`veto` and `avow`.
+`found`
+oh, i really like `lost` (and `found`).  we could use `find[x]` to get the non-null
+version of `x`.  maybe `if Set[5] == Found` or `if Set[5] isFound()` or `if Set["asdf"] == Lost`.
+`lost` might be the wrong connotation, too, however, since it seems to indicate that it
+was present at some point.  maybe keep `null` due to expectations in the industry.
 
 For an optional type with more than one non-null type, we use `Y?: oneOf[someType, anotherType]`
 or equivalently, `Y: oneOf[someType, anotherType, null]` (where `null` comes last).
