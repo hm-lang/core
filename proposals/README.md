@@ -1378,16 +1378,11 @@ We will allow defining a nullable type by taking a type and specifying what valu
 is null on it.  For example, the signed types `s8` defines null as `-128` like this:
 
 ```
-s8: allOf[i8, nullable] {
-    # This should probably be auto-defined when an `isNull` method is added:
-    ;;renew(New I8): hm[ok: null, NumberConversion uh]
-        My I8 = New I8
-        assert(!Me is(null), numberConversion Unrepresentable)
+s8: i8
 
-    # TODO: we should figure out a way not to call this on `S8 is(null)`;
-    #       we only want it on `S8? is(null)`.
+s8?: s8 {
     ::is(null): bool
-        My I8 == -128
+        Me == -128
 }
 ```
 
