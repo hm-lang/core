@@ -822,6 +822,7 @@ e.g., `myFunction(A: 3, B: 2, ...MyObject)` will call `myFunction(A: 3, B: 4, C:
 |           |   ` `     | implicit member access    | binary: `A B`     |               |
 |           |   ` []`   | parenthetical subscript   | binary: `A[B]`    |               |
 |           |   `!`     | postfix moot = move+renew | unary:  `A!`      |               |
+|           |   `?`     | postfix nullable          | unary:  `A?`/`a?` |               |
 |   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `--`    | unary decrement           | unary:  `--A`     |               |
@@ -1084,12 +1085,13 @@ to keep a variable for multiple uses: `{NestedField}: something()`.)
 
 ## prefix and postfix question marks `?`
 
-TODO: why? give a motivating example. -- probably for nested classes. `x {a: int}`.
-The `?` operator binds strongly, so `x a?` is equivalent to `x oneOf[a, null]` and not
-`oneOf[x a, null]`.  Generally speaking, if you want your entire variable to be nullable,
+The `?` operator binds strongly, but less so than member access, so `x a?` is equivalent
+to `oneOf[x a, null]` and not `oneOf[x a, null]`.  This is for nested classes, e.g.,
+`x: {a: int}`, so that we don't need to use `(x a)?` to represent `x oneOf[a, null]`.
+Generally speaking, if you want your entire variable to be nullable,
 it should be defined as `X?: int`.  `X: int?` works in this instance, but if you have
 generic classes (like `array[elementType]`), then `X[]: int?` or `X[]?: int` would define
-an array of nullable integers.  To make a nullable array of integers, you'd use
+an array of nullable integers.  To declare a nullable array of integers, you'd use
 `X?: array[int]`, `X?[]: int`, or `X?: int[]`.
 
 Prefix `?` can be used to short-circuit function evaluation if an argument is null.
@@ -1097,9 +1099,8 @@ for a function like `doSomething(X?: int)`, we can use `doSomething(?X: MyValueF
 to indicate that we don't want to call `doSomething` if `MyValueForX` is null;
 we'll simply return `Null`.  E.g., `doSomething(?X: MyValueForX)` is equivalent
 to `if MyValueForX == Null $(Null) else $(doSomething(X: MyValueForX))`.
-In this case that we can elide the variable name, it becomes `doSomething(?X)` for
-an `X` already in scope that could be null.
-
+In this case `X` is already in scope, it becomes `doSomething(?X)` to elide the
+variable name.
 
 ## prefix and postfix exclamation points `!`
 
