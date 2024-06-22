@@ -3892,6 +3892,20 @@ TODO: maybe support specifying mutability in templates, e.g., `gen[x; int]`
 for a `gen[x]: {MyValue: x}` would result in `{MyValue; int}`.  or if this
 would be prone to errors/confusion with converting `:` into `;` where not desired,
 disallow it in compiler, and support it another (more explicit) way.
+maybe use `.` in the class definition.  but that might get confused with
+function arguments.  we probably just want to use `gen[x: int, Access: Mutable]`,
+and then do
+
+```
+myGeneric[of, Access: Mutable]: {
+    if Access == Mutable
+        X; of
+        Y; of
+    else
+        X: of
+        Y: of
+}
+```
 
 To create a generic class, you put the expression `[types...]` after the
 class identifier, or `[of]` for a single template type, where `of` is the
@@ -7350,6 +7364,9 @@ almost sounds like virtual memory with mappings.  that should probably be non-st
 TODO: discuss having all instance methods in some special virtual table, e.g., possibly 
 with additional reflection information (for things like `@for method in mutators(myClass)`
 macro code).
+we also may need to have a fallback table for functions that are defined locally.
+or ideally, we just rely on the global functions so we don't have to specify the vtable
+(unless we're overriding things).
 
 ## object format
 

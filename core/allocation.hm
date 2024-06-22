@@ -1,31 +1,31 @@
-uh := oneOf(
+uh: oneOf(
     InvalidCount
     InvalidIndex
     OutOfMemory
 )
 
-hm~ok := hm~(ok, uh)
+hm~ok: hm~(ok, uh)
 
 # A class that handles low-level contiguous memory access.
 # You must handle initializing/constructing and destructing elements in this class;
 # which elements are initialized *must be known* by the class instance which
 # uses the allocation.  E.g., a stack is initialized in the range [0, `Stack size()`).
 @final
-allocation~t := {
+allocation~t: {
     @protected
     Count; count = 0
 
-    ::count() := This Count
+    ::count(): This Count
 
     # returns the old count if successful.
     # make sure to construct any new elements that are available to callers
     # after calling this method.
     ;;count(New->Count): hm~count
         assert(New->Count >= 0, Uh: InvalidCount)
-        Old->Count := This Count
+        Old->Count: This Count
         if New->Count == Old->Count
             return ok(Old->Count)
-        Bytes := countBytes(New->Count)
+        Bytes: countBytes(New->Count)
         @cc(
             @hm(t) *New_Memory = (@hm(t) *)realloc(Memory, @hm(Bytes));
             if (New_Memory == Null) {
@@ -38,7 +38,7 @@ allocation~t := {
 
     this new(Count): hm~allocation~u
         # it's always possible to default construct this allocation.
-        New ;= hm~allocation~u()
+        New; hm~allocation~u()
         what New count(Count)
             Ok:
                 ok(New)
