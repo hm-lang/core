@@ -4,14 +4,14 @@ uh: oneOf(
     OutOfMemory
 )
 
-hm~ok: hm~(ok, uh)
+hm[ok]: hm[ok, uh]
 
 # A class that handles low-level contiguous memory access.
 # You must handle initializing/constructing and destructing elements in this class;
 # which elements are initialized *must be known* by the class instance which
 # uses the allocation.  E.g., a stack is initialized in the range [0, `Stack size()`).
 @final
-allocation~t: {
+allocation[of]: {
     @protected
     Count; count = 0
 
@@ -20,12 +20,12 @@ allocation~t: {
     # returns the old count if successful.
     # make sure to construct any new elements that are available to callers
     # after calling this method.
-    ;;count(New->Count): hm~count
-        assert(New->Count >= 0, Uh: InvalidCount)
-        Old->Count: This Count
-        if New->Count == Old->Count
-            return ok(Old->Count)
-        Bytes: countBytes(New->Count)
+    ;;count(New Count): hm[count]
+        assert(New Count >= 0, Uh: InvalidCount)
+        Old Count: This Count
+        if New Count == Old Count
+            return ok(Old Count)
+        Bytes: countBytes(New Count)
         @cc(
             @hm(t) *New_Memory = (@hm(t) *)realloc(Memory, @hm(Bytes));
             if (New_Memory == Null) {
@@ -33,15 +33,15 @@ allocation~t: {
             }
             Memory = New_Memory;
         )
-        This Count = New->Count
-        ok(Old->Count)
+        This Count = New Count
+        ok(Old Count)
 
-    this new(Count): hm~allocation~u
+    i(Count): hm[allocation[~u]]
         # it's always possible to default construct this allocation.
-        New; hm~allocation~u()
-        what New count(Count)
+        Return; hm[allocation[u]]
+        what Return count(Count)
             Ok:
-                ok(New)
+                ok(Return)
             Uh:
                 # TODO: do we need this `uh()` wrapper?
                 uh(Uh)
@@ -52,7 +52,7 @@ allocation~t: {
 
     public:
         // Default construction allowed
-        @hm(allocation() {}
+        @hm(allocation) {}
 
         void reset() {
             free(Memory);
@@ -64,8 +64,6 @@ allocation~t: {
             reset();
         }
 
-        // TODO: if we are serious about no pointers, then we should
-        // be able to support copy constructors here.
         // no copy constructor:
         @hm(allocation)(const @hm(allocation) &Allocation) = delete;
 
@@ -132,7 +130,7 @@ allocation~t: {
     ;;deconstruct(InBoundsAndConstructed): null
         debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < Count)
         @cc(
-            (Memory + @hm(InBoundsAndConstructed))->~@hm(t)();
+            (Memory + @hm(InBoundsAndConstructed)) ~@hm(t)();
         )
         # pure C? `hm(t)_descope(Memory + @hm(InBounds))`
 

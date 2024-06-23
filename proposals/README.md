@@ -3224,6 +3224,7 @@ we don't want to require defining class instance variables and functions
 with `My` in front of them, e.g., `vector2: {My X: dbl, My Y: dbl}`, but instead
 only do `vector2: {X: dbl, Y: dbl}`).  The more common use case is to add fields
 to your type, and we want to make inline class definitions super pain-free.
+TODO: we probably can omit `@class` for functions like `i(...)`, `me(...)`, etc.
 
 ## class type and instance abbreviation
 
@@ -3925,9 +3926,9 @@ genericClass[id, value]: {
     ;;renew(My Id: id, My Value: value): null
 }
 # also equivalent:
-# genericClass: {Id: ~id, Value: ~value}
-# TODO: is this equivalent?  probably??
-# genericClass: {~Id, ~Value}
+genericClass: {Id: ~id, Value: ~value}
+# even more concise:
+genericClass: {~Id, ~Value}
 
 # creating an instance using type inference:
 ClassInstance: genericClass(Id: 5, Value: "hello")
@@ -3949,7 +3950,7 @@ generic[of]: {
         U + u(OtherOf) orPanic()
 }
 
-Generic: generic[string]()
+Generic; generic[string]
 Generic Value = "3"
 print(Generic method(i32(2)))    # prints "3333335" which is i32("3" * (2 + 5)) + 2
 
@@ -3969,9 +3970,9 @@ TODO: actually probably not ok, since we need to tell if generic is a child clas
 with its implementation.  maybe we need to do a switch-case on the actual instance being held
 inside the `Generic` type, and look up that type's instance's method.  e.g., define also
 `template <class t, class u> u globalMethod(readonlyRef<specific<t>> Specific, readonlyRef<u> U)`,
-then inside `globalMethod(...<generic<t>>...)` we ensure to call.  we'll need to do this in
+then inside `globalMethod(...<generic<t>>...)` we ensure to call the correct overload.  we'll need to do this in
 such a way that we don't need to know all the child class definitions when we write the parent
-class definition; e.g., build it into the type's vtable.
+class definition; e.g., build it into the type's vtable.  if it's null, just use the parent definition.
 
 Just like with function arguments, we can elide a generic field value if the
 field name is already a type name in the current scope.  For example:
