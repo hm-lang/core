@@ -1,24 +1,26 @@
-indexable~t := extend(map~{key: index, value: t}) {
-    ::size(): index
+indexable[of]: store[id: index, value: of] {
+    ::count(): count
 
     @protected
-    # adds `size()` to Index if Index is negative, or 0 if Index is already positive.
-    # will throw if resulting Index is not within [0, size()).
-    # note that if `size() == 0`, then this will always throw.
-    ::ensureInBounds(@@Index): null
+    # adds `I count()` to Index if Index is negative, or 0 if Index is already positive.
+    # will throw if resulting Index is not within [0, I count()).
+    # note that if `I count() == 0`, then this will always throw.
+    ::ensureInBounds(Index;): hm[null]
         if Index < 0
-            Index += size()
-            assert Index >= 0
-                `Index was too negative to be counting from back of array
-                 and stop before start of array.  Array size: ${size()},
-                 requested index: ${Index - size()}.`
+            Index += count(Me)
+            assert(
+                Index >= 0
+                Uh: `Index was too negative to be counting from back of array
+                      and stop before start of array.  Array count: ${count(Me)},
+                      requested index: ${Index - count(Me)}.`
+            )
         else
-            assert Index < size()
+            assert(Index < size())
 
-    # adds `size()` to Index if Index is negative, or 0 if Index is already positive.
+    # adds `::count()` to Index if Index is negative, or 0 if Index is already positive.
     # does not throw if the resulting Index is not in the right range to be a valid index
     # for this indexable.
-    ::tryToBePositive(@@Index): null
+    ::tryToBePositive(Index;): null
         if Index < 0
-            Index += size()
+            Index += count(Me)
 }

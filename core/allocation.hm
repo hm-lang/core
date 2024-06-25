@@ -27,7 +27,7 @@ allocation[of]: {
             return ok(Old Count)
         Bytes: countBytes(New Count)
         @cc(
-            @hm(t) *New_Memory = (@hm(t) *)realloc(Memory, @hm(Bytes));
+            @hm(of) *New_Memory = (@hm(of) *)realloc(Memory, @hm(Bytes));
             if (New_Memory == Null) {
                 return @hm(this uh OutOfMemory);
             }
@@ -48,7 +48,7 @@ allocation[of]: {
 
     @cc(
     private:
-        @hm(t) *Memory = Null;
+        @hm(of) *Memory = Null;
 
     public:
         // Default construction allowed
@@ -91,7 +91,7 @@ allocation[of]: {
         }
     )
 
-    ::[InBoundsAndConstructed: inBounds]: t
+    ::[InBoundsAndConstructed: inBounds]: of
         # Only call this if you've already constructed a value here.
         # We can't verify if the index has been constructed without more bookkeeping,
         # but in debug mode we can verify that we're at least in bounds.
@@ -109,30 +109,30 @@ allocation[of]: {
     ;;defaultConstruct(InBounds): null
         debug assert(InBounds >= 0 and InBounds < Count)
         @cc(
-            new (Memory + @hm(InBounds)) @hm(t)();
+            new (Memory + @hm(InBounds)) @hm(of)();
         )
-        # pure C? `hm(t)_default(Memory + @hm(InBounds))`
+        # pure C? `hm(of)_default(Memory + @hm(InBounds))`
 
     ;;moveConstruct(InBounds, T.): null
         debug assert(InBounds >= 0 and InBounds < Count)
         @cc(
-            new (Memory + @hm(InBounds)) @hm(t)(std::move(@hm(T)));
+            new (Memory + @hm(InBounds)) @hm(of)(std::move(@hm(T)));
         )
-        # pure C? `hm(t)_moot(Memory + @hm(InBounds), @hm(T))`
+        # pure C? `hm(of)_moot(Memory + @hm(InBounds), @hm(T))`
 
     ;;copyConstruct(InBounds, T): null
         debug assert(InBounds >= 0 and InBounds < Count)
         @cc(
-            new (Memory + @hm(InBounds)) @hm(t)(@hm(T));
+            new (Memory + @hm(InBounds)) @hm(of)(@hm(T));
         )
-        # pure C? `hm(t)_copy(Memory + @hm(InBounds))`
+        # pure C? `hm(of)_copy(Memory + @hm(InBounds))`
 
     ;;deconstruct(InBoundsAndConstructed): null
         debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < Count)
         @cc(
-            (Memory + @hm(InBoundsAndConstructed)) ~@hm(t)();
+            (Memory + @hm(InBoundsAndConstructed)) ~@hm(of)();
         )
-        # pure C? `hm(t)_descope(Memory + @hm(InBounds))`
+        # pure C? `hm(of)_descope(Memory + @hm(InBounds))`
 
     @private
     ::countBytes(Count): @cc(size_t)
@@ -141,7 +141,7 @@ allocation[of]: {
         if Count < 0
             throw error("invalid count: $(Count)");
         MaxBytes: @cc(size_t) = -1
-        TBytes: @cc(size_t) = @cc(sizeof(@hm(t)))
+        TBytes: @cc(size_t) = @cc(sizeof(@hm(of)))
         if Count > MaxBytes // TBytes
             throw error("cannot allocate $(Count) elements of size $(TBytes) each");        
         return Count * TBytes

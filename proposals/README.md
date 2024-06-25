@@ -589,6 +589,9 @@ the multiline comment symbols (e.g., `#(#` to `#)#`) are ignored.
 Note that `#@` is an end-of-line comment reserved for the compiler, so if you use
 them they may be deleted/updated in unexpected ways.
 
+TODO: discuss `# comment comment @O(N^2)` as a way to declare a method's asymptotic time
+with big O notation.
+
 # overview of types
 
 Standard types whose instances can take up an arbitrary amount of memory:

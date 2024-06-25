@@ -1,78 +1,78 @@
-uh := \\allocation uh
-hm~ok := hm~(ok, uh)
+uh: \/allocation uh
+hm[ok]: hm[ok, uh]
 
-array~t := extend(indexable) {
+array[of]: indexable {
     @private
     Allocation; allocation
 
     # TODO: convert this into a deque, add `Start: count`
+    #       however, this will make resizing more complicated.
 
     @private
     Count; count = 0
 
-    ::count() := This Count
-    ;;count(New->Count): hm~count
-        Old->Count := This Count
-        if New->Count == Old->Count
-            # TODO: is `ok(...)` necessary here?
-            #       we probably can autoconvert `x` to `hm~(ok: x, uh)`
-            #       as long as `x` and `uh` are distinct.
-            return ok(Old->Count)
-        if New->Count > Old->Count
+    ::count(): This Count
+    # TODO: should we have a `tryCount` or `countHm`, or just rely on 
+    #       different return types?  or do we always want users to use the safe API
+    ;;count(New Count): hm[count]
+        Old Count: This Count
+        if New Count == Old Count
+            return ok(Old Count)
+        if New Count > Old Count
             This allocate(AtLeast: Count) assert()
-            while This Count < New->Count
+            while This Count < New Count
                 Allocation defaultConstruct(InBounds: This Count++)
         else
-            assert(New->Count >= 0, uh InvalidCount)
-            while This Count > New->Count
+            assert(New Count >= 0, uh InvalidCount)
+            while This Count > New Count
                 Allocation deconstruct(InBounds: --This Count)
-        ok(Old->Count)
+        ok(Old Count)
 
-    ;;append(T): hm~null
+    ;;append(Of): hm~null
         debug assert(This Count < count::Max)
         This allocate(AtLeast: This Count + 1) assert()
-        Allocation copyConstruct(This Count++, T)
+        Allocation copyConstruct(This Count++, Of)
 
-    ;;append(T.): hm~null
+    ;;append(Of.): hm[null]
         debug assert(This Count < count::Max)
         This allocate(AtLeast: This Count + 1) assert()
-        Allocation moveConstruct(This Count++, T!)
+        Allocation moveConstruct(This Count++, Of!)
 
-    ;:[Index.]?: t
+    ;:[Index.]?: of
         # don't resize the array if we're asking for a nullable element type:
         what This::inBounds(Index)
             Ok: $(This[Ok])
             Uh: $(Null)
 
     # getter (makes a copy)
-    ;:[Index.]: hm~t
+    ;:[Index.]: hm[of]
         # allow array resizing if asking for non-null, if the array is mutable.
         # (i.e., `This inBounds(Index)` is the same as `This;:inBounds(Index)`
         # due to the method template signature.)
-        InBounds := This inBounds(@hide Index) assert()
+        InBounds: This inBounds(@hide Index) assert()
         This[InBounds]
    
     # in-bounds getter (makes a copy), which is unsafe to call unless `InBounds` is 
     # within the range `[0, This count())`.
-    ::[InBounds.]: t
+    ::[InBounds.]: of
         debug assert(InBounds >= 0 and InBounds < This count())
         Allocation[InBoundsAndConstructed: InBounds]
 
     # no-copy getter/setter; it can resize this array (if writeable) to pass in
     # a value to the passed-in function.
-    ;:[Index., fn(T;:): ~u]: hm~u
-        InBounds := This inBounds(@hide Index) assert()
+    ;:[Index., fn(Of;:): ~u]: hm[u]
+        InBounds: This inBounds(@hide Index) assert()
         This[InBounds, fn]
 
     # no-copy getter/setter which is unsafe to call unless
     # `InBounds` is within the range `[0, This count())`.
-    ;:[InBounds, fn(T;:): ~u]: u
+    ;:[InBounds, fn(Of;:): ~u]: u
         debug assert(InBounds >= 0 and InBounds < This count())
         Allocation[InBoundsAndConstructed: InBounds, fn]
    
     # no-copy getter, which passes a Null into the callback if 
     # the index is out of bounds in the array:
-    ::[Index., fn(T?): u]: hm~u
+    ::[Index., fn(Of?): u]: hm[u]
         This ensurePositive(Index;) assert()
         if Index >= This Count
             ok(fn(Null))
@@ -82,16 +82,16 @@ array~t := extend(indexable) {
     # returns a value of the array element at the specified index,
     # or the end of the array if not specified.  returns null if the element
     # would be out of bounds (e.g., `Index >= This count()` or no elements present).
-    ;;pop(Index = -1)?: t
+    ;;pop(Index = -1)?: of
         # don't resize the array in case `Index >= This Count`.
         what This::inBounds(Index)
             Ok: $(This pop(Ok))
             Uh: $(Null)
-        # alternatively, `This::inBounds(Index) map((Ok) := This pop(Ok), (Uh) := Null)`
+        # alternatively, `This::inBounds(Index) map((Ok): This pop(Ok), (Uh): Null)`
 
-    ;;pop(InBounds): t
+    ;;pop(InBounds): of
         debug assert(InBounds >= 0 and InBounds < This count())
-        Result := This[InBounds]!
+        Result: This[InBounds]!
         This erase(InBounds)
         Result
 
@@ -102,7 +102,7 @@ array~t := extend(indexable) {
 
     ;;erase(InBounds): null
         debug assert(InBounds >= 0 and InBounds < This count())
-        for DestinationIndex := InBounds, DestinationIndex < This count() - 1
+        for DestinationIndex: InBounds, DestinationIndex < This count() - 1
             This[DestinationIndex] = This[InBounds: DestinationIndex + 1]!
         This count(This count() - 1)
 
@@ -110,36 +110,36 @@ array~t := extend(indexable) {
         return This count() > 0
 
     # moves the value at Index into the return value if Index is within the size of the array,
-    # resetting the array element to a default `t()` if so.
+    # resetting the array element to a default `of()` if so.
     # otherwise, returns Null if Index was too big and doesn't reset any array elements.
-    ;;[Index.]!?: t
-        InBounds := This ensurePositive(@hide Index)
+    ;;[Index.]!?: of
+        InBounds: This ensurePositive(@hide Index)
         if InBounds < 0 or InBounds >= This count()
             return Null
         This[InBounds]!
 
     # moots the value at the passed-in index; the index should be bounds-checked;
-    # prefer `;;[Index.]!?: t` if you don't know if the index is in bounds.
+    # prefer `;;[Index.]!?: of` if you don't know if the index is in bounds.
     # returns the value at Index, resetting the array element's value to a default value.
-    ;;[InBounds]!: t
+    ;;[InBounds]!: of
         debug assert(Index >= 0 and Index < This count())
-        T; t
-        This swap(InBounds, T;)
-        return T!
+        Of; of
+        This swap(InBounds, Of;)
+        return Of!
 
     # swapper, sets the value at the index, returning the old value in the reference.
     # if the swapped in value is Null but the array value wasn't Null, the array
     # will shrink by one, and all later indexed values will move down one index.
-    ;;swap(Index;, T?;): null
+    ;;swap(Index;, Of?;): null
         This ensurePositive(Index;)
-        if T == Null
-            T = This pop(Index)
+        if Of == Null
+            Of = This pop(Index)
         else
-            New->T ?:= This[Index]!
-            This[Index] = T!
-            T = New->T!
+            New Of?: This[Index]!
+            This[Index] = Of!
+            Of = New Of!
 
-    ;;[Index;, T?;] := swap(Index;, T;)
+    ;;[Index;, Of?;]: swap(Index;, Of;)
 
     # returns a copy of this array, but sorted:
     ::sort(): this
@@ -148,7 +148,7 @@ array~t := extend(indexable) {
     ;;sort(): null
 
     @private
-    ::ensurePositive(Index;): hm~null
+    ::ensurePositive(Index;): hm[null]
         if Index < 0
             Index += This Count
             if Index < 0
@@ -158,26 +158,26 @@ array~t := extend(indexable) {
         ok()
 
     @private
-    ::inBounds(Index.): hm~inBounds
+    ::inBounds(Index.): hm[inBounds]
         This ensurePositive(Index;) assert()
         assert(Index < count(), Uh: InvalidIndex)
         ok(inBounds(Index))
 
     @private
-    ;;inBounds(Index.): hm~inBounds
+    ;;inBounds(Index.): hm[inBounds]
         This ensurePositive(Index;) assert()
         if Index >= count()
             count(Index + 1) assert()
         ok(inBounds(Index))
 
     @private
-    ;;allocate(AtLeast: count): hm~null
+    ;;allocate(AtLeast: count): hm[null]
         debug assert(AtLeast >= 0)
         if AtLeast <= This Allocation Count
             return ok()
 
         # we should at least try to double the storage
-        TryToAllocate ;= This roughlyDoubleAllocation()
+        TryToAllocate; This roughlyDoubleAllocation()
         while TryToAllocate > AtLeast
             if Allocation count(TryToAllocate) isOk()
                 return ok()
@@ -190,7 +190,7 @@ array~t := extend(indexable) {
     ::roughlyDoubleAllocation(): count
         if This Allocation Count == 0
             return 4
-        Doubled := 2 * This Allocation Count
+        Doubled: 2 * This Allocation Count
         if Doubled >= 0
             return Doubled
         # if we're at this point, we're in insane territory
