@@ -1,7 +1,25 @@
-iterator~t := {
-    # returns true if this iterator has a sequence like what is passed in;
-    # stopping to not consume any more iterable elements if so.
-    # returns false if no match, consuming all iterable elements.
-    ;;has(Sequence: array~t): bool
-        throw "unimplemented"
+uh: oneOf[
+    EndOfIterator
+]
+
+hm[of]: hm[ok: of, uh]
+
+iterator[of]: {
+    ;;next(): hm[of]
+
+    ;;startsWith(You;): bool
+        while True
+            Next: Your next()
+            if My next() != Next
+                return False
+            if Next == uh EndOfIterator
+                return True
+
+    ;;contains(You;): bool
+        while True
+            Next: My next()
+            if Next == Your next()
+                return My startsWith(You)
+            if Next == uh EndOfIterator
+                return False
 }

@@ -1,4 +1,4 @@
-indexable[of]: store[id: index, value: of] {
+indexable: {
     ::count(): count
 
     @protected

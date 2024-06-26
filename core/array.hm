@@ -14,6 +14,8 @@ array[of]: indexable {
     ::count(): This Count
     # TODO: should we have a `tryCount` or `countHm`, or just rely on 
     #       different return types?  or do we always want users to use the safe API
+    # TODO: the other thing, should we require `Old Count` as the return type here?
+    #       otherwise we could return a boolean if it worked.
     ;;count(New Count): hm[count]
         Old Count: This Count
         if New Count == Old Count
