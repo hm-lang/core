@@ -16,6 +16,8 @@ array[of]: indexable {
     #       different return types?  or do we always want users to use the safe API
     # TODO: the other thing, should we require `Old Count` as the return type here?
     #       otherwise we could return a boolean if it worked.
+    #       i don't think we want to go back to SFO specification because
+    #       `int: {Int: int}` is a bit confusing for return types.
     ;;count(New Count): hm[count]
         Old Count: This Count
         if New Count == Old Count

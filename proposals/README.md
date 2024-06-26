@@ -171,7 +171,8 @@ memory, these safe functions are a bit more verbose than the unchecked functions
 * `{}` for objects/types
     * `{X: dbl, Y: dbl}` to declare a class with two double-precision fields, `X` and `Y`
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
-    * `{Greeting: str, Times: int} = destructureMe()` to do destructuring of a return value
+    * `{Greeting: str, Times: int} destructureMe()` to do destructuring of a return value
+        see [destructuring](#destructuring).
     * `"My String Interpolation is ${X, Y: Z}"` to add `{X: *value-of-X*, Y: *value-of-Z*}` to the string.
     * `A {x(), Y}` to call `A x()` then `A Y` via [sequence building](#sequence-building)
         and return them in an object with fields `X` and `Y`, i.e., `{X: A x(), Y: A Y}`.
@@ -2293,19 +2294,21 @@ that's happening.
 ```
 
 If there are multiple return arguments, i.e., via an output type data class,
-e.g., `{X: dbl, Y: str}`, then we support destructuring to help nail down
-which overload should be used.  E.g., `{X:, Y:} = myOverload()` will
+e.g., `{X: dbl, Y: str}`, then we support [destructuring](#destructuring)
+to figure out which overload should be used.  E.g., `{X, Y}: myOverload()` will
 look for an overload with outputs named `X` and `Y`.  However, `X: myOverload()`
 is not equivalent to `{X}: myOverload()`; if there is no destructuring
 on the left-hand side, it will take the default return value.  You can also
-explicitly type the return value, e.g., `Int: myOverload()` or `R: dbl = myOverload()`,
+explicitly type the return value, e.g., `Some Int: myOverload()` or `R: dbl(myOverload())`,
 which will look for an overload with an `int` or `dbl` return type.
+
+TODO: should we recommend `Int Some: myOverload()` instead?
 
 When matching outputs, the fields count as additional arguments, which must
 be matched.  If you want to call an overload with multiple output arguments,
 but you don't need one of the outputs, you can use the `@hide` annotation to
-ensure it's not used afterwards.  E.g., `{@hide X:, Y: str} = myOverload()`.
-You can also just not include it, e.g., `{Y: str} = myOverload()`, which is
+ensure it's not used afterwards.  E.g., `{@hide X, Y}: myOverload()`.
+You can also just not include it, e.g., `{Y}: myOverload()`, which is
 preferred, in case the function has an optimization which doesn't need to
 calculate `X`.
 
@@ -2656,6 +2659,11 @@ variables at the same time, which can be done with `{Field1, Field2}: doStuff()`
 (`{Field1, Field2}; doStuff()`) for readonly (writeable) declaration + assignment,
 or `{Field1, Field2} = doStuff()` for reassignment.
 
+TODO: what's the best way to indicate types here?  `{Field1: str} = doStuff()`
+worked great with the old `:=` notation but not so good here.  we've been doing
+`Field: str(someValue())` to indicate this, but maybe we need something like
+`{Str Field1} = doStuff` and `Str Field: someValue()` in that case.
+
 This notation is a bit more flexible than JavaScript, since we're
 allowed to reassign existing variables while destructuring.  In JavaScript,
 `const {Field1, Field2} = doStuff();` declares and defines the fields `Field1` and `Field2`,
@@ -2718,25 +2726,23 @@ nest(X: int, Y: str): {W: {Z: {A: int}, B: str, C: str}}
     {W: {Z: {A: X}, B: Y, C: Y * X}}
 
 # defines `A`, `B`, and `C` in the outside scope:
-{W: Z: A:, W: B:, W: C:} = nest(X: 5, Y: "hi")
+{W: Z: A, W: B, W: C}: nest(X: 5, Y: "hi")
 print(A)    # 5
 print(B)    # "hi"
-
-# equivalently:
-{W: {Z: A:, B:, C:}} = nest(X: 5, Y: "hi")
 
 # for renaming the variables, you can do something like this:
 Q; int
 R; str
 S: str
-{Q as W: Z: A, R as W: B, S as W: C} = nest(X: 3, Y: "whoa")
+{Q as W: Z: A, R as W: B, S as W: C}: nest(X: 3, Y: "whoa")
 
+# TODO: not excited by this notation, anything better?
 # or, defining the variables inline:
 {
     Q; int as W: Z: A
     R; str as W: B
     S: str as W: C
-} = nest(X: 3, Y: "whoa")
+} nest(X: 3, Y: "whoa")
 ```
 
 ### dynamically determining arguments for a function
@@ -5518,7 +5524,7 @@ TODO: more discussion about how `return` works vs. putting a RHS statement on a 
 Of course you can get two values out of a conditional expression, e.g., via destructuring:
 
 ```
-{X:, Y:} = if Condition
+{X, Y}: if Condition
     {X: 3, Y: doSomething()}
 else
     {X: 1, Y: DefaultValue}
