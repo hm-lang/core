@@ -1,0 +1,95 @@
+hm[ok, uh]: oneOf[ok, uh] {
+    # The API is `Ok: Hm assert()`, which will bubble up this `uh`
+    # if the result was an error.  Note that we use the `block` API
+    # which normally is implicit but can be used explicitly if needed.
+    #   ```
+    #   doSomething(Dbl): hm[ok: dbl, uh: str]
+    #       if Dbl < 0
+    #           uh("Invalid Dbl: $(Dbl)")
+    #       else
+    #           ok(Dbl sqrt())
+    #
+    #   # example with implicit `block` (like a guard/control flow):
+    #   implicitBlock(): hm[ok: null, uh: str]
+    #       # will return early if an invalid type.
+    #       Result: doSomething(1.234) assert()
+    #       print(Result)
+    #
+    #   # example with explicit `block` that does the same thing as implicit:
+    #   explicitBlock(): hm[ok: null, uh: str]
+    #       indent((Block: block[hm[ok: null, uh: str]]):
+    #           Result: doSomething(1.234) assert(Block)
+    #           print(Result)
+    #           Block exit(null)
+    #       )
+    #   ```
+    ..assert(Block: block[uh]): ok
+        what Me
+            Ok: $(Ok)
+            Uh: $(debug error(Uh), Block exit(Uh))
+
+    # The API is `Ok: Hm assert(Uh: "custom error if not `ok`")`.
+    # This will moot `Me` and shortcircuit a failure (i.e., if `result`
+    # is `uh`) to the calling block.  For example,
+    #   ```
+    #   doSomething(Dbl): hm[ok: dbl, uh: str]
+    #       if Dbl < 0
+    #           uh("Invalid Dbl: $(Dbl)")
+    #       else
+    #           ok(Dbl sqrt())
+    #
+    #   implicitBlock(): hm[ok: null, uh: oneOf[InvalidDoSomething, OtherError]]
+    #       # will return early if an invalid type.
+    #       Result: doSomething(1.234) assert(Uh: InvalidDoSomething)
+    #       print(Result)
+    #   ```
+    ..assert(New Uh: ~woe, Block: block[woe]): ok
+        what Me
+            Ok: $(Ok)
+            Uh:
+                debug error(Uh)
+                Block exit(New Uh)
+
+    ..orPanic(String: ""): ok
+        what Me
+            Ok: $(Ok)
+            Uh:
+                error(Uh)
+                # `panic` exits program
+                panic(String || Uh)
+
+    # If ok, returns the `Ok` value; otherwise returns the passed-in value.
+    # If it is expensive to create the in-case-of-error `ok` value, use 
+    # `Hm map((Uh.): myExpensiveOkConstruction())` to create it only as necessary.
+    ..okOr(InCaseOfError Ok.): ok
+        what Me
+            Ok: $(Ok)
+            Uh: $(InCaseOfError Ok)
+
+    # maps an `Ok` result to a different type of `ok`, consuming `Me`.
+    # we can also use namespaces like this to avoid renaming `ok` in the `hm[...]` specification:
+    # ..map(fn(Ok.): A~ok): hm[A ok, uh].
+    # TODO: in case `ok` and `uh` are the same type, we need to make sure that `fn(Ok): ok2`
+    #       requires passing in by name (i.e., `fn(Ok. 123)`) so that we can distinguish the overloads
+    #       for this versus `map(fn(Uh.): ~x): ~y`
+    ..map(fn(Ok.): ~ok2): hm[ok: ok2, uh]
+
+    # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `Me`.
+    ..map(fn(Ok.): hm[A~ok, uh]): hm[A ok, uh]
+
+    # passes through any `Ok` result, but maps an `Uh` to the desired `ok` result
+    # via the passed-in function.
+    ..map(fn(Uh.): ok): ok
+
+    # maps an `Uh` result to a different type of `uh`.
+    ..map(fn(Uh.): O~uh):  hm[ok, O uh]
+
+    # maps `ok` and `uh` separately.
+    ..map(fn(Ok.): t, fn(Uh.): t): t
+
+    # TODO: should we use `to` here or is there a better way to indicate casting?
+    # it's technically something like `oneOf[ok, null](Result: hm[ok, uh]): oneOf[ok, null]`
+    # which is pretty verbose.  could use `(Me.): oneOf[ok, null]` for implicit conversion
+    ..to(): oneOf[ok, null]
+}
+
