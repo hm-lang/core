@@ -23,13 +23,13 @@ hm[ok, uh]: oneOf[ok, uh] {
     #           Block exit(null)
     #       )
     #   ```
-    ..assert(Block: block[uh]): ok
+    ..assert[of: oneOf[uh]](Block: block[of]): ok
         what Me
             Ok: $(Ok)
             Uh: $(debug error(Uh), Block exit(Uh))
 
     # The API is `Ok: Hm assert(Uh: "custom error if not `ok`")`.
-    # This will moot `Me` and shortcircuit a failure (i.e., if `result`
+    # This will moot `Me` and shortcircuit a failure (i.e., if `Hm`
     # is `uh`) to the calling block.  For example,
     #   ```
     #   doSomething(Dbl): hm[ok: dbl, uh: str]
@@ -43,7 +43,8 @@ hm[ok, uh]: oneOf[ok, uh] {
     #       Result: doSomething(1.234) assert(Uh: InvalidDoSomething)
     #       print(Result)
     #   ```
-    ..assert(New Uh: ~woe, Block: block[woe]): ok
+    # TODO: is there a shorter version of this to infer the `blockOf` type?
+    ..assert[of, blockOf: oneOf[of]](New Uh: of, Block: block[blockOf]): ok
         what Me
             Ok: $(Ok)
             Uh:
