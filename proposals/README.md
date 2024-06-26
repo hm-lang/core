@@ -4644,8 +4644,8 @@ E.g., `myFunction(StringArgument?: MyHm)` to pass in `MyHm` if it's ok or null i
 and `String?: MyHm` to grab it as a local variable.  This of course only works
 if `ok` is not already nullable, otherwise it is a compile error.
 
-See [the hm definition](https://github.com/hm-lang/core/core/hm.hm) for methods
-built on top of the `oneOf[ok, uh]` type.
+See [the hm definition](https://github.com/hm-lang/core/blob/main/core/hm.hm)
+for methods built on top of the `oneOf[ok, uh]` type.
 
 ```
 Result: if X $( ok(3) ) else $( uh("oh no") )
