@@ -18,6 +18,8 @@ array[of]: indexable {
     #       otherwise we could return a boolean if it worked.
     #       i don't think we want to go back to SFO specification because
     #       `int: {Int: int}` is a bit confusing for return types.
+    #       could we do `;;count(New Count): Old Count: count`?
+    #       `;;count(New Count): {Old Count}` would be nice, however, if we kept SFO.
     ;;count(New Count): hm[count]
         Old Count: This Count
         if New Count == Old Count

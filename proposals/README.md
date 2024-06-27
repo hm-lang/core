@@ -2729,21 +2729,66 @@ nest(X: int, Y: str): {W: {Z: {A: int}, B: str, C: str}}
 {W: Z: A, W: B, W: C}: nest(X: 5, Y: "hi")
 print(A)    # 5
 print(B)    # "hi"
-
-# for renaming the variables, you can do something like this:
-Q; int
-R; str
-S: str
-{Q as W: Z: A, R as W: B, S as W: C}: nest(X: 3, Y: "whoa")
-
-# TODO: not excited by this notation, anything better?
-# or, defining the variables inline:
-{
-    Q; int as W: Z: A
-    R; str as W: B
-    S: str as W: C
-} nest(X: 3, Y: "whoa")
 ```
+
+### single field objects
+
+Single field objects (SFOs) are used to make it more concise to return a
+type into a variable with a given name; the output variable name can help
+determine which overload will be called.  Consider the following overloads.
+
+```
+patterns(): {Chaos: f32, Order: i32}
+patterns(): i32
+# overload when we don't need to calculate `Order`:
+patterns(): {Chaos: f32}
+
+I32: patterns()             # calls `patterns(): i32` overload
+MyValue: patterns() I32     # same
+Namespace I32: patterns()   # same
+
+F32: patterns()             # COMPILE ERROR: no overload for `patterns(): f32`
+
+{Chaos}: patterns()         # calls `patterns(): {Chaos: f32}` overload via destructuring.
+Chaos: patterns()           # same, via SFO concision.
+MyValue: patterns() Chaos   # same, but with renaming `Chaos` to `MyValue`. 
+
+MyValue: patterns()         # calls `patterns(): {Chaos: f32, Order: i32}`
+                            # because it is the default (first defined).
+{Chaos, Order}: patterns()  # same overload, but because of destructuring.
+{Order}: patterns()         # same, but will silently drop the `Chaos` return value.
+Order: patterns()           # more concise form of `{Order}: patterns()`.
+MyValue: patterns() Order   # same, but with renaming `Order` to `MyValue`.
+```
+
+The effect of SFO is to make it possible to elide `{}` for return value.
+The danger is that your overload may change based on your return variable
+name; but this is usually desired, e.g., `Old Count: Array count(1000) assert()`
+if you care to get the old count of an array.
+
+IMPLEMENTATION NOTE: `Old Count: ... assert()` will require passing through
+the `{Old Count}` return value through the result `hm[ok: {Old Count}, ...]`
+via `assert()`.  This is probably difficult!
+
+SFO effectively makes any `x` return type into a `{X: x}` object.  This means
+that overloads like `patterns(): i32` and `patterns(): {I32}` would actually
+conflict; trying to define both would be a compile error.
+
+TODO: it probably would be nice for classes to have an implicit self-reflection
+property like `x: {X; x}`.  This would mostly be nice for inheritance, so we
+could do `::childMethod(): $(ParentName parentMethod(), return 5)`.
+Note we don't actually define this, even for localization support,
+since it would be a recursive, infinitely expanding class, and we want to catch
+that in the compiler and not think users are creating a unicode overload.
+
+TODO: should you be able to return namespaces like `Old Count`??
+
+TODO: we probably can have `x(New: x): null` overloads where we don't need
+to always swap out the old value (e.g., `x(New X: x): x`.  If we want to readopt
+SFO, we should make it clear by requiring setters to return the old value only
+if `x(New X: x): {Old: x}` is used.
+
+TODO: use `patterns() I32` syntax more liberally if we like SFO stuff.
 
 ### dynamically determining arguments for a function
 
@@ -3384,11 +3429,11 @@ E.g., instead of `MyDate: dateClass fromIsoString("2020-05-04")`, just use
 `MyDate: dateClass(IsoString: "2020-05-04")` and define the
 `;;renew(IsoString: string)` method accordingly.
 
-## unicode/localization support
+## localization support
 
 We intend hm-lang to support all languages, and so the upper/lower-case requirements
 may seem a bit strange in other alphabets.  To set a custom "UpperCamelCase" default name
-for an instance of the class, use this notation:
+for an instance of the class, use this syntax:
 
 ```
 örsted: {
