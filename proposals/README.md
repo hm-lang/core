@@ -1727,10 +1727,10 @@ f(Int): int
     Int + 5
 
 Z: 3
-f(Z)        # ok
-f(int(4.3)) # ok
-f(5)        # ok
-f(Int: 7)   # ok but overly verbose
+f(Z)                    # ok
+f(4.3 floor() int())    # ok
+f(5)                    # ok
+f(Int: 7)               # ok but overly verbose
 ```
 
 If passing functions as an argument where the function name doesn't matter,
@@ -2107,20 +2107,14 @@ Similarly, we cannot match an overload that has fewer arguments than we supplied
 
 Output arguments are similar, and are also matched by name.  This is pretty obvious with
 something like `X: calling(InputArgs...)`, which will first look for an `X` output name
-to match.  If there is no `X` output name, then the first non-null, default-named output
-overload will be used.  E.g., if `calling(InputArgs...): dbl` was defined before
-`calling(InputArgs...): str`, then `dbl` will win.  For an output variable with an explicit
-type, e.g., `X: dbl = calling(InputArgs...)`, this will look for an overload with output
-name `X` first, *then* look for the overload with a default-named `Dbl: dbl` type.
-This might be surprising, but we want to enable easy conversions between types which can
-implicitly convert to each other, so that we don't always need to be explicit about converting
-iterators to containers, etc.  If there is no default-named `Dbl: dbl` output type, we'll look
-for the first non-null, default-named output overload.  For function calls like
+to match, such as `calling(InputArgs...): {X: whateverType}`.  If there is no `X` output
+name, then the first non-null, default-named output overload will be used.  E.g., if
+`calling(InputArgs...): dbl` was defined before `calling(InputArgs...): str`, then `dbl`
+will win.  For an output variable with an explicit type, e.g., `X: calling(InputArgs...) Dbl`,
+this will look for an overload with output name `Dbl` first.  For function calls like
 `X: dbl(calling(InputArgs...))`, we will lose all `X` output name information because
-`dbl(...)` will hide the `X` name.  In this case, we'll look for an overload with a
-default-named `Dbl: dbl` type output, then any non-null, default-named output overload.
-For calls like`X: calling(InputArgs...) Dbl`, we will explicitly pick a default-named
-`Dbl: dbl` output overload or throw a compiler error if none exists.
+`dbl(...)` will hide the `X` name.  In this case, we'll use the default overload and attempt
+to convert it to a `dbl`.
 
 ### nullable input arguments
 
@@ -2299,7 +2293,7 @@ to figure out which overload should be used.  E.g., `{X, Y}: myOverload()` will
 look for an overload with outputs named `X` and `Y`.  However, `X: myOverload()`
 is not equivalent to `{X}: myOverload()`; if there is no destructuring
 on the left-hand side, it will take the default return value.  You can also
-explicitly type the return value, e.g., `Some Int: myOverload()` or `R: dbl(myOverload())`,
+explicitly type the return value, e.g., `Some Int: myOverload()` or `R: myOverload() Dbl`,
 which will look for an overload with an `int` or `dbl` return type.
 
 TODO: should we recommend `Int Some: myOverload()` instead?
@@ -2787,8 +2781,6 @@ TODO: we probably can have `x(New: x): null` overloads where we don't need
 to always swap out the old value (e.g., `x(New X: x): x`.  If we want to readopt
 SFO, we should make it clear by requiring setters to return the old value only
 if `x(New X: x): {Old: x}` is used.
-
-TODO: use `patterns() I32` syntax more liberally if we like SFO stuff.
 
 ### dynamically determining arguments for a function
 
@@ -6533,7 +6525,7 @@ The default name for a `oneOf` argument is `OneOf`.  E.g.,
 ```
 # this is short for `myFunction(OneOf: oneOf[int, str]): dbl`:
 myFunction(OneOf[int, str]): dbl
-    return dbl(OneOf)
+    dbl(OneOf) orPanic()
 
 print(myFunction(123))      # prints 123.0
 print(myFunction("123.4"))  # prints 123.4
