@@ -169,6 +169,12 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * For generic/template functions with type constraints, e.g., `myFunction[of: nonNull](X: of, Y: int): of`
         where `of` is the generic type.  See [generic/template functions](#generictemplate-functions) for more.
 * `{}` for objects/types
+    * TODO: should we make objects out of store-types like `[X: dbl, Y: dbl]` instead?
+        then we could use `{}` exclusively for new scopes (currently `$(...)`),
+        sequence building, delayed function calls, etc.
+        however, then we'll have an asymmetry when defining a class `v: [X: int]`
+        versus extending a class `v: parent {X: int}`.  we definitely can't do
+        `parent[X: int]` because that looks like generic specification.
     * `{X: dbl, Y: dbl}` to declare a class with two double-precision fields, `X` and `Y`
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
     * `{Greeting: str, Times: int} destructureMe()` to do destructuring of a return value
@@ -4622,24 +4628,31 @@ protectedFunction(X: int, Y: int): {Z: str}
 publicFunction(X1: int, Y1: int, X2: int, Y2: int): null
     print(protectedFunction(X: X1, Y: Y1) Z, privateFunction(X: X2, Y: Y2))
 
-@test("foundation works fine")
+@test "foundation works fine":
     assert privateFunction(X: 5, Y: 3) == {Z: "5:3"}
     assert privateFunction(X: -2, Y: -7) == {Z: "-2:-7"}
 
-@test("building blocks work fine")
+@test "building blocks work fine":
     assert protectedFunction(X: 5, Y: -3) == {Z: "5:-3!"}
     assert protectedFunction(X: -2, Y: 7) == {Z: "-2:7!"}
 
-@test("public function works correctly")
+@test "public function works correctly":
     publicFunction(X1: -5, Y1: 3, X2: 2, Y2: 7)
     assert Test print() == "-5:3!2:7" + \\os NewLine
 
-    @test("nested tests also work")
+    @test "nested tests also work":
         publicFunction(X1: 2, Y1: -7, X2: -5, Y2: -3)
         assert Test print() == "2:-7!-5:-3" + \\os NewLine
 ```
 
-Inside of a `@test` function, you have access to a `Test` variable which includes
+Nested tests will freshly execute any parent logic before executing themselves.
+This ensures a clean state.  If you want multiple tests to start with the same
+logic, just move that common logic to a parent test.
+
+TODO: parametric tests probably can just be `@test "params":` and nesting
+`for Params: AllPossibleParams $(@test "works for $(Params)": ...)`.
+
+Inside of a `test` block, you have access to a `Test` variable which includes
 things like what has been printed (`Test print()`).  In this example, `Test print()`
 will pull everything that would have been printed in the test and puts it into a string
 for comparisons and matching.  It then clears its internal state so that new calls
@@ -4664,6 +4677,8 @@ TODO: how does file access work with the reference pattern
 TODO: make it possible to mock out file system access in unit tests.
 
 # errors and asserts
+
+## hm
 
 hm-lang borrows from Rust the idea that errors shouldn't be thrown, they should be
 returned and handled explicitly.  We use the notation `hm[ok, uh]` to indicate
@@ -4712,6 +4727,8 @@ but you can match module-specific errors from another module (e.g., `what Uh $(s
 from the `array.hm` module or even your own).  Of course, you can throw/catch explicitly defined errors
 from other modules, as long as they are visible to you (see section on
 [public/protected/private](#public-private-protected-visibility)).
+
+## assert
 
 The built-in `assert` statement will shortcircuit the block if the rest of the statement
 does not evolve to truthy.  As a bonus, when returning, all values will be logged to stderr

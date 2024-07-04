@@ -93,7 +93,7 @@ array[of]: indexable {
     # no-copy getter, which passes a Null into the callback if 
     # the index is out of bounds in the array:
     ::[Index., fn(Of?): u]: hm[u]
-        This ensurePositive(Index;) assert()
+        This ensureNonNegative(Index;) assert()
         if Index >= This Count
             ok(fn(Null))
         else
@@ -133,7 +133,7 @@ array[of]: indexable {
     # resetting the array element to a default `of()` if so.
     # otherwise, returns Null if Index was too big and doesn't reset any array elements.
     ;;[Index.]!?: of
-        InBounds: This ensurePositive(@hide Index)
+        InBounds: This ensureNonNegative(@hide Index)
         if InBounds < 0 or InBounds >= This count()
             return Null
         This[InBounds]!
@@ -151,7 +151,7 @@ array[of]: indexable {
     # if the swapped in value is Null but the array value wasn't Null, the array
     # will shrink by one, and all later indexed values will move down one index.
     ;;swap(Index;, Of?;): null
-        This ensurePositive(Index;)
+        This ensureNonNegative(Index;)
         if Of == Null
             Of = This pop(Index)
         else
@@ -168,24 +168,14 @@ array[of]: indexable {
     ;;sort(): null
 
     @private
-    ::ensurePositive(Index;): hm[null]
-        if Index < 0
-            Index += This Count
-            if Index < 0
-                Index -= This Count # reset Index to avoid leaking state
-                debug error("Index was too negative: $(Index)")
-                return uh InvalidIndex
-        ok()
-
-    @private
     ::inBounds(Index.): hm[inBounds]
-        This ensurePositive(Index;) assert()
+        This ensureNonNegative(Index;) assert()
         assert(Index < count(), Uh: InvalidIndex)
         ok(inBounds(Index))
 
     @private
     ;;inBounds(Index.): hm[inBounds]
-        This ensurePositive(Index;) assert()
+        This ensureNonNegative(Index;) assert()
         if Index >= count()
             count(Index + 1) assert()
         ok(inBounds(Index))

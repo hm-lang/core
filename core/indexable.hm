@@ -1,6 +1,5 @@
 uh: oneOf[
-    IndexTooNegative
-    IndexTooPositive
+    InvalidIndex
 ]
 
 hm[of]: hm[ok: of, uh]
@@ -15,13 +14,8 @@ indexable: {
     # note that if `I count() == 0`, then this will always throw.
     @protected
     ::ensureInBounds(Index;): hm[null]
-        if Index < 0
-            Index += count(Me)
-            # If still negative, Index was too negative to be counting from the
-            # back of the array and stop before the start of the array.
-            assert(Index >= 0, Uh: IndexTooNegative)
-        else
-            assert(Index < size(), Uh: IndexTooPositive)
+        I ensureNonNegative(Index;) assert()
+        assert(Index < size(), Uh: InvalidIndex)
 
     # adds `I count()` to Index if Index is negative, or 0 if Index isn't.
     # will throw if resulting Index is not positive or zero.
@@ -31,8 +25,33 @@ indexable: {
     @protected
     ::ensureNonNegative(Index;): hm[null]
         if Index < 0
-            Index += count(Me)
+            Count: count(Me)
+            Index += Count
             # If still negative, Index was too negative to be counting from the
             # back of the array and stop before the start of the array.
-            assert(Index >= 0, Uh: IndexTooNegative)
+            if Index >= 0
+                return ok()
+            Index -= Count  # reset Index to avoid leaking state
+            debug error("Index was too negative: $(Index)")
+            uh InvalidIndex
+        else
+            ok()
 }
+
+@test "indexable":
+    testIndexable: indexable { Count, ::count(): Count }
+
+    @test "when count is zero":
+        TestIndexable: testIndexable(Count: 0)
+
+        @test "ensureInBounds":
+            for [Id, Starting Value]: ["negative": -1, "zero": 0, "positive": 1]
+                @test "when Index is ${Id}":
+                    Index; Starting Value
+                    Result: assert(TestIndexable) ensureInBounds(Index;)
+
+                    @test "returns InvalidIndex":
+                        assert(Result) == Uh InvalidIndex
+
+                    @test "resets `Index`"
+                        assert(Index) == Starting Value
