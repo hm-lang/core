@@ -2780,7 +2780,7 @@ TODO: should you be able to return namespaces like `Old Count`??
 TODO: we probably can have `x(New: x): null` overloads where we don't need
 to always swap out the old value (e.g., `x(New X: x): x`.  If we want to readopt
 SFO, we should make it clear by requiring setters to return the old value only
-if `x(New X: x): {Old: x}` is used.
+if `x(New X: x): {Old X: x}` is used.
 
 ### dynamically determining arguments for a function
 
@@ -5999,6 +5999,8 @@ indent(~Declaring., fn(Block[~t, declaring]): never): t
 # TODO: can we use `block[of: int, declaring; string]` to make
 #       `Declaring: declaring` convert into `Declaring; string`??
 #       maybe we need another symbol for it, e.g., `Declaring~: declaring`
+#       or maybe `[of: int, declaring@a string]`
+#       or `Declaring a string` inside the class.
 @referenceableAs(then)
 block[of, declaring: null]: {
     # variables defined only for the lifetime of this block's scope.

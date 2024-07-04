@@ -1,26 +1,38 @@
+uh: oneOf[
+    IndexTooNegative
+    IndexTooPositive
+]
+
+hm[of]: hm[ok: of, uh]
+
+# TODO: probably need to pass in `uh` here that extends the `uh` above,
+#       unless we come up with some fancier `oneOf` spread logic.
 indexable: {
     ::count(): count
 
-    @protected
-    # adds `I count()` to Index if Index is negative, or 0 if Index is already positive.
+    # adds `I count()` to Index if Index is negative, or 0 if Index isn't.
     # will throw if resulting Index is not within [0, I count()).
     # note that if `I count() == 0`, then this will always throw.
+    @protected
     ::ensureInBounds(Index;): hm[null]
         if Index < 0
             Index += count(Me)
-            assert(
-                Index >= 0
-                Uh: `Index was too negative to be counting from back of array
-                      and stop before start of array.  Array count: ${count(Me)},
-                      requested index: ${Index - count(Me)}.`
-            )
+            # If still negative, Index was too negative to be counting from the
+            # back of the array and stop before the start of the array.
+            assert(Index >= 0, Uh: IndexTooNegative)
         else
-            assert(Index < size())
+            assert(Index < size(), Uh: IndexTooPositive)
 
-    # adds `::count()` to Index if Index is negative, or 0 if Index is already positive.
-    # does not throw if the resulting Index is not in the right range to be a valid index
-    # for this indexable.
-    ::tryToBePositive(Index;): null
+    # adds `I count()` to Index if Index is negative, or 0 if Index isn't.
+    # will throw if resulting Index is not positive or zero.
+    # can be used for index access, possibly above the current size of
+    # the `indexable`, where we might want to increase `count` if so.
+    # TODO: we could probably pass in a `block` here.
+    @protected
+    ::ensureNonNegative(Index;): hm[null]
         if Index < 0
             Index += count(Me)
+            # If still negative, Index was too negative to be counting from the
+            # back of the array and stop before the start of the array.
+            assert(Index >= 0, Uh: IndexTooNegative)
 }
