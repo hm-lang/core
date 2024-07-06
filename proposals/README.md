@@ -3113,6 +3113,12 @@ Note that you can use `myFunction(~T;)` for a writable argument.
 ### argument name generics: with different type
 
 You can also define an argument with a known type, but an unknown name.
+This is useful if you want to use the inputted variable name at the call site
+for logic inside the function, e.g., `thisFunction(IWantToKnowThisVariableName: 5)`.
+You can access the variable name via `@@`.
+
+TODO: internally this creates an overload with a "TheNameValue" int argument
+and "TheNameName" string argument.  do we really want to support this?
 
 ```
 thisFunction(~TheName: int): null
@@ -4044,7 +4050,7 @@ of classes like `union[container[id, value], number]`.  It may be recommended fo
 complicated type constraints to define the constraints like this:
 `myComplicatedConstraintType: allOf[t1, oneOf[t2, t3]]` and declaring the class as
 `newGeneric~[of: myComplicatedConstraintType]`, which might be a more readable way to do
-if `myComplicatedConstraintType` is a helpful name.
+things if `myComplicatedConstraintType` is a helpful name.
 
 ### generic type defaults
 
@@ -6017,7 +6023,7 @@ indent(~Declaring., fn(Block[~t, declaring]): never): t
 #       `Declaring: declaring` convert into `Declaring; string`??
 #       maybe we need another symbol for it, e.g., `Declaring~: declaring`
 #       or maybe `[of: int, declaring@a string]`
-#       or `Declaring a string` inside the class.
+#       or `Declaring a declaring` inside the class.
 @referenceableAs(then)
 block[of, declaring: null]: {
     # variables defined only for the lifetime of this block's scope.
