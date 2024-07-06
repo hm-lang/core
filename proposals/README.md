@@ -403,7 +403,6 @@ See [namespaces](#namespaces) for more details.
 Other reserved keywords:
 * `new` for returning a class constructor, e.g., `myFunction(): new[oneOf[int, dbl]]`
 for returning either an `int` or `dbl` constructor.
-* `a` and `an` for using [generic class type mutability](#generic-class-type-mutability).
 
 There are some reserved variable names, like `I`, `Me`, and `My`, which can only
 be used as a reference to the current class instance, and `You` and `Your` which
@@ -3983,9 +3982,10 @@ OtherInstance: genericClass[id: dbl, value: string](Id: 3, Value: "4")
 ### generic class type mutability
 
 It may be useful to create a generic class that whose specified type
-can have writeable or readonly fields.  This can be done using `a` or `an`
+can have writeable or readonly fields.  This can be done using `VariableName@ genericType`
 inside the generic class definition to define variables, and then specifying
-the class with `[type1: myReadonlyType, type2; myWriteableType]`.
+the class with `[type1: specifiedReadonlyType, type2; specifiedWriteableType]`.
+Note that a space must follow `@` otherwise since `@whateverType` might be a valid annotation.
 For example:
 
 ```
@@ -4000,12 +4000,12 @@ mutableTypes[x, y, z]: {
     WZ; z
     # these fields are readonly/writeable based on what is passed
     # in to `mutableTypes`.
-    VX an x
-    VY a y
-    VZ a z
+    VX@ x
+    VY@ y
+    VZ@ z
 
     # you can also use these in method/function definitions:
-    ::someMethod(WhateverX a x, WhateverY an y):
+    ::someMethod(WhateverX@ x, WhateverY@ y):
 }
 
 # the following specification will make `VX` and `VZ` writeable
@@ -4013,12 +4013,12 @@ mutableTypes[x, y, z]: {
 mySpecification: mutableTypes[x; int, y: string, z; dbl]
 ```
 
-We use a new keyword here (`a` and `an`) because it would be confusing
+We use a new syntax here because it would be confusing
 to reinterpret a generic class declaration of a variable declared using `:`
 as writeable in a specification with a `;`.
 
 TODO: we probably want a compiler warning if a generic class declaration
-has no `a` or `an` for  type, and the user supplies the type as `;`.
+has no `@` for  type, and the user supplies the type as `;`.
 
 ### virtual generic methods
 
@@ -6050,7 +6050,7 @@ indent(~Declaring., fn(Block[~t, declaring]): never): t
 block[of, declaring: null]: {
     # variables defined only for the lifetime of this block's scope.
     # TODO: give examples, or maybe remove, if this breaks cleanup with the `jump` ability
-    Declaring a declaring
+    Declaring@ declaring
 
     # exits the `indent` with the corresponding `of` value.  example:
     #   Value; 0
@@ -6898,37 +6898,38 @@ When the `callee` is descoped, it will deregister itself with the `caller`
 internally, so that the `caller` will no longer call the `callee`.
 
 ```
-variableAccess: oneOf[Mutable, Readonly]
-caller[t, VariableAccess]: {
-    # TODO: figure out how to pass the variability of `t` into `callee` here:
-    Callees[ptr[callee[t, VariableAccess]]];
-    @if VariableAccess == Readonly
-        ::runCallbacks(T: t): for Ptr: in Callees $(Ptr call(T)) 
-    @if VariableAccess == Mutable
-        ::runCallbacks(T; t): for Ptr: in Callees $(Ptr call(T;)) 
-    # probably can do this with shorthand:
-    # ::runCallbacks(@access(T, VariableAccess) t): null
-    #       for Ptr: in Callees $(Ptr call(@access(T, VariableAccess)))
+callee[of]: {
+    ;;call(Of@): null
+
+    ;;hangUp(): null
+        ... # some internal implementation
 }
-audio: caller[sample[~Count], Mutable] {
+
+caller[of]: {
+    # use `of@` to pass in the mutability of `of` from `caller` into `callee`,
+    Callees[ptr[callee[of@]]];
+
+    ::runCallbacks(Of@): for Ptr: in Callees $(Ptr call(Of@)) 
+}
+
+audio: caller[array[sample], Mutable] {
     # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
     # amount of time between samples:
     DeltaT: flt
+
+    # number of samples
+    Count; 500
 }()
 
-audioCallee: callee[sample[~Count], Mutable] {
-    Frequency; flt = 440
-    Phase; flt = 0
+audioCallee: callee[array[sample];] {
+    Frequency; flt(440)
+    Phase; flt
 
-    ;;call(Array; sample[Count]): null
-        for Index: index < Count
-            Array[Index] = sample(Mono: \\math sin(2 * \\math Pi * My Phase))
-            Phase += My Frequency * Audio DeltaT
-
-    # automatically defined by the callee class:
-    ;;hangUp(): null  
+    ;;call(Array[sample];): for Index: index < count(Array)
+        Array[Index] = sample(Mono: \\math sin(2 * \\math Pi * My Phase))
+        Phase += My Frequency * Audio DeltaT
 }
 
 someFunction(): null
