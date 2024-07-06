@@ -400,8 +400,11 @@ using these namespaces, e.g., as `Old Int`, `New X`, `Other ClassType`, or `Unus
 In particular, `First` and `Second`
 are reserved for binary operations like `&&` and `*`.
 See [namespaces](#namespaces) for more details.
-Other reserved keywords: `new` for returning a class constructor, e.g.,
-`myFunction(): new[oneOf[int, dbl]]` for returning either an `int` or `dbl` constructor.
+Other reserved keywords:
+* `new` for returning a class constructor, e.g., `myFunction(): new[oneOf[int, dbl]]`
+for returning either an `int` or `dbl` constructor.
+* `a` and `an` for using [generic class type mutability](#generic-class-type-mutability).
+
 There are some reserved variable names, like `I`, `Me`, and `My`, which can only
 be used as a reference to the current class instance, and `You` and `Your` which
 can only be used as a reference to a different instance of the same type.
@@ -3945,26 +3948,8 @@ myGeneric[of](Y: of, Z: of): of
 ```
 e.g., if `of` is nullable, then `X` is potentially nullable, and should
 be defined via `X?: Y * Z`.  but maybe we can avoid this by requiring non-null
-in certain template declarations.
-
-TODO: maybe support specifying mutability in templates, e.g., `gen[x; int]` 
-for a `gen[x]: {MyValue: x}` would result in `{MyValue; int}`.  or if this
-would be prone to errors/confusion with converting `:` into `;` where not desired,
-disallow it in compiler, and support it another (more explicit) way.
-maybe use `.` in the class definition.  but that might get confused with
-function arguments.  we probably just want to use `gen[x: int, Access: Mutable]`,
-and then do
-
-```
-myGeneric[of, Access: Mutable]: {
-    if Access == Mutable
-        X; of
-        Y; of
-    else
-        X: of
-        Y: of
-}
-```
+in certain template declarations.  i.e., if we see a definition like `X: Y * Z`
+we have to assume `Y` and `Z` are non-null.
 
 To create a generic class, you put the expression `[types...]` after the
 class identifier, or `[of]` for a single template type, where `of` is the
@@ -3994,6 +3979,48 @@ ClassInstance: genericClass(Id: 5, Value: "hello")
 # creating an instance with template/generic types specified:
 OtherInstance: genericClass[id: dbl, value: string](Id: 3, Value: "4")
 ```
+
+### generic class type mutability
+
+It may be useful to create a generic class that whose specified type
+can have writeable or readonly fields.  This can be done using `a` or `an`
+inside the generic class definition to define variables, and then specifying
+the class with `[type1: myReadonlyType, type2; myWriteableType]`.
+For example:
+
+```
+mutableTypes[x, y, z]: {
+    # these fields are always readonly:
+    RX: x
+    RY: y
+    RZ: z
+    # these fields are always writeable:
+    WX; x
+    WY; y
+    WZ; z
+    # these fields are readonly/writeable based on what is passed
+    # in to `mutableTypes`.
+    VX an x
+    VY a y
+    VZ a z
+
+    # you can also use these in method/function definitions:
+    ::someMethod(WhateverX a x, WhateverY an y):
+}
+
+# the following specification will make `VX` and `VZ` writeable
+# and `VY` readonly:
+mySpecification: mutableTypes[x; int, y: string, z; dbl]
+```
+
+We use a new keyword here (`a` and `an`) because it would be confusing
+to reinterpret a generic class declaration of a variable declared using `:`
+as writeable in a specification with a `;`.
+
+TODO: we probably want a compiler warning if a generic class declaration
+has no `a` or `an` for  type, and the user supplies the type as `;`.
+
+### virtual generic methods
 
 You can also have virtual generic methods on generic classes, which is not allowed by C++.
 
@@ -6019,16 +6046,11 @@ indent(fn(Block[~t]): never): t
 # indent function which populates `Block Declaring` with the value passed in.
 indent(~Declaring., fn(Block[~t, declaring]): never): t
 
-# TODO: can we use `block[of: int, declaring; string]` to make
-#       `Declaring: declaring` convert into `Declaring; string`??
-#       maybe we need another symbol for it, e.g., `Declaring~: declaring`
-#       or maybe `[of: int, declaring@a string]`
-#       or `Declaring a declaring` inside the class.
 @referenceableAs(then)
 block[of, declaring: null]: {
     # variables defined only for the lifetime of this block's scope.
     # TODO: give examples, or maybe remove, if this breaks cleanup with the `jump` ability
-    Declaring; declaring
+    Declaring a declaring
 
     # exits the `indent` with the corresponding `of` value.  example:
     #   Value; 0
@@ -6878,6 +6900,7 @@ internally, so that the `caller` will no longer call the `callee`.
 ```
 variableAccess: oneOf[Mutable, Readonly]
 caller[t, VariableAccess]: {
+    # TODO: figure out how to pass the variability of `t` into `callee` here:
     Callees[ptr[callee[t, VariableAccess]]];
     @if VariableAccess == Readonly
         ::runCallbacks(T: t): for Ptr: in Callees $(Ptr call(T)) 
