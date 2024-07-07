@@ -25,16 +25,7 @@ array[of]: indexable {
 
     ::count(): This Count
 
-    ;;count(New Count): bool
-        I count(New Count) map((Ok): True, (Uh): False)
-
-    # TODO: should we have a `tryCount` or `countHm`, or just rely on 
-    #       different return types?  or do we always want users to use the safe API
-    # TODO: the other thing, should we require `Old Count` as the return type here?
-    #       otherwise we could return a boolean if it worked.
-    #       could we do `;;count(New Count): Old Count: count`?
-    #       `;;count(New Count): {Old Count}` would be nice, however, if we kept SFO.
-    ;;count(New Count): hm[{Old Count: count}]
+    ;;count(New Count): hm[count]
         Old Count: This Count
         if New Count == Old Count
             return ok(Old Count)
@@ -48,7 +39,7 @@ array[of]: indexable {
                 Allocation deconstruct(InBounds: --This Count)
         ok(Old Count)
 
-    ;;append(Of): hm~null
+    ;;append(Of): hm[null]
         debug assert(This Count < count::Max)
         This allocate(AtLeast: This Count + 1) assert()
         Allocation copyConstruct(This Count++, Of)
@@ -80,19 +71,19 @@ array[of]: indexable {
 
     # no-copy getter/setter; it can resize this array (if writeable) to pass in
     # a value to the passed-in function.
-    ;:[Index., fn(Of;:): ~u]: hm[u]
+    ;:[Index., fn(Of;:): ~t]: hm[t]
         InBounds: This inBounds(@hide Index) assert()
         This[InBounds, fn]
 
     # no-copy getter/setter which is unsafe to call unless
     # `InBounds` is within the range `[0, This count())`.
-    ;:[InBounds, fn(Of;:): ~u]: u
+    ;:[InBounds, fn(Of;:): ~t]: t
         debug assert(InBounds >= 0 and InBounds < This count())
         Allocation[InBoundsAndConstructed: InBounds, fn]
    
     # no-copy getter, which passes a Null into the callback if 
     # the index is out of bounds in the array:
-    ::[Index., fn(Of?): u]: hm[u]
+    ::[Index., fn(Of?): ~t]: hm[t]
         This ensureNonNegative(Index;) assert()
         if Index >= This Count
             ok(fn(Null))

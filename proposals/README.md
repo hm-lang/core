@@ -2663,8 +2663,10 @@ or `{Field1, Field2} = doStuff()` for reassignment.
 
 TODO: what's the best way to indicate types here?  `{Field1: str} = doStuff()`
 worked great with the old `:=` notation but not so good here.  we've been doing
-`Field: str(someValue())` to indicate this, but maybe we need something like
-`{Str Field1} = doStuff` and `Str Field: someValue()` in that case.
+`Field: str(someValue())` or `Field: someValue() Str` to indicate this, but maybe we need something like
+`{Str Field1} = doStuff()` and `Str Field: someValue()` in that case.
+maybe we can bring back `X: str = whatever()`?  but that makes it seem like `:=` should
+be used to define things.
 
 This notation is a bit more flexible than JavaScript, since we're
 allowed to reassign existing variables while destructuring.  In JavaScript,
@@ -5867,6 +5869,9 @@ switch (fastHash(ConsideredString, CompileTimeSalt)) {
 TODO: do we even really want a `fallThrough` keyword?  it makes it complicated that it
 will essentially be a `goto` because fall through won't work due to the check for string
 equality.
+
+TODO: we probably don't want to pollute code with compiler optimizations.  probably should
+wait to include this and see if we actually need it for performance.
 
 We'll add a compiler hint with the best compile-time `Salt` to the `what` statement,
 so that future transpilations are faster.  The compiler will still try more salts
