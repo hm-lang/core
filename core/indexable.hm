@@ -9,6 +9,9 @@ hm[of]: hm[ok: of, uh]
 indexable: {
     ::count(): count
 
+    ::inBounds(Index.): hm[inBounds]
+        I ensureInBounds(Index;) map((Ok): inBounds(Index))
+
     # adds `I count()` to Index if Index is negative, or 0 if Index isn't.
     # will throw if resulting Index is not within [0, I count()).
     # note that if `I count() == 0`, then this will always throw.
