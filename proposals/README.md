@@ -159,9 +159,6 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
         Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
 * `[]` are for containers
-    * `Store[id]: value` to declare a store (i.e., map/dict), or `Store: value[id]`
-    * `Set[element]:` or `Set: [element]` to declare a set with `element` type instances as elements
-    * `Array[]: element` or `Array: element[]` to declare an array with `element` type instances as elements
     * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
     * For generic/template classes, e.g., classes like `array[Count, of]` for a fixed array of size
         `Count` with elements of type `of`, or `store[id: str, value: int]` to create a map/dictionary
@@ -232,11 +229,14 @@ OtherVar; explicitType
 
 ```
 # declaring a readonly array
-MyArray[]: elementType      # also ok: `MyArray: elementType[]`
+MyArray: array[elementType]
 
 # defining a writable array:
-ArrayVar; [1, 2, 3, 4]      # also ok: `ArrayVar[]; int = [...]`
-                            # also ok: `ArrayVar; int[] = [...]`
+# TODO: probably can elide the `[]` in here.
+ArrayVar; array[int]([1, 2, 3, 4])
+# We can also infer types implicitly via one of the following:
+#   * `ArrayVar; array([1, 2, 3, 4])`
+#   * `ArrayVar; [1, 2, 3, 4]`
 ArrayVar[5] = 5     # ArrayVar == [1, 2, 3, 4, 0, 5]
 ++ArrayVar[6]       # ArrayVar == [1, 2, 3, 4, 0, 5, 1]
 ArrayVar[0] += 100  # ArrayVar == [101, 2, 3, 4, 0, 5, 1]
@@ -246,11 +246,14 @@ ArrayVar[1]!        # returns 2, zeroes out ArrayVar[1]:
 
 ```
 # declaring a readonly store
-MyStore[idType]: valueType   # also ok: `MyStore: valueType[idType]`
+MyStore: store[id: idType, value: valueType]
 
 # defining a writable store:
-VotesStore[str]; int = ["Cake": 5, "Donuts": 10, "Cupcakes": 3]
-# We can also infer types implicitly via `VotesStore; ["Cake": 5, ...]`?
+# TODO: probably can elide the `[]` in here.
+VotesStore; store[id: str, value: int](["Cake": 5, "Donuts": 10, "Cupcakes": 3])
+# We can also infer types implicitly via one of the following:
+#   * `VotesStore; store(["Cake": 5, ...])`
+#   * `VotesStore; ["Cake": 5, ...]`
 VotesStore["Cake"]        # 5
 ++VotesStore["Donuts"]    # 11
 ++VotesStore["Ice Cream"] # inserts "Ice Cream" with default value, then increments
@@ -261,11 +264,13 @@ VotesStore::["Cupcakes"]  # Null
 
 ```
 # declaring a readonly set
-MySet[elementType]:     # also ok: `MySet: [elementType]`
+MySet: set[elementType]
 
 # defining a writable set:
-SomeSet[str]; ["friends", "family", "fatigue"]
-# Also ok: we can do `SomeSet; [str]["friends", ...]`
+# TODO: probably can elide the `[]` in here.
+SomeSet; set[str](["friends", "family", "fatigue"])
+# We can also infer types implicitly via the following:
+#   * `SomeSet; set(["friends", ...])`
 SomeSet::["friends"]    # `True`
 SomeSet::["enemies"]    # Null (falsy)
 SomeSet["fatigue"]!     # removes "fatigue", returns `True` since it was present.
@@ -1045,7 +1050,7 @@ exampleClass: {
 
 
 ```
-someClass: {X: dbl, Y: dbl, I; str[]}
+someClass: {X: dbl, Y: dbl, I; array[str]}
 SomeClass; someClass(X: 1, Y: 2.3, I: ["hello", "world"])
 print(SomeClass::I)     # equivalent to `print(SomeClass I)`.  prints ["hello", "world"]
 print(SomeClass::I[1])  # prints "world"
@@ -1054,7 +1059,7 @@ SomeClass;;I[4] = "love"    # the fifth element is love.
 SomeClass::I[7] = "oops"    # COMPILE ERROR, `::` means the array should be readonly.
 SomeClass;;I[7] = "no problem"
 
-NestedClass; someClass[] = []
+NestedClass; array[someClass]
 NestedClass[1] X = 1.234        # creates a default [0] and [1], sets [1]'s X to 1.234
 NestedClass[3] I[4] = "oops"    # creates a default [2] and [3], sets [3]'s I to ["", "", "", "", "oops"]
 ```
@@ -1067,7 +1072,7 @@ does not change the instance but returns a sorted copy of the array (`::sort(): 
 
 ```
 # there are better ways to get a median, but just to showcase member access:
-getMedianSlow(Array[]: int): hm[ok: int, uh: string]
+getMedianSlow(Array[int]): hm[ok: int, uh: string]
     if Array count() == 0
         return uh("no elements in array, can't get median.")
     # make a copy of the array, but no longer allow access to it (via `@hide`):
@@ -1075,7 +1080,7 @@ getMedianSlow(Array[]: int): hm[ok: int, uh: string]
     ok(Sorted Array[Sorted Array count() // 2])
 
 # sorts the array and returns the median.
-getMedianSlow(Array[]; int): hm[ok: int, uh: string]
+getMedianSlow(Array[int];): hm[ok: int, uh: string]
     if Array count() == 0
         return uh("no elements in array, can't get median.")
     Array sort()    # same as `Array;;sort()` since `Array` is writable.
@@ -1102,7 +1107,7 @@ to `oneOf[x a, null]` and not `oneOf[x a, null]`.  This is for nested classes, e
 `x: {a: int}`, so that we don't need to use `(x a)?` to represent `x oneOf[a, null]`.
 Generally speaking, if you want your entire variable to be nullable,
 it should be defined as `X?: int`.  `X: int?` works in this instance, but if you have
-generic classes (like `array[elementType]`), then `X[]: int?` or `X[]?: int` would define
+generic classes (like `array[elementType]`), then `X: array[int]?` or `X?: array[int]` would define
 an array of nullable integers.  To declare a nullable array of integers, you'd use
 `X?: array[int]`, `X?[]: int`, or `X?: int[]`.
 
@@ -2666,7 +2671,7 @@ worked great with the old `:=` notation but not so good here.  we've been doing
 `Field: str(someValue())` or `Field: someValue() Str` to indicate this, but maybe we need something like
 `{Str Field1} = doStuff()` and `Str Field: someValue()` in that case.
 maybe we can bring back `X: str = whatever()`?  but that makes it seem like `:=` should
-be used to define things.
+be used to define things.  well, we can always alias `:= 5` to `: 5` and keep `: type = Expression`.
 
 This notation is a bit more flexible than JavaScript, since we're
 allowed to reassign existing variables while destructuring.  In JavaScript,
@@ -2805,14 +2810,15 @@ call: {
     # TODO: need to distinguish between readonly and writable references.
     #       this can be done on the pointer (e.g., Ptr[]; for writable
     #       and Ptr[]: for readonly) or here somehow.
-    Input[str]; ptr any
+    Input; store[id: str, value: ptr[any]]
     # we need to distinguish between the caller asking for specific fields
     # versus asking for the whole output.
-    Output?; oneOf[multipleOutputs: any[str], oneOutput: any]
+    # TODO: if we bring back SFO we don't need to distinguish oneOutput.
+    Output?; oneOf[multipleOutputs: store[id: str, value: any], oneOutput: any]
     # things printed to stdout via `print`:
-    Print[]; string
+    Print; array[string]
     # things printed to stderr via `error`:
-    Error[]; string
+    Error; array[string]
 
     # adds an argument to the function call.
     # e.g., `Call input(Name: "Cave", Value: "Story")`
@@ -3930,7 +3936,7 @@ you can define multiple methods like this as long as they are distinguishable ov
 With containers, values are keyed by some ID, so we do `;;[Id, fn(Value;): ~t]: t`
 (or `hm[ok: t, uh]` as the return type in case of errors).  But if you have a class like a mutex
 or a guard, where there is no ID needed to access the underlying data, you simply use e.g.
-`Mutex[fn(Data;): Data someMethod()]`.
+`Mutex[(Data;): Data someMethod()]`.
 
 This is consistent with brackets `[]` being associated with container classes,
 and giving access to the underlying data.
@@ -4104,49 +4110,20 @@ pair[of]: pair[first: of, second: of]
 
 # examples using pair[of]: ======
 # an array of pairs:
-PairArray[]: pair[int] = [{First: 1, Second: 2}, {First: 3, Second: 4}]
-# this declaration is equivalent: `PairArray: pair[int][]`.
-
+PairArray: array[pair[int]]([{First: 1, Second: 2}, {First: 3, Second: 4}])
 # a pair of arrays:
-PairOfArrays: pair[int[]] = {First: [1, 2], Second: [3, 4]}
-
-# a store of pairs:
-PairStore[str]: pair[int] = ["hi there": {First: 1, Second: 2}]
-# this declaration is equivalent: `PairStore: pair[int][str]`
-
-# a pair of stores:
-PairOfStores: pair[int[str]] = {First: ["hello": 1], Second: ["world": 2]}A
+PairOfArrays: pair[array[int]]({First: [1, 2], Second: [3, 4]})
 
 # examples using pair[first, second]: ======
 # an array of pairs:
-PairArray[]: pair[first: int, second: dbl] = [
+PairArray: array[pair[first: int, second: dbl]]([
     {First: 1, Second: 2.3}
     {First: 100, Second: 0.5}
-]
-# note that this declaration is equivalent:
-# `PairArray: pair[first: int, second: dbl][]`
-
-# a pair of arrays:
-PairOfArrays: pair[first[]: int, second[]: dbl] = {
-    First: [1, 2]
-    Second: [3.4, 4.5]
-}
-# note this declaration is equivalent:
-# `PairOfArrays: pair[first: int[], second: dbl[]]`
-
+])
 # a store of pairs:
-PairStore[str]: pair[first: int, second: dbl] = [
+PairStore: store[id: str, value: pair[first: int, second: dbl]]([
     "hi there": {First: 1, Second: 2.3}
-]
-# note that this declaration is equivalent:
-# `PairStore: pair[first: int, second: dbl][str]`
-
-# a pair of stores:
-PairOfStores: pair[first[str]: int, second[str]: dbl] = [
-    "hi there": {First: 1, Second: 2.3}
-]
-# note this declaration is equivalent:
-# `StoreOfPairs: pair[first: int[str], second: dbl[str]]`
+])
 ```
 
 ### default named generic types
@@ -4483,7 +4460,7 @@ to approach `parentClass` data but in the namespace of `childClass`,
 it kinda works:
 
 ```
-parentClass := {X: dbl}
+parentClass: {X: dbl}
 childClass: parentClass {Y: dbl, ::length(): (X**2 + Y**2)**0.5}
 # If we literally do sequence building, we'd have
 childClass: {parentClass Y: dbl, parentClass::length(): (X**2 + Y**2)**0.5}
@@ -4573,7 +4550,7 @@ vector2: {
 }
 
 # main.hm
-Vector2Module: hm = \/vector2    # .hm extension must be left off.
+Vector2Module: \/vector2    # .hm extension must be left off.
 Vector2: Vector2Module vector2(X: 3, Y: 4)
 print(Vector2)
 # you can also destructure imports like this:
@@ -4826,7 +4803,8 @@ Container uh: oneOf[
 
 hm[of]: hm[ok: of, Container uh]
 
-# TODO: should we rename `id` to `name` or `lookup` or `at`?
+# TODO: should we rename `id` to `name` or `lookup` or `at`?  then `value` could be `of`.
+#       e.g., `store[of: int, at: str]`.  not sure that's more readable, though.
 # TODO: rename `nonNull` to `present` or `notNull`.  definitely can't mirror `unNull`
 container[id, value: nonNull]: {
     # Returns `Null` if `Id` is not in this container,
@@ -4890,35 +4868,30 @@ indexes an element, we can stop iteration.
 ## arrays
 
 An array contains a list of elements in contiguous memory.  You can
-define an array explicitly using the notation `Array: array[elementType]` for the
-type `elementType` or implicitly via `Array[]: elementType` or `Array: elementType[]`.
-E.g. `MyArray: int[]` or `MyArray: array[int]` for a readonly integer array.
-The writable versions of course use `;` instead of `:`.  Note that arrays
-are ID'd by an `index` type, but using `MyVar[index]: elementType` would
-create a [store](#stores).
-
+define an array explicitly using the notation `ArrayName: array[elementType]` for the
+type `elementType`.
+The default-named version of an array does not depend on the element type;
+it is always `Array`.  Declared as a function argument, a default-named array of strings
+would thus be, e.g., `myFunction(Array[string];:.): null`.
 To define an array quickly (i.e., without a type annotation), use the notation
 `["hi", "hello", "hey"]`.
-The default-named version of an array does not depend on the element type;
-it is always `Array`.  Declared as a function argument, a default array of strings
-would thus be, e.g., `myFunction(Array[string];:.): null`.
 Example usage and declarations:
 
 ```
 # this is a readonly array:
-MyArray[]: dbl = [1.2, 3, 4.5]      # converts all to dbl
+MyArray: array[dbl]([1.2, 3, 4.5])  # converts all to dbl
 MyArray append(5)   # COMPILE ERROR: MyArray is readonly
 MyArray[1] += 5     # COMPILE ERROR: MyArray is readonly
 
 # writable integer array:
-Array; int[]        # declaring a writable, default-named integer array
+Array[int];         # declaring a writable, default-named integer array
 Array append(5)     # now Array == [5]
 Array[3] += 30      # now Array == [5, 0, 0, 30]
 Array[4] = 300      # now Array == [5, 0, 0, 30, 300]
 Array[2] -= 5       # now Array == [5, 0, -5, 30, 300]
 
 # writable string array:
-StringArray[]; string = ["hi", "there"]
+StringArray; array[string](["hi", "there"])
 print(StringArray pop())    # prints "there".  now StringArray == ["hi"]
 ```
 
@@ -5030,7 +5003,7 @@ array[of]: container[id: index, value: nonNull[of]] {
 ### fixed-count arrays
 
 We declare an array with a fixed number of elements using the notation
-`elementType[Count]`, where `Count` is a constant integer expression (e.g., 5)
+`array[elementType, Count]`, where `Count` is a constant integer expression (e.g., 5)
 or a variable that can be converted to the `count` type.  Fixed-count array elements
 will be initialized to the default value of the element type, e.g., 0 for number types.
 
@@ -5040,20 +5013,20 @@ resizable array if the argument is writable.  Some examples:
 
 ```
 # readonly array of count 4
-Int4: int[4] = [-1, 5, 200, 3450]
+Int4: array[int, 4] = [-1, 5, 200, 3450]
 # writable array of fixed-count 3:
-Vector3; dbl[3] = [1.5, 2.4, 3.1]
+Vector3; array[3, dbl] = [1.5, 2.4, 3.1]
 print("Vector3 is {$(Vector3[0]), $(Vector3[1]), $(Vector3[2])}")
 
 # a function with a writable argument:
-doSomething(Array; dbl[]): dbl[2]
+doSomething(Array[dbl];): array[2, dbl]
     # you wouldn't actually use a writable array argument, unless you did
     # some computations using the array as a workspace.
     # PRETENDING TO DO SOMETHING USEFUL WITH Array:
     return [Array pop(), Array pop()]
 
 # a function with a readonly argument:
-doSomething(Array: dbl[]): dbl[2]
+doSomething(Array[dbl]): array[dbl, 2]
     return [ConstArray[-1], ConstArray[-2]]
 
 # COMPILER ERROR: `Vector3` can't be passed as mutable reference
@@ -5071,8 +5044,8 @@ count is unknown at compile time, the fixed-count array will be defined on the h
 ```
 # note you can use an input argument to define the return type's
 # fixed-array count, which is something like a generic:
-range(Count): int[Count]
-    Result; int[Count]
+range(Count): array[int, Count]
+    Result; array[int, Count]
     for I: index < Count
         Result[I] = I
     return Result
@@ -5104,27 +5077,23 @@ fixedCountArray[of]: array[of] {
 
 ## stores
 
+TODO: i think we can use `of` for `value` so it's faster, e.g., `store[str, id: int]`.
+see if that feels right...
+
 A `store` is hm-lang's version of a map (or `dict` in python).  Instead of mapping from a `key`
 to a `value` type, stores link an `id` to a `value`.  This change from convention is mostly
 to avoid overloading the term `map` which is used when transforming values such as `hm`, but also
 because `map`, `key`, and `value` have little to do with each other; we don't "unlock" anything
-with a C++ `map`'s key: we look up a value.
-
-TODO: we could rename `store` to `lookup`, e.g., `Lookup[5]` sounds good but
-`Lookup[5] = 3` doesn't make a lot of sense.  maybe `keep` for `Keep[5] = 3`
-or something else?
+with a C++ `map`'s key: we identify which value we want.
 
 A store can look up, insert, and delete elements by key quickly (ideally amortized
-at `O(1)` or at worst `O(lg(N)`).  You can use the explicit way to define a store, e.g.,
-`VariableName: store[id: idType, value: valueType]`, or you can use an implicit method
-with brackets, `VariableName[idType]: valueType` or `VariableName: valueType[idType]`.
-For example, for a store that links integers to strings, you can use: `MyStore[int]: string`.
-The default name for a store variable is `Store`, regardless of ID or value type.
-Note that while an array can be thought of as a store linking the `index` type to
-whatever the array element type is, `elementType[index]` indicates a store type,
-not an array type.  The array type, `elementType[]` would be useful for densely
+at `O(1)` or at worst `O(lg(N)`).  You can use this way to define a store, e.g.,
+`VariableName: store[id: idType, value: valueType]`.  A default-named store can
+be defined via `Store[id: idType, value: valueType]`, e.g., `Store[id: int, value: dbl]`.
+Note that while an array can be thought of as a store with the ID type as `index`,
+the array type `array[elementType]` would be useful for densely
 packed data (i.e., instances of `elementType` for most indices), while the store
-type `elementType[index]` would be useful for sparse data.
+type `store[value: elementType, id: index]` would be useful for sparse data.
 
 To define a store (and its contents) inline, use this notation:
 
@@ -5133,7 +5102,7 @@ Jim1: "Jim C"
 Jim2: "Jim D"
 Jim: 456
 # store linking string to ints:
-EmployeeIds: int[str] = [
+EmployeeIds: store[id: int, value: str]([
     # option 1.A: `X: Y` syntax
     "Jane": 123
     # option 1.B: `{Id: X, Value: Y}` syntax
@@ -5153,12 +5122,9 @@ EmployeeIds: int[str] = [
     # Jim1: Jim1Id # WARNING, looks like option 1.C, which would define "Jim1" instead of "Jim C"
     # option 3: `X` syntax where `X` is a known variable, essentially equal to `@@X: X`
     Jim
-]
+])
 # note that commas are optional if elements are separated by newlines,
 # but required if elements are placed on the same line.
-
-# equivalent definition would occur with this first line:
-# `EmployeeIds: store[id: string, value: int] [`
 ```
 
 To define a store quickly (i.e., without a type annotation), use the notation
@@ -5182,7 +5148,7 @@ print(NameDatabase[123.4])  # RUNTIME ERROR, 123.4 is not representable as an `i
 print(NameDatabase[123.4 round(Stochastically)])    # prints "John" with 60% probability, "Jane" with 40%.
 
 # note that the definition of the ID is a readonly array:
-StackDatabase; string[int[]]
+StackDatabase; store[id: array[int], value: string]
 StackDatabase[[1,2,3]] = "stack123"
 StackDatabase[[1,2,4]] = "stack124"
 # prints "stack123" with 90% probability, "stack124" with 10%:
@@ -5366,9 +5332,8 @@ insertionOrderedStore[id, value]: store[id, value] {
 
 A set contains some elements, and makes checking for the existence of an element within
 fast, i.e., O(1).  Like with store IDs, the set's element type must satisfy certain properties
-(e.g., integer/string-like).  The syntax to define a set is `VariableName: set elementType`
-to be explicit, or we can use `VariableName[elementType]:` or `VariableName: [elementType]`.
-The default-named variable name for a set of any type is `Set`.
+(e.g., integer/string-like).  The syntax to define a set is `VariableName: set[elementType]`.
+You can elide `set` for default named arguments like this: `Set[elementType];` (or `:` or `.`).
 
 ```
 uh: oneOf[
@@ -5995,7 +5960,7 @@ for OtherIndex: index(3), OtherIndex < 7
 
 # for-loop iterating over non-number elements:
 vector2: {X: dbl, Y: dbl}
-Array: vector2[] = [{X: 5, Y: 3}, {X: 10, Y: 17}]
+Array[vector2]: [{X: 5, Y: 3}, {X: 10, Y: 17}]
 for Vector2: in Array       # `for (Vector2:) in Array` also works.
     print(Vector2)
 
@@ -6250,7 +6215,7 @@ functions' signatures to return futures.  Instead, functions return the
 value that they will receive after any futures are completed (and we recommend
 a timeout `uh` being present for a result error).  If the caller wants to
 treat the function as a future, i.e., to run many such futures in parallel,
-then they ask for it as a future using `@um` before the function name, which
+then they ask for it as a future by calling an expression `...` via `um(...)`, which
 returns the `um[of]` type, where `of` is the normal function's return type.
 You can also type the variable explicitly as `um[of]` and then avoid using `@um`
 before the function name.
@@ -6271,8 +6236,8 @@ print("the result is $(MyName) many seconds later")
 # this does it as a future
 print("starting a future, won't make progress unless polled")
 # `Future` here has the type `um[string]`:
-Future: @um someVeryLongRunningFunction(10)
-# Also ok: `Future: um[string] = someVeryLongRunningFunction(10)`
+Future: um(someVeryLongRunningFunction(10))
+# Also ok: `Future: um[string](someVeryLongRunningFunction(10))`
 # TODO: can `~` by itself count as the `auto` keyword?
 # probably also ok: `Future: um[~] = someVeryLongRunningFunction(10)`
 print("this `print` executes right away")
@@ -6291,8 +6256,8 @@ after(Seconds: int, Return: string): string
     sleep(Seconds)
     Return
 
-FuturesArray[]: um[string]
-# no need to use `@um after(...)` here since `FuturesArray`
+FuturesArray; array[um[string]]
+# no need to use `um(after(...))` here since `FuturesArray`
 # elements are already typed as `um[string]`:
 FuturesArray append(after(Seconds: 2, Return: "hello"))
 FuturesArray append(after(Seconds: 1, Return: "world"))
@@ -6300,8 +6265,8 @@ ResultsArray: decide(FuturesArray)
 print(ResultsArray) # prints `["hello", "world"]`
 
 # here we use sequence building to ensure we're creating futures,
-# i.e., `@um {A, B}` has type `{A: um[a], B: um[b]}` and executes `A`/`B` asynchronously.
-FuturesObject: @um {
+# i.e., `um {A, B}` has type `{A: um[a], B: um[b]}` and executes `A`/`B` asynchronously.
+FuturesObject: um {
     Greeting: after(Seconds: 2, Return: "hello")
     Noun: after(Seconds: 1, Return: "world")
 }
@@ -6871,11 +6836,11 @@ duration of the function call/scope.  We use some syntax sugar in order
 to make this not look clumsy.
 
 ```
-ArrayArray; int[][] = [[1,2,3], [5]]
+ArrayArray; array[array[int]] = [[1,2,3], [5]]
 # to modify the array held inside the array, we can use this syntax:
 ArrayArray[0] append(4)     # now ArrayArray == [[1,2,3,4], [5]]
 # but under the hood, this is converted to something like this:
-ArrayArray[0, (Nested Array; int[]): null
+ArrayArray[0, (Nested Array[int];): null
     Nested Array append(4)
 ]
 ```
@@ -7192,7 +7157,7 @@ Grammar: {
             ])
         ])
         EndOfInput: tokenMatcher(
-            ::match(Index;, Array: token[]): Index >= Array count()
+            ::match(Index;, Array[token]): Index >= Array count()
         )
     ]
 
@@ -7270,9 +7235,9 @@ repeatMatcher: tokenMatcher {
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Array`.
     i(My Until: GrammarMatcher = EndOfInput, My Array: GrammarMatcher[]): i()
-    ;;renew(My Until: GrammarMatcher = EndOfInput, My Array: GrammarMatcher[]): Null
+    ;;renew(My Until: GrammarMatcher = EndOfInput, My Array[grammarMatcher]): Null
 
-    ::match(Index;, ToMatch Array: token[]): bool
+    ::match(Index;, ToMatch Array[token]): bool
         if Index >= Array count()
             return False
 
