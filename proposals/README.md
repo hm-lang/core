@@ -31,7 +31,7 @@ See [passing by reference gotchas](#passing-by-reference-gotchas)) for the edge 
 
 In hm-lang, determining the number of elements in a container uses the same
 method name for all container types; `count(Container)` or `Container count()`,
-which works for `Array`, `Store` (map/dict), `Set`, etc.  In some languages, e.g., JavaScript,
+which works for `Array`, `Lot` (map/dict), `Set`, etc.  In some languages, e.g., JavaScript,
 arrays use a property (`Array.length`) and maps use a different property (`Map.size`).
 
 ## convenience
@@ -48,14 +48,15 @@ define, e.g., `MyClassB myTwoInstanceFunction(MyClassA, Width: 5, Height: 10)` a
 For convenience, `Array[3] = 5` will work even if `Array` is not already at least size 4;
 hm-lang will resize the array if necessary, populating it with default values,
 until finally setting the fourth element to 5.  This is also to be consistent with
-other container types, e.g., stores, where `Store["Id"] = 50` works conveniently.
+other container types, e.g., lots (hm-lang's version of a map/dictionary), since `Lot["At"] = 50`
+works in a similar fashion, e.g., resizing the `lot` as necessary to add an element.
 In some standard libraries (e.g., C++), `Array[3] = 5` is undefined behavior
 if the array is not already at least size 4.
 
-Similarly, when referencing `Array[10]` or `Store["Id"]`, a default will be provided
-if necessary, so that e.g. `++Array[10]` and `++Store["Id"]` don't need to be guarded
+Similarly, when referencing `Array[10]` or `Lot["At"]`, a default will be provided
+if necessary, so that e.g. `++Array[10]` and `++Lot["At"]` don't need to be guarded
 as `Array[10] = if count(Array) > 10 $(Array[10] + 1) else $(Array count(11), 1)` or
-`Store["Id"] = if Store["Id"] != Null $(Store["Id"] + 1) else $(1)`.
+`Lot["At"] = if Lot["At"] != Null $(Lot["At"] + 1) else $(1)`.
 
 ## clarity
 
@@ -161,12 +162,12 @@ memory, these safe functions are a bit more verbose than the unchecked functions
 * `[]` are for containers
     * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
     * For generic/template classes, e.g., classes like `array[Count, of]` for a fixed array of size
-        `Count` with elements of type `of`, or `store[id: str, value: int]` to create a map/dictionary
+        `Count` with elements of type `of`, or `lot[int, at: str]` to create a map/dictionary
         of strings mapped to integers.  See [generic/template classes](#generictemplate-classes).
     * For generic/template functions with type constraints, e.g., `myFunction[of: nonNull](X: of, Y: int): of`
         where `of` is the generic type.  See [generic/template functions](#generictemplate-functions) for more.
 * `{}` for objects/types
-    * TODO: should we make objects out of store-types like `[X: dbl, Y: dbl]` instead?
+    * TODO: should we make objects out of lot-types like `[X: dbl, Y: dbl]` instead?
         then we could use `{}` exclusively for new scopes (currently `$(...)`),
         sequence building, delayed function calls, etc.
         however, then we'll have an asymmetry when defining a class `v: [X: int]`
@@ -245,21 +246,21 @@ ArrayVar[1]!        # returns 2, zeroes out ArrayVar[1]:
 ```
 
 ```
-# declaring a readonly store
-MyStore: store[id: idType, value: valueType]
+# declaring a readonly lot
+MyLot: lot[at: idType, valueType]
 
-# defining a writable store:
+# defining a writable lot:
 # TODO: probably can elide the `[]` in here.
-VotesStore; store[id: str, value: int](["Cake": 5, "Donuts": 10, "Cupcakes": 3])
+VotesLot; lot[at: str, int](["Cake": 5, "Donuts": 10, "Cupcakes": 3])
 # We can also infer types implicitly via one of the following:
-#   * `VotesStore; store(["Cake": 5, ...])`
-#   * `VotesStore; ["Cake": 5, ...]`
-VotesStore["Cake"]        # 5
-++VotesStore["Donuts"]    # 11
-++VotesStore["Ice Cream"] # inserts "Ice Cream" with default value, then increments
-VotesStore["Cupcakes"]!   # deletes from the store (but returns `3`)
-VotesStore::["Cupcakes"]  # Null
-# now VotesStore == ["Cake": 5, "Donuts": 11, "Ice Cream": 1]
+#   * `VotesLot; lot(["Cake": 5, ...])`
+#   * `VotesLot; ["Cake": 5, ...]`
+VotesLot["Cake"]        # 5
+++VotesLot["Donuts"]    # 11
+++VotesLot["Ice Cream"] # inserts "Ice Cream" with default value, then increments
+VotesLot["Cupcakes"]!   # deletes from the Lot (but returns `3`)
+VotesLot::["Cupcakes"]  # Null
+# now VotesLot == ["Cake": 5, "Donuts": 11, "Ice Cream": 1]
 ```
 
 ```
@@ -453,12 +454,12 @@ ArrayVariable: [
     5
 ]
 
-StoreVariable: [
+LotVariable: [
     SomeValue: 100      # equivalent to "SomeValue": 100
     OtherValue: "hi"    # equivalent to "OtherValue": "hi"
 ]
 
-# This is different than the `StoreVariable` because it essentially
+# This is different than the `LotVariable` because it
 # is an instance of a `{SomeValue: int, OtherValue: str}` type,
 # which cannot have new fields added, even if it was mutable.
 ObjectVariable: {
@@ -500,7 +501,7 @@ ExamplePlusThreeIndent
         -   Continuing
 ```
 
-Arguments supplied to functions are similar to stores and only require +1 indent.
+Arguments supplied to functions are similar to lots and only require +1 indent.
 
 ```
 if someFunctionCall(
@@ -1332,8 +1333,8 @@ can be an integer or null.  The default value for an optional type is `Null`.
 TODO: do we want to rename `null` to `absent`?  essentially we want the feature for
 function calls, e.g., `fn(X?: int): q`
 and container types, e.g., `{X?: possiblyNull(), Y: ...}` becomes `{Y: ...}` if `X` is null,
-or `Store[Id] = Null` to remove `Id` from the store.
-we could use `Store[Id] = Absent` and `Present` for non-absent.
+or `Lot[At] = Null` to remove `Id` from the lot.
+we could use `Lot[At] = Absent` and `Present` for non-absent.
 I like `absent` but not `present` unfortunately, as it has other connotations.
 maybe `missing` and `found`, or `deny`/`hide`/`veto` and `avow`.
 `found`
@@ -1655,7 +1656,7 @@ we'll use *arguments type* for an argument object type and *arguments instance* 
 an argument object instance.
 
 TODO: do `[]` need to be argument objects as well for the intent of calling
-container methods like `Store[5, (Value;): ++Value]`?
+container methods like `Lot[5, (Value;): ++Value]`?
 
 Because they contain references, arguments instances cannot outlive the lifetime
 of the variables they contain.
@@ -2607,12 +2608,12 @@ print(Array)    # prints [0, 1, 2, 40]
 Note that references to elements in a container are internally pointers to the container plus the ID/offset,
 so that we don't delete the value at `Array[3]` and thus invalidate the reference `Array[3];` above.
 Containers of containers (and further nesting) require ID arrays for the pointers.
-E.g., `MyStore["Ginger"][1]["Soup"]` would be a struct which contains `&MyStore`, plus the tuple `("Ginger", 1, "Soup")`.
+E.g., `MyLot["Ginger"][1]["Soup"]` would be a struct which contains `&MyLot`, plus the tuple `("Ginger", 1, "Soup")`.
 
 TODO: discussion on how `Array[5]` gets passed by reference when used as an argument.
 e.g., `myFunction(X; Array[5])` will do something like `Array[5, (T;): myFunction(X; T)]`.
 
-Here is an example with a store.  Note that the argument is readonly, but that doesn't mean
+Here is an example with a lot.  Note that the argument is readonly, but that doesn't mean
 the argument doesn't change, especially when we're doing self-referential logic like this.
 
 ```
@@ -2810,11 +2811,11 @@ call: {
     # TODO: need to distinguish between readonly and writable references.
     #       this can be done on the pointer (e.g., Ptr[]; for writable
     #       and Ptr[]: for readonly) or here somehow.
-    Input; store[id: str, value: ptr[any]]
+    Input; lot[at: str, ptr[any]]
     # we need to distinguish between the caller asking for specific fields
     # versus asking for the whole output.
     # TODO: if we bring back SFO we don't need to distinguish oneOutput.
-    Output?; oneOf[multipleOutputs: store[id: str, value: any], oneOutput: any]
+    Output?; oneOf[multipleOutputs: lot[at: str, any], oneOutput: any]
     # things printed to stdout via `print`:
     Print; array[string]
     # things printed to stderr via `error`:
@@ -4071,10 +4072,10 @@ Just like with function arguments, we can elide a generic field value if the
 field name is already a type name in the current scope.  For example:
 
 ```
-MyNamespace id: int
+MyNamespace at: int
 value: {X: flt, Y: flt}
-MyStore2; store[MyNamespace id, value]
-# Equivalent to `MyStore1; store[id: MyNamespace id, value: value]`.
+MyLot; lot[MyNamespace at, value]
+# Equivalent to `MyLot; lot[at: MyNamespace at, value]`.
 ```
 
 ### generic type constraints
@@ -4095,10 +4096,9 @@ that is non-abstract.
 
 ### overloading generic types
 
-Note that we can overload generic types for single types and stored types (e.g.,
-`array[int]` vs. `array[Count: 3, int]`), which is especially helpful for creating
-your own `hm` result class based on the stored type `hm[uh, ok]` which can become
-`SomeNamespace uh: oneOf[Oops, MyBad], hm[of]: hm[ok: of, SomeNamespace uh]`.
+Note that we can overload generic types (e.g., `array[int]` and `array[Count: 3, int]`),
+which is especially helpful for creating your own `hm` result class based on the general
+type `hm[uh, ok]`, like `Namespace uh: oneOf[Oops, MyBad], hm[of]: hm[ok: of, Namespace uh]`.
 Here are some examples:
 
 ```
@@ -4120,8 +4120,8 @@ PairArray: array[pair[first: int, second: dbl]]([
     {First: 1, Second: 2.3}
     {First: 100, Second: 0.5}
 ])
-# a store of pairs:
-PairStore: store[id: str, value: pair[first: int, second: dbl]]([
+# a lot of pairs:
+PairLot: lot[at: str, pair[first: int, second: dbl]]([
     "hi there": {First: 1, Second: 2.3}
 ])
 ```
@@ -4186,7 +4186,7 @@ someClass[t, u, v]: { ...some totally different class... }
 
 One can conceive of a tuple type like `[x, y, z]` for nested types `x`, `y`, `z`.
 Note that these are *not* order dependent, so `[z, x, y]` is the same tuple type,
-so they are grammatically equivalent to a `store` of types, and their use is
+so they are grammatically equivalent to a `lot` of types, and their use is
 make it easy to specify types for a generic class.  This must be done using the
 spread operator `...` in the following manner.
 
@@ -4202,7 +4202,7 @@ anotherSpec[Override of]: myGeneric[...tupleType, w: str, x: Override of]
 
 # Note that even if `tupleType` completely specifies a generic class
 # `someGeneric[x, y, z]: {...}`, we still need to use the spread operator
-# because `someGeneric tupleType` would not be the correct syntax.  Instead:
+# because `someGeneric tupleType` would not be valid syntax.  Instead:
 aSpecification: someGeneric[...tupleType]
 ```
 
@@ -4237,7 +4237,7 @@ If you want to return a single constructor, use the [`new[any]` syntax](#returni
 Note that generic classes like `generic[of]: {Of}` will always have a field named `Of`
 regardless of the specified type.  We don't make this like a generic name; `generic[int]`
 would *not* be equivalent to `{Int: int}`; `generic[int]` is `{Of: int}`.  This is mostly
-to avoid confusion when passing in two types that are the same like `store[id: int, value: int]`.
+to avoid confusion when passing in two types that are the same like `lot[at: int, int]`.
 Internally, if we store a list of `{Id, Value}` objects, there could be a name collision
 (e.g., `{Int, Int}`), and we don't want to expose that internal detail to consumers of
 the generic class.
@@ -4730,16 +4730,6 @@ Result is((Uh): print("Uh: ", Uh))
 Ok: Result orPanic("for sure")
 ```
 
-hm-lang tries to make errors easy, automatically creating subclasses of error for each module,
-e.g., `store.hm` has a `store uh` error type.  Use `return myUhType("message $(HelpfulVariableToDebug)")`
-to return a specific error type, or `return uh("message $(HelpfulVariableToDebug)")` to automatically
-use the correct error subclass for whatever context you're in.  Note that you're not able to return a
-module-specific error from another module (e.g., you can't return `store uh` from the `array.hm` module),
-but you can match module-specific errors from another module (e.g., `what Uh $(store uh InvalidId $(...))
-from the `array.hm` module or even your own).  Of course, you can throw/catch explicitly defined errors
-from other modules, as long as they are visible to you (see section on
-[public/protected/private](#public-private-protected-visibility)).
-
 ## assert
 
 The built-in `assert` statement will shortcircuit the block if the rest of the statement
@@ -4787,11 +4777,13 @@ it's not clear whether `Int` is null due to an error or due to the return value.
 # standard container classes (and helpers)
 
 Brackets are used to create containers, e.g., `Y: "Y-Naught", Z: 10, [X: 3, (Y): 4, Z]`
-to create a store with keys "X", the value of `Y` ("Y-Naught"), and "Z", with
+to create a lot with keys "X", the value of `Y` ("Y-Naught"), and "Z", with
 corresponding values 3, 4, and the value of `Z` (10).  Thus any bracketed values,
 as long as they are named, e.g., `A: 1, B: 2, C: 3, [A, B, C]`, can be converted
-into a store.  Because containers are by default insertion-ordered, they can implicitly
+into a lot.  Because containers are by default insertion-ordered, they can implicitly
 be converted into an array depending on the type of the receiving variable.
+This "conversion" happens only conceptually; constructing an array does construct
+a `lot` first and then convert.
 
 ```
 # TODO: should this be `container uh` instead of `Container uh`?
@@ -4803,44 +4795,42 @@ Container uh: oneOf[
 
 hm[of]: hm[ok: of, Container uh]
 
-# TODO: should we rename `id` to `name` or `lookup` or `at`?  then `value` could be `of`.
-#       e.g., `store[of: int, at: str]`.  not sure that's more readable, though.
 # TODO: rename `nonNull` to `present` or `notNull`.  definitely can't mirror `unNull`
-container[id, value: nonNull]: {
-    # Returns `Null` if `Id` is not in this container,
-    # otherwise the `value` instance at that `Id`.
+container[at, of: nonNull]: {
+    # Returns `Null` if `At` is not in this container,
+    # otherwise the `value` instance at that `At`.
     # This is wrapped in an argument object to enable passing by reference.
     # TODO: do we like this?  it looks a bit like SFO logic that we killed off.
     # USAGE:
-    #   # Get the value at `Id: 5` and make a copy of it:
-    #   Value?: Container[Id: 5]
-    #   # Get the value at `Id: 7` and keep a mutable reference to it:
-    #   (Value?;) = Container[Id: 5]
-    :;[Id]: (Value?:;)
+    #   # Get the value at `At: 5` and make a copy of it:
+    #   Of?: Container[At: 5]
+    #   # Get the value at `At: 7` and keep a mutable reference to it:
+    #   (Of?;) = Container[At: 5]
+    :;[At]: (Of?:;)
 
     # no-copy getter, which passes in a Null to the callback
-    # if the container does not have the given `Id`.
-    ::[Id, fn(Value?): ~t]: t
+    # if the container does not have the given `At`.
+    ::[At, fn(Of?): ~t]: t
 
-    # Returns the value at `Id`, if present, while mooting
+    # Returns the value at `At`, if present, while mooting
     # it in the container.  This may remove the `id` from
     # the container or may set its linked value to the default.
     # (Which depends on the child container implementation.)
     # Returns Null if not present.
-    ;;[Id]!?: value
+    ;;[At]!?: value
 
     # safe setter.
     # returns an error if we ran out of memory trying to add the new value.
-    ;;put(Id, Value.): hm[null]
+    ;;put(At, Of.): hm[null]
 
-    # safe swapper.  replaces the value at `Id` with the `Value` passed in,
-    # and puts the previous value into `Value`.  the new or old value can
+    # safe swapper.  replaces the value at `At` with the `Of` passed in,
+    # and puts the previous value into `Of`.  the new or old value can
     # be null which means to delete what was there or that nothing was present.
     # returns an error if we ran out of memory trying to add the new value.
-    ;;swap(Id, Value?;): hm[null]
+    ;;swap(At, Of?;): hm[null]
     
-    @alias ::has(Id): My[Id] != Null
-    @alias ::contains(Id): My[Id] != Null
+    @alias ::has(At): My[At] != Null
+    @alias ::contains(At): My[At] != Null
 
     # Returns the number of elements in this container.
     ::count(): count
@@ -4848,13 +4838,13 @@ container[id, value: nonNull]: {
     # can implicitly convert to an iterator (with writeable/readonly references).
     # the iterator needs to be returned in an argument object
     # because it holds a reference to `Me`.
-    (Me;:): (Iterator[(Id, Value;:)].)
+    (Me;:): (Iterator[(At, Of;:)].)
 
     # iterate over values.
-    ;:values(): (Iterator[(Value;:)].)
+    ;:values(): (Iterator[(Of;:)].)
 
     # iterate over IDs.
-    ::ids(): (Iterator[(Id)].)
+    ::ids(): (Iterator[(At)].)
 
 }
 ```
@@ -5075,38 +5065,35 @@ fixedCountArray[of]: array[of] {
 }
 ```
 
-## stores
+## lots 
 
-TODO: i think we can use `of` for `value` so it's faster, e.g., `store[str, id: int]`.
-see if that feels right...  maybe `lot[of, at]` or `lot[of, by]`
-
-A `store` is hm-lang's version of a map (or `dict` in python).  Instead of mapping from a `key`
-to a `value` type, stores link an `id` to a `value`.  This change from convention is mostly
+A `lot` is hm-lang's version of a map (or `dict` in python).  Instead of mapping from a `key`
+to a `value` type, lots link an `at` to an `of`.  This change from convention is mostly
 to avoid overloading the term `map` which is used when transforming values such as `hm`, but also
 because `map`, `key`, and `value` have little to do with each other; we don't "unlock" anything
 with a C++ `map`'s key: we identify which value we want.
 
-A store can look up, insert, and delete elements by key quickly (ideally amortized
-at `O(1)` or at worst `O(lg(N)`).  You can use this way to define a store, e.g.,
-`VariableName: store[id: idType, value: valueType]`.  A default-named store can
-be defined via `Store[id: idType, value: valueType]`, e.g., `Store[id: int, value: dbl]`.
-Note that while an array can be thought of as a store with the ID type as `index`,
+A lot can look up, insert, and delete elements by key quickly (ideally amortized
+at `O(1)` or at worst `O(lg(N)`).  You can use this way to define a lot, e.g.,
+`VariableName: lot[at: idType, valueType]`.  A default-named lot can
+be defined via `Lot[at: idType, valueType]`, e.g., `Lot[dbl, at: int]`.
+Note that while an array can be thought of as a lot with the `at` type as `index`,
 the array type `array[elementType]` would be useful for densely
-packed data (i.e., instances of `elementType` for most indices), while the store
-type `store[value: elementType, id: index]` would be useful for sparse data.
+packed data (i.e., instances of `elementType` for most indices), while the lot 
+type `lot[elementType, at: index]` would be useful for sparse data.
 
-To define a store (and its contents) inline, use this notation:
+To define a lot (and its contents) inline, use this notation:
 
 ```
 Jim1: "Jim C"
 Jim2: "Jim D"
 Jim: 456
-# store linking string to ints:
-EmployeeIds: store[id: int, value: str]([
+# lot linking string to ints:
+EmployeeIds: lot[at: int, str]([
     # option 1.A: `X: Y` syntax
     "Jane": 123
-    # option 1.B: `{Id: X, Value: Y}` syntax
-    {Id: "Jane", Value: 123}
+    # option 1.B: `{At: X, Of: Y}` syntax
+    {At: "Jane", Of: 123}
     # option 1.C: `[X, Y]` syntax, ok if ID and value types are different
     ["Jane", 123]
     # option 1.D:
@@ -5115,7 +5102,7 @@ EmployeeIds: store[id: int, value: str]([
     # option 2.A, wrap in parentheses to indicate it's a variable not an ID
     (Jim1): 203
     # option 2.B
-    {Id: Jim1, Value: 203}
+    {At: Jim1, Of: 203}
     # option 2.C
     [Jim1, 203]
     # WARNING! not a good option for 2; no equivalent of option 1.D here.
@@ -5127,10 +5114,10 @@ EmployeeIds: store[id: int, value: str]([
 # but required if elements are placed on the same line.
 ```
 
-To define a store quickly (i.e., without a type annotation), use the notation
+To define a lot quickly (i.e., without a type annotation), use the notation
 `["Jane": 123, "Jim": 456]`.
 
-Stores require an ID type whose instances can hash to an integer or string-like value.
+Lots require an ID type whose instances can hash to an integer or string-like value.
 E.g., `dbl` and `flt` cannot be used, nor can types which include those (e.g., `array dbl`).
 
 ```
@@ -5148,7 +5135,7 @@ print(NameDatabase[123.4])  # RUNTIME ERROR, 123.4 is not representable as an `i
 print(NameDatabase[123.4 round(Stochastically)])    # prints "John" with 60% probability, "Jane" with 40%.
 
 # note that the definition of the ID is a readonly array:
-StackDatabase; store[id: array[int], value: string]
+StackDatabase; lot[at: array[int], string]
 StackDatabase[[1,2,3]] = "stack123"
 StackDatabase[[1,2,4]] = "stack124"
 # prints "stack123" with 90% probability, "stack124" with 10%:
@@ -5158,14 +5145,14 @@ print(StackDatabase[map([1.0, 2.0, 3.1], $Dbl round(Stochastically))])
 StackDatabase[[2.2, 3.5, 4.8] map($Dbl round(Stochastically))]
 # result could be stored in [2, 3, 4], [2, 3, 5], [2, 4, 4], [2, 4, 5],
 #                           [3, 3, 4], [3, 3, 5], [3, 4, 4], [3, 4, 5]
-# but the ID is decided first, then the store is added to.
+# but the ID is decided first, then the lot is added to.
 ```
 
-Note: when used as a store ID, objects with nested fields become deeply constant,
+Note: when used as a lot ID, objects with nested fields become deeply constant,
 regardless of whether the internal fields were defined with `;` or `:`.
 I.e., the object is defined as if with a `:`.  This is because we need ID
-stability inside a store; we're not allowed to change the ID or it could
-change places inside the store and/or collide with an existing ID.
+stability inside a container; we're not allowed to change the ID or it could
+change places inside the lot and/or collide with an existing ID.
 
 Some relevant pieces of the class definition:
 
@@ -5177,153 +5164,154 @@ uh: oneOf[
 ]
 hm[of]: hm[ok: of, uh]
 
-store[id: hashable, value: nonNull]: container[id, value] {
-    # Returns Null if `Id` is not in the store.
-    ::[Id]?: value
+lot[of, at: hashable]: container[of, at] {
+    # Returns Null if `At` is not in the lot.
+    ::[At]?: of
 
-    # Gets the existing value at `Id` if present,
-    # otherwise inserts a default `value` into the store and returns it.
-    ;;[Id]: hm[value]
+    # Gets the existing value at `At` if present,
+    # otherwise inserts a default `of` into the lot and returns it.
+    ;;[At]: hm[of]
 
-    # Ejects the possibly null value at `Id` and returns it.
-    # A subsequent, immediate call to `::[Id]` returns Null.
-    ;;[Id]!?: value
+    # Ejects the possibly null value at `At` and returns it.
+    # A subsequent, immediate call to `::[At]` returns Null.
+    ;;[At]!?: of
 
     ::count(): count
 
-    # Returns the last element added to the store if the store is
+    # Returns the last element added to the lot if the lot is
     # insertion ordered, otherwise returns any convenient element.
-    # The element is removed from the store.
-    ;;pop(): hm[id, value]
+    # The element is removed from the lot.
+    ;;pop(): hm[of]
 
-    @alias ;;pop(Id)?: My[Id]!
+    @alias ;;pop(At)?: My[At]!
 
     # always returns a non-null type, adding
     # a default-initialized value if necessary:
     # returns a copy of the value at ID, too.
-    ;;[Id]: hm[value]
+    ;;[At]: hm[of]
 
-    # no-copy getter: which will create a default value instance if it's not present at Id.
-    ;;[Id, fn(Value): ~t]: t
+    # no-copy getter: which will create a default value instance if it's not present at At.
+    ;;[At, fn(Of): ~t]: t
 
     # copy getter: which will return a copy of the value at ID;
-    # returns a Null if ID is not in the store.
-    ::[Id]?: value
+    # returns a Null if ID is not in the lot.
+    ::[At]?: of
 
-    # no-copy getter: which will pass back a Null if the ID is not in the store.
-    ::[Id, fn(Value?): ~t]: t
+    # no-copy getter: which will pass back a Null if the ID is not in the lot.
+    ::[At, fn(Of?): ~t]: t
 
     # swapper: sets the value at the ID, returning the old value:
-    ;;[Id, Value;]: value
+    ;;[At, Of.]: of
 
     # modifier, allows access to modify the internal value via reference.
     # passes the current value at the ID into the passed-in function by reference (`;`).
     # the return value of the passed-in function will become the new value at the ID.
-    # if a value at `Id` is not already present, a default `Value` will be created.
-    ;;[Id, fn(Value;): ~t]: t
+    # if a value at `At` is not already present, a default `Value` will be created.
+    ;;[At, fn(Of;): ~t]: t
 
-    # nullable modifier, which returns a Null if the ID is not in the store.
-    # if the Value wasn't Null, but becomes Null via the passed-in function,
-    # the ID will be deleted from the store.  conversely, if the value was Null, but
+    # nullable modifier, which returns a Null if the ID is not in the lot.
+    # if the value wasn't Null, but becomes Null via the passed-in function,
+    # the ID will be deleted from the lot.  conversely, if the value was Null, but
     # the passed-in function turns it into something non-null, the ID/value will be added
-    # to the store.
-    ;;[Id, fn(Value?;): ~t]: hm[ok: t, uh: OutOfMemory]
+    # to the lot.
+    ;;[At, fn(Of?;): ~t]: hm[ok: t, uh: OutOfMemory]
 
     # getter and modifier in one definition, with the `;:` "template mutability" operator:
-    # will return an error for the const store (`My:`) if Id is not in the store.
-    ;:[Id, fn(Value;:): ~t]: hm[t]
+    # will return an error for the const lot (`My:`) if `At` is not in the lot.
+    ;:[At, fn(Of;:): ~t]: hm[t]
 
     # nullable getter/modifier in one definition, with the `;:` template mutability operator:
-    ;:[Id, fn(Value?;:): ~t]: hm[ok: t, uh: OutOfMemory]
+    ;:[At, fn(Of?;:): ~t]: hm[ok: t, uh: OutOfMemory]
 }
 ```
 
-The default store type is `insertionOrderedStore`, which means that the order of elements
+The default lot type is `insertionOrderedLot`, which means that the order of elements
 is preserved based on insertion; i.e., new IDs come after old IDs when iterating.
-Other notable stores include `idOrderedStore`, which will iterate over elements in order
-of their sorted IDs, and `unorderedStore`, which has an unpredictable iteration order.
-Note that `idOrderedStore` has `O(lg(N))` complexity for look up, insert, and delete,
-while `insertionOrderedStore` has some extra overhead but is `O(1)` for these operations,
-like `unorderedStore`.
+Other notable lots include `atOrderedLot`, which will iterate over elements in order
+of their sorted IDs, and `unorderedLot`, which has an unpredictable iteration order.
+Note that `atOrderedLot` has `O(lg(N))` complexity for look up, insert, and delete,
+while `insertionOrderedLot` has some extra overhead but is `O(1)` for these operations,
+like `unorderedLot`.
 
 ```
 @private
-indexedStoreElement[id, value]: {
-    NextIndex; index
-    PreviousIndex; index
-    Id: id
-    Value; value
+indexedLotElement[at, of]: {
+    Next; index
+    Previous; index
+    # ID needs to be constant.
+    At: at
+    Of; of
 }
 
-insertionOrderedStore[id, value]: store[id, value] {
+insertionOrderedLot[at, of]: lot[at, of] {
     # due to sequence building, we can use @private {...} to set @private for
     # each of the fields inside this block.
     @private {
-        IdIndices; @only unorderedStore[id, value: index]
-        IndexedStore; @only unorderedStore[
-            id: index
-            value: indexedStoreElement[id, value]
-        ] = [{Id: 0, Value: {NextIndex: 0, id(), value(), PreviousIndex: 0}}]
+        AtIndices; @only unorderedLot[at, value: index]
+        IndexedLot; @only unorderedLot[
+            at: index
+            value: indexedLotElement[at, of]
+        ] = [{At: 0, Of: {Next: 0, at(), of(), Previous: 0}}]
         NextAvailableIndex; index = 1
     }
 
     # creates a default value if not present at the ID to pass in to the modifier:
-    ;;[Id;:, fn(Value;): ~t]: t
-        Index?: My IdIndices[Id]
+    ;;[At;:, fn(Of;): ~t]: t
+        Index?: My AtIndices[At]
         return if Index != Null
             My modifyAlreadyPresent(Index, fn)
         else
-            My needToInsertThenModify(Id;:, fn)
+            My needToInsertThenModify(At;:, fn)
 
-    ::[Id, fn(Value?): ~t]: t
-        Index?: My IdIndices[Id]
+    ::[At, fn(Of?): ~t]: t
+        Index?: My AtIndices[At]
         return if Index != Null
             assert Index != 0
-            My IndexedStore[Index, (IndexedStoreElement): t
-                return fn(IndexedStoreElement Value)
+            My IndexedLot[Index, (IndexedLotElement): t
+                return fn(IndexedLotElement Of)
             ]
         else
             fn(Null)
     
-    ::forEach(Loop fn(Id, Value): loop): null
-        Index; My IndexedStore[0] NextIndex
+    ::forEach(Loop fn(At, Of): loop): null
+        Index; My IndexedLot[0] Next
         while Index != 0
-            {Value:, Id:} = My IndexedStore[Index] orPanic("broken invariant!")
-            ForLoop: Loop fn(Id, Value)
+            {Of:, At:} = My IndexedLot[Index] orPanic("broken invariant!")
+            ForLoop: Loop fn(At, Of)
             if ForLoop == loop Break
                 break
-            Index = My IndexedStore[Index] NextIndex
+            Index = My IndexedLot[Index] Next
         # mostly equivalent to using nested functions to avoid copies:
-        #   ForLoop: My IndexedStore[Index, (IndexedStoreElement?):
-        #       if IndexedStoreElement == Null
-        #           error("insertion-ordered store invariant was broken")
-        #       Index = IndexedStoreElement NextIndex
-        #       return Loop fn(IndexedStoreElement Id, IndexedStoreElement Value)
+        #   ForLoop: My IndexedLot[Index, (IndexedLotElement?):
+        #       if IndexedLotElement == Null
+        #           error("insertion-ordered Lot invariant was broken")
+        #       Index = IndexedLotElement Next
+        #       return Loop fn(IndexedLotElement At, IndexedLotElement Of)
         #   ]
 
-    # modifier for a ID'd value not yet in the store, need to insert a default first:
+    # modifier for a ID'd value not yet in the lot, need to insert a default first:
     @private
-    ;;needToInsertThenModify(Id;:, fn(Value;): ~t): t
+    ;;needToInsertThenModify(At;:, fn(Of;): ~t): t
         NewIndex: My NextAvailableIndex++ or reshuffle()
-        PreviouslyLastIndex: My IndexedStore[0] PreviousIndex
-        My IndexedStore[NewIndex] = {
-            PreviousIndex: PreviouslyLastIndex
-            NextIndex: 0
-            Id
-            Value: value()
+        PreviouslyLastIndex: My IndexedLot[0] Previous
+        My IndexedLot[NewIndex] = {
+            Previous: PreviouslyLastIndex
+            Next: 0
+            At
+            of()
         }
-        My IdIndices[@mootOrCopy(Id)] = NewIndex
-        My IndexedStore[0] PreviousIndex = NewIndex
-        My IndexedStore[PreviouslyLastIndex] NextIndex = NewIndex
+        My AtIndices[@mootOrCopy(At)] = NewIndex
+        My IndexedLot[0] Previous = NewIndex
+        My IndexedLot[PreviouslyLastIndex] Next = NewIndex
         return My modifyAlreadyPresent(NewIndex, fn)
 
-    # modifier for an already indexed value in the store:
+    # modifier for an already indexed value in the lot:
     @private
-    ;;modifyAlreadyPresent(Index, fn(Value;): ~t): t
+    ;;modifyAlreadyPresent(Index, fn(Of;): ~t): t
         debug assert(Index != 0)
-        return My IndexedStore[Index, (IndexedStoreElement?;): t
-            assert IndexedStoreElement != Null
-            return fn(IndexedStoreElement Value;)
+        return My IndexedLot[Index, (IndexedLotElement?;): t
+            assert IndexedLotElement != Null
+            fn(IndexedLotElement Of;)
         ]
 }
 ```
@@ -5331,7 +5319,7 @@ insertionOrderedStore[id, value]: store[id, value] {
 ## sets
 
 A set contains some elements, and makes checking for the existence of an element within
-fast, i.e., O(1).  Like with store IDs, the set's element type must satisfy certain properties
+fast, i.e., O(1).  Like with container IDs, the set's element type must satisfy certain properties
 (e.g., integer/string-like).  The syntax to define a set is `VariableName: set[elementType]`.
 You can elide `set` for default named arguments like this: `Set[elementType];` (or `:` or `.`).
 
@@ -5397,7 +5385,7 @@ set[of: hashable]: container[id: of, value: true] {
 }
 ```
 
-Like the IDs in stores, items added to a set become deeply constant,
+Like the IDs in lots, items added to a set become deeply constant,
 even if the set variable is writable.
 
 TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
@@ -5405,12 +5393,12 @@ TODO: discussion on `insertionOrderedSet` and `unorderedSet`, if we want them.
 To define a set quickly, use the notation `[str]["hello", "world"]`, where the
 initial `[str]` should be the type of whatever element is in the set.
 
-TODO: make it easy to pass in a set as an argument and return a store with e.g. those IDs.
+TODO: make it easy to pass in a set as an argument and return a lot with e.g. those IDs.
   maybe this isn't as important as it would be if we had a dedicated object type.
 
 ```
 fn(Fields: [~k], PickFrom: ~t[~q extends k]): t[k]
-    return Fields map((Field: str): storeElement(Field, PickFrom[Field]))
+    return Fields map((Field: str): lotElement(Field, PickFrom[Field]))
 
 fn(PickFrom: ~o, Ids: ~k from ids(o)): pick(o, k)
     return pick(PickFrom, Ids)
@@ -5907,10 +5895,10 @@ what MyHashableClass
 Note that if your `fastHash` implementation is terrible (e.g., `fastHash(Salt): Salt`),
 then the compiler will error out after a certain number of attempts with different salts.
 
-For sets and stores, we use a hash method that is order-independent (even if the container
+For sets and lots, we use a hash method that is order-independent (even if the container
 is insertion-ordered).  E.g., we can sum the hash codes of each element, or `xor` them.
 Arrays have order-dependent hashes, since `[1, 2]` should be considered different than `[2, 1]`,
-but the store `{"hi": 1, "hey": 2}` should be the same as `{"hey": 2, "hi": 1}` (different
+but the lot `["hi": 1, "hey": 2]` should be the same as `["hey": 2, "hi": 1]` (different
 insertion order, but same contents).
 
 ## for loops
@@ -7084,28 +7072,14 @@ Grammar: {
         # TODO: templates, or maybe preprocess these into lowerCamelCase types with hooks
         FunctionType: sequenceMatcher([
             optionalMatcher(identifierMatcher("fn"))
+            optionalMatcher(GenericsList)
             FunctionArgsWithReturnType
         ])
         # TODO: templates, but see above.
-        NonFunctionType: oneOfMatcher([
-            bracketMatcher(
-                # set types, e.g., `[int]` or `[str]` and even
-                # nested set types e.g., `[[int]]` or `[[[str]]]`.
-                TypeElement
-            )
-            sequenceMatcher([
-                # store types, e.g., `str[int]` or `dbl[str]`
-                # as well as array types, e.g., `str[]` or `dbl[]`.
-                # TODO: i don't think this works for more complicated types, e.g.,
-                #       str[][int] which should be a store of `int` to `str[]` 
-                LowerCamelCase
-                bracketMatcher(
-                    # present if we're a store type, absent if an array type:
-                    optionalMatcher(TypeElement)
-                )
-            ])
-            # simple type, e.g., `int` or `dbl` or `myClassType`
+        NonFunctionType: sequenceMatcher([
             LowerCamelCase
+            # TODO: add `GenericsList`
+            optionalMatcher(GenericsList)
         ])
         RhsStatement: oneOfMatcher([
             AtomicStatement,
