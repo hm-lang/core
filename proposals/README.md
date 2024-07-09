@@ -4815,7 +4815,7 @@ container[id, value: nonNull]: {
     #   # Get the value at `Id: 5` and make a copy of it:
     #   Value?: Container[Id: 5]
     #   # Get the value at `Id: 7` and keep a mutable reference to it:
-    #   (Value?;) = Container[Id
+    #   (Value?;) = Container[Id: 5]
     :;[Id]: (Value?:;)
 
     # no-copy getter, which passes in a Null to the callback
@@ -5078,7 +5078,7 @@ fixedCountArray[of]: array[of] {
 ## stores
 
 TODO: i think we can use `of` for `value` so it's faster, e.g., `store[str, id: int]`.
-see if that feels right...
+see if that feels right...  maybe `lot[of, at]` or `lot[of, by]`
 
 A `store` is hm-lang's version of a map (or `dict` in python).  Instead of mapping from a `key`
 to a `value` type, stores link an `id` to a `value`.  This change from convention is mostly
