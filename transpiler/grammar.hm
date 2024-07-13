@@ -227,7 +227,7 @@ Grammar: {
         )
     ])
 
-    ::match(Index;, Array: token[], GrammarMatcher): bool
+    ::match(Index;, Array[token], GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot: Index
         Matched: what GrammarMatcher
@@ -247,7 +247,7 @@ singleTokenMatcher: tokenMatcher (
 
     # we automatically inherit the @visibility of the parent class method
     # unless we specifically provide one.
-    ;;match(Index;, Array: token[]): bool
+    ;;match(Index;, Array[token]): bool
         return Index < Array count() and Array[Index++] == My Token
 )
 
@@ -271,7 +271,7 @@ listMatcher(GrammarMatcher): parenthesesMatcher(repeatMatcher([
 sequence: tokenMatcher {
     ;;renew(My Array; grammarMatcher[]): Null
 
-    ::match(Index;, ToMatch Array: token[]): bool
+    ::match(Index;, ToMatch Array[token]): bool
         for GrammarMatcher: in My Array
             if not Grammar match(Index;, ToMatch Array, GrammarMatcher)
                 return False
@@ -283,7 +283,7 @@ sequence: tokenMatcher {
 parenthesesMatcher: tokenMatcher {
     ;;renew(My GrammarMatcher): Null
 
-    ::match(Index;, Array: token[]): bool
+    ::match(Index;, Array[token]): bool
         CurrentToken: Array[Index]
         if currentToken != parenthesesToken
             return False

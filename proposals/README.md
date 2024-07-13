@@ -2669,7 +2669,7 @@ or `{Field1, Field2} = doStuff()` for reassignment.
 
 TODO: what's the best way to indicate types here?  `{Field1: str} = doStuff()`
 worked great with the old `:=` notation but not so good here.  we've been doing
-`Field: str(someValue())` or `Field: someValue() Str` to indicate this, but maybe we need something like
+`Str as Field: someValue()` or `Field: someValue() Str` to indicate this, but maybe we need something like
 `{Str Field1} = doStuff()` and `Str Field: someValue()` in that case.
 maybe we can bring back `X: str = whatever()`?  but that makes it seem like `:=` should
 be used to define things.  well, we can always alias `:= 5` to `: 5` and keep `: type = Expression`.
@@ -2751,24 +2751,27 @@ determine which overload will be called.  Consider the following overloads.
 patterns(): {Chaos: f32, Order: i32}
 patterns(): i32
 # overload when we don't need to calculate `Order`:
-patterns(): {Chaos: f32}
+patterns(): Chaos: f32      # equivalent to `patterns(): {Chaos: f32}`
 
 I32: patterns()             # calls `patterns(): i32` overload
-MyValue: patterns() I32     # same
-Namespace I32: patterns()   # same
+MyValue: patterns() I32     # same, but defining `MyValue` via the `i32` return value.
+Namespace I32: patterns()   # same, defining `Namespace I32` via the `i32`.
+I32 as Q: patterns()        # same, defining `Q` via the `i32`.
 
 F32: patterns()             # COMPILE ERROR: no overload for `patterns(): f32`
 
 {Chaos}: patterns()         # calls `patterns(): {Chaos: f32}` overload via destructuring.
 Chaos: patterns()           # same, via SFO concision.
 MyValue: patterns() Chaos   # same, but with renaming `Chaos` to `MyValue`. 
+Chaos as Cool: patterns()   # same, but with renaming `Chaos` to `Cool`.
 
-MyValue: patterns()         # calls `patterns(): {Chaos: f32, Order: i32}`
+Result: patterns()          # calls `patterns(): {Chaos: f32, Order: i32}`
                             # because it is the default (first defined).
 {Chaos, Order}: patterns()  # same overload, but because of destructuring.
 {Order}: patterns()         # same, but will silently drop the `Chaos` return value.
 Order: patterns()           # more concise form of `{Order}: patterns()`.
 MyValue: patterns() Order   # same, but with renaming `Order` to `MyValue`.
+Order as U: patterns()      # same, with renaming `Order` to `U`.
 ```
 
 The effect of SFO is to make it possible to elide `{}` for return value.
