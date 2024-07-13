@@ -167,12 +167,6 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * For generic/template functions with type constraints, e.g., `myFunction[of: nonNull](X: of, Y: int): of`
         where `of` is the generic type.  See [generic/template functions](#generictemplate-functions) for more.
 * `{}` for objects/types
-    * TODO: should we make objects out of lot-types like `[X: dbl, Y: dbl]` instead?
-        then we could use `{}` exclusively for new scopes (currently `$(...)`),
-        sequence building, delayed function calls, etc.
-        however, then we'll have an asymmetry when defining a class `v: [X: int]`
-        versus extending a class `v: parent {X: int}`.  we definitely can't do
-        `parent[X: int]` because that looks like generic specification.
     * `{X: dbl, Y: dbl}` to declare a class with two double-precision fields, `X` and `Y`
     * `{X: 1.2, Y: 3.4}` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
     * `{Greeting: str, Times: int} destructureMe()` to do destructuring of a return value
@@ -2678,6 +2672,7 @@ This notation is a bit more flexible than JavaScript, since we're
 allowed to reassign existing variables while destructuring.  In JavaScript,
 `const {Field1, Field2} = doStuff();` declares and defines the fields `Field1` and `Field2`,
 but `{Field1, Field2} = doStuff();`, i.e., reassignment in hm-lang, is an error in JS.
+alternatively we could force `{Field1: str} doStuff()`.
 
 Some worked examples follow, including field renaming.
 
