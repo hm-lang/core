@@ -159,7 +159,7 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
     * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
         Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
-* `[]` are for containers
+* `[]` are for containers and generics
     * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
     * For generic/template classes, e.g., classes like `array[Count, of]` for a fixed array of size
         `Count` with elements of type `of`, or `lot[int, at: str]` to create a map/dictionary
@@ -2289,28 +2289,26 @@ that's happening.
 
 # special call for case 3; if X is null, this will throw a run-time error,
 # otherwise will define a non-null X:
-{X: nonNull}: myOverload(Y: "123")
+{X: nonNull} myOverload(Y: "123")
 
 # make a default for case 3, in case X comes back as null from the function
-{X: -1}: myOverload(Y: "123")
+{X: -1} myOverload(Y: "123")
 ```
 
 If there are multiple return arguments, i.e., via an output type data class,
 e.g., `{X: dbl, Y: str}`, then we support [destructuring](#destructuring)
 to figure out which overload should be used.  E.g., `{X, Y}: myOverload()` will
-look for an overload with outputs named `X` and `Y`.  However, `X: myOverload()`
-is not equivalent to `{X}: myOverload()`; if there is no destructuring
-on the left-hand side, it will take the default return value.  You can also
-explicitly type the return value, e.g., `Some Int: myOverload()` or `R: myOverload() Dbl`,
-which will look for an overload with an `int` or `dbl` return type.
-
-TODO: should we recommend `Int Some: myOverload()` instead?
+look for an overload with outputs named `X` and `Y`.  Due to
+[single field objects](#single-field-objects) (SFO), `X: myOverload()` is
+equivalent to `{X}: myOverload()`.  You can also explicitly type the return value,
+e.g., `Some Int: myOverload()` or `R: myOverload() Dbl`,
+which will look for an overload with an `int` or `dbl` return type, respectively.
 
 When matching outputs, the fields count as additional arguments, which must
 be matched.  If you want to call an overload with multiple output arguments,
 but you don't need one of the outputs, you can use the `@hide` annotation to
 ensure it's not used afterwards.  E.g., `{@hide X, Y}: myOverload()`.
-You can also just not include it, e.g., `{Y}: myOverload()`, which is
+You can also just not include it, e.g., `Y: myOverload()`, which is
 preferred, in case the function has an optimization which doesn't need to
 calculate `X`.
 
@@ -2661,18 +2659,16 @@ variables at the same time, which can be done with `{Field1, Field2}: doStuff()`
 (`{Field1, Field2}; doStuff()`) for readonly (writeable) declaration + assignment,
 or `{Field1, Field2} = doStuff()` for reassignment.
 
-TODO: what's the best way to indicate types here?  `{Field1: str} = doStuff()`
-worked great with the old `:=` notation but not so good here.  we've been doing
-`Str as Field: someValue()` or `Field: someValue() Str` to indicate this, but maybe we need something like
-`{Str Field1} = doStuff()` and `Str Field: someValue()` in that case.
-maybe we can bring back `X: str = whatever()`?  but that makes it seem like `:=` should
-be used to define things.  well, we can always alias `:= 5` to `: 5` and keep `: type = Expression`.
+You can also use destructuring to specify return types explicitly.
+The notation is `{Field1: type1, Field2; type2} doStuff()`.  This can be used
+to grab even a single field and explicitly type it, e.g., `{X: str} whatever()`,
+although this may not be preferred in case there is a more complicated expression
+on the RHS, where we'd prefer, e.g., `X: str = whatever() + "world"`.
 
 This notation is a bit more flexible than JavaScript, since we're
 allowed to reassign existing variables while destructuring.  In JavaScript,
 `const {Field1, Field2} = doStuff();` declares and defines the fields `Field1` and `Field2`,
 but `{Field1, Field2} = doStuff();`, i.e., reassignment in hm-lang, is an error in JS.
-alternatively we could force `{Field1: str} doStuff()`.
 
 Some worked examples follow, including field renaming.
 
@@ -3131,7 +3127,7 @@ and "TheNameName" string argument.  do we really want to support this?
 
 ```
 thisFunction(~TheName: int): null
-    ArgumentName: str = @@TheName
+    ArgumentName: str(@@TheName)
     print("calling thisFunction with $(ArgumentName): $(TheName)")
 ```
 
@@ -3432,8 +3428,8 @@ exampleClass {
 If they are public, you can import these custom methods/functions in other files in two
 ways: (1) import the full module via `import \/relative/path/to/file` or `import \\library/module`,
 or (2) import the specific method/function via e.g.,
-`{exampleClass myAddedClassFunction(K: int): exampleClass} = \/relative/path/to/file`
-or `{exampleClass::myAddedMethod(Y: int): int} = \\library/module`.
+`{exampleClass myAddedClassFunction(K: int): exampleClass} \/relative/path/to/file`
+or `{exampleClass::myAddedMethod(Y: int): int} \\library/module`.
 
 Note that we recommend using named fields for constructors rather than static
 class functions to create new instances of the class.  This is because named fields
@@ -3913,11 +3909,11 @@ someExample: {
 
 SomeExample: someExample(5)
 
-# you can use type inference here based on variable taking the return value:
+# you can explicitly ask for a type like this:
 ToString: string = SomeExample to()
 
-# or you can explicitly ask like this:
-To64: i64(SomeExample to())
+# or like this:
+{MyValue: dbl} SomeExample to()
 
 # but you can't implicitly ask for the type.
 Unspecified: SomeExample to()     # COMPILER ERROR, specify a type for `Unspecified`
@@ -4038,7 +4034,7 @@ generic[of]: {
     # not a `@final` method, so this can be extended/overridden:
     # TODO: maybe switch to final as `:;method(): int` and virtual as `:;method(); int`
     ::method(~U): u
-        OtherOf: Of = My Value * (U + 5)
+        OtherOf: of = My Value * (U + 5)
         U + u(OtherOf) orPanic()
 }
 
