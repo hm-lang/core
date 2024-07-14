@@ -2690,6 +2690,10 @@ InputOutput; 1.234      # note `;` so it's writable.
 # just like when we define an argument for a function, the newly scoped variable goes on the left,
 # so too for destructuring return arguments.  this one uses the default type of `RoundDown`:
 {IntegerPart; roundDown} fraction(In: Greeting, Io; InputOutput)
+# TODO: let's try to get rid of this syntax, i don't think we want another way
+#       to do things.  we probably should make sure things work for the function import case.
+#       e.g., `{myRename: someModuleFunction(Arg1, Arg2): returnType} \/my/other/file`.
+#       we also don't really want to allow type casting without being explicit about it.
 # or if you want to put it on the right, you use the following TypeScript-friendly syntax:
 {RoundDown as IntegerPart;} fraction(Greeting as In, InputOutput as Io;)
 # you can specify the return type of the renamed variable like this to do casting:
@@ -2727,7 +2731,7 @@ nest(X: int, Y: str): {W: {Z: {A: int}, B: str, C: str}}
     {W: {Z: {A: X}, B: Y, C: Y * X}}
 
 # defines `A`, `B`, and `C` in the outside scope:
-{W: Z: A, W: B, W: C}: nest(X: 5, Y: "hi")
+{W: Z: A, W: B, W: C} nest(X: 5, Y: "hi")
 print(A)    # 5
 print(B)    # "hi"
 ```
@@ -2755,6 +2759,7 @@ F32: patterns()             # COMPILE ERROR: no overload for `patterns(): f32`
 Chaos: patterns()           # same, via SFO concision.
 MyValue: patterns() Chaos   # same, but with renaming `Chaos` to `MyValue`. 
 Chaos as Cool: patterns()   # same, but with renaming `Chaos` to `Cool`.
+{Wow; chaos} patterns()     # same, but with renaming `Chaos` to `Wow`.
 
 Result: patterns()          # calls `patterns(): {Chaos: f32, Order: i32}`
                             # because it is the default (first defined).
@@ -2763,6 +2768,7 @@ Result: patterns()          # calls `patterns(): {Chaos: f32, Order: i32}`
 Order: patterns()           # more concise form of `{Order}: patterns()`.
 MyValue: patterns() Order   # same, but with renaming `Order` to `MyValue`.
 Order as U: patterns()      # same, with renaming `Order` to `U`.
+{T; order} patterns()       # same, with renaming `Order` to `T`.
 ```
 
 The effect of SFO is to make it possible to elide `{}` for return value.
