@@ -2690,20 +2690,28 @@ InputOutput; 1.234      # note `;` so it's writable.
 # just like when we define an argument for a function, the newly scoped variable goes on the left,
 # so too for destructuring return arguments.  this one uses the default type of `RoundDown`:
 {IntegerPart; roundDown} fraction(In: Greeting, Io; InputOutput)
-# TODO: let's try to get rid of this syntax, i don't think we want another way
-#       to do things.  we probably should make sure things work for the function import case.
-#       e.g., `{myRename: someModuleFunction(Arg1, Arg2): returnType} \/my/other/file`.
-#       we also don't really want to allow type casting without being explicit about it.
-# or if you want to put it on the right, you use the following TypeScript-friendly syntax:
-{RoundDown as IntegerPart;} fraction(Greeting as In, InputOutput as Io;)
-# you can specify the return type of the renamed variable like this to do casting:
-{RoundDown as IntegerPart; int} fraction(In: Greeting, Io; InputOutput)
 
-# there is no automatic de-nesting.
+# here's an example without destructuring.
 Io; 1.234
 Result: fraction(In: "hello", Io;)
 # `Result` is an object with these fields:
 print(Result RoundDown, Result RoundUp)
+```
+
+Note that we're not allowed to cast... or are we?  we want to be able to easily convert
+an iterator into a list, for example.
+
+```
+countdown(Count): iterator[count] {
+    ...
+
+    ::next(): oneOf[Cease, count]
+        if My Count > 0
+            return --My Count
+        Cease
+}
+
+MyArray: array[count] = countdown(5)
 ```
 
 Note that destructuring looks different than defining a lambda function due

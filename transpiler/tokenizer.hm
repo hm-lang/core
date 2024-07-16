@@ -1,12 +1,45 @@
-token := {
+token: oneOf[
+    # TODO: a `oneOf` already has some space for a tag.
+    #       we could use one tag number for `smallStr` and another for `str`
+    #       both could point to `LowerCamelCase` (or whatever) but a different data format.
+    #       the `token` tag itself will probably fit into 1 byte so we could have up to
+    #       7 + 8 = 15 bytes (on a 64-bit platform) for a short string.
+    EndOfLineComment: str
+    MidLineComment: str
+    MultilineComment: array[str]
+
+    CompilerComment: str
+    CompilerWarning: str
+    CompilerError: str  # e.g., `#@!$...`
+
+    LowerCamelCase: str
+    UpperCamelCase: str
+
+    Indent: i64
+    Declaration: oneOf[Readonly, Writable, Fleeting] {@alias Temporary: Fleeting}
+
+    Comma
+    BinaryOperator: u64         # e.g., `and`, `<=`, or `+` squished into 8 bytes,
+                                # with higher bytes zeroed.
+    PrefixUnaryOperator: u64    # e.g., `-` (without a corresponding left operand)
+                                # or `++`, squished into 8 bytes.
+    PostfixUnaryOperator: u64   # e.g., `?` or `--`, squished into 8 bytes.
+
+    IndentedBlock: array[token],    # e.g., `$(...)`
+
+    Rune: i32   # something in single quotes, e.g., 'ö' or '5'
+    String: str # something in double quotes
+    # TODO: add InterpolatedString
+] {
+    @alias MultiLineComment: MultilineComment
 }
 
-statementToken := extend(token) {
-    ;;reset(This Indent, This Tokens; tokens_) := Null
+statementToken: token {
+    ;;reset(This Indent, This Tokens; tokens_): Null
 }
 
-statementTokenIterator := extend(iterator~statementToken) {
-    ;;reset(@private This Lines!) := Null
+statementTokenIterator: extend(iterator~statementToken) {
+    ;;reset(@private This Lines!): Null
 
     ;;next()?: statementToken [*
         while (NextLine ?;= Lines next()) != Null
@@ -49,8 +82,8 @@ statementTokenIterator := extend(iterator~statementToken) {
             Runes reset()
             return
 
-        OpenParenthesis := NextRune
-        CloseParenthesis := OpenParenthesis toCloseParenthesis()
+        OpenParenthesis: NextRune
+        CloseParenthesis: OpenParenthesis toCloseParenthesis()
 
         assert (NextRune = Runes next()) != Null
             `expected ${CloseParenthesis}# before end of line
@@ -70,7 +103,7 @@ statementTokenIterator := extend(iterator~statementToken) {
     ]
 }
 
-indent := extend(u8) {
+indent: extend(u8) {
     ;;reset(SpaceCount: indent): null
         assert SpaceCount % 4 == 0
         assert SpaceCount / 4 <= 7
@@ -78,6 +111,6 @@ indent := extend(u8) {
 }
 
 @private
-line := extend(string) {}
+line: extend(string) {}
 @private
-lines := extend(iterator~line) {}
+lines: extend(iterator~line) {}
