@@ -60,7 +60,7 @@ grammarMatcher: oneOf[tokenMatcher, grammarElement, token]
 
 Grammar: {
     @private
-    Elements: lot[at: grammarElement, tokenMatcher]([
+    Lot[at: grammarElement, tokenMatcher]: [
         Type: oneOfMatcher([
             FunctionDeclaration
             PlainType
@@ -225,7 +225,7 @@ Grammar: {
         EndOfInput: tokenMatcher(
             ::match(Index;, Array[token]): Index >= Array count()
         )
-    ])
+    ]
 
     ::match(Index;, Array[token], GrammarMatcher): bool
         # ensure being able to restore the current token index if we don't match:
@@ -234,7 +234,7 @@ Grammar: {
             (TokenMatcher):
                 TokenMatcher match(Index;, Array)
             (GrammerElement):
-                My Elements[GrammarElement] match(Index;, Array)
+                My Lot[GrammarElement] match(Index;, Array)
             (Token):
                 Index < Array count() and Array[Index++] == Token
         if not Matched
