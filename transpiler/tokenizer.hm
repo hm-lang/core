@@ -4,13 +4,12 @@ token: oneOf[
     #       both could point to `LowerCamelCase` (or whatever) but a different data format.
     #       the `token` tag itself will probably fit into 1 byte so we could have up to
     #       7 + 8 = 15 bytes (on a 64-bit platform) for a short string.
-    EndOfLineComment: str
-    MidLineComment: str
-    MultilineComment: array[str]
+    EndOfLineComment: str           # e.g., `# nothing gets passed you`
+    MidLineComment: str             # e.g., `#( whatever )#`
+    MultilineComment: array[str]    # e.g., `#(# ... #)#` with newlines
 
-    CompilerComment: str
-    CompilerWarning: str
-    CompilerError: str  # e.g., `#@!$...`
+    CompilerComment: str    # e.g., `#salt(123)`
+    CompilerError: str      # e.g., `#@!$...`
 
     LowerCamelCase: str
     UpperCamelCase: str
@@ -19,17 +18,25 @@ token: oneOf[
     Declaration: oneOf[Readonly, Writable, Fleeting] {@alias Temporary: Fleeting}
 
     Comma
+    NewLine
+
     BinaryOperator: u64         # e.g., `and`, `<=`, or `+` squished into 8 bytes,
                                 # with higher bytes zeroed.
     PrefixUnaryOperator: u64    # e.g., `-` (without a corresponding left operand)
                                 # or `++`, squished into 8 bytes.
     PostfixUnaryOperator: u64   # e.g., `?` or `--`, squished into 8 bytes.
 
-    IndentedBlock: array[token],    # e.g., `$(...)`
-
     Rune: i32   # something in single quotes, e.g., 'ö' or '5'
     String: str # something in double quotes
     # TODO: add InterpolatedString
+
+    Aside: array[token]     # e.g., `(...)`
+    Brace: array[token]     # e.g., `{...}`
+    Bracket: array[token]   # e.g., `[...]`
+
+    LambdaAside: array[token]   # e.g., `$(...)`
+    LambdaBrace: array[token]   # e.g., `${...}`
+    LambdaBracket: array[token] # e.g., `$[...]`
 ] {
     @alias MultiLineComment: MultilineComment
 }
