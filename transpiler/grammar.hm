@@ -37,7 +37,9 @@ grammarElement: oneOf[
     StandardVariableDeclaration: {VariableName, token Declaration, PlainType}
     AbbreviatedVariableDeclaration: {DefaultNamedVariable, token Declaration?}
 
-    VariableDefinition: {VariableName, token Declaration, Expression}
+    VariableDefinition: oneOf[StandardVariableDefinition, AbbreviatedVariableDefinition]
+    StandardVariableDefinition: {VariableName, token Declaration, Expression}
+    AbbreviatedVariableDefinition: {DefaultNamedVariable, token Declaration, Expression}
 
     FunctionName
     FunctionArgsWithReturnType

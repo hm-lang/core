@@ -14,7 +14,7 @@ token: oneOf[
     LowerCamelCase: str
     UpperCamelCase: str
 
-    Indent: i64
+    Indent: i64     # number of spaces, always absolute: not relative from last indent
     Declaration: oneOf[Readonly: 1, Writable, Fleeting] {
         @alias Temporary: Fleeting
         @Null: 0
