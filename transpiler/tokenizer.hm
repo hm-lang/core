@@ -15,16 +15,19 @@ token: oneOf[
     UpperCamelCase: str
 
     Indent: i64
-    Declaration: oneOf[Readonly, Writable, Fleeting] {@alias Temporary: Fleeting}
+    Declaration: oneOf[Readonly: 1, Writable, Fleeting] {
+        @alias Temporary: Fleeting
+        @Null: 0
+    }
 
     Comma
     NewLine
 
-    BinaryOperator: u64         # e.g., `and`, `<=`, or `+` squished into 8 bytes,
+    BinaryOperator: n64         # e.g., `and`, `<=`, or `+` squished into 8 bytes,
                                 # with higher bytes zeroed.
-    PrefixUnaryOperator: u64    # e.g., `-` (without a corresponding left operand)
+    PrefixUnaryOperator: n64    # e.g., `-` (without a corresponding left operand)
                                 # or `++`, squished into 8 bytes.
-    PostfixUnaryOperator: u64   # e.g., `?` or `--`, squished into 8 bytes.
+    PostfixUnaryOperator: n64   # e.g., `?` or `--`, squished into 8 bytes.
 
     Rune: i32   # something in single quotes, e.g., 'ö' or '5'
     String: str # something in double quotes
@@ -39,4 +42,8 @@ token: oneOf[
     LambdaBracket: array[token] # e.g., `$[...]`
 ] {
     @alias MultiLineComment: MultilineComment
+}
+
+n64: u64 {
+    @Null: 0
 }

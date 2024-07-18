@@ -20,8 +20,10 @@ grammarElement: oneOf[
 
     Type: oneOf[PlainType, VariableDeclaration, FunctionDeclaration]
 
-    # e.g., `myClass` or `genericClass[type1]`
+    # e.g., `myClass` or `genericClass[type1, ...]`
     PlainType: {ClassName, GenericSpecification?}
+    # e.g., `MyClass` or `GenericClass[type1, ...]` for a type that's in scope
+    DefaultNamedVariable: {DefaultClassName, GenericSpecification?}
 
     # e.g., `[x, y: constraintY, Z: zType]`
     # to be valid, `x` should not be in scope.
@@ -31,7 +33,10 @@ grammarElement: oneOf[
     GenericSpecification: array[ArgumentDefinition]
 
     VariableName: token UpperCamelCase
-    VariableDeclaration: {VariableName, token Declaration, PlainType}
+    VariableDeclaration: oneOf[StandardVariableDeclaration, AbbreviatedVariableDeclaration]
+    StandardVariableDeclaration: {VariableName, token Declaration, PlainType}
+    AbbreviatedVariableDeclaration: {DefaultNamedVariable, token Declaration?}
+
     VariableDefinition: {VariableName, token Declaration, Expression}
 
     FunctionName
@@ -49,6 +54,7 @@ grammarElement: oneOf[
     AtomicStatement
 
     ClassName: token LowerCamelCase
+    DefaultClassName: token UpperCamelCase
     ClassDefinition
     ClassStatement
     ClassMethod
