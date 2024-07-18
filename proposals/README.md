@@ -1098,13 +1098,12 @@ to keep a variable for multiple uses: `{NestedField}: something()`.)
 ## prefix and postfix question marks `?`
 
 The `?` operator binds strongly, but less so than member access, so `x a?` is equivalent
-to `oneOf[x a, null]` and not `oneOf[x a, null]`.  This is for nested classes, e.g.,
+to `oneOf[x a, null]` and not `x oneOf[a, null]`.  This is for nested classes, e.g.,
 `x: {a: int}`, so that we don't need to use `(x a)?` to represent `x oneOf[a, null]`.
 Generally speaking, if you want your entire variable to be nullable,
-it should be defined as `X?: int`.  `X: int?` works in this instance, but if you have
-generic classes (like `array[elementType]`), then `X: array[int]?` or `X?: array[int]` would define
-an array of nullable integers.  To declare a nullable array of integers, you'd use
-`X?: array[int]`, `X?[]: int`, or `X?: int[]`.
+it should be defined as `X?: int`.  If you have generic classes (like `array[elementType]`),
+then `X: array[int?]` would define an array of nullable integers,
+and `X?: array[int]` would declare a nullable array of integers.
 
 Prefix `?` can be used to short-circuit function evaluation if an argument is null.
 for a function like `doSomething(X?: int)`, we can use `doSomething(?X: MyValueForX)`
@@ -2564,7 +2563,7 @@ myClass[of]: {
 For example, this function call passes `Array[3]` by reference, even if `Array[3]` is a primitive.
 
 ```
-Array; int[] = [0, 1, 2, 3, 4]
+Array[int]; [0, 1, 2, 3, 4]
 myFunction(Array[3];)   # passed as writable reference
 myFunction(Array[3]:)   # passed as readonly reference
 myFunction(Array[3])    # also passed as readonly reference, it's the default.
@@ -2573,7 +2572,7 @@ myFunction(Array[3])    # also passed as readonly reference, it's the default.
 You can switch to passing by value by using `.` or making an explicit copy:
 
 ```
-Array; int = [0, 1, 2, 3, 4]
+Array[int]; [0, 1, 2, 3, 4]
 myFunction(int(Array[3]))   # passed by value (e.g., `myFunction(Int.)`):
 ```
 
@@ -5856,8 +5855,8 @@ X: what String    #salt(1234)
 
 Similarly, any class that supports a compile-time fast hash with a salt can be
 put into a `what` statement.  Floating point classes or containers thereof
-(e.g., `dbl` or `flt[]`) are not considered *exact* enough to be hashable, but
-hm-lang will support fast hashes for classes like `int`, `i32`, and `u64[]`,
+(e.g., `dbl` or `array[flt]`) are not considered *exact* enough to be hashable, but
+hm-lang will support fast hashes for classes like `int`, `i32`, and `array[u64]`,
 and other containers of precise types, as well as recursive containers thereof.
 
 ```

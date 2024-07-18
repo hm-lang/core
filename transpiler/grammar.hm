@@ -16,7 +16,7 @@ grammarElement: oneOf[
         LeftOperand: expression
         RightOperand: expression
     }
-    Nestable: oneOf[FunctionCall, VariableName]
+    Nestable: oneOf[FunctionCall, ClassName, VariableName]
 
     Type: oneOf[PlainType, VariableDeclaration, FunctionDeclaration]
 
