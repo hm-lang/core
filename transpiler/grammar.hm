@@ -6,21 +6,33 @@
 # doesn't include tokens like `LowerCamelCase` or `UpperCamelCase`,
 # which comprise the grammar but don't specify it.
 grammarElement: oneOf[
-    Type
+    Expression: {
+        token PrefixUnaryOperator?
+        oneOf[BinaryExpression, Number, Array[nestable]]
+        token PostfixUnaryOperator?
+    }
+    BinaryExpression: {
+        token BinaryOperator
+        LeftOperand: expression
+        RightOperand: expression
+    }
+    Nestable: oneOf[FunctionCall, VariableName]
+
+    Type: oneOf[PlainType, VariableDeclaration, FunctionDeclaration]
 
     # e.g., `myClass` or `genericClass[type1]`
-    PlainType
+    PlainType: {ClassName, GenericSpecification?}
 
     # e.g., `[x, y: constraintY, Z: zType]`
     # to be valid, `x` should not be in scope.
-    GenericDeclaration
+    GenericDeclaration: array[ArgumentDeclaration]
     # e.g., `[x, y: int, Z: 5]`
     # to be valid, `x` *should* be in scope.
-    GenericSpecification
+    GenericSpecification: array[ArgumentDefinition]
 
-    VariableName
-    VariableDeclaration
-    VariableDefinition
+    VariableName: token UpperCamelCase
+    VariableDeclaration: {VariableName, token Declaration, PlainType}
+    VariableDefinition: {VariableName, token Declaration, Expression}
 
     FunctionName
     FunctionArgsWithReturnType
@@ -28,13 +40,15 @@ grammarElement: oneOf[
     # can be used as a `Type` when returning a function from another function.
     FunctionDeclaration
     FunctionDefinition
-    FunctionArgument
     FunctionCall
+
+    ArgumentDeclaration
+    ArgumentDefinition
 
     RhsStatement
     AtomicStatement
 
-    ClassName
+    ClassName: token LowerCamelCase
     ClassDefinition
     ClassStatement
     ClassMethod
