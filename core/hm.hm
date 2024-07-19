@@ -83,10 +83,19 @@ hm[ok, uh]: oneOf[ok, uh] {
     ..map(fn(Uh.): ok): ok
 
     # maps an `Uh` result to a different type of `uh`.
-    ..map(fn(Uh.): O~uh):  hm[ok, O uh]
+    ..map(fn(Uh.): O~uh): hm[ok, O uh]
 
     # maps `ok` and `uh` separately.
     ..map(fn(Ok.): t, fn(Uh.): t): t
+
+    # runs a callback if OK but returns self
+    ..check(fn(Ok): null): me
+
+    # runs a callback if not OK but returns self
+    ..check(fn(Uh): null): me
+
+    # runs different callbacks based on OK/not-OK but returns self
+    ..check(OkFn fn(Ok): null, UhFn fn(Uh): null): me
 
     # TODO: should we use `to` here or is there a better way to indicate casting?
     # it's technically something like `oneOf[ok, null](Result: hm[ok, uh]): oneOf[ok, null]`

@@ -6,6 +6,14 @@
 # doesn't include tokens like `LowerCamelCase` or `UpperCamelCase`,
 # which comprise the grammar but don't specify it.
 grammarElement: oneOf[
+    Statement: oneOf[
+        VariableDefinition
+        VariableDeclaration
+        FunctionDefinition
+        FunctionDeclaration
+        ClassDeclaration
+        Expression
+    ]
     Expression: {
         token PrefixUnaryOperator?
         oneOf[BinaryExpression, Number, Array[nestable]]
@@ -69,20 +77,75 @@ grammarElement: oneOf[
 # however, it's probably better to give them more individualized types, like
 # `Type: oneOf[PlainType: {Name: str, Generics?}, FunctionDeclaration: {...}]`
 
-tokenMatcher: {
-    # don't have to restore the token array Index to the correct state,
-    # consume as many tokens as you like here.  make sure to go
-    # through "Grammar match(...)" in order to restore the Index
-    # in case of a bad match.  @private so that only Grammar can call.
-    @private
-    ::match(Index;, Array[token]): bool
-}
-
-grammarMatcher: oneOf[tokenMatcher, grammarElement, token]
-
 Grammar: {
+    element: grammarElement
+    statement: grammarElement statement
+    parsed: array[statement] {
+        ::hm(): array[str]
+            # TODO!
+            []
+        ::execute(Interpreter;): hm[ok: any, uh: str]
+            # TODO
+            uh("not implemented")
+    }
+    uh: {
+        BadLine: index
+        Error: str
+        Parsed
+    }
+    hm[of]: hm[ok: of, uh]
+    result: hm[parsed]
+
+    ::parse(File): result
+        Context;
+        I parse(File, Context;)
+
+    ::parse(File, Context;): result
+        Lines: File read()
+        Proposals;
+        what I parse(Lines, Context, Proposals;)
+            Parsed:
+                File write(Parsed hm())
+                Context commit(Proposals)
+            Uh:
+                error("on line $(Uh BadLine + 1):")
+                if Uh BadLine > 0
+                    error(". $(Lines[Uh BadLine - 1]")
+                error("> $(Lines[Uh BadLine]")
+                error("? $(Uh Error)")
+                File open("w", (Handle):
+                    for Index; < Lines count()
+                        Handle write(Lines[Index])
+                        if Index == Uh BadLine
+                            Handle write(Uh Error)
+                )
+
+    ::parse(Array[str], Context;): result
+        Proposals;
+        I parse(Array, Context, Proposals;) check((Ok):
+            Context commit(Proposals)
+        )
+    
     @private
-    Lot[at: grammarElement, tokenMatcher]: [
+    ::parse(Array[str], Context, Proposals;): result
+        Parsed;
+        for Index; < Array count()
+            # TODO: Tokens should be retrieved as needed
+            #       probably need a `Tokenizer; {LineIndex: index, ColumnIndex: index, Array[str]}`
+            #       class which has some methods like `next()`
+            Tokens: tokenize(Array[Index], Context, Proposals) map((Uh):
+                {BadLine: Index, Error: Uh, Parsed!}
+            ) assert()
+            Parsed append(I parse(Tokens, Context, Proposals;) map((Uh):
+                {BadLine: Index, Error: Uh, Parsed!}
+            ) assert())
+        Parsed
+
+    @protected
+    ::parse(Array[token], Context, Proposals;): 
+
+    @private
+    Lot[at: element, tokenMatcher]: [
         Type: oneOfMatcher([
             FunctionDeclaration
             PlainType

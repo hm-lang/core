@@ -1204,8 +1204,8 @@ or expressions from executing.
 
 Internally, `X < Y` becomes a class which holds onto a value or reference of `Y`,
 so that it can be chained.  Any future right operands take over the spot of `Y`.
-Note, hm-lang doesn't have access to this class due to not holding onto references,
-so `Q: X < Y > Z` instantiates `Q` as a boolean, not as this internal class.
+Note, hm-lang doesn't expose this internal class,
+so `Q: X < Y > Z` instantiates `Q` as a boolean.
 
 ## and/or/xor operators
 
@@ -1237,7 +1237,7 @@ is truthy, the result will be the truthy operand.  An example implementation:
 ```
 # you can define it as nullable via `xor(~X, ~Y): oneOf[x, y, null]` or like this:
 xor(~X, ~Y)?: oneOf[x, y]
-    XIsTrue: bool(X)
+    XIsTrue: bool(X)        # `XIsTrue: !!X` is also ok.
     YIsTrue: bool(Y)
     if XIsTrue
         if YIsTrue $(Null) else $(X)
@@ -1304,8 +1304,6 @@ X += 5      # now X == 5 is True.
 W; 7
 # also equivalent, if you want to be explicit about the type.
 W; int = 7
-# also equivalent:
-W; int(7)
 ```
 
 Note that we use `;` and `:` as if it were an annotation on the variable name (rather
@@ -1323,18 +1321,6 @@ To make it easy to indicate when a variable can be nullable, we reserve the ques
 symbol, `?`, placed after the variable name like `X?: int` or after a simple type like
 `X: int?`.  Either example declares a variable `X` that
 can be an integer or null.  The default value for an optional type is `Null`.
-TODO: do we want to rename `null` to `absent`?  essentially we want the feature for
-function calls, e.g., `fn(X?: int): q`
-and container types, e.g., `{X?: possiblyNull(), Y: ...}` becomes `{Y: ...}` if `X` is null,
-or `Lot[At] = Null` to remove `Id` from the lot.
-we could use `Lot[At] = Absent` and `Present` for non-absent.
-I like `absent` but not `present` unfortunately, as it has other connotations.
-maybe `missing` and `found`, or `deny`/`hide`/`veto` and `avow`.
-`found`
-oh, i really like `lost` (and `found`).  we could use `find[x]` to get the non-null
-version of `x`.  maybe `if Set[5] == Found` or `if Set[5] isFound()` or `if Set["asdf"] == Lost`.
-`lost` might be the wrong connotation, too, however, since it seems to indicate that it
-was present at some point.  maybe keep `null` due to expectations in the industry.
 
 For an optional type with more than one non-null type, we use `Y?: oneOf[someType, anotherType]`
 or equivalently, `Y: oneOf[someType, anotherType, null]` (where `null` comes last).
@@ -1391,13 +1377,10 @@ is null on it.  For example, the signed types `s8` defines null as `-128` like t
 ```
 s8: i8
 
-s8?: s8 {
-    ::is(null): bool
-        Me == -128
-}
+s8?: s8 {Null: -128}
 ```
 
-Similarly, `f32` and `f64` indicate that `NaN` is null via `::is(null): isNaN(Me)`,
+Similarly, `f32?` and `f64?` indicate that `NaN` is null via `{Null: NaN}`,
 so that you can define e.g. a nullable `f32` in exactly 32 bits.  To get this functionality,
 you must declare your variable as type `s8?` or `f32?`, so that the nullable checks
 kick in.
@@ -3562,11 +3545,11 @@ example: {
     ::x(): My X
 
     # move X from this temporary; no-copy
-    # TODO: this should probably also be defined along with
-    #           ;;x()!: My X!
-    #       i.e., they shouldn't need to both be defined.
+    @visibility
     ..x(): My X!
 
+    # TODO: do we just want to allow reference access here, e.g.,
+    #       `;;x(): (Str;)` and `::x(): (Str)`?
     # move+reset (moot)
     @visibility
     ;;x()!: str
@@ -3945,6 +3928,14 @@ With containers, values are keyed by some ID, so we do `;;[Id, fn(Value;): ~t]: 
 (or `hm[ok: t, uh]` as the return type in case of errors).  But if you have a class like a mutex
 or a guard, where there is no ID needed to access the underlying data, you simply use e.g.
 `Mutex[(Data;): Data someMethod()]`.
+
+TODO: can we distinguish `Mutex[(Data;): Data someMethod()]` from `Mutex[data]` as a
+default-named variable declaration?  generic specifications can specify functions internally.
+(e.g., for a generic declaration `[fn(Data;): whateverType]`.)
+maybe we require `Mutex[data]:` for the declaration.  if not, we need to stop allowing
+access to a container via `[]`; we'd need `Array at(3)` or `Array index(3)`.
+i think we can distinguish based on whether `Mutex` is in scope or not;
+it'd be hard to give up `Array[3]` for simplicity/convenience/conciseness, etc.
 
 This is consistent with brackets `[]` being associated with container classes,
 and giving access to the underlying data.
