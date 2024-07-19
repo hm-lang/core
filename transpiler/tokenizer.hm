@@ -1,32 +1,38 @@
+uh: oneOf[
+    DidNotFinishMidLineComment: str
+]
+hm[of]: hm[ok: of, uh]
+
 tokenizer: {
     @private {
         Lines[str]          # lines to parse
         LineIndex; index    # current index into `Lines`
         CharIndex; index    # current index into `Lines[LineIndex]`
-        Token;  # current token
+        Hm[token];          # current result
     }
-    # TODO: add an error here for when `peak`ing
 
     ;;reset(Array[str].): null
         My Lines = Array!
         # Do a little work here so we don't need to keep track of
-        # whether we've initialized `My Token` for the first `peak`.
+        # whether we've initialized `My Token` for the first `peek`.
         My Token = My next()
 
-    ::peak(fn(Token): ~t): t
-        fn(My Token)
+    ::lineIndex(): My LineIndex
+
+    ::peek(fn(Hm[token]): ~t): t
+        fn(My Hm)
 
     ;;take(): token
         Result; My next()
-        Result <-> My Token
+        Result <-> My Hm
         Result
 
     @private
-    ;;next(): token
+    ;;next(): hm[token]
         if My LineIndex >= My Lines count()
             return EndOfFile
         while True
-            Char: My Lines[My LineIndex][AtByte: My CharIndex++, Default: 0]
+            Char: advanceChar()
             match Char
                 0
                     ++My LineIndex
@@ -35,13 +41,27 @@ tokenizer: {
                 ' ', '\t'
                     continue
                 '"'
-                    return My consumeString()
+                    return I consumeString()
                 '\''
-                    return My consumeRune()
+                    return I consumeRune()
                 '+', '-',
+                    return I consumePlusMinusOperator(StartingChar: Char)
                 '*', '/',
-                    return My consumeOperator(Char)
+                    return I consumeBinaryOperator(StartingChar: Char)
                 # TODO
+
+    ;;advanceChar(): u8
+        My Lines[My LineIndex][My CharIndex++, Default: 0]
+
+    # if `+` will return that.
+    # if `++` will return that.
+    # if `+++` will return `+` (and then later `++`), similarly for `-`.
+    @private
+    ;;consumePlusMinusOperator(StartingChar: u8): hm[token]
+        assert(My LineIndex < My Lines count())
+        NextChar: 
+        
+
 }
 
 token: oneOf[
@@ -71,11 +91,8 @@ token: oneOf[
     Comma
     NewLine
 
-    BinaryOperator: n64         # e.g., `and`, `<=`, or `+` squished into 8 bytes,
-                                # with higher bytes zeroed.
-    PrefixUnaryOperator: n64    # e.g., `-` (without a corresponding left operand)
-                                # or `++`, squished into 8 bytes.
-    PostfixUnaryOperator: n64   # e.g., `?` or `--`, squished into 8 bytes.
+    Operator: n64   # e.g., `and`, `<=`, or `+` squished into 8 bytes,
+                    # with higher bytes zeroed.
 
     Rune: i32   # something in single quotes, e.g., 'ö' or '5'
     String: str # something in double quotes

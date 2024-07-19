@@ -3305,6 +3305,11 @@ might have the same name as a class instance variable.
 
 ## class example
 
+TODO: nested types should probably not need a `@class` annotation, and we probably want to support
+`hm[of]: hm[ok: of, uh]` for `uh` defined in the class.  or at least we need to settle on notation,
+e.g., `{uh: oneOf[OhNo, ThatsBad], hm[of]: hm[ok: of, i uh]}`.  but let's think about consistency
+here; we probably should just define outside of classes for now.
+
 ```
 exampleClass: {
     # class instance variables can be defined here.
