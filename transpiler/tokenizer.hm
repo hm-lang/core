@@ -1,4 +1,52 @@
+tokenizer: {
+    @private {
+        Lines[str]          # lines to parse
+        LineIndex; index    # current index into `Lines`
+        CharIndex; index    # current index into `Lines[LineIndex]`
+        Token;  # current token
+    }
+    # TODO: add an error here for when `peak`ing
+
+    ;;reset(Array[str].): null
+        My Lines = Array!
+        # Do a little work here so we don't need to keep track of
+        # whether we've initialized `My Token` for the first `peak`.
+        My Token = My next()
+
+    ::peak(fn(Token): ~t): t
+        fn(My Token)
+
+    ;;take(): token
+        Result; My next()
+        Result <-> My Token
+        Result
+
+    @private
+    ;;next(): token
+        if My LineIndex >= My Lines count()
+            return EndOfFile
+        while True
+            Char: My Lines[My LineIndex][AtByte: My CharIndex++, Default: 0]
+            match Char
+                0
+                    ++My LineIndex
+                    My CharIndex = 0
+                    return NewLine
+                ' ', '\t'
+                    continue
+                '"'
+                    return My consumeString()
+                '\''
+                    return My consumeRune()
+                '+', '-',
+                '*', '/',
+                    return My consumeOperator(Char)
+                # TODO
+}
+
 token: oneOf[
+    EndOfFile: 0
+
     # TODO: a `oneOf` already has some space for a tag.
     #       we could use one tag number for `smallStr` and another for `str`
     #       both could point to `LowerCamelCase` (or whatever) but a different data format.

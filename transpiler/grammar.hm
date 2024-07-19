@@ -101,9 +101,8 @@ Grammar: {
         I parse(File, Context;)
 
     ::parse(File, Context;): result
-        Lines: File read()
         Proposals;
-        what I parse(Lines, Context, Proposals;)
+        what I parse(File read(), Context, Proposals;)
             Parsed:
                 File write(Parsed hm())
                 Context commit(Proposals)
@@ -120,14 +119,17 @@ Grammar: {
                             Handle write(Uh Error)
                 )
 
-    ::parse(Array[str], Context;): result
+    ::parse(Array[str]., Context;): result
         Proposals;
-        I parse(Array, Context, Proposals;) check((Ok):
-            Context commit(Proposals)
+        I parse(Array!, Context, Proposals;) check((Ok):
+            Context commit(Proposals!)
         )
     
     @private
-    ::parse(Array[str], Context, Proposals;): result
+    ::parse(Array[str]., Context, Proposals;): result
+        # TODO: can we do `Tokenizer(...);` to define `Tokenizer: tokenizer(...)`?
+        Tokenizer; tokenizer(Array!)
+
         Parsed;
         for Index; < Array count()
             # TODO: Tokens should be retrieved as needed
