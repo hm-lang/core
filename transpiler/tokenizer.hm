@@ -1,5 +1,6 @@
 uh: oneOf[
     DidNotFinishMidLineComment: str
+    AmbiguousOperator: str
 ]
 hm[of]: hm[ok: of, uh]
 
@@ -25,7 +26,7 @@ tokenizer: {
     ;;take(): token
         Result; My next()
         Result <-> My Hm
-        Result
+        Result orPanic()
 
     @private
     ;;next(): hm[token]
@@ -55,13 +56,32 @@ tokenizer: {
 
     # if `+` will return that.
     # if `++` will return that.
-    # if `+++` will return `+` (and then later `++`), similarly for `-`.
+    # if `+++` will return an error since we don't know if it's `+ ++` or `++ +`;
+    # we could analyze tokens before/after to determine if it should be prefix/postfix
+    # but we'll prefer users to make it clear in the code.
     @private
     ;;consumePlusMinusOperator(StartingChar: u8): hm[token]
         assert(My LineIndex < My Lines count())
-        NextChar: 
-        
+        NextChar: My Lines[My LineIndex][My CharIndex + 1, Default: 0]
+        if NextChar != StartingChar
+            # just `+` or `-`:
+            return operator(StartingChar)
 
+        assert(I advanceChar() == NextChar)
+        NextNextChar: My Lines[My LineIndex][My CharIndex + 1, Default: 0]
+        if NextChar != NextNextChar
+            # `++` or `--`:
+            return operator(StartingChar | (StartingChar << 8))
+        
+        # +++ or ---.  this is ambiguous...
+        return ambiguousOperator(I formatError("ambiguous operator, use `++ +` or `- --`"))
+
+    @private
+    ::formatError(Str): str
+        Prefix; "#@!$"
+        if My CharIndex >= Prefix count()
+            Prefix[My CharIndex] = '^'
+        Prefix + " " + Str 
 }
 
 token: oneOf[
