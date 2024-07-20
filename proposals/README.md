@@ -13,7 +13,14 @@ In hm-lang, all types are `lowerCamelCase`, like functions.  Variables and ident
 like `True` or `False` are `UpperCamelCase`.  hm-lang doesn't recommend distinguishing
 between constant identifiers and non-constant identifiers with casing,
 e.g., like `UPPER_SNAKE_CASE` in other languages; you can rely on the compiler
-to stop you if you try to change a constant variable.
+to stop you if you try to change a constant variable, and you'll save wear
+and tear on your caps-lock key.
+
+TODO: long names are hard to parse with Pascal case, and we want to support verbose
+names.  maybe use `lower_snake_case` for types/functions and `Initial_upper_snake_case`
+or `_prefixed_snake_case` (prefixing with `_`) for variables/instances.
+we have to look as edgy/cool as possible.  two words is the limit for useful PascalCase.
+this would make unicode easier if we just did `_prefixed_snake_case` and `lower_snake_case`.
 
 Another change is that hm-lang uses `:` (or `;`) for declarations and `=` for reassignment,
 so that declaring a variable and specifying a variable will work the same inside and outside
@@ -3415,7 +3422,7 @@ exampleClass;;anotherMethod(PlusK: int): null
 # Don't use `:` here since we're not defining a class:
 exampleClass {
     # static function; note that no `@class` annotation is needed here.
-    # without sequence building, `exampleClass myAddedClassFunction(K: int): exampleClass`
+    # with sequence building, `exampleClass myAddedClassFunction(K: int): exampleClass`
     # is exactly how you'd define a class function.
     myAddedClassFunction(K: int): exampleClass
         exampleClass(X: K * 1000)
@@ -6282,6 +6289,13 @@ The syntax is `lowerCamelCase: oneOf` followed by a list of named values
 (each an `UpperCamelCase` identifier), with optional values they take.  Enumerations
 are mutually exclusive -- no two values may be held simultaneously.  See
 masks for a similar class type that allows multiple options at once.
+
+TODO: what's the difference between `oneOf[Dbl, Int]` and `oneOf[dbl, int]`?
+probably nothing??  but `oneOf[NewIdentifier: 0, OtherIdentifier: 3]` would
+be different than `oneOf[newIdentifier: 0, otherIdentifier: 3]`? or not??
+in both cases, it seems like `0` and `3` are specifying the tag.  but would
+`oneOf[newId: {X: dbl}, otherId: {Y: str}]` be different than
+`oneOf[NewId: {X: dbl}, OtherId: {Y: str}]`?...  maybe we just force lowercase.
 
 Enums are by default the smallest standard integral type that holds all values,
 but they can be signed types (in contrast to masks which are unsigned).

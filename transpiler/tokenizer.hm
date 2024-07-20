@@ -1,58 +1,59 @@
 uh: oneOf[
-    DidNotFinishMidLineComment: str
-    AmbiguousOperator: str
+    did_not_finish_midline_comment: str
+    ambiguous_operator: str
 ]
 hm[of]: hm[ok: of, uh]
 
 tokenizer: {
     @private {
-        Lines[str]          # lines to parse
-        LineIndex; index    # current index into `Lines`
-        CharIndex; index    # current index into `Lines[LineIndex]`
-        Hm[token];          # current result
+        _lines[str]         # lines to parse
+        _line_index; index  # current index into `_lines`
+        _char_index; index  # current index into `_lines[_line_index]`
+        _hm[token];         # current result
     }
 
-    ;;reset(Array[str].): null
-        My Lines = Array!
+    ;;reset(_array[str].): null
+        _my _lines = _array!
         # Do a little work here so we don't need to keep track of
-        # whether we've initialized `My Token` for the first `peek`.
-        My Token = My next()
+        # whether we've initialized `_my _token` for the first `peek`.
+        _my _token = _my next()
 
-    ::lineIndex(): My LineIndex
+    ::line_index(): _my _line_index
 
-    ::peek(fn(Hm[token]): ~t): t
-        fn(My Hm)
+    ::peek(fn(_hm[token]): ~t): t
+        fn(_my _hm)
 
     ;;take(): token
-        Result; My next()
-        Result <-> My Hm
-        Result orPanic()
+        _result; _my next()
+        _result <-> _my _hm
+        _result or_panic()
 
     @private
     ;;next(): hm[token]
-        if My LineIndex >= My Lines count()
-            return EndOfFile
-        while True
-            Char: advanceChar()
-            match Char
+        if _my _line_index >= _my _lines count()
+            return token _end_of_file
+        while _true
+            _char: _my advance_char()
+            match _char
                 0
-                    ++My LineIndex
-                    My CharIndex = 0
-                    return NewLine
+                    ++_my _line_index
+                    _my _char_index = 0
+                    return token _new_line
                 ' ', '\t'
                     continue
                 '"'
-                    return I consumeString()
+                    return _i consume_string()
                 '\''
-                    return I consumeRune()
+                    return _i consume_rune()
                 '+', '-',
-                    return I consumePlusMinusOperator(StartingChar: Char)
+                    return _i consume_plus_minus_operator(_starting_char: _char)
+                    return I consume_plus_minus_operator(Starting_char: Char)
                 '*', '/',
-                    return I consumeBinaryOperator(StartingChar: Char)
+                    return _i consume_binary_operator(_starting_char: _char)
                 # TODO
 
-    ;;advanceChar(): u8
-        My Lines[My LineIndex][My CharIndex++, Default: 0]
+    ;;advance_char(): u8
+        _my _lines[_my _line_index][_my _char_index++, _default: 0]
 
     # if `+` will return that.
     # if `++` will return that.
@@ -60,75 +61,89 @@ tokenizer: {
     # we could analyze tokens before/after to determine if it should be prefix/postfix
     # but we'll prefer users to make it clear in the code.
     @private
-    ;;consumePlusMinusOperator(StartingChar: u8): hm[token]
-        assert(My LineIndex < My Lines count())
-        NextChar: My Lines[My LineIndex][My CharIndex + 1, Default: 0]
-        if NextChar != StartingChar
-            # just `+` or `-`:
-            return operator(StartingChar)
+    ;;consume_plus_minus_operator(_starting_char: u8): hm[token]
+        assert(_my _line_index < _my _lines count())
+        assert(My Line_index < My Lines count())
 
-        assert(I advanceChar() == NextChar)
-        NextNextChar: My Lines[My LineIndex][My CharIndex + 1, Default: 0]
-        if NextChar != NextNextChar
+        _next_char: _my _lines[_my _line_index][_my _char_index + 1, _default: 0]
+        # TODO: THIS looks the coolest:
+        #       we'll need to get rid of `My` and `I` for this to work.
+        #       i don't think there's a good path getting rid of `My`/`I` without losing the
+        #       nice `;;mutatingMethod()` and `::readonlyMethod()` raison d'etre.
+        #       but if we can dispel the inconsistency between `@class` functions and methods
+        #       that would be nice.
+        _next_char: _lines[_line_index][_char_index + 1, _default: 0]
+        Next_char: Lines[Line_index][Char_index + 1, Default: 0]
+        # TODO: if we need to keep `My`, then this is my second favorite:
+        Next_char: My Lines[My Line_index][My Char_index + 1, Default: 0]
+        NextChar: My Lines[My LineIndex][My CharIndex + 1, Default: 0]
+
+        if _next_char != _starting_char
+            # just `+` or `-`:
+            return operator(_starting_char)
+
+        assert(_i advance_char() == _next_char)
+        _next_next_char: _my _lines[_my _line_index][_my _char_index + 1, _default: 0]
+        if _next_char != _next_next_char
             # `++` or `--`:
-            return operator(StartingChar | (StartingChar << 8))
+            return operator(_starting_char | (_starting_char << 8))
         
         # +++ or ---.  this is ambiguous...
-        return ambiguousOperator(I formatError("ambiguous operator, use `++ +` or `- --`"))
+        return ambiguous_operator(_i format_error("ambiguous operator, use `++ +` or `- --`"))
 
-    @private
-    ::formatError(Str): str
-        Prefix; "#@!$"
-        if My CharIndex >= Prefix count()
-            Prefix[My CharIndex] = '^'
-        Prefix + " " + Str 
+    ::format_error(_str): str
+        _prefix; "#@!$"
+        if _my _char_index >= _prefix count()
+            _prefix[_my _char_index] = '^'
+        "$(_prefix) $(_str)" 
 }
 
-token: oneOf[
-    EndOfFile: 0
+token: one_of[
+    _end_of_file: 0
 
-    # TODO: a `oneOf` already has some space for a tag.
-    #       we could use one tag number for `smallStr` and another for `str`
-    #       both could point to `LowerCamelCase` (or whatever) but a different data format.
+    # TODO: a `one_of` already has some space for a tag.
+    #       we could use one tag number for `small_str` and another for `str`
+    #       both could point to the correct token but a different data format.
     #       the `token` tag itself will probably fit into 1 byte so we could have up to
     #       7 + 8 = 15 bytes (on a 64-bit platform) for a short string.
-    EndOfLineComment: str           # e.g., `# nothing gets passed you`
-    MidLineComment: str             # e.g., `#( whatever )#`
-    MultilineComment: array[str]    # e.g., `#(# ... #)#` with newlines
+    _end_of_line_comment: str           # e.g., `# nothing gets passed you`
+    _mid_line_comment: str             # e.g., `#( whatever )#`
+    _multiline_comment: array[str]    # e.g., `#(# ... #)#` with newlines
 
-    CompilerComment: str    # e.g., `#salt(123)`
-    CompilerError: str      # e.g., `#@!$...`
+    _compiler_comment: str    # e.g., `#salt(123)`
+    _compilerError: str      # e.g., `#@!$...`
 
-    LowerCamelCase: str
-    UpperCamelCase: str
+    _lower_camel_case: str
+    _upper_camel_case: str
 
-    Indent: i64     # number of spaces, always absolute: not relative from last indent
-    Declaration: oneOf[Readonly: 1, Writable, Fleeting] {
-        @alias Temporary: Fleeting
-        @Null: 0
+    _indent: i64     # number of spaces, always absolute: not relative from last indent
+    _declaration: one_of[readonly: 1, writable, fleeting] {
+        @alias _temporary: _fleeting
+        @_null: 0
     }
 
-    Comma
-    NewLine
+    _comma
+    _new_line
 
-    Operator: n64   # e.g., `and`, `<=`, or `+` squished into 8 bytes,
+    _operator: n64   # e.g., `and`, `<=`, or `+` squished into 8 bytes,
                     # with higher bytes zeroed.
 
-    Rune: i32   # something in single quotes, e.g., 'ö' or '5'
-    String: str # something in double quotes
-    # TODO: add InterpolatedString
+    _rune: i32   # something in single quotes, e.g., 'ö' or '5'
+    _string: str # something in double quotes
+    # TODO: add _interpolated_string
 
-    Aside: array[token]     # e.g., `(...)`
-    Brace: array[token]     # e.g., `{...}`
-    Bracket: array[token]   # e.g., `[...]`
+    _aside: array[token]     # e.g., `(...)`
+    _brace: array[token]     # e.g., `{...}`
+    _bracket: array[token]   # e.g., `[...]`
 
-    LambdaAside: array[token]   # e.g., `$(...)`
-    LambdaBrace: array[token]   # e.g., `${...}`
-    LambdaBracket: array[token] # e.g., `$[...]`
+    _lambda_aside: array[token]   # e.g., `$(...)`
+    _lambda_brace: array[token]   # e.g., `${...}`
+    _lambda_bracket: array[token] # e.g., `$[...]`
 ] {
-    @alias MultiLineComment: MultilineComment
+    @alias _multi_line_comment: _multiline_comment
+    @alias _midline_comment: _mid_line_comment
 }
 
 n64: u64 {
-    @Null: 0
+    @_null: 0
 }
