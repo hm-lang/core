@@ -9,21 +9,18 @@ In most languages, primitive types have different casing than class types that a
 created by end-user developers.  This is usually an inconsistency by convention,
 e.g., `PascalCase` for class names and `snake_case` for primitive types in C++,
 but Rust requires this inconsistency by fiat.
-In hm-lang, all types are `lowerCamelCase`, like functions.  Variables and identifiers
-like `True` or `False` are `UpperCamelCase`.  hm-lang doesn't recommend distinguishing
+In hm-lang, all types are `lower_snake_case`, like functions.  Variables and identifiers
+like `True` or `False` are `Initial_upper_snake_case`.  hm-lang doesn't recommend distinguishing
 between constant identifiers and non-constant identifiers with casing,
 e.g., like `UPPER_SNAKE_CASE` in other languages; you can rely on the compiler
 to stop you if you try to change a constant variable, and you'll save wear
 and tear on your caps-lock key.
 
-TODO: long names are hard to parse with Pascal case, and we want to support verbose
-names.  maybe use `lower_snake_case` for types/functions and `Initial_upper_snake_case`
-or `_prefixed_snake_case` (prefixing with `_`) for variables/instances.
-we have to look as edgy/cool as possible.  two (maybe three) words is the limit for readable PascalCase.
-this would make unicode easier if we just did `_prefixed_snake_case` and `lower_snake_case`.
-however `_prefixed_snake_case` doesn't look the greatest for `_my` and `_i`, as well as `_true`.
-let's do `Initial_upper_snake_case` by default, but we can probably add a setting if
-people prefer `PascalCase`, `_prefixed_snake_case`, etc.
+Why snake case: long names are hard to parse with Pascal case, and we want to support descriptive
+names.  In the future we may allow the option of `_x` converting to `X` everywhere in case
+users want to use `CamelCase` or `dromedaryCase`, or even `_prefixed_snake_case` for variable
+names (since `_prefixed_snake_case` would become `Prefixed_snake_case` with the `_x` -> `X` rule).
+For the remainder of this document, we'll use `Variable_case`, `type_case`, and `function_case`.
 
 Another change is that hm-lang uses `:` (or `;`) for declarations and `=` for reassignment,
 so that declaring a variable and specifying a variable will work the same inside and outside
@@ -113,7 +110,7 @@ and `I` for methods that start with a verb, e.g., `I draw()`.
 
 Class getters/setters do not use `::getX(): dbl` or `;;setX(Dbl): null`, but rather
 just `::x(): dbl` and `;;x(Dbl;.): null` for a private variable `X; dbl`.  This is one
-of the benefits of using `lowerCamelCase` for functions/methods and `UpperCamelCase`
+of the benefits of using `function_case` for functions/methods and `Variable_case`
 for variables; we can easily distinguish intent without additional verbs.
 
 hm-lang uses result-passing instead of exception-throwing in order to make it clear
@@ -148,8 +145,8 @@ memory, these safe functions are a bit more verbose than the unchecked functions
 # general syntax
 
 * `print(...)` to echo some values (in ...) to stdout, `error(...)` to echo to stderr
-* `lowerCamelCase` identifiers like `x` are function/type-like, see [here](#variable-and-function-names)
-* `UpperCamelCase` identifiers like `X` are instance-like, see [here](#variable-and-function-names)
+* `type_case`/`function_case` identifiers like `x` are function/type-like, see [here](#variable-and-function-names)
+* `Variable_case` identifiers like `X` are instance-like, see [here](#variable-and-function-names)
 * use `#` for [comments](#comments)
 * outside of arguments, use `:` for readonly declarations and `;` for writable declarations
 * for an argument, `:` is a readonly reference, `;` is a writable reference, and `.` is a temporary
@@ -393,10 +390,10 @@ and can switch from one to the other.  `oneOf[new[x], new[y]]` will be either
 
 Identifiers in hm-lang are very important.  The capitalization (or lack thereof)
 of the first letter indicates whether the identifier is a variable or a function.
-Since we think of functions as verb-like, they are `lowerCamelCase` identifiers, e.g.,
+Since we think of functions as verb-like, they are `function_case` identifiers, e.g.,
 `makeToast` or `runMarathon`.  On the other hand, variables are names, and we think
 of them as proper nouns (like names), e.g., `Sam` or `MaxArrayCount`, so they are
-`UpperCamelCase` identifiers.  Class names are `lowerCamelCase`, since they
+`Variable_case` identifiers.  Class names are `type_case`, since they
 act more functions than variables; e.g., you can convert one class instance into
 another class's instance, like `int(MyNumberString)` which converts `MyNumberString`
 (presumably a `string` type) into a big integer.
@@ -755,8 +752,8 @@ u[Bits: count](Scaled8): hm[ok: u[Bits], NumberConversion uh]
 ## types of types
 
 Every variable has a reflexive type which describes the object/primitive that is held
-in the variable, which can be accessed via the `lowerCamelCase` version of the
-`UpperCamelCase` variable name.  For more methods of determining/transforming
+in the variable, which can be accessed via the `type_case` version of the
+`Variable_case` variable name.  For more methods of determining/transforming
 internal types, see
 [declaring more complicated types via `oneOf`](#declaring-more-complicated-types-via-oneOf).
 
@@ -771,7 +768,7 @@ elif x == dbl
     print("X is a double")
 ```
 
-You can create a new instance of the same type using the `lowerCamelCase` type:
+You can create a new instance of the same type using the `type_case` type:
 
 ```
 xType: x
@@ -889,7 +886,7 @@ TODO: discussion on `~`
 
 ## function calls
 
-Function calls are assumed whenever a function identifier (i.e., `lowerCamelCase`)
+Function calls are assumed whenever a function identifier (i.e., `function_case`)
 occurs before a parenthetical expression.  E.g., `print(X)` where `X` is a variable name or other
 primitive constant (like `5`), or `anyFunctionName(Any + Expression / Here)`.
 In case a function returns another function, you can also chain like this:
@@ -1286,7 +1283,7 @@ for the shorthand notation `<->`.
 
 # variables
 
-Variables are named using `UpperCamelCase` identifiers.  The `:` symbol is used
+Variables are named using `Variable_case` identifiers.  The `:` symbol is used
 to declare deeply constant, non-reassignable variables, and `;` is used to declare
 writable, reassignable variables.  Note when passed in as arguments to a function,
 `:` has a slightly different meaning; a variable with `:` is readonly and not
@@ -1557,8 +1554,8 @@ Date: date(@hide DateString!)
 
 # functions
 
-Functions are named using `lowerCamelCase` identifiers.  The syntax to declare
-a function is `lowerCamelCaseName(FunctionArguments...): returnType`, but if
+Functions are named using `function_case` identifiers.  The syntax to declare
+a function is `function_case_name(FunctionArguments...): returnType`, but if
 you are also defining the function the `returnType` is optional (but generally
 recommended for multiline definitions).  Defining the function can occur inline
 with `:` or over multiple lines using an indented block.
@@ -1720,7 +1717,7 @@ you'd use `run(After: duration(Seconds: 6, Minutes: 1), (): print("hello world!"
 
 For functions with one argument (per type) where the variable name doesn't matter,
 you can use default-named variables.  For standard ASCII identifiers, the default-name identifier
-is just the `UpperCamelCase` version of the `lowerCamelCase` type.
+is just the `Variable_case` version of the `type_case` type.
 
 ```
 # this function declaration is equivalent to `f(Int: int): int`:
@@ -3090,12 +3087,12 @@ argument names are unique?  it's probably ok if we have an `@orderIndependent`
 or use `First ~T` and `Second ~U` to indicate order is ok.
 
 To avoid needing an argument name when calling the function, we can use
-name and type generics.  This differs from named generics where the lowerCamelCase
-type doesn't match the UpperCamelCase identifier (like the example
+name and type generics.  This differs from named generics where the `type_case`
+type doesn't match the `Variable_case` identifier (like the example
 `copy(Value: ~t): t` which requires naming the argument `Value` in function calls
 like `copy(Value: MyVariable)`).
 
-If the UpperCamelCase identifier matches the lowerCamelCase type of a generic,
+If the `Variable_case` identifier matches the `type_case` type of a generic,
 then it's a default-named argument, e.g., `MyType; ~myType` or `T: ~t`.  There
 is a shorthand for this which is more idiomatic: `~MyType;` or `~T`.  Here
 is a complete example:
@@ -3208,7 +3205,7 @@ be problematic (thread contention), similarly for random.
 
 # classes
 
-A class is defined with a `lowerCamelCase` identifier, an object `[...]`
+A class is defined with a `type_case` identifier, an object `[...]`
 defining instance variables and instance functions (i.e., variables and
 functions that are defined *per-instance* and take up memory), and an
 optional indented block (optionally in `{}`) that includes methods and functions that are
@@ -3460,13 +3457,14 @@ Note that `renew` should be a class instance method.
 ## localization support
 
 We intend hm-lang to support all languages, and so the upper/lower-case requirements
-may seem a bit strange in other alphabets.  To set a custom "UpperCamelCase" default name
+may seem a bit strange in other alphabets.  To set a custom `Variable_case` default name
 for an instance of the class, use this syntax:
 
 ```
 örsted: [...] {
     # define a custom UpperCamelCase name.
     I: Örsted 
+    # probably could also parse `Örsted: (I)` as well here.
 
     ... usual class methods ...
 }
@@ -3539,7 +3537,7 @@ Note that all variables defined on a class are given methods to access/set
 them, but this is done with syntactical sugar.  That is,
 *all uses of a class instance variable are done through getter/setter methods*,
 even when accessed/modified within the class.  The getters/setters are methods
-named the `lowerCamelCase` version of the `UpperCamelCase` variable,
+named the `function_case` version of the `Variable_case` variable,
 with various arguments to determine the desired action.
 
 ```
@@ -3774,7 +3772,8 @@ cat: allOf[animal, [FurBalls: int]] {
     # here we define a `renew` method, so the parent `reset` methods
     # become hidden to users of this child class:
     ;;renew(): null
-        # can refer to parent methods using the `UpperCamelCase` class name:
+        # can refer to parent methods using the `Variable_case`
+        # version of the `type_case` class name:
         Animal renew(Name: "Cat-don't-care-what-you-name-it")
         My FurBalls = 0
 
@@ -4278,7 +4277,7 @@ All classes have a few compiler-provided methods which cannot be overridden.
 Defining a singleton class is quite easy, simply by instantiating a class when
 you define it with trailing `()` (which may include arguments you need to instantiate):
 
-TODO: if no arguments are needed, we probably can infer that `UpperCamelCase: classDefinition`
+TODO: if no arguments are needed, we probably can infer that `Variable_case: Class_definition`
 is a singleton instance.
 
 ```
@@ -4290,7 +4289,7 @@ AwesomeService: allOf[parentClass1, parentClass2, #(etc.)#] {
 }()
 ```
 
-Using `@singleton lowerCamelCase` on the LHS defines an abstract singleton.
+Using `@singleton type_case` on the LHS defines an abstract singleton.
 These are useful when you want to be able to grab an instance of the concrete
 child-class but only through the parent class reference.
 
@@ -4588,7 +4587,7 @@ use a backslash to escape the space, e.g., `\\library/path/with\ spaces` or
 (using backslashes) will probably be supported.
 
 Note that we take the entire import as
-if it were an UpperCamelCase identifier.  E.g., `\\math` acts like one identifier, `Math`,
+if it were an `Variable_case` identifier.  E.g., `\\math` acts like one identifier, `Math`,
 so `\\math atan(X, Y)` resolves like `Math atan(X, Y)`, i.e., member access or drilling down
 from `Math: \\math`.  Similarly for any relative import; `\/relative/import/file someFunction(Q)`
 correctly becomes like `File someFunction(Q)` for `File: \/relative/import/file`.
@@ -6264,8 +6263,9 @@ are futures before returning.
 ## enumerations
 
 We can create a new type that exhaustively declares all possible values it can take.
-The syntax is `lowerCamelCase: oneOf` followed by a list of named values
-(each an `UpperCamelCase` identifier), with optional values they take.  Enumerations
+The syntax is `type_case: oneOf` followed by a list of named values
+(each an `Variable_case` identifier), with optional values they take, or subtypes
+(each a `type_case` identifier) with their corresponding type definitions.  Enumerations
 are mutually exclusive -- no two values may be held simultaneously.  See
 masks for a similar class type that allows multiple options at once.
 
@@ -6908,14 +6908,11 @@ Note on terminology:
 * `Identifier`: starts with an alphabetical character, can have numerical characters after that.
     Note that underscores are **not** permitted, since they are an operator.  
 
-* `LowerCamelCase`: Identifier which starts with a lowercase alphabetical character.
+* `function_case`/`type_case`: Identifier which starts with a lowercase alphabetical character.
 
-* `UpperCamelCase`: Identifier which starts with an uppercase alphabetical character.
+* `Variable_case`: Identifier which starts with an uppercase alphabetical character.
 
 See [the hm definition](https://github.com/hm-lang/core/blob/main/transpiler/grammar.hm).
-
-TODO: support internationalization.  do we really require Upper/lower+CamelCase for variables/functions?
-or is the syntax unambiguous enough to not need them?
 
 # tokenizer
 
