@@ -3370,7 +3370,7 @@ exampleClass;;anotherMethod(PlusK: int): null
     My X += PlusK * 1000
 
 # Don't use `:` here since we're not defining a class:
-exampleClass {
+exampleClass @{
     # with sequence building, `exampleClass myAddedClassFunction(K: int): exampleClass`
     # is exactly how you'd define a class function.
     myAddedClassFunction(K: int): exampleClass
@@ -5239,9 +5239,9 @@ indexedLotElement[at, of]: [
 ]
 
 insertionOrderedLot[at, of]: lot[at, of] {
-    # due to sequence building, we can use @private {...} to set @private for
+    # due to sequence building, we can use @private @{...} to set @private for
     # each of the fields inside this block.
-    @private {
+    @private @{
         AtIndices; @only unorderedLot[at, value: index]
         IndexedLot; @only unorderedLot[
             at: index
