@@ -123,6 +123,11 @@ the types via `hm[ok: int, uh: str]` for `ok` being `int` and `uh` being a `str`
 If the `ok` and `uh` types are distinct, you don't need to wrap a return value in
 `ok(ValidResult)` and `uh(ErrorResult)`; you can just return `ValidResult` or `ErrorResult`.
 
+TODO: we might want to figure out how to do nullables as a result type, e.g.,
+`hm[ok: nonNullPart, uh: null]`; then `X?: doSomething()` would correspond to an
+`hm[ok: x, uh: null]` type (or whatever `uh` that `doSomething` would return).
+however this conflates two concepts: absence and errors, which i don't think we want to do.
+
 ## simplicity
 
 We don't require a different function name for each method to convert a result class
