@@ -19,8 +19,11 @@ and tear on your caps-lock key.
 TODO: long names are hard to parse with Pascal case, and we want to support verbose
 names.  maybe use `lower_snake_case` for types/functions and `Initial_upper_snake_case`
 or `_prefixed_snake_case` (prefixing with `_`) for variables/instances.
-we have to look as edgy/cool as possible.  two words is the limit for useful PascalCase.
+we have to look as edgy/cool as possible.  two (maybe three) words is the limit for readable PascalCase.
 this would make unicode easier if we just did `_prefixed_snake_case` and `lower_snake_case`.
+however `_prefixed_snake_case` doesn't look the greatest for `_my` and `_i`, as well as `_true`.
+let's do `Initial_upper_snake_case` by default, but we can probably add a setting if
+people prefer `PascalCase`, `_prefixed_snake_case`, etc.
 
 Another change is that hm-lang uses `:` (or `;`) for declarations and `=` for reassignment,
 so that declaring a variable and specifying a variable will work the same inside and outside
@@ -3690,39 +3693,6 @@ is a child class.  E.g., a parent class method can return a `me` type instance,
 and using the method on a subclass instance will return an instance of the subclass.
 If your parent class method truncates at all (e.g., removes information from child classes),
 make sure to return the same `parentClassName` that defines the class.
-
-```
-# {} for sequence building, [] for objects/containers, () for blocks and argument-objects
-myFunction(X: 3, Y: "hello")
-parentClass: [X: int] { ::someMethod(Y: int): My X * Y, staticFunction(Z: int): Z // 2 }
-# literally?: `parentClass: {[X: int]::someMethod(Y: int), [X: int] staticFunctioN(Z: int)}`
-childClass: allOf[parentClass, [W: int]] { ::someMethod(Y: int): (My W + My X) * Y }
-if SomeCondition $(doSomething()) else $(doSomethingElse())
-[X:, Y;] deStructureMe()
-A {x(), Y}  # returns object [X: A x(), Y: A Y]
-
-# TODO: i think i like this the most.
-# {} for blocks, [] for objects/types/containers, () for argument-objects & sequence building
-myFunction(X: 3, Y: "hello")
-parentClass: [X: int] { ::someMethod(Y: int): My X * Y, staticFunction(Z: int): Z // 2 }
-childClass: allOf[parentClass, [W: int]] { ::someMethod(Y: int): (My W + My X) * Y }
-if SomeCondition {doSomething()} else {doSomethingElse()}
-[X:, Y;] deStructureMe()
-A (x(), Y)  # returns argument object  if `A` is a reference, otherwise
-            # `A` if a temporary.
-# TODO: maybe kill off standard interpretations for $() and $[] and ${} and use
-A @(x(), Y) # argument object `(X: A x(), Y: A Y)` if `A` is a reference, otherwise error
-A @{x(), Y} # runs `A x()` and `A Y` and returns `A` if a temporary else last statement.
-A @[x(), Y] # object `[X: A x(), Y: A y]`
-
-# {} for sequence building & argument-objects, [] for containers, () for blocks
-myFunction{X: 3, Y: "hello"}
-parentClass: [X: int] { ::someMethod(Y: int): My X * Y, staticFunction(Z: int): Z // 2 }
-childClass: allOf[parentClass, [W: int]] { ::someMethod(Y: int): (My W + My X) * Y }
-if SomeCondition $(doSomething{}) else $(doSomethingElse{})
-[X:, Y;] deStructureMe()
-A {x(), Y}  # returns object [X: A x(), Y: A Y]
-```
 
 We can access member variables or functions that belong to that the parent type,
 i.e., without subclass overloads, using the syntax `parentClassName someMethod(My, ...Args)`
