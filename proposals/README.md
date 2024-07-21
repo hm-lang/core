@@ -165,7 +165,7 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * `(SomeInstance x(), SomeInstance Y;, W: "hi", Z. 1.23)` to instantiate an argument object instance
         with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
     * `"My String Interpolation is $(X, Y: Z)"` to add `(X: *value-of-X*, Y: *value-of-Z*)` to the string.
-    * `A $(x(), Y)` to call `A x()` then `A Y` with [sequence building](#sequence-building)
+    * `A @(x(), Y)` to call `A x()` then `A Y` with [sequence building](#sequence-building)
         and return them in an argument object with fields `X` and `Y`, i.e., `(X: A x(), Y: A Y)`.
 * `[]` are for types, containers (including objects), and generics
     * `[X: dbl, Y: dbl]` to declare a class with two double-precision fields, `X` and `Y`
@@ -178,12 +178,12 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         where `of` is the generic type.  See [generic/template functions](#generictemplate-functions) for more.
     * `[Greeting: str, Times: int] destructureMe()` to do destructuring of a return value
         see [destructuring](#destructuring).
-    * `A $[x(), Y]` to call `A x()` then `A Y` with [sequence building](#sequence-building)
+    * `A @[x(), Y]` to call `A x()` then `A Y` with [sequence building](#sequence-building)
         and return them in an object with fields `X` and `Y`, i.e., `[X: A x(), Y: A Y]`.
 * `{}` for blocks and sequence building
-    * `{...}` to effectively indent `...`: `if Condition {doThing()} else {doOtherThing()}`
-    * `A ${x(), Y}` with [sequence building](#sequence-building), 
-        calling `A x()` and `A Y`, returning `A` if temporary otherwise `A Y`
+    * `{...}` to effectively indent `...`, e.g., `if Condition {doThing()} else {doOtherThing(), 5}`
+    * `A @{x(), Y}` with [sequence building](#sequence-building), 
+        calling `A x()` and `A Y`, returning `A` if it's a temporary otherwise `A Y`
     * `"My String Interpolation is ${missing(), X}"` to add `X` to the string.
         Note that only the last element in the `${}` is added, but `missing()` will still be evaluated.
 * `~` to declare a template type within a function, e.g., `myGenericFunction(Value: ~u): u` to declare
@@ -195,8 +195,6 @@ memory, these safe functions are a bit more verbose than the unchecked functions
             `Array: if SomeCondition $[1, 2, 3] else $[4, 5]`
         * `$(...)` as shorthand for a new block defining `(...)`, e.g., an argument object:
             `Result: if X > Y $(Max: X, Min: Y) else $(Min: X, Max: Y)`
-        * TODO: see if there's something better here:
-        * `${...}` as shorthand for a new zero-argument lambda function
     * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
         which will iterate over e.g., `MyArray: [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
         * Lambda arguments need to specify which scope they attach to, by increasing
@@ -3713,9 +3711,9 @@ if SomeCondition {doSomething()} else {doSomethingElse()}
 A (x(), Y)  # returns argument object  if `A` is a reference, otherwise
             # `A` if a temporary.
 # TODO: maybe kill off standard interpretations for $() and $[] and ${} and use
-A $(x(), Y) # argument object `(X: A x(), Y: A Y)` if `A` is a reference, otherwise error
-A ${x(), Y} # runs `A x()` and `A Y` and returns `A` if a temporary else last statement.
-A $[x(), Y] # object `[X: A x(), Y: A y]`
+A @(x(), Y) # argument object `(X: A x(), Y: A Y)` if `A` is a reference, otherwise error
+A @{x(), Y} # runs `A x()` and `A Y` and returns `A` if a temporary else last statement.
+A @[x(), Y] # object `[X: A x(), Y: A y]`
 
 # {} for sequence building & argument-objects, [] for containers, () for blocks
 myFunction{X: 3, Y: "hello"}
@@ -4341,33 +4339,28 @@ method calls inside.  For example, if we were to implement a builder pattern wit
 we could combine a bunch of mutations like this:
 
 ```
-myBuilder: {
+myBuilder: [...] {
     ;;set(String, Int): null
 }
 
-# Note, inside the `{}` we allow mutating methods because `myBuilder()` is a temporary.
+# Note, inside the `@{}` we allow mutating methods because `myBuilder()` is a temporary.
 # The resulting variable will be readonly after this definition + mutation chain,
 # due to being defined with `:`.
-MyBuilder: myBuilder() {
+MyBuilder: myBuilder() @{
     set("Abc", 123)
     set("Lmn", 456)
     set("Xyz", 789)
     # etc.
 }
 
-# TODO!! how is this different than `if Condition {...}`?
-# we may need to distinguish sequence building from blocks so that we don't do
-# `Condition {...}` and check for the last value in ...
-# probably could do `${` for sequence building.
-
 # You can also do inline, but you should use commas here.
 # Note that this variable can be mutated after this line due to `;`.
-MyBuilder2; myBuilder() { set("Def", 987), set("Uvw", 321) }
+MyBuilder2; myBuilder() @{ set("Def", 987), set("Uvw", 321) }
 ```
 
 By default, if the left-hand side of the sequence builder is writable (readonly),
 the methods being called on the right will be the writable (readonly) versions.
-E.g., `myBuilder()` is the left-hand side for the sequence builder, and `{ set... }`
+E.g., `myBuilder()` is the left-hand side for the sequence builder, and `@{ set... }`
 is the right; and in this case, `myBuilder()` is a temporary which defaults to
 writable.  You can explicitly ask for the readonly (or writable) version of a
 method using `::` (or `;;`) like this, although it will be a compile-error if
@@ -4378,45 +4371,49 @@ If it is a temporary, the return value will be the temporary after it has been c
 with all the methods in the RHS of the sequence builder.  E.g., from the above example,
 a `myBuilder` instance with all the `set` methods called.  Otherwise, if the LHS
 is a reference (either readonly or writable), the return value of the sequence
-builder will be an object with all the fields built out of the RHS methods.
+builder will depend on the type of parentheses used:
+`@{}` returns the value of the last statement in `@{}`,
+`@[]` creates an object with all the fields built out of the RHS methods, and
+`@()` creates an argument object with all the fields built out of the RHS methods.
 Some examples of the LHS being a reference follow:
 
 ```
 ReadonlyArray: [0, 100, 20, 30000, 4000]
-Results: ReadonlyArray {
+Results: ReadonlyArray @[
     [2]             # returns 20
     ::sort()        # returns a sorted copy of the array; `::` is unnecessary
     ::print()       # prints unsorted array; `::` is unnecessary
     # this will throw a compile-error, but we'll discuss results
     # as if this wasn't here.
     ;;[3, ++$Int]   # compile error, `ReadonlyArray` is readonly
-}
+]
 # should print [0, 100, 20, 30000, 4000]
 # Results = [Int: 20, Sort: [0, 20, 100, 4000, 30000]]
 
-WriteableArray; [0, 100, 20, 30000, 4000]
-Results: WriteableArray {
+WriteableArray; [-1, 100, 20, 30000, 4000]
+Results: WriteableArray @{
     [2]             # returns 20
     sort()          # in-place sort, i.e., `;;sort()`
     ;;[3, ++$Int]   # OK, a bit verbose since `;;` is unnecessary
     # prints the array after all the above modifications:
     ::print()       # OK, we probably don't have a `;;print()` but you never know
+    min()
 }
-# should print [0, 20, 100, 4001, 30000]
-# Results = [Int: 20]
+# should print [-1, 20, 100, 4001, 30000]
+# Results = -1
 ```
 
 ### nested sequence builders
 
-In fact, `{}` acts somewhat like bash sequence builders (which also use `{}`).  E.g.,
+In fact, `@{}` acts somewhat like bash sequence builders (which use `{}`).  E.g.,
 
 ```
 # Example method sequence builder:
-MyClass {
-    myMethod() {nextMethod(), nextMethod2(), NestedField}
+MyClass @[
+    myMethod() @[nextMethod(), nextMethod2(), NestedField]
     otherMethod()
     SomeField
-}
+]
 
 # Is equivalent to this sequence:
 Result: MyClass myMethod()
@@ -4425,11 +4422,12 @@ NextMethod2: Result nextMethod2()
 NestedField: Result NestedField
 OtherMethod: MyClass otherMethod()
 SomeField: MyClass SomeField
-# This is constructed only if necessary (e.g., for a return value).
+# This is constructed (since it's defined with `@[]`):
 [MyMethod: [NextMethod, NextMethod2, NestedField], OtherMethod, SomeField]
 ```
 
-When two sequence builders combine, e.g., `{A, B} {c(), d()}`, they execute in a deterministic
+TODO: let's reevaluate the utility of this, not sure we'll need this very often at all.
+When two sequence builders combine, e.g., `@[A, B] @[c(), d()]`, they execute in a deterministic
 order, e.g., `A c(), A d(), B c(), B d()`.  In this case, when the LHS is itself a sequence,
 it acts like a temporary, so that the return value is an object with fields `A` and `B`,
 i.e., `[A, B]`, where `A` and `B` have already had the methods `c()` and `d()` called on them.
@@ -4441,29 +4439,39 @@ as sequence builder's value.
 ```
 MyClass: [...]
 # MyClass is not a temporary, so we can include field names here:
-Results: MyClass {
+Results: MyClass @[
     Field1: myMethod()
     Field2: nextMethod()
-}
+]
 # The above is equivalent to the following:
-Results: {
+Results: [
     Field1: MyClass myMethod()
     Field2: MyClass nextMethod()
-}
+]
 
 # This is a compile error because the LHS of the sequence builder
 # is a temporary, so the fields are not used in the return value.
-Results: MyClass getValue() {
+Results: MyClass getValue() @[
     Field1: doSomething()
     Field2: doSomethingElse()
-} # COMPILE ERROR
+] # COMPILE ERROR
+# similarly for @()
+
+# this is also a compile error because we don't return fields in a `@{}`,
+# we just return the last statement executed.
+OtherResults: MyClass getValue() @{
+    Field1: doSomething()
+    Field2: doSomethingElse()
+}
 ```
 
 ### conditionals in sequence builders
 
 TODO: talk about conditionals in sequence building.
-E.g., `( myMethod(), if Value {someMethod()} else {otherMethod()} )`
+E.g., `@[ myMethod(), if Value {someMethod()} else {otherMethod()} ]`
 Everything is scoped to the LHS, however, so `if Value` would be `if Lhs Value`.
+Maybe we try `if Lhs Value` first and then if `Value` isn't on `Lhs`, we'll look
+for a global `Value`.
 
 # aliases
 
@@ -5859,13 +5867,10 @@ myHashableClass: hashable {
         Builder hash(My Id)       # you can use `hash` via the builder or...
         My Name hash(Builder;)    # you can use `hash` via the field.
 
-    # TODO: can we come up with a cleaner syntax to make this `null`?
-    # consider doing sequence building for the hash builder:
-    ::hash(~Builder;): null
-        Builder ${
-            hash(My Id)
-            hash(My Name)
-        }
+    ::hash(~Builder;): Builder ${
+        hash(My Id)
+        hash(My Name)
+    }
 }
 
 # note that defining `::hash(~Builder;)` automatically defines a `fastHash` like this:
