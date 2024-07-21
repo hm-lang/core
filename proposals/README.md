@@ -333,7 +333,7 @@ doSomething(X: int, Y: int): [W: int, Z: int]
 # declaring a simple class
 vector3: [X: dbl, Y: dbl, Z: dbl]
 
-# declaring a "complicated" class
+# declaring a "complicated" class.  the braces `{}` are optional.
 myClass: [X: int] {
     # methods which mutate the class use a `;;` prefix
     ;;renew(My X: int): Null
@@ -713,7 +713,7 @@ scaled8: [
 ] {
     # static/class-level variable:
     @private
-    Scale: 32
+    Scale: 32_u8
 
     new(Flt): hm[ok: me, uh: oneOf[Negative, TooBig]]
         ScaledValue: round(Flt * my Scale)
@@ -1386,15 +1386,15 @@ with the `?` just after the function name, e.g., `someFunction?(...Args): return
 ## nullable classes
 
 We will allow defining a nullable type by taking a type and specifying what value
-is null on it.  For example, the signed types `s8` defines null as `-128` like this:
+is null on it.  For example, the signed type `s8` defines null as `-128` like this:
 
 ```
-s8: i8
+s8: i8 {@Null: -128}
 
-s8?: s8 {Null: -128}
+# roughly equivalent to `s8?: s8 { Null: -128_i8, ::is(null): Me == -128_i8 }`
 ```
 
-Similarly, `f32?` and `f64?` indicate that `NaN` is null via `{Null: NaN}`,
+Similarly, `f32?` and `f64?` indicate that `NaN` is null via `{@Null: NaN, ::is(null): is_nan(Me)}`,
 so that you can define e.g. a nullable `f32` in exactly 32 bits.  To get this functionality,
 you must declare your variable as type `s8?` or `f32?`, so that the nullable checks
 kick in.
@@ -3208,10 +3208,10 @@ be problematic (thread contention), similarly for random.
 
 # classes
 
-A class is defined with a `lowerCamelCase` identifier, an object
+A class is defined with a `lowerCamelCase` identifier, an object `[...]`
 defining instance variables and instance functions (i.e., variables and
-functions that are defined *per-instance* and take up memory) in `[...]`,
-and finally a block `{...}` that includes methods and functions that are
+functions that are defined *per-instance* and take up memory), and an
+optional indented block (optionally in `{}`) that includes methods and functions that are
 shared across all instances: class instance methods (just methods for short)
 and class functions (i.e., static methods in C++/Java) that don't require an instance.
 Class definitions must be constant/non-reassignable, so they are declared using
@@ -3221,17 +3221,41 @@ When defining methods or functions of all kinds, note that you can use `me` (or 
 to refer to the current class instance type.  E.g.,
 
 ```
-myClass: [VariableX: int] {
+# classes can enclose their body in `{}`, which is recommended for long class definitions.
+# for short classes, we can leave braces out.
+myClass: [VariableX: int]
     ::copy(): me    # OK
         print("logging a copy")
         return me(Me)   # or fancier copy logic
-}
 ```
 
 Inside a class method, you must use `Me/My/I` to refer to any other instance variables or methods,
 e.g., `My X` or `I doStuffMethod()`, so that we can disambiguate calling a global function
 that might have the same name as our class instance method, or using a global variable that
 might have the same name as a class instance variable.
+
+Note that when returning a newly-declared type from a function (e.g., `myFn(Int): [X: int, Y: dbl]`),
+we do not allow building out the class body; any indented block will be assumed
+to be a part of the function body/definition:
+
+```
+myFn(Int): [X: int, Y: dbl] {
+    # this is part of the `myFn` definition,
+    # and never a part of the `[X: int, Y: dbl]` class body.
+    return [X: 5, Y: 3.0]
+}
+```
+
+If you want to specify methods on a return type, make sure to build it out as a separate
+class first.
+
+```
+xAndY: [X: int, Y: dbl] {
+    ::myMethod(): My X + int(round(My Y))
+}
+
+myFn(Int): xAndY(X: 5, Y: 3.0)
+```
 
 ## example class definition
 
