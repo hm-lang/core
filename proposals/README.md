@@ -62,8 +62,8 @@ if the array is not already at least size 4.
 
 Similarly, when referencing `Array[10]` or `Lot["At"]`, a default will be provided
 if necessary, so that e.g. `++Array[10]` and `++Lot["At"]` don't need to be guarded
-as `Array[10] = if count(Array) > 10 $(Array[10] + 1) else $(Array count(11), 1)` or
-`Lot["At"] = if Lot["At"] != Null $(Lot["At"] + 1) else $(1)`.
+as `Array[10] = if count(Array) > 10 {Array[10] + 1} else {Array count(11), 1}` or
+`Lot["At"] = if Lot["At"] != Null {Lot["At"] + 1} else {1}`.
 
 ## clarity
 
@@ -164,9 +164,10 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         and `Z` is passed by value.  See [argument objects](#argument-objects) for more details.
     * `(SomeInstance x(), SomeInstance Y;, W: "hi", Z. 1.23)` to instantiate an argument object instance
         with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
-    * `"My String Interpolation is $(missing(), X)"` to add `X` to the string.
-        Note that only the last element in the `$()` is added, but `missing()` will still be evaluated.
-* `[]` are for containers and generics
+    * `"My String Interpolation is $(X, Y: Z)"` to add `(X: *value-of-X*, Y: *value-of-Z*)` to the string.
+    * `A $(x(), Y)` to call `A x()` then `A Y` with [sequence building](#sequence-building)
+        and return them in an argument object with fields `X` and `Y`, i.e., `(X: A x(), Y: A Y)`.
+* `[]` are for types, containers (including objects), and generics
     * `[X: dbl, Y: dbl]` to declare a class with two double-precision fields, `X` and `Y`
     * `[X: 1.2, Y: 3.4]` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
     * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
@@ -175,26 +176,27 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         of strings mapped to integers.  See [generic/template classes](#generictemplate-classes).
     * For generic/template functions with type constraints, e.g., `myFunction[of: nonNull](X: of, Y: int): of`
         where `of` is the generic type.  See [generic/template functions](#generictemplate-functions) for more.
-* `{}` for sequence building and destructuring
-    * TODO: we probably should be able to use `[]` to do destructuring as well.
-    * `{Greeting: str, Times: int} destructureMe()` to do destructuring of a return value
+    * `[Greeting: str, Times: int] destructureMe()` to do destructuring of a return value
         see [destructuring](#destructuring).
-    * `"My String Interpolation is ${X, Y: Z}"` to add `{X: *value-of-X*, Y: *value-of-Z*}` to the string.
-    * `A {x(), Y}` to call `A x()` then `A Y` via [sequence building](#sequence-building)
-        and return them in an object with fields `X` and `Y`, i.e., `{X: A x(), Y: A Y}`.
-    * `A {L1: x(), L2: Y}` to do sequence building with renamed fields, i.e.,
-        `{L1: A x(), L2: A Y}`.
+    * `A $[x(), Y]` to call `A x()` then `A Y` with [sequence building](#sequence-building)
+        and return them in an object with fields `X` and `Y`, i.e., `[X: A x(), Y: A Y]`.
+* `{}` for blocks and sequence building
+    * `{...}` to effectively indent `...`: `if Condition {doThing()} else {doOtherThing()}`
+    * `A ${x(), Y}` with [sequence building](#sequence-building), 
+        calling `A x()` and `A Y`, returning `A` if temporary otherwise `A Y`
+    * `"My String Interpolation is ${missing(), X}"` to add `X` to the string.
+        Note that only the last element in the `${}` is added, but `missing()` will still be evaluated.
 * `~` to declare a template type within a function, e.g., `myGenericFunction(Value: ~u): u` to declare
     a function that takes a generic type `u` and returns it.  For more details, see
     [generic/template functions](#generictemplate-functions).
 * `$` for inline block and lambda arguments
     * [inline blocks](#block-parentheses-and-commas) include:
-        * `$(...)` to effectively indent `...`: `if Condition $(doThing()) else $(doOtherThing())`
         * `$[...]` as shorthand for a new block defining `[...]`, e.g., for a return value:
             `Array: if SomeCondition $[1, 2, 3] else $[4, 5]`
-        * TODO: get rid of this if we keep `[]` for instance variables
-        * `${...}` as shorthand for a new block defining `{...}`, e.g., for a return value:
-            `Result: if X > Y ${Max: X, Min: Y} else ${Min: X, Max: Y}`
+        * `$(...)` as shorthand for a new block defining `(...)`, e.g., an argument object:
+            `Result: if X > Y $(Max: X, Min: Y) else $(Min: X, Max: Y)`
+        * TODO: see if there's something better here:
+        * `${...}` as shorthand for a new zero-argument lambda function
     * `MyArray map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
         which will iterate over e.g., `MyArray: [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
         * Lambda arguments need to specify which scope they attach to, by increasing
@@ -359,7 +361,7 @@ myName(): str
     "World"
 # inline, `myName(): "World"`
 doSomething(you: myName, greet(Name: str): str
-    "Hello, $(Name)"
+    "Hello, ${Name}"
 )
 ```
 
@@ -376,7 +378,7 @@ print(counter())    # 124
 # defining a function that takes two type constructors as arguments,
 # one of them being named, and returns a type constructor:
 doSomething(~x, namedNew: ~y): oneOf[new[x], new[y]]
-    # if random(dbl) < 0.5 $(x) else $(namedNew)
+    if random(dbl) < 0.5 {x} else {namedNew}
 
 someType: doSomething(int, namedNew: dbl) # int or dbl with 50-50 probability
 ```
@@ -462,7 +464,7 @@ LotVariable; [
     "SomeValue": 100
     "OtherValue": "hi"
 ]
-LotVariable["SomeOtherValue"] = if Condition $(543) else $("hello")
+LotVariable["SomeOtherValue"] = if Condition {543} else {"hello"}
 
 # This is different than the `LotVariable` because it
 # is an instance of a `[SomeValue: int, OtherValue: str]` type,
@@ -521,7 +523,7 @@ declaringAFunctionWithMultilineArguments(
     Name: string("World")   # argument with a default
 ): string
     # "return" is optional for the last line of the block:
-    "$(Greeting), $(Name)! " * Times
+    "${Greeting}, ${Name}! " * Times
 ```
 
 You can call or declare functions with arguments at +2 indent, but then you must use commas at the end
@@ -534,7 +536,7 @@ declaringAFunctionWithPlusTwoIndentArguments(
         Greeting: string,
         Name: string = "World",
 ): string
-    return "$(Greeting), $(Name)! " * Times
+    return "${Greeting}, ${Name}! " * Times
 
 SomeLineContinuationExampleVariable:
         OptionalExpressionExplicitlyAtPlusTwoIndent
@@ -549,14 +551,15 @@ SomeLineContinuationExampleVariable:
 
 ### block parentheses and commas
 
-You can use `$(` ... `)` to define a block inline.  The parentheses block "operator" is grammatically
+You can use `{` ... `}` to define a block inline.  The braces block is grammatically
 the same as a standard block, i.e., going to a new line and indenting to +1.
-This is useful for short `if` statements, e.g., `if SomeCondition $(doSomething())`.
-Similarly, you can return arrays or objects in blocks via `$[...]` or `${...}`, respectively.
+This is useful for short `if` statements, e.g., `if SomeCondition {doSomething()}`.
+Similarly, you can return containers/objects or argument objects in blocks via
+`$[...]` or `$(...)`, respectively.
 
 Similarly, note that commas are essentially equivalent to a new line and tabbing to the
-same indent (indent +0).  This allows you to have multiple statements on one line, in any block,
-by using commas.  E.g.,
+same indent (indent +0).  This allows you to have multiple statements on one line,
+in any block, by using commas.  E.g.,
 
 ```
 # standard version:
@@ -571,22 +574,22 @@ if SomeCondition
     print("toggling shutoff"), shutdown()
 
 # block parentheses version
-if SomeCondition $( print("toggling shutoff"), shutdown() )
+if SomeCondition { print("toggling shutoff"), shutdown() }
 ```
 
 If the block parentheses encapsulate content over multiple lines, note that
-the additional lines need to be tabbed to +1 indent to match the +1 indent given by `$(`.
+the additional lines need to be tabbed to +1 indent to match the +1 indent given by `{`.
 Multiline block parentheses are useful if you want to clearly delineate where your blocks
 begin and end, which helps some editors navigate more quickly to the beginning/end of the block.
 
 ```
-# multiline block parentheses via an optional `$(`
-if SomeCondition $(
+# multiline block parentheses via an optional `{`
+if SomeCondition {
     print("toggling shutdown")
     print("waiting one more tick")
     print("almost..."), print("it's a bit weird to use comma statements")
     shutdown()
-)
+}
 ```
 
 ## comments
@@ -634,7 +637,7 @@ Other types which have a fixed amount of memory:
 * `u64` : unsigned integer which can hold values from 0 to `2^64 - 1`, inclusive
 * `uXYZ` : unsigned integer which can hold values from 0 to `2^XYZ - 1`, inclusive,
     where `XYZ` is 128 to 512 in steps of 64, and generically we can use
-    `unsigned[Bits: count]: what Bits $(8 $(u8), 16 $(u16), 32 $(u32), ...)`
+    `unsigned[Bits: count]: what Bits {8 {u8}, 16 {u16}, 32 {u32}, ...}`
 * `count` : `s64` under the hood, intended to be >= 0 to indicate the amount of something.
 * `index` : signed integer, `s64` under the hood.  for indexing arrays starting at 0.
 * `ordinal` : signed integer, `s64` under the hood.  for indexing arrays starting at 1.
@@ -874,7 +877,7 @@ e.g., `myFunction(A: 3, B: 2, ...MyObject)` will call `myFunction(A: 3, B: 4, C:
 |   9       |  `and`    | logical AND               | binary: `A and B` | LTR           |
 |           |   `or`    | logical OR                | binary: `A or B`  |               |
 |           |  `xor`    | logical XOR               | binary: `A xor B` |               |
-|   10      | `$(   )`  | block parentheses         | grouping: `$(A)`  | ??            |
+|   10      |  `{ }`    | block parentheses         | grouping: `{A}`   | ??            |
 |   11      |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
@@ -915,7 +918,7 @@ but you can explicitly curry like this:
 
 ```
 someFunction(X: int, Y; dbl, Z. str):
-    print("something cool with $(X), $(Y), and $(Z)")
+    print("something cool with ${X}, ${Y}, and ${Z}")
 
 curriedFunction(Z. str): someFunction(X: 5, Y; 2.4, Z.)
 
@@ -1045,7 +1048,7 @@ readonly/writable `I/Me/My` as an argument.
 exampleClass: [X: int, Y: dbl] {
     # this `;;` prefix is shorthand for `renew(Me;, ...): null`:
     ;;renew(My X: int, My Y: dbl): null
-        print("X $(X) Y $(Y)")
+        print("X ${X} Y ${Y}")
 
     # this `::` prefix is shorthand for `multiply(My: my, ...): dbl`:
     ::multiply(Z: dbl): dbl
@@ -1119,7 +1122,7 @@ Prefix `?` can be used to short-circuit function evaluation if an argument is nu
 for a function like `doSomething(X?: int)`, we can use `doSomething(?X: MyValueForX)`
 to indicate that we don't want to call `doSomething` if `MyValueForX` is null;
 we'll simply return `Null`.  E.g., `doSomething(?X: MyValueForX)` is equivalent
-to `if MyValueForX == Null $(Null) else $(doSomething(X: MyValueForX))`.
+to `if MyValueForX == Null {Null} else {doSomething(X: MyValueForX)}`.
 In this case `X` is already in scope, it becomes `doSomething(?X)` to elide the
 variable name.
 
@@ -1234,10 +1237,10 @@ is nullable, `X or Y` will be `oneOf[x, y, null]` and `X and Y` will be `oneOf[y
 The result will be `Null` if both (either) operands are falsey for `or` (`and`).
 
 ```
-NonNullOr: X or Y           # NonNullOr: if X $(X) else $(Y)
-NonNullAnd: X and Y         # NonNullAnd: if !X $(X) else $(Y)
-NullableOr?: X or Y         # NullableOr?: if X $(X) elif Y $(Y) else $(Null)
-NullableAnd?: X and Y       # NullableAnd?: if !!X and !!Y $(Null) else $(Y)
+NonNullOr: X or Y           # NonNullOr: if X {X} else {Y}
+NonNullAnd: X and Y         # NonNullAnd: if !X {X} else {Y}
+NullableOr?: X or Y         # NullableOr?: if X {X} elif Y {Y} else {Null}
+NullableAnd?: X and Y       # NullableAnd?: if !!X and !!Y {Null} else {Y}
 ```
 
 The exclusive-or operation `X xor Y` has type `oneOf[x, y, null]`, and will return `Null`
@@ -1250,7 +1253,7 @@ xor(~X, ~Y)?: oneOf[x, y]
     XIsTrue: bool(X)        # `XIsTrue: !!X` is also ok.
     YIsTrue: bool(Y)
     if XIsTrue
-        if YIsTrue $(Null) else $(X)
+        if YIsTrue {Null} else {X}
     elif YIsTrue
         Y
     else
@@ -1405,8 +1408,8 @@ since we don't want to make users extend from a base nullable class.
 # TODO: maybe rename to `presentOr`
 nonNullOr(First ~A?., Second A.): a
     what First A
-        NonNull: $(NonNull)
-        Null $(Second A)
+        NonNull: {NonNull}
+        Null {Second A}
 
 # boolean or.
 # `Nullable || X` to return `X` if `Nullable` is null or falsy,
@@ -1418,11 +1421,11 @@ truthyOr(First ~A?., Second A.): a
                 NonNull
             else
                 Second A
-        Null $(Second A)
+        Null {Second A)
 ```
 
 We don't currently intend to support Rust-like matching, e.g.,
-`what A $( NonNull: and bool(NonNull) $(NonNull), Any: $(Second A) )`,
+`what A { NonNull: and bool(NonNull) {NonNull}, Any: {Second A} }`,
 but that is a possibility in the future.
 
 ## nested/object types
@@ -1577,20 +1580,20 @@ v(): int(600)
 
 # function with X,Y double-precision float arguments that returns nothing
 v(X: dbl, Y: dbl): null
-    print("X = $(X), Y = $(Y), atan(Y, X) = $(\\math atan(X, Y))")
-    # Note this could also be defined more concisely using $$,
+    print("X = ${X}, Y = ${Y}, atan(Y, X) = ${\\math atan(X, Y)}")
+    # Note this could also be defined more concisely using $(),
     # which also prints the expression inside the parentheses with an equal sign and its value,
-    # although this will print `\\math atan(X, Y) = ...`, e.g.:
-    # print("$$(X), $$(Y), $$(\\math atan(X, Y))")
+    # although this will print `X: ..., Y: ..., Atan: ...`, e.g.:
+    # print("$(X, Y, \\math atan(X, Y))")
 
 # Note that it is also ok to use parentheses around a function definition,
-# but you should use the block parentheses notation `$()`.
-excite(Times: int): str $(
+# but you should use braces `{}`.
+excite(Times: int): str {
     "hi!" * Times
-)
+}
 
-# You can also define functions inline with the `$(` ... `)` block operator.
-oh(Really; dbl): dbl $( Really *= 2.5, return 50 + Really )
+# You can also define functions inline with the `{` ... `}` block operator.
+oh(Really; dbl): dbl { Really *= 2.5, return 50 + Really }
 ```
 
 ## calling a function
@@ -1772,11 +1775,11 @@ q(():
     return X
 )
 # equivalent to `q((): X)`
-# also equivalent to `q((): $(X))`
+# also equivalent to `q((): {X})`
 ```
 
-You only really need to use `$(X)` if you're also doing a side computation,
-e.g., `$(SomeOtherCalculation, X)`.
+You only really need to use `{X}` if you're also doing a side computation,
+e.g., `{SomeOtherCalculation, X}`.
 
 ### the name of a called function in an argument object
 
@@ -1928,7 +1931,7 @@ instead of `fn(Args): t`).
 
 ```
 doSomething(~x, namedNew: ~y): new[oneOf[x, y]]
-    return if random(dbl) < 0.5 $(x) else $(namedNew)
+    return if random(dbl) < 0.5 {x} else {namedNew}
 
 print(doSomething(int, namedNew: dbl))  # will print `int` or `dbl` with 50-50 probability
 ```
@@ -2037,10 +2040,10 @@ argument modifiers (i.e., `;` and `:` are different overloads, as are nullable t
 
 ```
 greet(String): null
-    print("Hello, $(String)!")
+    print("Hello, ${String}!")
 
 greet(Say: string, To: string): null
-    print("$(Say), $(To)!")
+    print("${Say}, ${To}!")
 
 greet(Say: string, To: string, Times: int): null
     for Count: int < Times
@@ -2054,7 +2057,7 @@ greet(Times: 5, Say: "Hey", To: "Sam")
 # note this is a different overload, since it must be called with `Say;`
 greet(Say; string): null
     Say += " wow"
-    print("$(Say), world...")
+    print("${Say}, world...")
 
 MySay; "hello"
 greet(Say; MySay)   # prints "hello wow, world..."
@@ -2140,7 +2143,7 @@ someFunction(Y: int): dbl
 
 # nullable argument (case 3):
 someFunction(Y?: int): dbl
-    return if Y != Null $(1.77) else $(Y + 2.71)
+    if Y != Null {1.77} else {Y + 2.71}
 
 # default argument (case 4):
 someFunction(Y: 3): dbl
@@ -2159,7 +2162,7 @@ we define present and missing argument overloads in the following way:
 overloaded(): dbl
     return 123.4
 overloaded(Y: int): string
-    return "hi $(Y)"
+    return "hi ${Y}"
 ```
 
 The behavior that we get when we call `overloaded` will depend on whether we
@@ -2202,7 +2205,7 @@ someFunction(X: someNullishFunction())   # ERROR! someNullishFunction is nullabl
 
 # where someNullishFunction might look like this:
 someNullishFunction()?: int
-    return if SomeCondition $( Null ) else $( 100 )
+    return if SomeCondition { Null } else { 100 }
 ```
 
 We also want to make it easy to chain function calls with variables that might be null,
@@ -2211,7 +2214,7 @@ where we actually don't want to call an overload of the function if the argument
 ```
 # in other languages, you might check for null before calling a function on a value.
 # this is also valid hm-lang but it's not idiomatic:
-X?: if Y != Null $(overloaded(Y)) else $(Null)
+X?: if Y != Null { overloaded(Y) } else { Null }
 
 # instead, you should use the more idiomatic hm-lang version.
 # putting a ? *before* the argument name will check that argument;
@@ -2524,7 +2527,7 @@ myClass[of]: [X; of] {
     # maybe something like this?
     ;;take(X;: of):
         My X = @mootOrCopy(X)
-        # `@mootOrCopy(Z)` can expand to `@if @readonly(Z) $(Z) @else $(Z!)`
+        # `@mootOrCopy(Z)` can expand to `@if @readonly(Z) {Z} @else {Z!}`
         # or maybe we can do something like `My X = X!:`
 }
 ```
@@ -2534,9 +2537,9 @@ Alternatively, we can rely on some boilerplate that the language will add for us
 ```
 myClass[of]: [X; of] {
     # these are added automatically by the compiler since `X; of` is defined.
-    ;;x(Of; of): $( My X<->Of )
-    ;;x(Of: of): $( My X = Of )
-    ;;x(Of. of): $( My X = Of! )
+    ;;x(Of; of): { My X<->Of }
+    ;;x(Of: of): { My X = Of }
+    ;;x(Of. of): { My X = Of! }
 
     # so `take` would become:
     ;;take(X:;. of):
@@ -2599,7 +2602,7 @@ Animals; ["hello": cat(), "world": snake(Name: "Woodsy")]
 doSomething(Animal): string
     Result; Animal Name
     Animals["world"] = cat()        # overwrites snake with cat
-    Result += " $(Animal speak())"
+    Result += " ${Animal speak()}"
     return Result
 
 print(doSomething(Animals["world"]))    # returns "Woodsy hisss!" (snake name + cat speak)
@@ -2612,11 +2615,11 @@ but these are edge cases that might pop up in a complex code base.
 ```
 MyInt; 123
 notActuallyConstant(Int): null
-    print("Int before $(Int)")
+    print("Int before ${Int}")
     MyInt += Int
-    print("Int middle $(Int)")
+    print("Int middle ${Int}")
     MyInt += Int
-    print("Int after $(Int)")
+    print("Int after ${Int}")
     # Int += 5  # this would be a compiler error since `Int` is readonly from this scope.
 
 notActuallyConstant(MyInt) # prints "Int before 123", then "Int middle 246", then "Int after 492"
@@ -2780,7 +2783,7 @@ conflict; trying to define both would be a compile error.
 
 TODO: it probably would be nice for classes to have an implicit self-reflection
 property like `x: [X; x]`.  This would mostly be nice for inheritance, so we
-could do `::childMethod(): $(ParentName parentMethod(), return 5)`.
+could do `::childMethod(): {ParentName parentMethod(), return 5}`.
 Note we don't actually define this, even for localization support,
 since it would be a recursive, infinitely expanding class, and we want to catch
 that in the compiler and not think users are creating a unicode overload.
@@ -2942,7 +2945,7 @@ To declare a reassignable function, use `;` after the arguments.
 
 ```
 greet(Noun: string); null
-    print("Hello, $(Noun)!")
+    print("Hello, ${Noun}!")
 
 # you can use the function:
 greet(Noun: "World")
@@ -3098,7 +3101,7 @@ is a complete example:
 
 ```
 logger(~T): t
-    print("got $(T)")
+    print("got ${T}")
     return T
 
 vector3: [X: dbl, Y: dbl, Z: dbl]
@@ -3126,9 +3129,9 @@ TODO: internally this creates an overload with a "TheNameValue" int argument
 and "TheNameName" string argument.  do we really want to support this?
 
 ```
-thisFunction(~TheName: int): null
-    ArgumentName: str(@@TheName)
-    print("calling thisFunction with $(ArgumentName): $(TheName)")
+thisFunction(~Argument: int): null
+    ArgumentName: str(@@Argument)
+    print("calling thisFunction with ${ArgumentName}: ${Argument}")
 ```
 
 We cannot define an argument name and an argument type to both be
@@ -3243,7 +3246,7 @@ exampleClass: [
     # we define a default for this function but you could change its definition in a constructor.
     # NOTE: instance functions can use `Me`/`My`/`I` as necessary.
     instanceFunction(Me): null
-        print("hello $(My X)!")
+        print("hello ${My X}!")
 
     # this class instance function can be changed after the instance has been created
     # (due to being declared with `;`), as long as the instance is mutable.
@@ -3690,6 +3693,39 @@ and using the method on a subclass instance will return an instance of the subcl
 If your parent class method truncates at all (e.g., removes information from child classes),
 make sure to return the same `parentClassName` that defines the class.
 
+```
+# {} for sequence building, [] for objects/containers, () for blocks and argument-objects
+myFunction(X: 3, Y: "hello")
+parentClass: [X: int] { ::someMethod(Y: int): My X * Y, staticFunction(Z: int): Z // 2 }
+# literally?: `parentClass: {[X: int]::someMethod(Y: int), [X: int] staticFunctioN(Z: int)}`
+childClass: allOf[parentClass, [W: int]] { ::someMethod(Y: int): (My W + My X) * Y }
+if SomeCondition $(doSomething()) else $(doSomethingElse())
+[X:, Y;] deStructureMe()
+A {x(), Y}  # returns object [X: A x(), Y: A Y]
+
+# TODO: i think i like this the most.
+# {} for blocks, [] for objects/types/containers, () for argument-objects & sequence building
+myFunction(X: 3, Y: "hello")
+parentClass: [X: int] { ::someMethod(Y: int): My X * Y, staticFunction(Z: int): Z // 2 }
+childClass: allOf[parentClass, [W: int]] { ::someMethod(Y: int): (My W + My X) * Y }
+if SomeCondition {doSomething()} else {doSomethingElse()}
+[X:, Y;] deStructureMe()
+A (x(), Y)  # returns argument object  if `A` is a reference, otherwise
+            # `A` if a temporary.
+# TODO: maybe kill off standard interpretations for $() and $[] and ${} and use
+A $(x(), Y) # argument object `(X: A x(), Y: A Y)` if `A` is a reference, otherwise error
+A ${x(), Y} # runs `A x()` and `A Y` and returns `A` if a temporary else last statement.
+A $[x(), Y] # object `[X: A x(), Y: A y]`
+
+# {} for sequence building & argument-objects, [] for containers, () for blocks
+myFunction{X: 3, Y: "hello"}
+parentClass: [X: int] { ::someMethod(Y: int): My X * Y, staticFunction(Z: int): Z // 2 }
+childClass: allOf[parentClass, [W: int]] { ::someMethod(Y: int): (My W + My X) * Y }
+if SomeCondition $(doSomething{}) else $(doSomethingElse{})
+[X:, Y;] deStructureMe()
+A {x(), Y}  # returns object [X: A x(), Y: A Y]
+```
+
 We can access member variables or functions that belong to that the parent type,
 i.e., without subclass overloads, using the syntax `parentClassName someMethod(My, ...Args)`
 or `ParentClassName::someMethod(...Args)`.  Use `My;` to access variables or methods that will
@@ -3711,7 +3747,7 @@ animal: [Name: string] {
     # this method is defined, so it's implemented by the base class.
     # derived classes can still change it, though.
     ::escape(): null
-        print("$(My Name) $(I go()) away!!")
+        print("${My Name} ${I go()} away!!")
 
     # a method that returns an instance of whatever the class instance
     # type is known to be.  e.g., an animal returns an animal instance,
@@ -3771,7 +3807,7 @@ Cat escape()    # prints "CAT ESCAPES DARINGLY!"
 We have some functionality to make it easy to pass `renew` arguments to
 a parent class via the `ParentClassName` namespace in the constructor arguments.
 This way you don't need to add the boiler plate logic inside the
-constructor like this `;;renew(ParentArgument): $( Parent renew(ParentArgument) )`,
+constructor like this `;;renew(ParentArgument): { Parent renew(ParentArgument) }`,
 you can make it simpler like this instead:
 
 ```
@@ -3809,7 +3845,7 @@ WeirdAnimal: animal(
     ::escape(): null
         # to call the parent method `escape()` in here, we can use this:
         animal::escape()
-        print("$(My Name) $(I go()) back...")
+        print("${My Name} ${I go()} back...")
         # or we can use this:
         animal escape(Me)
 )
@@ -4257,7 +4293,7 @@ is a singleton instance.
 AwesomeService: allOf[parentClass1, parentClass2, #(etc.)#] {
     UrlBase: "http://my/website/address.bazinga"
     ::get(Id: string): awesomeData 
-        Json: Http get("$(My UrlBase)/awesome/$(Id)") 
+        Json: Http get("${My UrlBase}/awesome/${Id}") 
         return awesomeData(Json)
 }()
 ```
@@ -4318,6 +4354,11 @@ MyBuilder: myBuilder() {
     set("Xyz", 789)
     # etc.
 }
+
+# TODO!! how is this different than `if Condition {...}`?
+# we may need to distinguish sequence building from blocks so that we don't do
+# `Condition {...}` and check for the last value in ...
+# probably could do `${` for sequence building.
 
 # You can also do inline, but you should use commas here.
 # Note that this variable can be mutated after this line due to `;`.
@@ -4421,7 +4462,7 @@ Results: MyClass getValue() {
 ### conditionals in sequence builders
 
 TODO: talk about conditionals in sequence building.
-E.g., `{ myMethod(), if Value $(someMethod()) else $(otherMethod()) }`
+E.g., `( myMethod(), if Value {someMethod()} else {otherMethod()} )`
 Everything is scoped to the LHS, however, so `if Value` would be `if Lhs Value`.
 
 # aliases
@@ -4581,7 +4622,7 @@ Tests are written as indented blocks with a `@test` annotation.
 ```
 @private
 privateFunction(X: int, Y: int): [Z: str]
-    Z: "$(X):$(Y)"
+    Z: "${X}:${Y}"
 
 @protected
 protectedFunction(X: int, Y: int): [Z: str]
@@ -4614,7 +4655,7 @@ This ensures a clean state.  If you want multiple tests to start with the same
 logic, just move that common logic to a parent test.
 
 TODO: parametric tests probably can just be `@test "params":` and nesting
-`for Params: AllPossibleParams $(@test "works for $(Params)": ...)`.
+`for Params: AllPossibleParams {@test "works for $(Params)": ...}`.
 
 Inside of a `test` block, you have access to a `Test` variable which includes
 things like what has been printed (`Test print()`).  In this example, `Test print()`
@@ -4654,7 +4695,7 @@ be an error string.
 To make it easy to handle errors being returned from other functions, hm-lang uses
 the `assert` method on a result class.  E.g., `Ok: MyHm assert()` which will convert
 the `MyHm` result into the `ok` value or it will return the `uh` error in `MyHm` from
-the current function block, e.g., `Ok: what MyHm $( Ok: $(Ok), Uh: $(return Uh))`.
+the current function block, e.g., `Ok: what MyHm { Ok: {Ok}, Uh: {return Uh}}`.
 It is something of a macro like `?` in Rust.  Note that `assert` doesn't panic.
 There are a few helpful overloads for the `assert()` method, including changing the
 error type `uh` by including it, e.g., `MyHm assert(Uh: newUhType("Bad"))`.
@@ -4670,7 +4711,7 @@ See [the hm definition](https://github.com/hm-lang/core/blob/main/core/hm.hm)
 for methods built on top of the `oneOf[ok, uh]` type.
 
 ```
-Result: if X $( ok(3) ) else $( uh("oh no") )
+Result: if X { ok(3) } else { uh("oh no") }
 if Result isOk()
     print("ok")
 
@@ -4717,7 +4758,7 @@ that `assert` will return the correct uh subclass for the module that it is in;
 If a function returns a `hm` type, e.g., `myFunction(...): hm[ok, uh]`,
 then we can automatically convert its return value into a `oneOf[ok, null]`, i.e.,
 a nullable version of the `ok` type.  This is helpful for things like type casting;
-instead of `MyInt: what int(MyDbl) $(Ok. $(Ok), Uh: $(-1))` you can do
+instead of `MyInt: what int(MyDbl) {Ok. {Ok}, Uh: {-1}}` you can do
 `MyInt: int(MyDbl) ?? -1`.  Although, there is another less-verbose option that
 doesn't use nulls:  `int(MyDbl) map((Uh): -1)`.
 
@@ -4852,11 +4893,11 @@ hm[of]: hm[ok: of, Array uh]
 # Note that `container[id, value]` must have a non-null `value` type,
 # but `array` can have nullable entries if desired, so convert to `nonNull`
 # if necessary to extend `container`.
-# TODO: check notation: `nonNull(~t): if nullable(t) $(unNull(t)) else t`
+# TODO: check notation: `nonNull(~t): if nullable(t) {unNull(t)} else t`
 # TODO: find a good way to infer types, e.g., like this (or maybe `@infer y` instead of `~y`):
-# e.g., `nonNull[of]: if of == nullable(~y) $(y) else $(of)`.
-# or maybe `if of == oneOf[~y, null] $(y) else $(of)`.
-# or maybe `if of == oneOf[...y, null] $(y) else $(of)`.
+# e.g., `nonNull[of]: if of == nullable(~y) {y} else {of}`.
+# or maybe `if of == oneOf[~y, null] {y} else {of}`.
+# or maybe `if of == oneOf[...y, null] {y} else {of}`.
 array[of]: container[id: index, value: nonNull[of]] {
     # TODO: a lot of these methods need to return `hm[of]`.
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
@@ -4915,8 +4956,8 @@ array[of]: container[id: index, value: nonNull[of]] {
     # passes the current value at the index into the passed-in function by reference (`;`).
     # if Index >= the current count(), then the array count is increased (to Index + 1)
     # and filled with default values so that a valid reference can be passed into the callback.
-    # USAGE: `My[Index] += 5` compiles to `My[Index, (Of;): $(Of += 5)]`
-    # TODO: we can probably determine `$Of += 5` as `(Of;): $(Of += 5)` because `$Of += 5` requires mutability
+    # USAGE: `My[Index] += 5` compiles to `My[Index, (Of;): {Of += 5}]`
+    # TODO: we can probably determine `$Of += 5` as `(Of;): {Of += 5}` because `$Of += 5` requires mutability
     ;;[Index, fn(Of;): ~u]: hm u
 
     # getter, which returns a Null if index is out of bounds of the array:
@@ -4958,7 +4999,7 @@ resizable array if the argument is writable.  Some examples:
 Int4: array[int, 4] = [-1, 5, 200, 3450]
 # writable array of fixed-count 3:
 Vector3; array[3, dbl] = [1.5, 2.4, 3.1]
-print("Vector3 is [$(Vector3[0]), $(Vector3[1]), $(Vector3[2])]")
+print("Vector3 is [${Vector3[0]}, ${Vector3[1]}, ${Vector3[2]}]")
 
 # a function with a writable argument:
 doSomething(Array[dbl];): array[2, dbl]
@@ -5304,10 +5345,10 @@ set[of: hashable]: container[id: of, value: true] {
     # The current value is passed into the callback and can be modified;
     # if the value was `Null` and is converted to `True` inside the function,
     # then the set will get `Of` added to itself.  Example:
-    #   `Set[X] = if Condition $(True) else $(Null)` becomes
-    #   `Set[X, fn(Maybe True?;): $(Maybe True = if Condition $(True) else $(Null))]`
+    #   `Set[X] = if Condition {True} else {Null}` becomes
+    #   `Set[X, fn(Maybe True?;): {Maybe True = if Condition {True} else {Null}}]`
     # TODO: if we used `True?` as the identifier everywhere we wouldn't need to do `Maybe True`, e.g.,
-    #   `Set[X, fn(True?;): $(True? = if Condition $(True) else $(Null))]`
+    #   `Set[X, fn(True?;): {True? = if Condition {True} else {Null}}]`
     ;;[Of, fn(Maybe True?; true): ~t]: t
 
     # Fancy getter for whether `Of` is in the set or not.
@@ -5504,9 +5545,9 @@ else
     DefaultValue
 
 # now X is either the result of `doSomething()` or `DefaultValue`.
-# note, we can also do this with the `$(` `)` operator to indicate blocks, e.g..
+# note, we can also do this with braces to indicate blocks, e.g..
 
-X: if Condition $( doSomething() ) else $( calculateSideEffects(...), DefaultValue )
+X: if Condition { doSomething() } else { calculateSideEffects(...), DefaultValue }
 ```
 
 Note that ternary logic short-circuits operations, so that calling the function
@@ -5629,9 +5670,9 @@ X: what String
     else
         100
 
-# Note again that you can use `$(` ... `)` block operators to make these inline.
+# Note again that you can use braces to make these inline.
 # Try to keep usage to code that can fit legibly on one line:
-Y: what String $( "hello" $(5), "world" $(7), else $(100) )
+Y: what String { "hello" {5}, "world" {7}, else {100} }
 ```
 
 You don't need to explicitly "break" a `case` statement like in C/C++.
@@ -5686,17 +5727,17 @@ what Update
         print("unknown update")
     Status:
         # match all other statuses:
-        print("known status: $(Status)")
+        print("got update: $(Status)")
     Position: vector3
-        print("got position update: $(Position)")
+        print("got update: $(Position)")
     Velocity: vector3
-        print("got velocity update: $(Velocity)")
+        print("got update: $(Velocity)")
 ```
 
 We don't use function style here, e.g.,
-`what Update $( (Position: vector3): print("got position update: $(Position)") )`,
-because a `return` from such a function should technically only get you out of the `what`
-block and not out of the function that has `what` inside.
+`what Update { (Position: vector3): print("got position update: $(Position)") }`,
+because that would only fire if `Update` was a null-returning function with
+one `Position: vector3` argument.
 
 Note that variable declarations can be argument style, i.e., including
 temporary declarations (`.`), readonly references (`:`), and writable
@@ -5717,10 +5758,10 @@ Whatever; whatever str("this could be a very long string, don't copy if you don'
 
 what Whatever!      # ensure passing as a temporary by mooting here.
     Str.
-        print("can do something with temporary here: $(Str)")
+        print("can do something with temporary here: ${Str}")
         doSomething(Str!)
     Card.
-        print("can do something with temporary here: $(Card)")
+        print("can do something with temporary here: ${Card}")
         doSomethingElse(Card!)
 ```
 
@@ -5735,13 +5776,13 @@ switch (Update.hm_Is) {
             // print("unknown update")
             ...
         } else {
-            // print("known status: $(Status)")
+            // print("known status: ${Status}")
             ...
         }
         break;
     case update::position::hm_Is:
         DEFINE_CAST(update::position *, Position, &Update.hm_Value);
-        // print("got position update: $(Position))
+        // print("got position update: ${Position}")
         break;
     ...
 }
@@ -5821,7 +5862,7 @@ myHashableClass: hashable {
     # TODO: can we come up with a cleaner syntax to make this `null`?
     # consider doing sequence building for the hash builder:
     ::hash(~Builder;): null
-        Builder {
+        Builder ${
             hash(My Id)
             hash(My Name)
         }
@@ -5841,7 +5882,7 @@ what MyHashableClass
     myHashableClass(Id: 123, Name: "Whatever")
         print("great!")
     MyHashableClass:
-        print("it was something else: $(MyHashableClass)")
+        print("it was something else: ${MyHashableClass}")
 ```
 
 Note that if your `fastHash` implementation is terrible (e.g., `fastHash(Salt): Salt`),
@@ -5856,8 +5897,8 @@ insertion order, but same contents).
 ## for loops
 
 TODO: Can we write other conditionals/loops/etc. in terms of `indent/block` to make it easier to compile
-from fewer primitives?  E.g., `while Condition, Do: $(... Do exit(3) ...)`, where
-`do` is a thin wrapper over `block`?
+from fewer primitives?  E.g., `while Condition, Do: {... Do exit(3) ...}`, where
+`do` is a thin wrapper over `block`?  or maybe `do, Loop: {... Loop exit(3) ...}`
 
 ```
 # for-loop with counter that is readonly inside the for-loop's block:
@@ -5871,9 +5912,9 @@ for Value: int < 10
 # for-loop whose counter can be modified inside the block.
 # not recommended, since it's a bit harder to reason about.
 for Special; int < 4
-    print("A:$(Special)")
+    print("A:${Special}")
     ++Special
-    print("B:$(Special)")
+    print("B:${Special}")
     ++Special
 # prints "A:0", "B:1", "A:3", "B:4"     # notice skip from B:1 to A:3 as `Special`
 # increments on its own because of the for-loop iteration logic.  Note also the
@@ -5969,7 +6010,7 @@ block[of, declaring: null]: [
     #       Value = Value // 2 + 9
     #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
     #       if Old Value == Value
-    #           Block exit("exited at $(Old Value)")
+    #           Block exit("exited at ${Old Value}")
     #       # note we need to `loop` otherwise we won't satisfy the `never`
     #       # part of the indent function.
     #       Block loop()
@@ -5982,7 +6023,7 @@ block[of, declaring: null]: [
     # the start of the `indent` block.  example:
     #   Value; 0
     #   indent((Block[str]):
-    #       if ++Value >= 10 $(Block exit("done"))
+    #       if ++Value >= 10 {Block exit("done")}
     #       if Value % 2
     #           Block loop()
     #       print(Value)
@@ -6171,7 +6212,7 @@ someVeryLongRunningFunction(Int): string
 # this uses the default `string` return value:
 print("starting a long running function...")
 MyName: someVeryLongRunningFunction(10)
-print("the result is $(MyName) many seconds later")
+print("the result is ${MyName} many seconds later")
 
 # this does it as a future
 print("starting a future, won't make progress unless polled")
@@ -6182,7 +6223,7 @@ Future: um(someVeryLongRunningFunction(10))
 # probably also ok: `Future: um[~] = someVeryLongRunningFunction(10)`
 print("this `print` executes right away")
 Result: string = Future
-print("the result is $(Result) many seconds later")
+print("the result is ${Result} many seconds later")
 ```
 
 That is the basic way to resolve a future, but you can also use
@@ -6298,9 +6339,9 @@ if Test isFalse()   # also OK
     print("test is false!")
 
 # get the count (number of enumerated values) of the enum:
-print("bool has $(bool count()) possibilities:")
+print("bool has ${bool count()} possibilities:")
 # get the lowest and highest values of the enum:
-print("starting at $(bool min()) and going to $(bool max())")
+print("starting at ${bool min()} and going to ${bool max()}")
 ```
 
 Because of this, it is a bit confusing to create an enum that has `Count` as an
@@ -6318,8 +6359,8 @@ sign: oneOf[
     Positive: 1
 ]
 
-print("sign has $(sign count()) values")   # 3
-print("starting at $(sign min()) and going to $(sign max())")     # -1 and 1
+print("sign has ${sign count()} values")   # 3
+print("starting at ${sign min()} and going to ${sign max()}")     # -1 and 1
 
 weird: oneOf[
     X: 1
@@ -6361,7 +6402,7 @@ option: oneOf[
     NowYouWillBeSadForever
 ]
 
-print("number of options should be 7:  $(option count())")
+print("number of options should be 7:  ${option count()}")
 
 Option1: option ContentWithLife
 
@@ -6475,7 +6516,7 @@ oneOf[..., ~t]: [] {
     ;:is(fn(T;:): null): never
 
     # type narrowing.
-    # the signature for `if Tree is Branch; $(#[do stuff with `Branch`]#)`
+    # the signature for `if Tree is Branch; {#[do stuff with `Branch`]#}`
     # the method returns true iff the block should be executed.
     # the block itself can return a value to the parent scope.
     ;:.is(), Block[declaring:;. t, exit: ~u]: bool
@@ -6826,7 +6867,7 @@ caller[of]: [
     # use `of@` to pass in the mutability of `of` from `caller` into `callee`,
     Callees[ptr[callee[of@]]];
 ] {
-    ::runCallbacks(Of@): for Ptr: in My Callees $(Ptr call(Of@)) 
+    ::runCallbacks(Of@): for Ptr: in My Callees {Ptr call(Of@)}
 }
 
 audio: caller[array[sample], Mutable] {
@@ -7035,12 +7076,12 @@ If your code compiles, we will also format it.
 
 If there are any compile errors, the compiler will add some special
 comments to the code that will be removed on next compile, e.g.,
-`#@!$("there's a syntax problem here ^")`
+`#@!$ ^ there's a syntax problem`
 
 ## metaprogramming
 
-TODO: we'd like to provide ways to define custom block functions like `if X $(...)`,
-e.g., `whenever Q $(...)`.
+TODO: we'd like to provide ways to define custom block functions like `if X {...}`,
+e.g., `whenever Q {...}`.
 
 # implementation
 
