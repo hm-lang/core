@@ -3,83 +3,83 @@
 # flips between states while reading through files?
 
 # list of elements that can compose the grammar.
-# doesn't include tokens like `LowerCamelCase` or `UpperCamelCase`,
+# doesn't include tokens like `Variable_case` or `snake_case`,
 # which comprise the grammar but don't specify it.
-grammarElement: oneOf[
-    Statement: oneOf[
-        VariableDefinition
-        VariableDeclaration
-        FunctionDefinition
-        FunctionDeclaration
-        ClassDeclaration
+grammar_element: one_of[
+    Statement: one_of[
+        Variable_definition
+        Variable_declaration
+        Function_definition
+        Function_declaration
+        Class_declaration
         Expression
     ]
     Expression: {
-        token PrefixUnaryOperator?
-        oneOf[BinaryExpression, Number, Array[nestable]]
-        token PostfixUnaryOperator?
+        token Prefix_unary_operator?
+        one_of[Binary_expression, Number, Array[nestable]]
+        token Postfix_unary_operator?
     }
-    BinaryExpression: {
-        token BinaryOperator
-        LeftOperand: expression
-        RightOperand: expression
+    Binary_expression: {
+        token Binary_operator
+        Left_operand: expression
+        Right_operand: expression
     }
-    Nestable: oneOf[FunctionCall, ClassName, VariableName]
+    Nestable: one_of[Function_call, Plain_type, Variable_name]
 
-    Type: oneOf[PlainType, VariableDeclaration, FunctionDeclaration]
+    Type: one_of[Plain_type, Variable_declaration, Function_declaration]
 
-    # e.g., `myClass` or `genericClass[type1, ...]`
-    PlainType: {ClassName, GenericSpecification?}
-    # e.g., `MyClass` or `GenericClass[type1, ...]` for a type that's in scope
-    DefaultNamedVariable: {DefaultClassName, GenericSpecification?}
+    # e.g., `my_class` or `generic_class[type1, ...]`
+    Plain_type: {Class_name, Generic_specification?}
+    # e.g., `My_class` or `Generic_class[type1, ...]` for a type that's in scope
+    Default_named_variable: {Default_class_name, Generic_specification?}
 
-    # e.g., `[x, y: constraintY, Z: zType]`
+    # e.g., `[x, y: constraint_y, Z: z_type]`
     # to be valid, `x` should not be in scope.
-    GenericDeclaration: array[ArgumentDeclaration]
+    Generic_declaration: array[Argument_declaration]
     # e.g., `[x, y: int, Z: 5]`
     # to be valid, `x` *should* be in scope.
-    GenericSpecification: array[ArgumentDefinition]
+    Generic_specification: array[Argument_definition]
 
-    VariableName: token UpperCamelCase
-    VariableDeclaration: oneOf[StandardVariableDeclaration, AbbreviatedVariableDeclaration]
-    StandardVariableDeclaration: {VariableName, token Declaration, PlainType}
-    AbbreviatedVariableDeclaration: {DefaultNamedVariable, token Declaration?}
+    Variable_name: token variable_case
+    Variable_declaration: one_of[Standard_variable_declaration, Abbreviated_variable_declaration]
+    Standard_variable_declaration: {Variable_name, token Declaration, Plain_type}
+    Abbreviated_variable_declaration: {Default_named_variable, token Declaration?}
 
-    VariableDefinition: oneOf[StandardVariableDefinition, AbbreviatedVariableDefinition]
-    StandardVariableDefinition: {VariableName, token Declaration, Expression}
-    AbbreviatedVariableDefinition: {DefaultNamedVariable, token Declaration, Expression}
+    Variable_definition: one_of[Standard_variable_definition, Abbreviated_variable_definition]
+    Standard_variable_definition: {Variable_name, token Declaration, Expression}
+    Abbreviated_variable_definition: {Default_named_variable, token Declaration, Expression}
 
-    FunctionName
-    FunctionArgsWithReturnType
-    # e.g., `myFn(Arg1, Arg2): type` or `fn[type1](Arg1, Arg2): type`
+    Function_name
+    Function_args_with_return_type
+    # e.g., `my_fn(Arg1, Arg2): type` or `fn[type1](Arg1, Arg2): type`
     # can be used as a `Type` when returning a function from another function.
-    FunctionDeclaration
-    FunctionDefinition
-    FunctionCall
+    Function_declaration
+    Function_definition
+    Function_call
 
-    ArgumentDeclaration
-    ArgumentDefinition
+    Argument_declaration
+    Argument_definition
 
-    RhsStatement
-    AtomicStatement
+    Rhs_statement
+    Atomic_statement
 
-    ClassName: token LowerCamelCase
-    DefaultClassName: token UpperCamelCase
-    ClassDefinition
-    ClassStatement
-    ClassMethod
+    Class_name: token snake_case 
+    Default_class_name: token variable_case
+    Class_definition
+    Class_statement
+    Class_method
 
-    ForLoop
+    For_loop
 
-    EndOfInput
+    End_of_input
 ]
-# TODO: `grammarElement`s probably should be POD structs, e.g., `Type: {Array[Token]}`
+# TODO: `grammar_element`s probably should be POD structs, e.g., `Type: {Array[Token]}`
 # however, it's probably better to give them more individualized types, like
-# `Type: oneOf[PlainType: {Name: str, Generics?}, FunctionDeclaration: {...}]`
+# `Type: one_of[Plain_type: {Name: str, Generics?}, Function_declaration: {...}]`
 
 Grammar: {
-    element: grammarElement
-    statement: grammarElement statement
+    element: grammar_element
+    statement: grammar_element statement
     parsed: array[statement] {
         ::hm(): array[str]
             # TODO!
@@ -89,7 +89,7 @@ Grammar: {
             uh("not implemented")
     }
     uh: {
-        BadLine: index
+        Bad_line: index
         Error: str
         Parsed
     }
@@ -107,15 +107,15 @@ Grammar: {
                 File write(Parsed hm())
                 Context commit(Proposals)
             Uh:
-                error("on line $(Uh BadLine + 1):")
-                if Uh BadLine > 0
-                    error(". $(Lines[Uh BadLine - 1]")
-                error("> $(Lines[Uh BadLine]")
+                error("on line $(Uh Bad_line + 1):")
+                if Uh Bad_line > 0
+                    error(". $(Lines[Uh Bad_line - 1]")
+                error("> $(Lines[Uh Bad_line]")
                 error("? $(Uh Error)")
                 File open("w", (Handle):
                     for Index; < Lines count()
                         Handle write(Lines[Index])
-                        if Index == Uh BadLine
+                        if Index == Uh Bad_line
                             Handle write(Uh Error)
                 )
 
@@ -133,13 +133,13 @@ Grammar: {
         Parsed;
         for Index; < Array count()
             # TODO: Tokens should be retrieved as needed
-            #       probably need a `Tokenizer; {LineIndex: index, ColumnIndex: index, Array[str]}`
+            #       probably need a `Tokenizer; {Line_index: index, Column_index: index, Array[str]}`
             #       class which has some methods like `next()`
             Tokens: tokenize(Array[Index], Context, Proposals) map((Uh):
-                {BadLine: Index, Error: Uh, Parsed!}
+                {Bad_line: Index, Error: Uh, Parsed!}
             ) assert()
             Parsed append(I parse(Tokens, Context, Proposals;) map((Uh):
-                {BadLine: Index, Error: Uh, Parsed!}
+                {Bad_line: Index, Error: Uh, Parsed!}
             ) assert())
         Parsed
 
@@ -147,129 +147,129 @@ Grammar: {
     ::parse(Array[token], Context, Proposals;): 
 
     @private
-    Lot[at: element, tokenMatcher]: [
-        Type: oneOfMatcher([
-            FunctionDeclaration
-            PlainType
+    Lot[at: element, token_matcher]: [
+        Type: one_of_matcher([
+            Function_declaration
+            Plain_type
         ])
-        PlainType: sequenceMatcher([
-            LowerCamelCase
-            optionalMatcher(GenericsList)
-        ])
-
-        VariableName: singleTokenMatcher(UpperCamelCase)
-        VariableDeclaration: sequenceMatcher([
-            VariableName
-            optionalMatcher(operatorMatcher("?"))
-            oneOfMatcher([operatorMatcher(":"), operatorMatcher(";")])
-            TypeElement
-        ])
-        VariableDefinition: sequenceMatcher([
-            VariableName
-            optionalMatcher(operatorMatcher("?"))
-            oneOfMatcher([operatorMatcher(":"), operatorMatcher(";")])
-            RhsStatement
+        Plain_type: sequence_matcher([
+            token snake_case
+            optional_matcher(Generics_list)
         ])
 
-        FunctionName: singleTokenMatcher(LowerCamelCase)
-        FunctionDeclaration: oneOfMatcher([
-            # `fnName(Args): retType`, `fnName?(Args): retType`, or
-            # `fnName(Args)?: retType`, also allowing `;` instead of `:`.
-            sequenceMatcher([
-                FunctionName
-                FunctionArgsWithReturnType
+        Variable_name: single_token_matcher(Variable_case)
+        Variable_declaration: sequence_matcher([
+            Variable_name
+            optional_matcher(operator_matcher("?"))
+            one_of_matcher([operator_matcher(":"), operator_matcher(";")])
+            Type_element
+        ])
+        Variable_definition: sequence_matcher([
+            Variable_name
+            optional_matcher(operator_matcher("?"))
+            one_of_matcher([operator_matcher(":"), operator_matcher(";")])
+            Rhs_statement
+        ])
+
+        Function_name: single_token_matcher(Snake_case)
+        Function_declaration: one_of_matcher([
+            # `fn_name(Args): ret_type`, `fn_name?(Args): ret_type`, or
+            # `fn_name(Args)?: ret_type`, also allowing `;` instead of `:`.
+            sequence_matcher([
+                Function_name
+                Function_args_with_return_type
             ])
-            # `fnName: fn(Args): retType` or similar
-            sequenceMatcher([
-                FunctionName
-                oneOfMatcher([operatorMatcher(":"), operatorMatcher(";")])
-                FunctionType
+            # `fn_name: fn(Args): ret_type` or similar
+            sequence_matcher([
+                Function_name
+                one_of_matcher([operator_matcher(":"), operator_matcher(";")])
+                Function_type
             ])
         ])
-        FunctionArgsWithReturnType: sequenceMatcher([
-            listMatcher(FunctionArgument)
-            optionalMatcher(operatorMatcher("?"))
-            oneOfMatcher([operatorMatcher(":"), operatorMatcher(";")])
-            TypeElement
+        Function_args_with_return_type: sequence_matcher([
+            list_matcher(Function_argument)
+            optional_matcher(operator_matcher("?"))
+            one_of_matcher([operator_matcher(":"), operator_matcher(";")])
+            Type_element
         ])
-        FunctionDefinition: oneOfMatcher([
-            # fnName(Args...): returnType
-            #   BlockStatements
-            sequenceMatcher([FunctionDeclaration, Block])
-            # (Args...): returnType
-            #   BlockStatements
-            sequenceMatcher([FunctionArgsWithReturnType, Block])
-            # fnName(Args...): Statement
-            sequenceMatcher([
-                FunctionName 
-                FunctionArgsWithReturnType
-                RhsStatement
+        Function_definition: one_of_matcher([
+            # fn_name(Args...): return_type
+            #   Block_statements
+            sequence_matcher([Function_declaration, Block])
+            # (Args...): return_type
+            #   Block_statements
+            sequence_matcher([Function_args_with_return_type, Block])
+            # fn_name(Args...): Statement
+            sequence_matcher([
+                Function_name 
+                Function_args_with_return_type
+                Rhs_statement
             ])
             # (Args...): Statement
-            sequenceMatcher([
-                FunctionArgsWithReturnType
-                RhsStatement
+            sequence_matcher([
+                Function_args_with_return_type
+                Rhs_statement
             ])
         ])
-        FunctionArgument: oneOfMatcher([
-            VariableDefinition
-            VariableDeclaration
-            FunctionDefinition
-            FunctionDeclaration
+        Function_argument: one_of_matcher([
+            Variable_definition
+            Variable_declaration
+            Function_definition
+            Function_declaration
         ])
-        FunctionCall: sequenceMatcher([FunctionName, AtomicStatement])
-        # TODO: templates, or maybe preprocess these into lowerCamelCase types with hooks
-        FunctionType: sequenceMatcher([
-            optionalMatcher(identifierMatcher("fn"))
-            optionalMatcher(GenericsList)
-            FunctionArgsWithReturnType
+        Function_call: sequence_matcher([Function_name, Atomic_statement])
+        # TODO: templates, or maybe preprocess these into snake_case types with hooks
+        Function_type: sequence_matcher([
+            optional_matcher(identifier_matcher("fn"))
+            optional_matcher(Generics_list)
+            Function_args_with_return_type
         ])
-        RhsStatement: oneOfMatcher([
-            AtomicStatement,
-            sequenceMatcher([AtomicStatement, AnyOperator, RhsStatement]),
+        Rhs_statement: one_of_matcher([
+            Atomic_statement,
+            sequence_matcher([Atomic_statement, Any_operator, Rhs_statement]),
         ])
-        AtomicStatement: oneOfMatcher([
-            VariableName
-            FunctionCall
-            parenthesesMatcher(RhsStatement)
-            listMatcher(DefinedArgument)
+        Atomic_statement: one_of_matcher([
+            Variable_name
+            Function_call
+            parentheses_matcher(Rhs_statement)
+            list_matcher(Defined_argument)
         ])
-        ClassName: sequenceMatcher([
-            LowerCamelCase
-            optionalMatcher(TemplateArguments)
+        Class_name: sequence_matcher([
+            token snake_case
+            optional_matcher(Template_arguments)
         ])
-        ExtendParentClasses: sequenceMatcher([
-            keywordMatcher("extend")
-            listMatcher(ClassName)
+        Extend_parent_classes: sequence_matcher([
+            keyword_matcher("extend")
+            list_matcher(Class_name)
         ])
-        ClassDefinition: sequenceMatcher([
-            ClassName
-            oneOfMatcher([
-                operatorMatcher(":")
-                doNotAllow(operatorMatcher(";"), "Classes cannot be writable.")
-                doNotAllow(operatorMatcher("?;"), "Classes cannot be nullable/writable.")
-                doNotAllow(operatorMatcher("?:"), "Classes cannot be nullable.")
+        Class_definition: sequence_matcher([
+            Class_name
+            one_of_matcher([
+                operator_matcher(":")
+                do_not_allow(operator_matcher(";"), "Classes cannot be writable.")
+                do_not_allow(operator_matcher("?;"), "Classes cannot be nullable/writable.")
+                do_not_allow(operator_matcher("?:"), "Classes cannot be nullable.")
             ])
-            optionalMatcher(ExtendParentClasses)
-            parenthesesMatcher(repeatMatcher([ClassStatement], Until: operatorMatcher("}")))
+            optional_matcher(Extend_parent_classes)
+            parentheses_matcher(repeat_matcher([Class_statement], Until: operator_matcher("}")))
         ])
-        ClassStatement: oneOfMatcher([
-            VariableDefinition
-            VariableDeclaration
-            FunctionDefinition
-            FunctionDeclaration
-            ClassMethod
+        Class_statement: one_of_matcher([
+            Variable_definition
+            Variable_declaration
+            Function_definition
+            Function_declaration
+            Class_method
         ])
-        ClassMethod: sequenceMatcher([
-            oneOfMatcher([
-                operatorMatcher("::")
-                operatorMatcher(";;")
-                operatorMatcher(";:")
-                operatorMatcher(":;")
+        Class_method: sequence_matcher([
+            one_of_matcher([
+                operator_matcher("::")
+                operator_matcher(";;")
+                operator_matcher(";:")
+                operator_matcher(":;")
             ]),
-            oneOfMatcher([
-                FunctionDefinition
-                FunctionDeclaration
+            one_of_matcher([
+                Function_definition
+                Function_declaration
                 # TODO: prefix ! and !!, as well as postfix !
             ])
         ])
@@ -277,51 +277,51 @@ Grammar: {
         #(#
         # for-loops
         # e.g.
-        for Variable: variableType < UpperBoundExclusive
-            ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
+        for Variable: variable_type < Upper_bound_exclusive
+            ... use Variable from 0 to ceil(Upper_bound_exclusive) - 1 ...
         # or
-        for Variable: variableType <= UpperBoundInclusive
-            ... use Variable from 0 to floor(UpperBoundInclusive) ...
+        for Variable: variable_type <= Upper_bound_inclusive
+            ... use Variable from 0 to floor(Upper_bound_inclusive) ...
         # TODO: support starting value, or just variable names
-        Variable; variableType = 5
-        for @lock Variable < UpperBoundExclusive
-            ... use Variable from 0 to ceil(UpperBoundExclusive) - 1 ...
+        Variable; variable_type = 5
+        for @lock Variable < Upper_bound_exclusive
+            ... use Variable from 0 to ceil(Upper_bound_exclusive) - 1 ...
         # starting at number in the for loop
-        for Variable: StartingValue, Variable < UpperBoundExclusive
-            ... use Variable from StartingValue ...
+        for Variable: Starting_value, Variable < Upper_bound_exclusive
+            ... use Variable from Starting_value ...
         #)#
-        ForLoop: oneOfMatcher([
-            sequenceMatcher([
-                # TODO: do we even need `keywordMatcher`, `identifierMatcher`, and `operatorMatcher`?
-                #       can't we just use `singleTokenMatcher` and be done with it?
-                keywordMatcher("for")
-                VariableDeclaration
-                oneOfMatcher([operatorMatcher("<"), operatorMatcher("<=")])
+        For_loop: one_of_matcher([
+            sequence_matcher([
+                # TODO: do we even need `keyword_matcher`, `identifier_matcher`, and `operator_matcher`?
+                #       can't we just use `single_token_matcher` and be done with it?
+                keyword_matcher("for")
+                Variable_declaration
+                one_of_matcher([operator_matcher("<"), operator_matcher("<=")])
                 Expression
                 Block
             ])
-            sequenceMatcher([
-                keywordMatcher("for")
-                listMatcher(FunctionArgument)
-                keywordMatcher("in")
+            sequence_matcher([
+                keyword_matcher("for")
+                list_matcher(Function_argument)
+                keyword_matcher("in")
                 Expression
                 Block
             ])
         ])
 
-        EndOfInput: tokenMatcher(
+        End_of_input: token_matcher(
             ::match(Index;, Array[token]): Index >= Array count()
         )
     ]
 
-    ::match(Index;, Array[token], GrammarMatcher): bool
+    ::match(Index;, Array[token], Grammar_matcher): bool
         # ensure being able to restore the current token index if we don't match:
         Snapshot: Index
-        Matched: what GrammarMatcher
-            (TokenMatcher):
-                TokenMatcher match(Index;, Array)
-            (GrammerElement):
-                My Lot[GrammarElement] match(Index;, Array)
+        Matched: what Grammar_matcher
+            (Token_matcher):
+                Token_matcher match(Index;, Array)
+            (Grammer_element):
+                My Lot[Grammar_element] match(Index;, Array)
             (Token):
                 Index < Array count() and Array[Index++] == Token
         if not Matched
@@ -329,7 +329,7 @@ Grammar: {
         return Matched
 }()
 
-singleTokenMatcher: tokenMatcher (
+single_token_matcher: token_matcher (
     ;;renew(My Token): Null
 
     # we automatically inherit the @visibility of the parent class method
@@ -338,68 +338,68 @@ singleTokenMatcher: tokenMatcher (
         return Index < Array count() and Array[Index++] == My Token
 )
 
-# TODO: actually compiling code will require going through the TokenMatchers
+# TODO: actually compiling code will require going through the Token_matchers
 # in a specific order to avoid running through all options to see what fits.
 # OR, maybe we can parse a statement into tokens, and then do a `what Statement`
-# with case `RhsStatement` etc., where the hash only takes into account the sequence
+# with case `Rhs_statement` etc., where the hash only takes into account the sequence
 # of tokens but not the actual token content.  we'd also need to ignore repeated fields,
 # i.e., only count them once.
-# TODO: support for labeling token matchers, e.g. "parentClassNames" and "classBlock"
+# TODO: support for labeling token matchers, e.g. "parent_class_names" and "class_block"
 # or probably don't need to label token matchers if we build the logic for transpilation
 # inside of the grammar elements.
 
-# a list encompasses things like (), (GrammarMatcher), (GrammarMatcher, GrammarMatcher), etc.,
+# a list encompasses things like (), (Grammar_matcher), (Grammar_matcher, Grammar_matcher), etc.,
 # but also lists with newlines if properly tabbed.
-listMatcher(GrammarMatcher): parenthesesMatcher(repeatMatcher([
-    GrammarMatcher
-    CommaOrBlockNewline
+list_matcher(Grammar_matcher): parentheses_matcher(repeat_matcher([
+    Grammar_matcher
+    Comma_or_block_newline
 ])
 
-sequence: tokenMatcher {
-    ;;renew(My Array; grammarMatcher[]): Null
+sequence: token_matcher {
+    ;;renew(My Array; grammar_matcher[]): Null
 
-    ::match(Index;, ToMatch Array[token]): bool
-        for GrammarMatcher: in My Array
-            if not Grammar match(Index;, ToMatch Array, GrammarMatcher)
+    ::match(Index;, To_match Array[token]): bool
+        for Grammar_matcher: in My Array
+            if not Grammar match(Index;, To_match Array, Grammar_matcher)
                 return False
         return True
 }
 
 # TODO: add an argument to parentheses matcher for the type of parentheses, e.g., () [] {}
 # TODO: make `block` a type of token as well.
-parenthesesMatcher: tokenMatcher {
-    ;;renew(My GrammarMatcher): Null
+parentheses_matcher: token_matcher {
+    ;;renew(My Grammar_matcher): Null
 
     ::match(Index;, Array[token]): bool
-        CurrentToken: Array[Index]
-        if currentToken != parenthesesToken
+        Current_token: Array[Index]
+        if current_token != parentheses_token
             return False
 
-        InternalIndex; index = 0
-        PartialMatch: Grammar match(InternalIndex;, CurrentToken InternalTokens, My GrammarMatcher)
-        if not PartialMatch
+        Internal_index; index = 0
+        Partial_match: Grammar match(Internal_index;, Current_token Internal_tokens, My Grammar_matcher)
+        if not Partial_match
             return False
 
         # need to ensure that the full content was matched inside the parentheses:
-        if InternalIndex < CurrentToken InternalTokens count()
+        if Internal_index < Current_token Internal_tokens count()
             return False
         
         ++Index
         return True
 }
 
-# TODO: make this a function which returns either `repeatInterruptible` and `repeatTimes`
-# this is essentially the definition for repeatInterruptible:
-repeatMatcher: tokenMatcher {
+# TODO: make this a function which returns either `repeat_interruptible` and `repeat_times`
+# this is essentially the definition for repeat_interruptible:
+repeat_matcher: token_matcher {
     # until `Until` is found, checks matches through `Array` repeatedly.
     # note that `Until` can be found at any point in the array;
     # i.e., breaking out of the array early (after finding `Until`) still counts as a match.
     # if you need to ensure a non-breakable sequence is found before `Until`,
     # use the `sequence` token matcher inside `Array`.
-    i(My Until: GrammarMatcher = EndOfInput, My Array: GrammarMatcher[]): i()
-    ;;renew(My Until: GrammarMatcher = EndOfInput, My Array[grammarMatcher]): Null
+    i(My Until: Grammar_matcher = End_of_input, My Array: Grammar_matcher[]): i()
+    ;;renew(My Until: Grammar_matcher = End_of_input, My Array[grammar_matcher]): Null
 
-    ::match(Index;, ToMatch Array[token]): bool
+    ::match(Index;, To_match Array[token]): bool
         if Index >= Array count()
             return False
 
@@ -407,17 +407,17 @@ repeatMatcher: tokenMatcher {
             # TODO: is there a better syntax here that doesn't put `X: x` in front of `in`?
             #       it'd be nice to avoid parentheses if necessary, although that does make it clear
             #       that we have reference-like abilities.
-            #       maybe `in My Array, GrammarMatcher:` or `iterate My Array, GrammarMatcher:`
-            #           or `with My Array, GrammarMatcher:`
-            #       or `for GrammarMatcher:, in My Array`
-            for GrammarMatcher: in My Array
+            #       maybe `in My Array, Grammar_matcher:` or `iterate My Array, Grammar_matcher:`
+            #           or `with My Array, Grammar_matcher:`
+            #       or `for Grammar_matcher:, in My Array`
+            for Grammar_matcher: in My Array
                 # always check the escape sequence, Until:
-                if Grammar match(Index;, ToMatch Array, My Until)
+                if Grammar match(Index;, To_match Array, My Until)
                     return True
                 # note that it's ok to call `Grammar` here despite
                 # the self-referential nature of the grammar, because
                 # this logic would essentially be written in a .cc file
                 # whereas `Grammar` would be defined in the .h file.
-                if not Grammar match(Index;, GrammarMatcher)
+                if not Grammar match(Index;, Grammar_matcher)
                     return False
 }

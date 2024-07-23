@@ -1,4 +1,4 @@
-uh: oneOf[
+uh: one_of[
     did_not_finish_midline_comment: str
     ambiguous_operator: str
 ]
@@ -101,8 +101,8 @@ token: one_of[
     compiler_comment: str    # e.g., `#salt(123)`
     compiler_error: str      # e.g., `#@!$...`
 
-    lower_camel_case: str
-    upper_camel_case: str
+    variable_case: str  # My_variable_name
+    snake_case: str     # snake_case
 
     indent: i64     # number of spaces, always absolute: not relative from last indent
     declaration: one_of[Readonly: 1, Writable, Fleeting] {
