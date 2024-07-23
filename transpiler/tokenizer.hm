@@ -33,7 +33,7 @@ tokenizer: {
         if My Line_index >= My Lines count()
             return token End_of_file
         while True
-            Char: My advance_char()
+            Char: My advance_char_in_line()
             match Char
                 0
                     ++My Line_index
@@ -46,38 +46,61 @@ tokenizer: {
                 '\''
                     return I consume_rune()
                 '+', '-',
-                    return I consume_plus_minus_operator(Starting_char: Char)
-                    return I consume_plus_minus_operator(Starting_char: Char)
                 '*', '/',
-                    return I consume_binary_operator(Starting_char: Char)
+                '&', '|',
+                    return I consume_operator(Starting_char: Char)
                 # TODO
 
-    ;;advance_char(): u8
+    @private
+    ;;advance_char_in_line(): u8
         My Lines[My Line_index][My Char_index++, Default: 0]
 
-    # if `+` will return that.
-    # if `++` will return that.
-    # if `+++` will return an error since we don't know if it's `+ ++` or `++ +`;
-    # we could analyze tokens before/after to determine if it should be prefix/postfix
-    # but we'll prefer users to make it clear in the code.
     @private
-    ;;consume_plus_minus_operator(Starting_char: u8): hm[token]
+    ;;consume_operator(Starting_char: u8): hm[token]
         assert(My Line_index < My Lines count())
 
         Next_char: My Lines[My Line_index][My Char_index + 1, Default: 0]
 
         if Next_char != Starting_char
-            # just `+` or `-`:
+            if Next_char == '='
+                assert(I advance_char() == Next_char)
+                return operator(Starting_char | (Next_char << 8))
+            # just e.g., `+` or `-`:
             return operator(Starting_char)
 
         assert(I advance_char() == Next_char)
         Next_next_char: My Lines[My Line_index][My Char_index + 1, Default: 0]
         if Next_char != Next_next_char
-            # `++` or `--`:
+            if Next_next_char == '=' and I allow_two_char_equal_operator(Starting_char)
+                assert(I advance_char() == Next_next_char)
+                return operator(Starting_char | (Next_char << 8))
+            # e.g., `++` or `--`:
             return operator(Starting_char | (Starting_char << 8))
         
-        # +++ or ---.  this is ambiguous...
-        return ambiguous_operator(I format_error("ambiguous operator, use `++ +` or `- --`"))
+        what Starting_char
+            # +++ or ---.  this is ambiguous...
+            '+', '-'
+                # if `+++` will return an error since we don't know if it's `+ ++` or `++ +`;
+                # we could analyze tokens before/after to determine if it should be prefix/postfix
+                # but we'll prefer users to make it clear in the code.
+                ambiguous_operator(I format_error("ambiguous operator, use `++ +` or `- --`"))
+            '*'
+                invalid_operator(I format_error("invalid operator, use `*` for multiply, `**` or `^` for exponentiation"))
+            '/'
+                invalid_operator(I format_error("invalid operator, use `/` for rational divide or `//` integer division"))
+            '&'
+                invalid_operator(I format_error("invalid operator, use `&` for bitwise AND or `&&` for boolean AND"))
+            '|'
+                invalid_operator(I format_error("invalid operator, use `|` for bitwise OR or `||` for boolean OR"))
+
+    @private
+    ::allow_two_char_equal_operator(U8): bool
+        what U8
+            '+', '-'
+                # ++= doesn't make sense, ++ is a increment operator
+                False
+            Any:
+                True
 
     ::format_error(Str): str
         Prefix; "#@!$"
