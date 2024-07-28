@@ -17,6 +17,11 @@ array[of]: indexable {
     @private
     Allocation; allocation
 
+    ;;reset(Arguments[of].):
+        Allocation count(Arguments count()) orPanic()
+        while My Count < Arguments count()
+            Allocation moveConstruct(InBounds: Arguments[My Count++]!)
+
     # TODO: convert this into a deque, add `Start: count`
     #       however, this will make resizing more complicated.
 

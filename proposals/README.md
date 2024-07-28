@@ -237,8 +237,7 @@ Other_var; explicit_type
 My_array: array[element_type]
 
 # defining a writable array:
-# TODO: probably can elide the `[]` in here.
-Array_var; array[int]([1, 2, 3, 4])
+Array_var; array[int](1, 2, 3, 4)
 # We can also infer types implicitly via one of the following:
 #   * `Array_var; array([1, 2, 3, 4])`
 #   * `Array_var; [1, 2, 3, 4]`
@@ -254,8 +253,7 @@ Array_var[1]!        # returns 2, zeroes out Array_var[1]:
 My_lot: lot[at: id_type, value_type]
 
 # defining a writable lot:
-# TODO: probably can elide the `[]` in here.
-Votes_lot; lot[at: str, int](["Cake": 5, "Donuts": 10, "Cupcakes": 3])
+Votes_lot; lot[at: str, int]("Cake": 5, "Donuts": 10, "Cupcakes": 3)
 # We can also infer types implicitly via one of the following:
 #   * `Votes_lot; lot(["Cake": 5, ...])`
 #   * `Votes_lot; ["Cake": 5, ...]`
@@ -272,8 +270,7 @@ Votes_lot::["Cupcakes"]  # Null
 My_set: set[element_type]
 
 # defining a writable set:
-# TODO: probably can elide the `[]` in here.
-Some_set; set[str](["friends", "family", "fatigue"])
+Some_set; set[str]("friends", "family", "fatigue")
 # We can also infer types implicitly via the following:
 #   * `Some_set; set(["friends", ...])`
 Some_set::["friends"]    # `True`
@@ -404,7 +401,7 @@ There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
 which are function-like but may consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
-`Unused`,
+`Unused`, `Argument`,
 and variables cannot be defined with these names.  Variables can be defined
 using these namespaces, e.g., as `Old Int`, `New X`, `Other Class_type`, or `Unused Z`.
 In particular, `First` and `Second`
@@ -2793,6 +2790,10 @@ TODO: we probably can have `x(New: x): null` overloads where we don't need
 to always swap out the old value (e.g., `x(New X: x): x`.  If we want to readopt
 SFO, we should make it clear by requiring setters to return the old value only
 if `x(New X: x): [Old X: x]` is used.
+
+### `arguments` class
+
+TODO: `arguments[of]` has methods like `count()` and `[Index]` and `[Index]!`
 
 ### dynamically determining arguments for a function
 
