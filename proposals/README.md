@@ -106,7 +106,7 @@ or `my_class..my_temporary_method()` for a method on a temporary `Me`, i.e.,
 `my_temporary_method(Me.)`.  You can substitute `I` or `My` for `Me` anywhere,
 including in methods that only declare one of them in the function arguments.
 We recommend using `My` for field access (e.g., `My X`) as well as getters/setters
-`My x()` or `My x(New_xValue)`, `Me` for returning a copy/clone (e.g., `return Me`),
+`My x()` or `My x(New_x_value)`, `Me` for returning a copy/clone (e.g., `return Me`),
 and `I` for methods that start with a verb, e.g., `I draw()`.
 
 Class getters/setters do not use `::get_x(): dbl` or `;;set_x(Dbl): null`, but rather
@@ -488,7 +488,7 @@ Some_value: (
 )
 
 Another_line_continuation_variable: Can_optionally_start_up_here
-    +   Ok_to_not_have_aPrevious_line_starting_at_plus_two_indent * (
+    +   Ok_to_not_have_a_previous_line_starting_at_plus_two_indent * (
                 Keep_going_if_you_like
             -   However_long
         ) + (70 - 30) * 3
@@ -516,7 +516,7 @@ if some_function_call(
 )
     do_something()
 
-declaring_aFunction_with_multiline_arguments(
+declaring_a_function_with_multiline_arguments(
     Times: int
     Greeting: string
     Name: string("World")   # argument with a default
@@ -530,7 +530,7 @@ of each argument line because +2 indent is the same as a line continuation.  The
 is optional but recommended.
 
 ```
-declaring_aFunction_with_plus_two_indent_arguments(
+declaring_a_function_with_plus_two_indent_arguments(
         Times: int,
         Greeting: string,
         Name: string = "World",
@@ -634,7 +634,7 @@ Other types which have a fixed amount of memory:
 * `u16` : unsigned integer which can hold values from 0 to 65535, inclusive
 * `u32` : unsigned integer which can hold values from 0 to `2^32 - 1`, inclusive
 * `u64` : unsigned integer which can hold values from 0 to `2^64 - 1`, inclusive
-* `u_xYZ` : unsigned integer which can hold values from 0 to `2^XYZ - 1`, inclusive,
+* `uXYZ` : unsigned integer which can hold values from 0 to `2^XYZ - 1`, inclusive,
     where `XYZ` is 128 to 512 in steps of 64, and generically we can use
     `unsigned[Bits: count]: what Bits {8 {u8}, 16 {u16}, 32 {u32}, ...}`
 * `count` : `s64` under the hood, intended to be >= 0 to indicate the amount of something.
@@ -997,7 +997,7 @@ my_class: [X; dbl] {
 One of the most convenient uses for namespaces is the ability to use elide argument
 names when calling functions.  E.g., if you have a function which takes a variable named `X`,
 but you already have a different one in scope, you can create a new variable with a namespace
-`Example_namespace X: My_new_xValue` and then pass it into the function as
+`Example_namespace X: My_new_x_value` and then pass it into the function as
 `my_function(Example_namespace X)` instead of `my_function(X: Example_namespace_x)`.
 This also works with default-named variables.
 
