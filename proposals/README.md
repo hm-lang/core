@@ -1246,11 +1246,11 @@ is truthy, the result will be the truthy operand.  An example implementation:
 ```
 # you can define it as nullable via `xor(~X, ~Y): one_of[x, y, null]` or like this:
 xor(~X, ~Y)?: one_of[x, y]
-    XIs_true: bool(X)        # `XIs_true: !!X` is also ok.
-    YIs_true: bool(Y)
-    if XIs_true
-        if YIs_true {Null} else {X}
-    elif YIs_true
+    X_is_true: bool(X)        # `XIs_true: !!X` is also ok.
+    Y_is_true: bool(Y)
+    if X_is_true
+        if Y_is_true {Null} else {X}
+    elif Y_is_true
         Y
     else
         Null
@@ -1375,6 +1375,7 @@ e.g., `Value: int(Nullable some_method())`.  Note that `whatever_type(Null)` is
 the same as `whatever_type()`, and number types (e.g., `int()` or `flt()`)  default
 to 0.
 
+TODO: maybe don't allow optional functions.
 Optional functions are defined in a similar way (cf. section on nullable functions),
 with the `?` just after the function name, e.g., `some_function?(...Args): return_type`.
 
@@ -2794,8 +2795,7 @@ call: [
     Input; lot[at: str, ptr[any]]
     # we need to distinguish between the caller asking for specific fields
     # versus asking for the whole output.
-    # TODO: if we bring back SFO we don't need to distinguish one_output.
-    Output?; one_of[multiple_outputs: lot[at: str, any], one_output: any]
+    Output; lot[at: str, any]
     # things printed to stdout via `print`:
     Print; array[string]
     # things printed to stderr via `error`:
@@ -2814,7 +2814,9 @@ call: [
     # adds a single-value return type
     ;;output(Any): null
         assert My Output == Null
-        My Output = one_output(Any)
+        # TODO: a better way to refer to the class name.
+        # can we just do `Any ClassName`?
+        My Output[Any is() ClassName] = Any
 
     # adds a field to the return type with a default value.
     # e.g., `Call output(Field_name: 123)` will ensure
@@ -2827,9 +2829,6 @@ call: [
     # `{Field_name}` is defined in the return value, with a
     # default of 123 if `Field_name` is not set in the function.
     ;;output(Name: string, Value: any): null
-        if My Output == Null
-            My Output = multiple_outputs()
-        assert My output == multiple_outputs
         My Output[Name] = Value 
 }
 ```
@@ -2944,6 +2943,9 @@ It needs to be clear what function overload is being redefined (i.e., having the
 otherwise you're just creating a new overload (and not redefining the function).
 
 ## nullable functions
+
+TODO: maybe don't allow optional functions.  the way to make them optional doesn't look right,
+e.g., `Child::optional_method?(Z: dbl); int = Null`.
 
 The syntax for declaring a nullable/optional function is to put a `?` after the function name
 but before the argument list.  E.g., `optional_function?(...Args): return_type` for a non-reassignable
@@ -3105,7 +3107,7 @@ Note that you can use `my_function(~T;)` for a writable argument.
 
 You can also define an argument with a known type, but an unknown name.
 This is useful if you want to use the inputted variable name at the call site
-for logic inside the function, e.g., `this_function(IWant_to_know_this_variable_name: 5)`.
+for logic inside the function, e.g., `this_function(I_want_to_know_this_variable_name: 5)`.
 You can access the variable name via `@@`.
 
 TODO: internally this creates an overload with a "The_name_value" int argument
@@ -3343,8 +3345,8 @@ example_class(Z: dbl): hm[ok: example_class, uh: str]
 # this function does not require an instance, and cannot use instance variables,
 # but it can read (but not write) global variables (or other files):
 example_class some_static_impure_function(): int
-    YString: read(File: "Y")
-    return int(?YString) ?? 7
+    Y_string: read(File: "Y")
+    return int(?Y_string) ?? 7
 
 # a method which can mutate the class instance:
 # this could also be defined as `example_class another_method(My;, Plus_k: int): null`.
@@ -3996,25 +3998,25 @@ For example:
 ```
 mutable_types[x, y, z]: [
     # these fields are always readonly:
-    RX: x
-    RY: y
-    RZ: z
+    R_x: x
+    R_y: y
+    R_z: z
     # these fields are always writeable:
-    WX; x
-    WY; y
-    WZ; z
+    W_x; x
+    W_y; y
+    W_z; z
     # these fields are readonly/writeable based on what is passed
     # in to `mutable_types`.
-    VX@ x
-    VY@ y
-    VZ@ z
+    V_x@ x
+    V_y@ y
+    V_z@ z
 
     # you can also use these in method/function definitions:
     ::some_method(Whatever_x@ x, Whatever_y@ y): null
 ]
 
-# the following specification will make `VX` and `VZ` writeable
-# and `VY` readonly:
+# the following specification will make `V_x` and `V_z` writeable
+# and `V_y` readonly:
 my_specification: mutable_types[x; int, y: string, z; dbl]
 ```
 
@@ -6683,10 +6685,10 @@ You can add some named combinations by extending a mask like this.
 
 ```
 my_mask: any_or_none_of[X, Y] {
-    XAnd_y: X | Y
+    X_and_y: X | Y
 }
 
-Result: my_mask = XAnd_y
+Result: my_mask = X_and_y
 print(Result & X) # truthy, should be 1
 print(Result & Y) # truthy, should be 2
 ```
