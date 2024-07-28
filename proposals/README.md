@@ -2756,26 +2756,23 @@ Order as U: patterns()      # same, with renaming `Order` to `U`.
 {T; order} patterns()       # same, with renaming `Order` to `T`.
 ```
 
-The effect of SFO is to make it possible to elide `{}` for return value.
+The effect of SFO is to make it possible to elide `{}` when asking for a single named output.
 The danger is that your overload may change based on your return variable
 name; but this is usually desired, e.g., `Old Count: Array count(1000) assert()`
 if you care to get the old count of an array.
 
-IMPLEMENTATION NOTE: `Old Count: ... assert()` will require passing through
-the `[Old Count]` return value through the result `hm[ok: [Old Count], ...]`
+IMPLEMENTATION NOTE: `Old_count: ... assert()` will require passing through
+the `[Old_count: count]` return value through the result `hm[ok: [Old_count: count], ...]`
 via `assert()`.  This is probably difficult!
 
 SFO effectively makes any `x` return type into a `[X: x]` object.  This means
 that overloads like `patterns(): i32` and `patterns(): [I32]` would actually
 conflict; trying to define both would be a compile error.
 
-TODO: should you be able to return namespaces like `Old Count`??
-probably not.
-
 TODO: we probably can have `x(New: x): null` overloads where we don't need
 to always swap out the old value (e.g., `x(New X: x): x`.  If we want to readopt
 SFO, we should make it clear by requiring setters to return the old value only
-if `x(New X: x): [Old X: x]` is used.
+if `x(New X: x): [Old_x: x]` is used.
 
 ### `arguments` class
 
