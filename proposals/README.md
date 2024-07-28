@@ -1617,10 +1617,7 @@ v(Y, X)     # equivalent
 
 ### argument objects
 
-TODO: this strays from the initial hm-lang idea of only function arguments being references.
-can we return to this ideal or are these absolutely needed?  we probably need pointers
-in some sense, but it would be nice to have some guarantees on things like this.  we
-probably need a borrow checker (like Rust):
+TODO: we probably need a borrow checker (like Rust):
 
 ```
 Result?; some_nullable_result()
@@ -1817,8 +1814,6 @@ This works the same for plain-old-data objects, e.g., `[value()]` corresponds to
 `[Value: value()]`.  In case class methods are being called, the class name
 and the class instance variable name are ignored, e.g., `[My_class_instance my_function()]`
 is short-hand for `[My_function: My_class_instance my_function()]`.
-TODO: this might be a reason to get rid of `Array[3]` for `Array value(3)` so that
-we can get something like `[Value: Array value(3)]` for `[Array value(3)]`.
 
 ### functions as arguments
 
@@ -2586,9 +2581,6 @@ so that we don't delete the value at `Array[3]` and thus invalidate the referenc
 Containers of containers (and further nesting) require ID arrays for the pointers.
 E.g., `My_lot["Ginger"][1]["Soup"]` would be a struct which contains `&My_lot`, plus the tuple `("Ginger", 1, "Soup")`.
 
-TODO: discussion on how `Array[5]` gets passed by reference when used as an argument.
-e.g., `my_function(X; Array[5])` will do something like `Array[5, (T;): my_function(X; T)]`.
-
 Here is an example with a lot.  Note that the argument is readonly, but that doesn't mean
 the argument doesn't change, especially when we're doing self-referential logic like this.
 
@@ -2777,14 +2769,8 @@ SFO effectively makes any `x` return type into a `[X: x]` object.  This means
 that overloads like `patterns(): i32` and `patterns(): [I32]` would actually
 conflict; trying to define both would be a compile error.
 
-TODO: it probably would be nice for classes to have an implicit self-reflection
-property like `x: [X; x]`.  This would mostly be nice for inheritance, so we
-could do `::child_method(): {Parent_name parent_method(), return 5}`.
-Note we don't actually define this, even for localization support,
-since it would be a recursive, infinitely expanding class, and we want to catch
-that in the compiler and not think users are creating a unicode overload.
-
 TODO: should you be able to return namespaces like `Old Count`??
+probably not.
 
 TODO: we probably can have `x(New: x): null` overloads where we don't need
 to always swap out the old value (e.g., `x(New X: x): x`.  If we want to readopt
@@ -4273,6 +4259,9 @@ All classes have a few compiler-provided methods which cannot be overridden.
 * `;;renew(...): hm[uh]` for any `i(...): hm[ok: me, uh]` construct-or-error class functions
     This allows any writable variable to reset without doing `X = x(...) assert()`,
     which may be painful for long type names `x`, and instead do `X renew(...) assert()`.
+* `Xyz;: (xyz;:)` gives a reference to the class instance, where `xyz` is the actual
+    `type_case` type and `Xyz` is the `Variable_case` version of it.
+    This is mostly useful for inheritance.
 
 ## singletons
 
