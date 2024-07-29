@@ -1,44 +1,52 @@
-uh: oneOf(
-    InvalidCount
-    InvalidIndex
-    OutOfMemory
-)
+uh: one_of[
+    Invalid_count
+    Invalid_index
+    Out_of_memory
+]
 
-hm[ok]: hm[ok, uh]
+hm[of]: hm[ok: of, uh]
+
+@private
+size: @cc(size_t)
 
 # A class that handles low-level contiguous memory access.
 # You must handle initializing/constructing and destructing elements in this class;
 # which elements are initialized *must be known* by the class instance which
 # uses the allocation.  E.g., a stack is initialized in the range [0, `Stack size()`).
 @final
-allocation[of]: {
+allocation[of]: [
     @protected
     Count; count = 0
 
-    ::count(): This Count
+    @cc(
+    private:
+        @hm(of) *Memory = Null;
+    )
+] {
+    ::count(): My Count
 
     # returns the old count if successful.
     # make sure to construct any new elements that are available to callers
     # after calling this method.
     ;;count(New Count): hm[count]
-        assert(New Count >= 0, Uh: InvalidCount)
-        Old Count: This Count
+        assert(New Count >= 0, Uh: Invalid_count)
+        Old Count: My Count
         if New Count == Old Count
             return ok(Old Count)
-        Bytes: countBytes(New Count)
+        Bytes: I count_bytes(New Count)
         @cc(
-            @hm(of) *New_Memory = (@hm(of) *)realloc(Memory, @hm(Bytes));
-            if (New_Memory == Null) {
-                return @hm(this uh OutOfMemory);
+            @hm(of) *New_memory = (@hm(of) *)realloc(Memory, @hm(Bytes));
+            if (New_memory == Null) {
+                return @hm(this uh Out_of_memory);
             }
-            Memory = New_Memory;
+            Memory = New_memory;
         )
-        This Count = New Count
+        My Count = New Count
         ok(Old Count)
 
     i(Count): hm[allocation[~u]]
         # it's always possible to default construct this allocation.
-        Return; hm[allocation[u]]
+        Return; allocation[u]
         what Return count(Count)
             Ok:
                 ok(Return)
@@ -47,9 +55,6 @@ allocation[of]: {
                 uh(Uh)
 
     @cc(
-    private:
-        @hm(of) *Memory = Null;
-
     public:
         // Default construction allowed
         @hm(allocation) {}
@@ -91,58 +96,57 @@ allocation[of]: {
         }
     )
 
-    ::[InBoundsAndConstructed: inBounds]: of
+    ::[In_bounds_and_constructed: in_bounds]: of
         # Only call this if you've already constructed a value here.
         # We can't verify if the index has been constructed without more bookkeeping,
         # but in debug mode we can verify that we're at least in bounds.
-        debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < This count())
+        debug assert(In_bounds_and_constructed >= 0 and In_bounds_and_constructed < My count())
         @cc(
-            return Memory[@hm(InBoundsAndConstructed)];
+            return Memory[@hm(In_bounds_and_constructed)];
         )
 
-    ;:[InBoundsAndConstructed: inBounds, fn(T;:): ~u]: u
-        debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < This count())
+    ;:[In_bounds_and_constructed: in_bounds, fn(Of;:): ~u]: u
+        debug assert(In_bounds_and_constructed >= 0 and In_bounds_and_constructed < My count())
         @cc(
-            return @hm(fn)(&Memory[@hm(InBoundsAndConstructed)]);
+            return @hm(fn)(&Memory[@hm(In_bounds_and_constructed)]);
         )
 
-    ;;defaultConstruct(InBounds): null
-        debug assert(InBounds >= 0 and InBounds < Count)
+    ;;default_construct(In_bounds): null
+        debug assert(In_bounds >= 0 and In_bounds < Count)
         @cc(
-            new (Memory + @hm(InBounds)) @hm(of)();
+            new (Memory + @hm(In_bounds)) @hm(of)();
         )
-        # pure C? `hm(of)_default(Memory + @hm(InBounds))`
+        # pure C? `hm(of)_default(Memory + @hm(In_bounds))`
 
-    ;;moveConstruct(InBounds, T.): null
-        debug assert(InBounds >= 0 and InBounds < Count)
+    ;;move_construct(In_bounds, Of.): null
+        debug assert(In_bounds >= 0 and In_bounds < Count)
         @cc(
-            new (Memory + @hm(InBounds)) @hm(of)(std::move(@hm(T)));
+            new (Memory + @hm(In_bounds)) @hm(of)(std::move(@hm(Of)));
         )
-        # pure C? `hm(of)_moot(Memory + @hm(InBounds), @hm(T))`
+        # pure C? `hm(of)_moot(Memory + @hm(In_bounds), @hm(Of))`
 
-    ;;copyConstruct(InBounds, T): null
-        debug assert(InBounds >= 0 and InBounds < Count)
+    ;;copy_construct(In_bounds, Of): null
+        debug assert(In_bounds >= 0 and In_bounds < Count)
         @cc(
-            new (Memory + @hm(InBounds)) @hm(of)(@hm(T));
+            new (Memory + @hm(In_bounds)) @hm(of)(@hm(Of));
         )
-        # pure C? `hm(of)_copy(Memory + @hm(InBounds))`
+        # pure C? `hm(of)_copy(Memory + @hm(In_bounds))`
 
-    ;;deconstruct(InBoundsAndConstructed): null
-        debug assert(InBoundsAndConstructed >= 0 and InBoundsAndConstructed < Count)
+    ;;deconstruct(In_bounds_and_constructed: in_bounds): null
+        debug assert(In_bounds_and_constructed >= 0 and In_bounds_and_constructed < Count)
         @cc(
-            (Memory + @hm(InBoundsAndConstructed)) ~@hm(of)();
+            (Memory + @hm(In_bounds_and_constructed)) ~@hm(of)();
         )
-        # pure C? `hm(of)_descope(Memory + @hm(InBounds))`
+        # pure C? `hm(of)_descope(Memory + @hm(In_bounds))`
 
     @private
-    ::countBytes(Count): @cc(size_t)
+    ::count_bytes(Count): hm[size]
         if Count == 0
             return 0
-        if Count < 0
-            throw error("invalid count: $(Count)");
-        MaxBytes: @cc(size_t) = -1
-        TBytes: @cc(size_t) = @cc(sizeof(@hm(of)))
-        if Count > MaxBytes // TBytes
-            throw error("cannot allocate $(Count) elements of size $(TBytes) each");        
-        return Count * TBytes
+        assert(Count > 0, Uh: Invalid_count)
+        Max_bytes: size(-1)
+        @cc(
+        Of_bytes: sizeof(@hm(of))
+        )
+        multiply(Count, Of_bytes) map((Uh.): Out_of_memory)
 }
