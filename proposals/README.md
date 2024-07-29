@@ -207,6 +207,8 @@ memory, these safe functions are a bit more verbose than the unchecked functions
 * variables that are already named after the correct argument can be used without `:`
     * `(X: dbl, Y: int)` can be called with `(X, Y)` if `X` and `Y` are already defined in the scope,
         i.e., eliding duplicate entries like `(X: X, Y: Y)`.
+* [Horstmann indentation](https://en.wikipedia.org/wiki/Indentation_style#Horstmann) to guide
+    the eye when navigating multiline braces/brackets/parentheses
 
 ```
 # declaring a variable:
@@ -329,8 +331,8 @@ do_something(X: int, Y: int): [W: int, Z: int]
 vector3: [X: dbl, Y: dbl, Z: dbl]
 
 # declaring a "complicated" class.  the braces `{}` are optional.
-my_class: [X: int] {
-    # methods which mutate the class use a `;;` prefix
+my_class: [X: int]
+{   # methods which mutate the class use a `;;` prefix
     ;;renew(My X: int): Null
 
     # methods which keep the class readonly use a `::` prefix
@@ -356,8 +358,10 @@ do_something(you(): str, greet(Name: str): str): str
 my_name(): str
     "World"
 # inline, `my_name(): "World"`
-do_something(you: my_name, greet(Name: str): str
-    "Hello, ${Name}"
+do_something
+(   you: my_name
+    greet(Name: str): str
+        "Hello, ${Name}"
 )
 ```
 
@@ -446,9 +450,8 @@ Some_variable: some_very_long_function_name_because_it_is_good_to_be_specific(10
     +   3             # indent at +2 ensures that 3 is added into Some_variable.
     -   Other_variable # don't keep adding more indents, keep at +2 from original.
 
-Array_variable: [
-    # Array elements are at indent +1 from an open parenthesis, trailing commas optional:
-    1
+Array_variable:
+[   1
     2
     3
     4
@@ -456,8 +459,8 @@ Array_variable: [
 ]
 
 # this is inferred to be a `lot` with a string ID and a `one_of[int, str]` value.
-Lot_variable; [
-    "Some_value": 100
+Lot_variable;
+[   "Some_value": 100
     "Other_value": "hi"
 ]
 Lot_variable["Some_other_value"] = if Condition {543} else {"hello"}
@@ -465,8 +468,8 @@ Lot_variable["Some_other_value"] = if Condition {543} else {"hello"}
 # This is different than the `Lot_variable` because it
 # is an instance of a `[Some_value: int, Other_value: str]` type,
 # which cannot have new fields added, even if it was mutable.
-Object_variable: [
-    Some_value: 100
+Object_variable:
+[   Some_value: 100
     Other_value: "hi"
 ]
 ```
@@ -476,17 +479,17 @@ The starting indent of the line is what matters, so a close parenthesis can be o
 line as an open parenthesis.
 
 ```
-Some_value: (
-        (20 + 45)
-    *   Continuing + The + Line + At_plus2Indent - (
-                Nested * Parentheses / Are + Ok
+Some_value:
+(       (20 + 45)
+    *   Continuing + The + Line + At_plus2Indent -
+        (       Nested * Parentheses / Are + Ok
             -   Too
         )
 )
 
 Another_line_continuation_variable: Can_optionally_start_up_here
-    +   Ok_to_not_have_a_previous_line_starting_at_plus_two_indent * (
-                Keep_going_if_you_like
+    +   Ok_to_not_have_a_previous_line_starting_at_plus_two_indent * 
+        (       Keep_going_if_you_like
             -   However_long
         ) + (70 - 30) * 3
 ```
@@ -507,14 +510,14 @@ Example_plus_three_indent
 Arguments supplied to functions are similar to lots and only require +1 indent.
 
 ```
-if some_function_call(
-    X
+if some_function_call
+(   X
     Y: 3 + sin(Z)
 )
     do_something()
 
-declaring_a_function_with_multiline_arguments(
-    Times: int
+declaring_a_function_with_multiline_arguments
+(   Times: int
     Greeting: string
     Name: string("World")   # argument with a default
 ): string
@@ -527,8 +530,8 @@ of each argument line because +2 indent is the same as a line continuation.  The
 is optional but recommended.
 
 ```
-declaring_a_function_with_plus_two_indent_arguments(
-        Times: int,
+declaring_a_function_with_plus_two_indent_arguments
+(       Times: int,
         Greeting: string,
         Name: string = "World",
 ): string
@@ -536,8 +539,8 @@ declaring_a_function_with_plus_two_indent_arguments(
 
 Some_line_continuation_example_variable:
         Optional_expression_explicitly_at_plus_two_indent
-    +   5 - some_function(
-                Another_optional_expression
+    +   5 - some_function
+        (       Another_optional_expression
             +   Next_variable
             -   Can_keep_going
             /   Indefinitely,
@@ -580,8 +583,8 @@ begin and end, which helps some editors navigate more quickly to the beginning/e
 
 ```
 # multiline block parentheses via an optional `{`
-if Some_condition {
-    print("toggling shutdown")
+if Some_condition
+{   print("toggling shutdown")
     print("waiting one more tick")
     print("almost..."), print("it's a bit weird to use comma statements")
     shutdown()
@@ -701,12 +704,12 @@ To define a conversion from one class to another, you can define a global functi
 or a class method, like this:
 
 ```
-scaled8: [
-    # the actual value held by a `scaled8` is `My Scaled_value / my Scale`.
+scaled8:
+[   # the actual value held by a `scaled8` is `My Scaled_value / my Scale`.
     @private
     Scaled_value: u8
-] {
-    # static/class-level variable:
+]
+{   # static/class-level variable:
     @private
     Scale: 32_u8
 
@@ -980,8 +983,8 @@ Similarly, you can define new variables with namespaces, in case you need a new 
 in the current space.  This might be useful in a class method like this:
 
 ```
-my_class: [X; dbl] {
-    # this is a situation where you might like to use namespaces.
+my_class: [X; dbl]
+{   # this is a situation where you might like to use namespaces.
     ;;do_something(New X. dbl): dbl
         # this is what `;;x(X. dbl): dbl` might be internally.
         # defines a variable `X` in the namespace `Old`:
@@ -1041,8 +1044,8 @@ unary prefixes to indicate readonly/writable-instance class methods.  They are s
 readonly/writable `I/Me/My` as an argument.
 
 ```
-example_class: [X: int, Y: dbl] {
-    # this `;;` prefix is shorthand for `renew(Me;, ...): null`:
+example_class: [X: int, Y: dbl]
+{   # this `;;` prefix is shorthand for `renew(Me;, ...): null`:
     ;;renew(My X: int, My Y: dbl): null
         print("X ${X} Y ${Y}")
 
@@ -1585,11 +1588,11 @@ v(X: dbl, Y: dbl): null
 
 # Note that it is also ok to use parentheses around a function definition,
 # but you should use braces `{}`.
-excite(Times: int): str {
-    "hi!" * Times
+excite(Times: int): str
+{   "hi!" * Times
 }
 
-# You can also define functions inline with the `{` ... `}` block operator.
+# You can define a "multiline" function in one line like this:
 oh(Really; dbl): dbl { Really *= 2.5, return 50 + Really }
 ```
 
@@ -1682,17 +1685,17 @@ references, but need nesting to be the most clear.  For example:
 copy(From: (Pixels, Rectangle.), To: (Pixels;, Rectangle.): null
 
 # function usage
-Source Pixels: pixels() { #( build image )# }
+Source Pixels: pixels() @{ #( build image )# }
 Destination Pixels; pixels()
 Size Rectangle: rectangle(Width: 10, Height: 7)
 
-copy(
-    From: (
-        Source Pixels
+copy
+(   From: 
+    (   Source Pixels
         Size Rectangle + Vector2(X: 3, Y: 4)
     )
-    To: (
-        Destination Pixels;
+    To:
+    (   Destination Pixels;
         Size Rectangle + Vector2(X: 9, Y: 8)
     )
 )
@@ -1966,8 +1969,8 @@ There is one place where it is not obvious that two arguments might have the sam
 that is in method definitions.  Take for example the vector dot product:
 
 ```
-vector2: [X; dbl, Y; dbl] {
-    ;;renew(My X. dbl, My Y. dbl): Null
+vector2: [X; dbl, Y; dbl]
+{   ;;renew(My X. dbl, My Y. dbl): Null
 
     @order_independent
     ::dot(Vector2): dbl
@@ -1997,12 +2000,12 @@ allows you to avoid the compiler errors like `@order_independent` does.  You can
 use `You` as the variable name which in the class body is the same as `Second Me`.
 
 ```
-vector3: [X; dbl, Y; dbl, Z; dbl] {
-    ;;renew(My X. dbl, My Y. dbl, My Z. dbl): Null
+vector3: [X; dbl, Y; dbl, Z; dbl]
+{   ;;renew(My X. dbl, My Y. dbl, My Z. dbl): Null
 
     # defined in the class body, we do it like this:
-    ::cross(You): vector3(
-        # you can use `You` or `Your` in this block:
+    ::cross(You): vector3
+    (   # you can use `You` or `Your` in this block:
         X: My Y * Your Z - My Z * Your Y
         Y: My Z * Your X - My X * Your Z
         Z: My X * Your Y - My Y * Your X
@@ -2011,8 +2014,8 @@ vector3: [X; dbl, Y; dbl, Z; dbl] {
 
 # defined outside the class body, we do it like this:
 # NOTE: both definitions are *not* required, only one.
-cross(First Vector3, Second Vector3): vector3(
-    X: First Vector3 Y * Second Vector3 Z - First Vector3 Z * Second Vector3 Y
+cross(First Vector3, Second Vector3): vector3
+(   X: First Vector3 Y * Second Vector3 Z - First Vector3 Z * Second Vector3 Y
     Y: First Vector3 Z * Second Vector3 X - First Vector3 X * Second Vector3 Z
     Z: First Vector3 X * Second Vector3 Y - First Vector3 Y * Second Vector3 X
 )
@@ -2510,8 +2513,8 @@ writable or not.  Similarly, we can use templates like `:;.` for
 readonly-reference/writable-reference/temporary.
 
 ```
-my_class[of]: [X; of] {
-    ;;take(X; of):
+my_class[of]: [X; of]
+{   ;;take(X; of):
         My X = X!
     ;;take(X: of):
         My X = X
@@ -2527,8 +2530,8 @@ my_class[of]: [X; of] {
 Alternatively, we can rely on some boilerplate that the language will add for us, e.g.,
 
 ```
-my_class[of]: [X; of] {
-    # these are added automatically by the compiler since `X; of` is defined.
+my_class[of]: [X; of]
+{   # these are added automatically by the compiler since `X; of` is defined.
     ;;x(Of; of): { My X<->Of }
     ;;x(Of: of): { My X = Of }
     ;;x(Of. of): { My X = Of! }
@@ -2680,10 +2683,8 @@ Note that we're not allowed to cast... or are we?  we want to be able to easily 
 an iterator into a list, for example.
 
 ```
-countdown(Count): iterator[count] {
-    ...
-
-    ::next(): one_of[Cease, count]
+countdown(Count): all_of[iterator[count], [Count]]
+{   ::next(): one_of[Cease, count]
         if My Count > 0
             return --My Count
         Cease
@@ -2788,8 +2789,8 @@ encountered when calling the function.  These fields are named to imply that the
 call can do just about anything (including fetching data from a remote server).
 
 ```
-call: [
-    # TODO: need to distinguish between readonly and writable references.
+call:
+[   # TODO: need to distinguish between readonly and writable references.
     #       this can be done on the pointer (e.g., Ptr[]; for writable
     #       and Ptr[]: for readonly) or here somehow.
     Input; lot[at: str, ptr[any]]
@@ -2800,8 +2801,8 @@ call: [
     Print; array[string]
     # things printed to stderr via `error`:
     Error; array[string]
-] {
-    # adds an argument to the function call.
+]
+{   # adds an argument to the function call.
     # e.g., `Call input(Name: "Cave", Value: "Story")`
     ;;input(Name: str, Value: ptr any): null
         My Input[Name] = Value
@@ -2983,8 +2984,8 @@ Some examples:
 
 ```
 # creating an optional method in a class:
-parent: [X: dbl, Y: dbl] {
-    ;;renew(My X: dbl, My Y: dbl): Null
+parent: [X: dbl, Y: dbl]
+{   ;;renew(My X: dbl, My Y: dbl): Null
 
     # note that this is a reassignable method, which means it is defined on a per-instance basis.
     ::optional_method?(Z: dbl); int
@@ -3004,8 +3005,8 @@ Example optional_method = Null
 Example optional_method(3.21)    # returns Null
 
 # child classes can define a "method" that overrides the parent's optional function:
-child: parent {
-    ::optional_method(Z: dbl); int
+child: parent
+{   ::optional_method(Z: dbl); int
         return ceil(My X * My Y * exp(-Z))
 }
 
@@ -3128,6 +3129,9 @@ or `my_function(Other_value: "asdf")`.
 
 ## pure functions and functions with side effects
 
+TODO: isn't this section vestigial?  i don't think we need to describe pure functions anymore
+since we don't treat impure functions specially.
+
 Functions that are completely deterministic based on their inputs are called pure functions,
 whereas functions with side effects, i.e., relying on memory in other locations to determine
 the result, or modifying some memory elsewhere when executed, are not pure.  (External memory
@@ -3155,8 +3159,8 @@ check(fn(Int): bool, Int): int
     return Result
 
 # but suppose we have a class which has a method that looks like this function:
-example_class: [Check_times; int] {
-    ;;some_method(Int): bool
+example_class: [Check_times; int]
+{   ;;some_method(Int): bool
         ++My Check_times
         return (My Check_times % 2) >< (Int % 2)
 }
@@ -3223,8 +3227,8 @@ we do not allow building out the class body; any indented block will be assumed
 to be a part of the function body/definition:
 
 ```
-my_fn(Int): [X: int, Y: dbl] {
-    # this is part of the `my_fn` definition,
+my_fn(Int): [X: int, Y: dbl]
+{   # this is part of the `my_fn` definition,
     # and never a part of the `[X: int, Y: dbl]` class body.
     return [X: 5, Y: 3.0]
 }
@@ -3234,8 +3238,8 @@ If you want to specify methods on a return type, make sure to build it out as a 
 class first.
 
 ```
-x_and_y: [X: int, Y: dbl] {
-    ::my_method(): My X + int(round(My Y))
+x_and_y: [X: int, Y: dbl]
+{   ::my_method(): My X + int(round(My Y))
 }
 
 my_fn(Int): x_and_y(X: 5, Y: 3.0)
@@ -3244,8 +3248,8 @@ my_fn(Int): x_and_y(X: 5, Y: 3.0)
 ## example class definition
 
 ```
-example_class: [
-    # instance variables can be defined in this `[...]` block.
+example_class:
+[   # instance variables can be defined in this `[...]` block.
     # if they are public, a public constructor like `example_class(X;:. int)` will be created.
     X; int
 
@@ -3261,8 +3265,8 @@ example_class: [
     # (due to being declared with `;`), as long as the instance is mutable.
     some_mutable_pure_function(); null
         print("hello!")
-] {
-    # classes must be resettable to a blank state, or to whatever is specified
+]
+{   # classes must be resettable to a blank state, or to whatever is specified
     # as the starting value based on a `renew` function.  this is true even
     # if the class instance variables are defined as readonly.
     # NOTE:  defining this method isn't necessary since we already would have had
@@ -3353,9 +3357,10 @@ example_class some_static_impure_function(): int
 example_class;;another_method(Plus_k: int): null
     My X += Plus_k * 1000
 
-# Don't use `:` here since we're not defining a class:
-example_class @{
-    # with sequence building, `example_class my_added_class_function(K: int): example_class`
+# Use `@{` instead of `:` here since we're not defining a class,
+# we're doing sequence building.
+example_class @
+{   # with sequence building, `example_class my_added_class_function(K: int): example_class`
     # is exactly how you'd define a class function.
     my_added_class_function(K: int): example_class
         example_class(X: K * 1000)
@@ -3448,8 +3453,8 @@ may seem a bit strange in other alphabets.  To set a custom `Variable_case` defa
 for an instance of the class, use this syntax:
 
 ```
-örsted: [...] {
-    # define a custom Upper_camel_case name.
+örsted: [...]
+{   # define a custom Upper_camel_case name.
     I: Örsted 
     # probably could also parse `Örsted: (I)` as well here.
 
@@ -3535,11 +3540,11 @@ W X += ", world"
 print(W X)  # prints "hello, world"
 
 # expands to this:
-example: [
-    @invisible
+example:
+[   @invisible
     X; str
-] {
-    # getter: calls an external function with X, which can
+]
+{   # getter: calls an external function with X, which can
     #         avoid a copy if the function argument is readonly.
     @visibility
     ::x(fn(Str): ~t): fn(My X)
@@ -3592,8 +3597,8 @@ and modifier classes.
 
 ```
 # a class with a copy method gets a getter method automatically:
-just_copyable: [...] {
-    ::some_var(): int
+just_copyable: [...]
+{   ::some_var(): int
         return 1000
 
     #(#
@@ -3605,8 +3610,8 @@ just_copyable: [...] {
 }
 
 # a class with a getter method gets a copy method automatically:
-just_gettable: [@invisible Some_var; int] {
-    ::some_var(fn(Int): ~t): fn(My Some_var)
+just_gettable: [@invisible Some_var; int]
+{   ::some_var(fn(Int): ~t): fn(My Some_var)
 
     #(#
     # the following becomes automatically defined:
@@ -3616,8 +3621,8 @@ just_gettable: [@invisible Some_var; int] {
 }
 
 # a class with a swapper method gets a modifier and move+reset method automatically:
-just_swappable: [@invisible Some_var; int] {
-    @visibility
+just_swappable: [@invisible Some_var; int]
+{   @visibility
     ;;some_var(Int;): null
         My Some_var <-> Int
         # you can do some checks/modifications on Some_var here if you want,
@@ -3652,8 +3657,8 @@ just_swappable: [@invisible Some_var; int] {
 }
 
 # a class with a modifier method gets a swapper and move+reset method automatically:
-just_moddable: [@invisible Some_var; int] {
-    ;;some_var(fn(Int;): ~t): t
+just_moddable: [@invisible Some_var; int]
+{   ;;some_var(fn(Int;): ~t): t
         T: fn(My Some_var;)
         # you can do some checks/modifications on Some_var here if you want,
         # though it's best not to surprise developers
@@ -3713,8 +3718,8 @@ because we want inheritance to be as clear as composition for how method calls w
 Some examples:
 
 ```
-animal: [Name: string] {
-    ;;renew(My Name: string): Null
+animal: [Name: string]
+{   ;;renew(My Name: string): Null
 
     # define two methods on `animal`: `speak` and `go`.
     # these are "abstract" methods, i.e., not implemented by this base class.
@@ -3733,8 +3738,8 @@ animal: [Name: string] {
         return me(My Name)
 }
 
-snake: animal {
-    # if no `renew` functions are defined,
+snake: animal
+{   # if no `renew` functions are defined,
     # child classes will inherit their parent `renew()` methods.
 
     ::speak(): null
@@ -3752,11 +3757,8 @@ Snake escape()  # prints "Fred slithers away!!"
 To define extra instance variables for a child class, you'll use this notation:
 
 ```
-# TODO: see if there's a better notation here, e.g., `animal & [Fur_balls: int] { ... }`
-#       i'm not a big fan of TS notation here, though, since `2 & 1` is zero and `2 | 1` is 3;
-#       `2 | 1` is more like what we want.
-cat: all_of[animal, [Fur_balls: int]] {
-    # here we define a `renew` method, so the parent `reset` methods
+cat: all_of[animal, [Fur_balls: int]]
+{   # here we define a `renew` method, so the parent `reset` methods
     # become hidden to users of this child class:
     ;;renew(): null
         # can refer to parent methods using the `Variable_case`
@@ -3789,8 +3791,8 @@ constructor like this `;;renew(Parent_argument): { Parent renew(Parent_argument)
 you can make it simpler like this instead:
 
 ```
-horse: all_of[animal, [Owner: str]] {
-    # this passes `Name` to the `animal` constructor and sets `Owner` on self:
+horse: all_of[animal, [Owner: str]]
+{   # this passes `Name` to the `animal` constructor and sets `Owner` on self:
     ;;renew(Animal Name: str, My Owner: str, Neigh_times: int = 0)
         for Int: int < Neigh_times
             This speak()
@@ -3811,12 +3813,12 @@ All abstract base classes also provide ways to instantiate using lambda function
 All abstract methods must be defined for the instance to be created, and if a
 `reset` method is defined on the parent, any arguments passed into the first reset
 (i.e., which is the default constructor) should be defined for the lambda class.
-While these don't look like lambda functions, they use the notation `::speak(): null`
-to mean `speak(My): null`, which is fine as a lambda.
+While these don't look like normal lambda functions, they use the notation `::speak(): null`
+as a shortcut for `speak(My): null`, which works as a lambda.
 
 ```
-Weird_animal: animal(
-    Name: "Waberoo"
+Weird_animal: animal
+(   Name: "Waberoo"
     ::speak(): null
         print("Meorooo")
     ::go(): "meanders"
@@ -3896,8 +3898,8 @@ are not functional without child classes overriding their abstract methods.
 You can define methods on your class that work for a variety of types.
 
 ```
-some_example: [Value: int] {
-    ;;renew(Int): null
+some_example: [Value: int]
+{   ;;renew(Int): null
         My Value = Int
 
     # in your own code, prefer adding `t new(Some_example): t`
@@ -3973,8 +3975,8 @@ like this: `my_single_generic_class[int] my_class_function(...)` or
 
 ```
 # create a class with two generic types, `id` and `value`:
-generic_class[id, value]: [Id, Value] {
-    ;;renew(My Id: id, My Value: value): Null
+generic_class[id, value]: [Id, Value]
+{   ;;renew(My Id: id, My Value: value): Null
 }
 # more concisely:
 generic_class[id, value]: [Id, Value]
@@ -3996,8 +3998,8 @@ Note that a space must follow `@` otherwise since `@whatever_type` might be a va
 For example:
 
 ```
-mutable_types[x, y, z]: [
-    # these fields are always readonly:
+mutable_types[x, y, z]:
+[   # these fields are always readonly:
     R_x: x
     R_y: y
     R_z: z
@@ -4032,8 +4034,8 @@ has no `@` for  type, and the user supplies the type as `;`.
 You can also have virtual generic methods on generic classes, which is not allowed by C++.
 
 ```
-generic[of]: [Value; of] {
-    # not a `@final` method, so this can be extended/overridden:
+generic[of]: [Value; of]
+{   # not a `@final` method, so this can be extended/overridden:
     # TODO: maybe switch to final as `:;method(): int` and virtual as `:;method(); int`
     ::method(~U): u
         Other_of: of = My Value * (U + 5)
@@ -4044,8 +4046,8 @@ Generic; generic[string]
 Generic Value = "3"
 print(Generic method(i32(2)))    # prints "3333335" which is i32("3" * (2 + 5)) + 2
 
-specific[of]: generic[of] {
-    ;;renew(My Scale; of = 1): Null
+specific[of]: generic[of]
+{   ;;renew(My Scale; of = 1): Null
 
     ::method(~U): u
         Parent_result: generic[of]::method(U)
@@ -4112,14 +4114,14 @@ Pair_of_arrays: pair[array[int]]([First: [1, 2], Second: [3, 4]])
 
 # examples using pair[first, second]: ======
 # an array of pairs:
-Pair_array: array[pair[first: int, second: dbl]]([
-    [First: 1, Second: 2.3]
+Pair_array: array[pair[first: int, second: dbl]]
+(   [First: 1, Second: 2.3]
     [First: 100, Second: 0.5]
-])
+)
 # a lot of pairs:
-Pair_lot: lot[at: str, pair[first: int, second: dbl]]([
-    "hi there": [First: 1, Second: 2.3]
-])
+Pair_lot: lot[at: str, pair[first: int, second: dbl]]
+(   "hi there": [First: 1, Second: 2.3]
+)
 ```
 
 ### default named generic types
@@ -4168,8 +4170,8 @@ some_class[x, y, N: count]: [ ... ]
 some_class[of, N: count]: some_class[x: of, y: of, N]
 
 # this is also OK:
-child_class[of]: some_class[x: of, y: of, N: 256] {
-    # additional child methods
+child_class[of]: some_class[x: of, y: of, N: 256]
+{   # additional child methods
     ...
 }
 some_class[of]: child_class[of]
@@ -4264,19 +4266,17 @@ All classes have a few compiler-provided methods which cannot be overridden.
 
 ## singletons
 
-Defining a singleton class is quite easy, simply by instantiating a class when
-you define it with trailing `()` (which may include arguments you need to instantiate):
-
-TODO: if no arguments are needed, we probably can infer that `Variable_case: Class_definition`
-is a singleton instance.
+Defining a singleton class is quite easy, simply by instantiating a class 
+by using `Variable_case` when defining it.  Optionally you can use trailing `()`
+(which may include arguments you need to instantiate):
 
 ```
-Awesome_service: all_of[parent_class1, parent_class2, #(etc.)#] {
-    Url_base: "http://my/website/address.bazinga"
+Awesome_service: all_of[parent_class1, parent_class2, #(etc.)#]
+{   Url_base: "http://my/website/address.bazinga"
     ::get(Id: string): awesome_data 
         Json: Http get("${My Url_base}/awesome/${Id}") 
         return awesome_data(Json)
-}()
+}
 ```
 
 Using `@singleton type_case` on the LHS defines an abstract singleton.
@@ -4286,21 +4286,21 @@ child-class but only through the parent class reference.
 ```
 ### screen.hm ###
 @singleton
-screen: [] {
-    ;;draw(Image, Vector2): null
+screen: []
+{   ;;draw(Image, Vector2): null
     ;;clear(Color: color Black)
 }
 ### implementation/sdl-screen.hm ###
 # TODO: we probably can convert `\/../screen screen` -> `\/../screen`
 #       where we're requesting the class name of a file that's named correctly.
-Sdl_screen: \/../screen screen {
-    ;;draw(Image, Vector2): null
+Sdl_screen: \/../screen screen
+{   ;;draw(Image, Vector2): null
         # actual implementation code:
         My Sdl_surface draw(Image, Vector2)
 
     ;;clear(Color: color Black)
         My Sdl_surface clear(Color)
-}()
+}
 ### some-other-file.hm ###
 # this is an error if we haven't imported the sdl-screen file somewhere:
 Screen; screen
@@ -4322,15 +4322,16 @@ method calls inside.  For example, if we were to implement a builder pattern wit
 we could combine a bunch of mutations like this:
 
 ```
-my_builder: [...] {
-    ;;set(String, Int): null
+# class definition:
+my_builder: [...]
+{   ;;set(String, Int): null
 }
 
 # Note, inside the `@{}` we allow mutating methods because `my_builder()` is a temporary.
 # The resulting variable will be readonly after this definition + mutation chain,
 # due to being defined with `:`.
-My_builder: my_builder() @{
-    set("Abc", 123)
+My_builder: my_builder() @
+{   set("Abc", 123)
     set("Lmn", 456)
     set("Xyz", 789)
     # etc.
@@ -4362,8 +4363,8 @@ Some examples of the LHS being a reference follow:
 
 ```
 Readonly_array: [0, 100, 20, 30000, 4000]
-Results: Readonly_array @[
-    [2]             # returns 20
+Results: Readonly_array @
+[   [2]             # returns 20
     ::sort()        # returns a sorted copy of the array; `::` is unnecessary
     ::print()       # prints unsorted array; `::` is unnecessary
     # this will throw a compile-error, but we'll discuss results
@@ -4374,8 +4375,8 @@ Results: Readonly_array @[
 # Results = [Int: 20, Sort: [0, 20, 100, 4000, 30000]]
 
 Writeable_array; [-1, 100, 20, 30000, 4000]
-Results: Writeable_array @{
-    [2]             # returns 20
+Result: Writeable_array @
+{   [2]             # returns 20
     sort()          # in-place sort, i.e., `;;sort()`
     ;;[3, ++$Int]   # OK, a bit verbose since `;;` is unnecessary
     # prints the array after all the above modifications:
@@ -4383,7 +4384,7 @@ Results: Writeable_array @{
     min()
 }
 # should print [-1, 20, 100, 4001, 30000]
-# Results = -1
+# Result = -1       # from `min(Writeable_array)`
 ```
 
 ### nested sequence builders
@@ -4392,8 +4393,8 @@ In fact, `@{}` acts somewhat like bash sequence builders (which use `{}`).  E.g.
 
 ```
 # Example method sequence builder:
-My_class @[
-    my_method() @[next_method(), next_method2(), Nested_field]
+My_class @
+[   my_method() @[next_method(), next_method2(), Nested_field]
     other_method()
     Some_field
 ]
@@ -4422,28 +4423,28 @@ as sequence builder's value.
 ```
 My_class: [...]
 # My_class is not a temporary, so we can include field names here:
-Results: My_class @[
-    Field1: my_method()
+Results: My_class @
+[   Field1: my_method()
     Field2: next_method()
 ]
 # The above is equivalent to the following:
-Results: [
-    Field1: My_class my_method()
+Results:
+[   Field1: My_class my_method()
     Field2: My_class next_method()
 ]
 
 # This is a compile error because the LHS of the sequence builder
 # is a temporary, so the fields are not used in the return value.
-Results: My_class get_value() @[
-    Field1: do_something()
+Results: My_class get_value() @
+[   Field1: do_something()
     Field2: do_something_else()
 ] # COMPILE ERROR
 # similarly for @()
 
 # this is also a compile error because we don't return fields in a `@{}`,
 # we just return the last statement executed.
-Other_results: My_class get_value() @{
-    Field1: do_something()
+Other_results: My_class get_value() @
+{   Field1: do_something()
     Field2: do_something_else()
 }
 ```
@@ -4466,10 +4467,10 @@ warn on finding aliases.
 Aliases can be used for simple naming conventions, e.g.:
 
 ```
-options: any_or_none_of[
-    one_of[Align_inherit_x: 0, Align_center_x, Align_left, Align_right]
-] {
-    @alias Inherit_align_x: Align_inherit_x
+options: any_or_none_of
+[   one_of[Align_inherit_x: 0, Align_center_x, Align_left, Align_right]
+]
+{   @alias Inherit_align_x: Align_inherit_x
 }
 
 Options: options Inherit_align_x    # converts to `options Align_inherit_x` on next format.
@@ -4478,8 +4479,8 @@ Options: options Inherit_align_x    # converts to `options Align_inherit_x` on n
 Aliases can also be used for more complicated logic and even deprecating code.
 
 ```
-my_class: [X; int] {
-    # TODO: we probably want to support `My` working here as well:
+my_class: [X; int]
+{   # TODO: we probably want to support `My` working here as well:
     # explicit constructor:
     i(My X; int): i()
 
@@ -4525,8 +4526,8 @@ to invoke logic from these external files.
 
 ```
 # vector2.hm
-vector2: [X: dbl, Y: dbl] {
-    ;;renew(My X: dbl, My Y: dbl): Null
+vector2: [X: dbl, Y: dbl]
+{   ;;renew(My X: dbl, My Y: dbl): Null
 
     @order_independent
     ::dot(Vector2: vector2): My X * Vector2 X + My Y * Vector2 Y
@@ -4772,16 +4773,16 @@ a `lot` first and then convert.
 ```
 # TODO: should this be `container uh` instead of `Container uh`?
 #       may depend on how we handle static stuff.
-Container uh: one_of[
-    Out_of_memory
+Container uh: one_of
+[   Out_of_memory
     # etc.
 ]
 
 hm[of]: hm[ok: of, Container uh]
 
 # TODO: rename `non_null` to `present` or `not_null`.  definitely can't mirror `un_null`
-container[at, of: non_null]: [] {
-    # Returns `Null` if `At` is not in this container,
+container[at, of: non_null]: []
+{   # Returns `Null` if `At` is not in this container,
     # otherwise the `value` instance at that `At`.
     # This is wrapped in an argument object to enable passing by reference.
     # TODO: do we like this?  it looks a bit like SFO logic that we killed off.
@@ -4874,8 +4875,8 @@ so that we can pop or insert into the beginning at O(1).  We might reserve
 `stack` for a contiguous list that grows in one direction only.
 
 ```
-Array uh: one_of[
-    Out_of_memory
+Array uh: one_of
+[   Out_of_memory
     # etc...
 ]
 hm[of]: hm[ok: of, Array uh]
@@ -4889,8 +4890,8 @@ hm[of]: hm[ok: of, Array uh]
 # e.g., `non_null[of]: if of == nullable(~y) {y} else {of}`.
 # or maybe `if of == one_of[~y, null] {y} else {of}`.
 # or maybe `if of == one_of[...y, null] {y} else {of}`.
-array[of]: container[id: index, value: non_null[of]] {
-    # TODO: a lot of these methods need to return `hm[of]`.
+array[of]: container[id: index, value: non_null[of]]
+{   # TODO: a lot of these methods need to return `hm[of]`.
     # cast to bool, `::!!(): bool` also works, notice the `!!` before the parentheses.
     !!(Me): bool
         return My count() > 0
@@ -5032,8 +5033,8 @@ print(range(10))    # prints [0,1,2,3,4,5,6,7,8,9]
 In hm-lang:
 
 ```
-fixed_count_array[of]: array[of] {
-    @private Fixed_count: count
+fixed_count_array[of]: array[of]
+{   @private Fixed_count: count
     ;;renew(Count): null
         My Fixed_count = Count
         My count(Count)
@@ -5073,8 +5074,8 @@ Jim1: "Jim C"
 Jim2: "Jim D"
 Jim: 456
 # lot linking string to ints:
-Employee_ids: lot[at: int, str]([
-    # option 1.A: `X: Y` syntax
+Employee_ids: lot[at: int, str]
+(   # option 1.A: `X: Y` syntax
     "Jane": 123
     # option 1.B: `[At: X, Of: Y]` syntax
     [At: "Jane", Of: 123]
@@ -5093,7 +5094,7 @@ Employee_ids: lot[at: int, str]([
     # Jim1: Jim1Id # WARNING, looks like option 1.C, which would define "Jim1" instead of "Jim C"
     # option 3: `X` syntax where `X` is a known variable, essentially equal to `@@X: X`
     Jim
-])
+)
 # note that commas are optional if elements are separated by newlines,
 # but required if elements are placed on the same line.
 ```
@@ -5141,15 +5142,15 @@ change places inside the lot and/or collide with an existing ID.
 Some relevant pieces of the class definition:
 
 ```
-uh: one_of[
-    Out_of_memory
+uh: one_of
+[   Out_of_memory
     Missing_id
     # etc...
 ]
 hm[of]: hm[ok: of, uh]
 
-lot[of, at: hashable]: container[of, at] {
-    # Returns Null if `At` is not in the lot.
+lot[of, at: hashable]: container[of, at]
+{   # Returns Null if `At` is not in the lot.
     ::[At]?: of
 
     # Gets the existing value at `At` if present,
@@ -5219,21 +5220,21 @@ like `unordered_lot`.
 
 ```
 @private
-indexed_lot_element[at, of]: [
-    Next; index
+indexed_lot_element[at, of]:
+[   Next; index
     Previous; index
     # ID needs to be constant.
     At: at
     Of; of
 ]
 
-insertion_ordered_lot[at, of]: lot[at, of] {
-    # due to sequence building, we can use @private @{...} to set @private for
+insertion_ordered_lot[at, of]: lot[at, of]
+{   # due to sequence building, we can use @private @{...} to set @private for
     # each of the fields inside this block.
-    @private @{
-        At_indices; @only unordered_lot[at, value: index]
-        Indexed_lot; @only unordered_lot[
-            at: index
+    @private @
+    {   At_indices; @only unordered_lot[at, value: index]
+        Indexed_lot; @only unordered_lot
+        [   at: index
             value: indexed_lot_element[at, of]
         ] = [[At: 0, Of: [Next: 0, at(), of(), Previous: 0]]]
         Next_available_index; index = 1
@@ -5278,8 +5279,8 @@ insertion_ordered_lot[at, of]: lot[at, of] {
     ;;need_to_insert_then_modify(At;:, fn(Of;): ~t): t
         New_index: My Next_available_index++ or reshuffle()
         Previously_last_index: My Indexed_lot[0] Previous
-        My Indexed_lot[New_index] = [
-            Previous: Previously_last_index
+        My Indexed_lot[New_index] =
+        [   Previous: Previously_last_index
             Next: 0
             At
             of()
@@ -5308,14 +5309,14 @@ fast, i.e., O(1).  Like with container IDs, the set's element type must satisfy 
 You can elide `set` for default named arguments like this: `Set[element_type];` (or `:` or `.`).
 
 ```
-uh: one_of[
-    Out_of_memory
+uh: one_of
+[   Out_of_memory
     # etc...
 ]
 hm[of]: hm[ok: of, uh]
 
-set[of: hashable]: container[id: of, value: true] {
-    # Returns `True` iff `Of` is in the set, otherwise Null.
+set[of: hashable]: container[id: of, value: true]
+{   # Returns `True` iff `Of` is in the set, otherwise Null.
     # NOTE: the `true` type is only satisfied by the instance `True`;
     # this is not a boolean return value but can easily be converted to boolean.
     ::[Of]?: true
@@ -5396,8 +5397,8 @@ and `from` selects multiple (or no) IDs from the set (`k from ids(o)`).
 For example, here is a way to create an iterator over some incrementing values:
 
 ```
-range[of: number]: iterator[of] {
-    @private
+range[of: number]: iterator[of]
+{   @private
     Next_value: of = 0
 
     ;;renew(Start_at: of = 0, My Less_than: of = 0): null
@@ -5448,8 +5449,8 @@ next(Iterator; iterator[~t] @becomes(array_iterator[t]), Array: array[t])?: t
     Iterator = array_iterator[t]()
     Iterator;;next(Array)
 
-array_iterator[of]: iterator[of] {
-    Next; index
+array_iterator[of]: iterator[of]
+{   Next; index
     ;;renew(Start: index = 0):
         My Next = Start
 
@@ -5479,8 +5480,8 @@ we should be able to translate one into the other.
 TODO: think of a good mechanism for this.
 
 ```
-array[of]: [] {
-    # const iteration, with no-copy if possible:
+array[of]: []
+{   # const iteration, with no-copy if possible:
     ::for_each(fn(Of): loop): null
         for Index: index < My count()
             # use the no-copy getter, here:
@@ -5611,10 +5612,9 @@ Then:
     print("`Then` on a newline is ok but not idiomatic")
     ...
 
-# prefer using commas as it's slightly more readable.
 # if you are running out of space, try using parentheses.
-if (
-        Some Long Condition
+if
+(       Some Long Condition
     &&  Some Other_fact
     &&  Need_this Too
 ), Then:
@@ -5694,8 +5694,8 @@ E.g., suppose we have the following:
 status: one_of[Unknown, Alive, Dead]
 vector3: [X; dbl, Y; dbl, Z; dbl]
 
-update: one_of[
-    status
+update: one_of
+[   status
     position: vector3
     velocity: vector3
 ]
@@ -5740,8 +5740,8 @@ There is no need to pass a value as a mutable reference, e.g., `what My_value;`;
 since we can infer this if any internal matching block uses `;`.
 
 ```
-whatever: one_of[
-    str
+whatever: one_of
+[   str
     card: [Name: str, Id: u64]
 ]
 
@@ -5760,14 +5760,15 @@ what Whatever!      # ensure passing as a temporary by mooting here.
 
 ```
 # The implementation can be pretty simple.
-switch (Update.hm_Is) {
-    case update::status::hm_Is:
+switch (Update.hm_Is)
+{   case update::status::hm_Is:
         DEFINE_CAST(update::status *, Status, &Update.hm_Value);
-        if (*Status == status::Unknown) {
-            // print("unknown update")
+        if (*Status == status::Unknown)
+        {   // print("unknown update")
             ...
-        } else {
-            // print("known status: ${Status}")
+        }
+        else
+        {   // print("known status: ${Status}")
             ...
         }
         break;
@@ -5787,17 +5788,18 @@ proceed with a match (if any), we check for string equality.  E.g., some pseudo-
 code:
 
 ```
-switch (fast_hash(Considered_string, Compile_time_salt)) {
-    case fast_hash(String_case1, Compile_time_salt): { // precomputed with a stable hash
-        if (Considered_string != String_case1) {
-            goto __Default__;
+switch (fast_hash(Considered_string, Compile_time_salt))
+{   case fast_hash(String_case1, Compile_time_salt): { // precomputed with a stable hash
+        if (Considered_string != String_case1)
+        {   goto __Default__;
         }
         // logic for String_case1...
         break;
     }
     // and similarly for other string cases...
-    default: {
-    __Default__:
+    default:
+    {   // Locating here so that we can also get no-matches from hash collisions:
+        __Default__:
         // logic for no match
     }
 }
@@ -5839,19 +5841,16 @@ and other containers of precise types, as well as recursive containers thereof.
 # TODO: maybe something like `my_hashable_class: [...] {...}, assert(my_hashable_class is hashable)`.
 #       even better, maybe the callers should be responsible for checking if a class is
 #       hashable (or whatever).
-my_hashable_class: hashable {
-    Id: u64
-    Name; string
-
-    # we allow a generic hash builder so we can do cryptographically secure hashes
+my_hashable_class: all_of[hashable, [Id: u64, Name; string]]
+{   # we allow a generic hash builder so we can do cryptographically secure hashes
     # or fast hashes in one definition, depending on what is required.
     # This should automatically be defined for classes with precise fields (e.g., int, u32, string, etc.)!
     ::hash(~Builder;):
         Builder hash(My Id)       # you can use `hash` via the builder or...
         My Name hash(Builder;)    # you can use `hash` via the field.
 
-    ::hash(~Builder;): Builder ${
-        hash(My Id)
+    ::hash(~Builder;): Builder @
+    {   hash(My Id)
         hash(My Name)
     }
 }
@@ -5948,8 +5947,8 @@ maybe we just look at `print` and add the newlines at the start.  Each thread sh
 have its own tab stop.  E.g.,
 
 ```
-array[of]: [] {
-    ...
+array[of]: []
+{   ...
     ::print(): null
         if My count() == 0
             return print("[]")
@@ -5986,12 +5985,12 @@ indent(fn(Block[~t]): never): t
 indent(~Declaring., fn(Block[~t, declaring]): never): t
 
 @referenceable_as(then)
-block[of, declaring: null]: [
-    # variables defined only for the lifetime of this block's scope.
+block[of, declaring: null]:
+[   # variables defined only for the lifetime of this block's scope.
     # TODO: give examples, or maybe remove, if this breaks cleanup with the `jump` ability
     Declaring@ declaring
-] {
-    # exits the `indent` with the corresponding `of` value.  example:
+]
+{   # exits the `indent` with the corresponding `of` value.  example:
     #   Value; 0
     #   what indent((Block[str]): never
     #       Old Value: Value
@@ -6120,8 +6119,8 @@ coroutine.
 ```
 cv[of]: one_of[Cease, Value: of]
 
-co[of]: [resumable(Ci[of]): never] {
-    # TODO: think about how `resumable` works, probably should be `Resumable`
+co[of]: [resumable(Ci[of]): never]
+{   # TODO: think about how `resumable` works, probably should be `Resumable`
     ;;renew(My resumable(Ci[of]): never): null
 
     ;;take(): cv[of]
@@ -6129,8 +6128,8 @@ co[of]: [resumable(Ci[of]): never] {
     @alias ;;next(): I take()
 }
 
-ci[of]: resumable[one_of[Cease, Value: of]] {
-    # returns control back to caller of `co;;take` with a new value.
+ci[of]: resumable[one_of[Cease, Value: of]]
+{   # returns control back to caller of `co;;take` with a new value.
     ::give(Of.): jump
         ::exit(Of!)
 
@@ -6147,8 +6146,8 @@ ci[of]: resumable[one_of[Cease, Value: of]] {
 ```
 
 ```
-countdown: co[int] {
-    ;;renew(My Int.): Co renew((Ci[int];):
+countdown: co[int]
+{   ;;renew(My Int.): Co renew((Ci[int];):
         while My Int > 0
             Ci give(--My Int)
         Ci exit()
@@ -6235,8 +6234,8 @@ print(Results_array) # prints `["hello", "world"]`
 
 # here we use sequence building to ensure we're creating futures,
 # i.e., `um {A, B}` has type `{A: um[a], B: um[b]}` and executes `A`/`B` asynchronously.
-Futures_object: um {
-    Greeting: after(Seconds: 2, Return: "hello")
+Futures_object: um @
+{   Greeting: after(Seconds: 2, Return: "hello")
     Noun: after(Seconds: 1, Return: "world")
 }
 print(decide(Futures_object)) # prints `[Greeting: "hello", Noun: "world"]`
@@ -6276,8 +6275,8 @@ Here is an example enum with some values that aren't specified.  Even though
 the values aren't specified, they are deterministically chosen.
 
 ```
-my_enum: one_of[
-    First_value_defaults_to_zero
+my_enum: one_of
+[   First_value_defaults_to_zero
     Second_value_increments
     Third_value_is_specified: 123
     Fourth_value_increments
@@ -6299,8 +6298,8 @@ Crazy: 15
 # `other_enum Other_value1 = 0`,
 # `other_enum Super = 12`,
 # and `other_enum Other_value2 = 15`.
-other_enum: one_of[
-    Other_value1
+other_enum: one_of
+[   Other_value1
     Super
     Other_value2: Crazy
 ]
@@ -6342,8 +6341,8 @@ enumerations, not the number +1 after the last enum value.  This can be confusin
 in case you use non-standard enumerations (i.e., with values less than 0):
 
 ```
-sign: one_of[
-    Negative: -1
+sign: one_of
+[   Negative: -1
     Zero: 0
     Positive: 1
 ]
@@ -6351,8 +6350,8 @@ sign: one_of[
 print("sign has ${sign count()} values")   # 3
 print("starting at ${sign min()} and going to ${sign max()}")     # -1 and 1
 
-weird: one_of[
-    X: 1
+weird: one_of
+[   X: 1
     Y: 2
     Z: 3
     Q: 9
@@ -6381,8 +6380,8 @@ than testing each value against the various possibilities.  Also note that you d
 to explicitly set each enum value; they start at 0 and increment by default.
 
 ```
-option: one_of[
-    Unselected
+option: one_of
+[   Unselected
     Not_a_good_option
     Content_with_life
     Better_options_out_there
@@ -6429,10 +6428,10 @@ If no value is zero, then the first specified value is default.
 Take this example `one_of`.
 
 ```
-tree: one_of[
-    leaf: [Value; int]
-    branch: [
-        Left; tree
+tree: one_of
+[   leaf: [Value; int]
+    branch:
+    [   Left; tree
         Right; tree
     ]
 ]
@@ -6496,8 +6495,8 @@ variables will be null if the `Tree` is not of that type, but they will also be
 a copy and any changes to the new variables will not be reflected in `Tree`.
 
 ```
-one_of[..., ~t]: [] {
-    # returns true if this `one_of` is of type `T`, also allowing access
+one_of[..., ~t]: []
+{   # returns true if this `one_of` is of type `T`, also allowing access
     # to the underlying value by passing it into the function.
     # we return `never` here because we don't want people to use the
     # value and expect it to return something based on the callback's return type,
@@ -6584,8 +6583,8 @@ TODO: should this be `contains_this_value()` to be consistent with containers?
 TODO: is there a way to make this `any_of` and use 0 as the `Null` value?
 
 ```
-food: any_or_none_of[
-    Carrots
+food: any_or_none_of
+[   Carrots
     Potatoes
     Tomatoes
 ]
@@ -6604,8 +6603,8 @@ And here is an example with specified values.
 
 ```
 # the mask is required to specify types that are powers of two:
-non_mutually_exclusive_type: any_or_none_of[
-    X: 1
+non_mutually_exclusive_type: any_or_none_of
+[   X: 1
     Y: 2
     Z: 4
     T: 32
@@ -6640,8 +6639,8 @@ Options has_t()  # True
 We can also create a mask with one or more `one_of` fields, e.g.:
 
 ```
-options: any_or_none_of[
-    one_of[Align_center_x, Align_left, Align_right]
+options: any_or_none_of
+[   one_of[Align_center_x, Align_left, Align_right]
     one_of[Align_center_y, Align_top, Align_bottom]
 
     one_of[Font_very_small, Font_small, Font_normal: 0, Font_large, Font_very_large]
@@ -6684,8 +6683,8 @@ name can thus be chosen for each `one_of`, e.g., `one_of[..., Whatever_name: 0, 
 You can add some named combinations by extending a mask like this.
 
 ```
-my_mask: any_or_none_of[X, Y] {
-    X_and_y: X | Y
+my_mask: any_or_none_of[X, Y]
+{   X_and_y: X | Y
 }
 
 Result: my_mask = X_and_y
@@ -6845,22 +6844,22 @@ When the `callee` is descoped, it will deregister itself with the `caller`
 internally, so that the `caller` will no longer call the `callee`.
 
 ```
-callee[of]: [] {
-    ;;call(Of@): null
+callee[of]: []
+{   ;;call(Of@): null
 
     ;;hang_up(): null
         ... # some internal implementation
 }
 
-caller[of]: [
-    # use `of@` to pass in the mutability of `of` from `caller` into `callee`,
+caller[of]:
+[   # use `of@` to pass in the mutability of `of` from `caller` into `callee`,
     Callees[ptr[callee[of@]]];
-] {
-    ::run_callbacks(Of@): for Ptr: in My Callees {Ptr call(Of@)}
+]
+{   ::run_callbacks(Of@): for Ptr: in My Callees {Ptr call(Of@)}
 }
 
-audio: caller[array[sample], Mutable] {
-    # this `audio` class will call the `call` method on the `callee` class.
+audio: caller[array[sample], Mutable]
+{   # this `audio` class will call the `call` method on the `callee` class.
     # TODO: actually show some logic for the calling.
 
     # amount of time between samples:
@@ -6868,10 +6867,10 @@ audio: caller[array[sample], Mutable] {
 
     # number of samples
     Count; 500
-}()
+}
 
-audio_callee: callee[array[sample];] {
-    Frequency; flt(440)
+audio_callee: callee[array[sample];]
+{   Frequency; flt(440)
     Phase; flt
 
     ;;call(Array[sample];): for Index: index < count(Array)
@@ -6923,29 +6922,29 @@ acting much like a vtable.  However, the type table includes more than just meth
 // C++ code
 typedef u64 type_id;
 
-struct variable_type {
-    string Name;
+struct variable_type
+{   string Name;
     type_id Type_id;
 };
 
 typedef array<variable_type> arguments_type;
 
-struct overload_type {
-    type_id Instance_type_id; // 0 if this is not a method overload
+struct overload_type
+{   type_id Instance_type_id; // 0 if this is not a method overload
     arguments_type Input;
     arguments_type Output;
 };
 
-struct overload {
-    type_id Instance_type_id; // 0 if this is not a method overload
+struct overload
+{   type_id Instance_type_id; // 0 if this is not a method overload
     arguments_type Input;
     arguments_type Output;
 
     void *Function_pointer;
 };
 
-struct overload_matcher {
-    array<overload> Overloads;
+struct overload_matcher
+{   array<overload> Overloads;
 
     // TODO: can `reference` be a no-copy no-move type class?
     // TODO: can we make this an `array_element_reference` under the hood with type erasure?
@@ -6953,8 +6952,8 @@ struct overload_matcher {
 };
 
 // C++ code: info for a type
-struct type_info {
-    type_id Id;
+struct type_info
+{   type_id Id;
     string Name;
 
     // Class types have variables, methods, and class functions defined in here:
@@ -6988,11 +6987,11 @@ or ideally, we just rely on the global functions so we don't have to specify the
 We'll use the following example hm-lang class and other functions for transpilation examples.
 
 ```
-example_class: [
-    A; f32
+example_class: 
+[   A; f32
     B; f32
-] {
-    ;;renew(My X: i32, My Y: i32):
+]
+{   ;;renew(My X: i32, My Y: i32):
         My A = X - Y
         My B = X + Y
 
@@ -7013,24 +7012,24 @@ example_function(X: i64, A: dbl): [Y: i64, B: dbl]
 
 ```
 // example_class.h
-typedef struct example_class {
-    float A;
+typedef struct example_class
+{   float A;
     float B;
     int32_t X;
     int32_t Y;
 }   example_class_t;
 
-typedef struct example_class_renew_input_X_Y {
-    int32_t X;
+typedef struct example_class_renew_input_X_Y
+{   int32_t X;
     int32_t Y;
 }   example_class_renew_input_X_Y_t;
 
-typedef struct example_class_readonly_method_input_Z_t {
-    int32_t Z;
+typedef struct example_class_readonly_method_input_Z_t
+{   int32_t Z;
 }   example_class_readonly_method_input_Z_t;
 
-typedef struct example_class_writable_method_input_Q_t {
-    float Q;
+typedef struct example_class_writable_method_input_Q_t
+{   float Q;
 }   example_class_writable_method_input_Q_t;
 
 void example_class_renew_X_Y(example_class_t *My, example_class_renew_input_X_Y_t input);
@@ -7041,13 +7040,13 @@ float example_class_writable_method_input_Q_output_f32(
     example_class_t *My, example_class_writable_method_input_Q_t input
 );
 
-typedef struct example_function_input_A_X_t {
-    double A;
+typedef struct example_function_input_A_X_t
+{   double A;
     int64 X;
 }   example_function_input_A_X_t;
 
-typedef struct example_function_output_B_Y_t {
-    double B;
+typedef struct example_function_output_B_Y_t
+{   double B;
     int64 Y;
 }   example_function_output_B_Y_t;
 
@@ -7075,8 +7074,8 @@ e.g., `whenever Q {...}`.
 
 ```
 # hm-lang
-my_class: [] {
-    ::readonly_method(Int): null
+my_class: []
+{   ::readonly_method(Int): null
     ;;mutating_method(Int): null
 }
 

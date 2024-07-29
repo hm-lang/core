@@ -77,7 +77,7 @@ l3: [
 
 window_event: one_of[
     # A resize event, with the new internal window size.
-    resize_event: size2i
+    resize_event: size2
     # A sequence of runes (e.g., layout and locale included).
     text_event: string
     # A physical, named key.
