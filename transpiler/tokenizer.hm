@@ -121,11 +121,13 @@ token: one_of[
     mid_line_comment: str           # e.g., `#( whatever )#`
     multiline_comment: array[str]   # e.g., `#(# ... #)#` with newlines
 
-    compiler_comment: str    # e.g., `#salt(123)`
-    compiler_error: str      # e.g., `#@!$...`
+    compiler_comment: str   # e.g., `#salt(123)`
+    compiler_error: str     # e.g., `#@!$...`
 
-    variable_case: str  # My_variable_name
-    snake_case: str     # snake_case
+    # an identifier that starts with an upper-case letter (or an underscore):
+    starts_upper_case: str
+    # an identifier that starts with a lower-case letter:
+    starts_lower_case: str
 
     indent: i64     # number of spaces, always absolute: not relative from last indent
     declaration: one_of[Readonly: 1, Writable, Fleeting] {
@@ -150,8 +152,8 @@ token: one_of[
     lambda_aside: array[token]   # e.g., `$(...)`
     lambda_brace: array[token]   # e.g., `${...}`
     lambda_bracket: array[token] # e.g., `$[...]`
-] {
-    @alias multi_line_comment: multiline_comment
+]
+{   @alias multi_line_comment: multiline_comment
     @alias midline_comment: mid_line_comment
 }
 

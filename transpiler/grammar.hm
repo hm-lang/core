@@ -3,7 +3,7 @@
 # flips between states while reading through files?
 
 # list of elements that can compose the grammar.
-# doesn't include tokens like `Variable_case` or `snake_case`,
+# doesn't include tokens like `starts_upper_case` or `starts_lower_case`,
 # which comprise the grammar but don't specify it.
 grammar_element: one_of[
     Statement: one_of[
