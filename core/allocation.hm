@@ -37,12 +37,19 @@ allocation[of]: [
         @cc(
             @hm(of) *New_memory = (@hm(of) *)realloc(Memory, @hm(Bytes));
             if (New_memory == Null) {
-                return @hm(this uh Out_of_memory);
+                return @hm(uh Out_of_memory);
             }
             Memory = New_memory;
         )
         My Count = New Count
         ok(Old Count)
+
+    ;;reset(): null
+        @cc(
+        free(Memory);
+        Memory = Null;
+        )
+        Count = 0
 
     i(Count): hm[allocation[~u]]
         # it's always possible to default construct this allocation.
@@ -56,15 +63,6 @@ allocation[of]: [
 
     @cc(
     public:
-        // Default construction allowed
-        @hm(allocation) {}
-
-        void reset() {
-            free(Memory);
-            Memory = Null;
-            @hm(Count) = 0;
-        }
-
         ~@hm(allocation) {
             reset();
         }
@@ -96,6 +94,7 @@ allocation[of]: [
         }
     )
 
+    # TODO: we probably want to return a reference here, e.g., `(Of)`
     ::[In_bounds_and_constructed: in_bounds]: of
         # Only call this if you've already constructed a value here.
         # We can't verify if the index has been constructed without more bookkeeping,
