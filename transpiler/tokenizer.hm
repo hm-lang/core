@@ -1,12 +1,12 @@
-uh: one_of[
-    did_not_finish_midline_comment: str
+uh: one_of
+[   did_not_finish_midline_comment: str
     ambiguous_operator: str
 ]
 hm[of]: hm[ok: of, uh]
 
-tokenizer: {
-    @private {
-        Lines[str]          # lines to parse
+tokenizer:
+{   @private
+    {   Lines: array[str]   # lines to parse
         Line_index; index   # current index into `Lines`
         Char_index; index   # current index into `Lines[Line_index]`
         Hm[token];          # current result
@@ -15,8 +15,8 @@ tokenizer: {
     ;;reset(Array[str].): null
         My Lines = Array!
         # Do a little work here so we don't need to keep track of
-        # whether we've initialized `My Token` for the first `peek`.
-        My Token = My next()
+        # whether we've initialized `My Hm` for the first `peek`.
+        My Hm = My next()
 
     ::line_index(): My Line_index
 
@@ -109,8 +109,8 @@ tokenizer: {
         "$(Prefix) $(Str)" 
 }
 
-token: one_of[
-    End_of_file: 0
+token: one_of
+[   End_of_file: 0
 
     # TODO: a `one_of` already has some space for a tag.
     #       we could use one tag number for `small_str` and another for `str`

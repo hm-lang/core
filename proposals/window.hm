@@ -10,14 +10,14 @@ WISHLIST
 #)#
 
 
-Window uh: one_of[
-    Invalid_argument
+Window uh: one_of
+[   Invalid_argument
     # TODO...
 ]
 hm[of]: hm[ok: of, Window uh]
 
-window: [] {
-    terminal(): terminal_window
+window: []
+{   terminal(): terminal_window
     graphics(): graphics_window
 
     # Returns the actual window size, i.e., the real-estate available for drawing.
@@ -50,59 +50,59 @@ window: [] {
     ;;frame(Desired_fps: f32): [Events: window_event[], Duration]
 }
 
-terminal_window: allOf[window, l2] {}
+terminal_window: all_of[window, l2]
+{   
+}
 
-graphics_window: allOf[window, l3] {   
-    # Returns true iff the window is fullscreen.
+graphics_window: all_of[window, l3]
+{   # Returns true iff the window is fullscreen.
     ::fullscreen(): bool
     # Sets fullscreen if the passed-in `Bool` is true,
     # otherwise sets windowed mode.  Returns the previous result if successful.
     ;;fullscreen(Bool): hm[bool]
 
-    ::resolution(): My Pixels size()
-    ;;resolution(Size2): My Pixels size(Size2)
+    ::resolution(): L3 Pixels size()
+    ;;resolution(Size2): L3 Pixels size(Size2)
 }
 
-l2: [] {
-    # Writes some text to the l2.
+l2: [@private Pixels;]
+{   # Writes some text to the l2.
     ;;draw(Caret;, String): null
 }
 
-l3: [
-    Pixels: 
-] {
-    # Function to get pixels to draw to.
+l3: [@private Pixels;]
+{   # Function to get pixels to draw to.
     ;;draw[of: one_of[cpu_pixels, qpu_pixels]](fn(Of;): ~t): fn(My Pixels;)
 }
 
-window_event: one_of[
-    # A resize event, with the new internal window size.
-    resize_event: size2
+window_event: one_of
+[   # A resize event, with the new interior size.
+    resize: size2
     # A sequence of runes (e.g., layout and locale included).
-    text_event: string
+    text: string
     # A physical, named key.
-    key_event: [Key, Modifiers, State: one_of(Pressed, Released, Repeated)]
+    key: [Key, Modifiers, State: one_of[Pressed, Released, Repeated]]
     # Mouse button, e.g., left mouse button or right mouse button.
-    mouse_button_event: [Position: vector2i, Button: u8, Modifiers, State: one_of(Pressed, Released)]
+    mouse_button: [Position: vector2i, Button: u8, Modifiers, State: one_of[Pressed, Released]]
     # The mouse moving.  The position is relative to the top-left of the shown pixels
     # (i.e., in case of letterboxing, coordinates can be < 0 or >= the Window Resolution).
-    mouse_move_event: [Delta: vector2i, Position: vector2i, Modifiers]
+    mouse_move: [Delta: vector2i, Position: vector2i, Modifiers]
     # The mouse is scrolling.
-    mouse_wheel_event: [Delta: i32, Modifiers]
+    mouse_wheel: [Delta: i32, Modifiers]
     # Polling for events timed out.
-    Timeout_event
+    Timeout
 ]
 
-modifiers: [
-    Control: bool
+modifiers:
+[   Control: bool
     Shift: bool
     Meta: bool
     Alt: bool
 ]
 
 @referenceable_as(cpu_pixels, gpu_pixels)
-pixels: [] {
-    @hide_from(cpu_pixels, gpu_pixels)
+pixels: []
+{   @hide_from(cpu_pixels, gpu_pixels)
     ;;renew(File_path): I load(File_path)
 
     # Saves the image.
@@ -147,7 +147,7 @@ pixels: [] {
     # Draws a rectangle of a solid color.
     # If any of the rectangle's area is outside the `Wrap` rectangle,
     # the rectangle will be split into pieces and wrapped before drawing.
-    ;;draw(Rectangle2, Color, Wrap: rectangle2i): null
+    ;;draw(Rectangle2, Color, Wrap: rectangle2): null
 
     # Draws some fragments (triangles) to these pixels, setting the GPU version
     # of these pixels ahead of the CPU version (if present).
@@ -168,8 +168,8 @@ pixels: [] {
     @hide_from(cpu_pixels, gpu_pixels)
     ;;pull(): null
 
-    @private {
-        State ;= state[pixels_id] Cpu_only
+    @private @
+    {   State; state[pixels_id] Cpu_only
 
         # The current image size.
         Size; size2
@@ -179,7 +179,7 @@ pixels: [] {
         # Invariant: if `State != Gpu_only`,
         # `Pixels[Y] size() == My Size Width` for all `Y` in bounds
         # and `Pixels size() == My Size Height`.
-        Pixels[][]; color
+        Pixels; array[array[color]]
     }
 }
 
@@ -202,19 +202,19 @@ draw(From: (Pixels;, Rectangle), To: (Pixels;, Rectangle)): null
 #   |    |      |   |   |               |       |      |   CCC*DDD
 #   |    W------W   |   |               |       W------W
 #   *---------------*   *---------------*
-draw(
-    From: (Pixels; Rectangle, Wrap_within: rectangle)
+draw
+(   From: (Pixels; Rectangle, Wrap_within: rectangle)
     To: (Pixels; Rectangle, Wrap_within: rectangle)
-): null
+):  null
 
-vertices[of]: [
-    @private
+vertices[of]:
+[   @private @
     {   State; state[vertices_id] Cpu_only
 
-        Vertices[]; vertex
+        Array[vertex];
     }
-] {
-    vertex: all_of[[Position: vector3f], of]
+]
+{   vertex: all_of[[Position: vector3f], of]
 
     ;;renew(File_path): I load(File_path)
 
@@ -224,18 +224,17 @@ vertices[of]: [
     # Loads vertices from a file.
     ;;load(File_path): null
 
-    ;;[fn(Array[of];): ~t]: hm[ok: t, uh]
-        # TODO: should this even happen in practice?  how would you push
-        # a change on the GPU that the CPU wasn't aware of (for vertices)?
-        assert(!My State gpu_is_ahead_of_cpu())
+    ;;[fn(Array[vertex];): ~t]: t
+        assert(!My State gpu_is_ahead_of_cpu()) orPanic()
 
-        Result: fn(My Vertices;)
+        Result: fn(My Array;)
 
-        My State is((Synced):
-            My State = needs_commit(Previous_id: Synced Id)
+        My State is
+        (   (Synced.):
+                My State = needs_commit(Previous_id: Synced Id)
         )
 
-        ok(Result)
+        Result
 
     # Moves the data to the GPU, if it's not already there and up-to-date.
     # This can be expensive as we upload all the vertices from CPU to GPU, if they have changed.
@@ -247,8 +246,8 @@ vertices[of]: [
     # TODO: `..transfer(): of` to become `Gpu_only`
 }
 
-@private state[of]: one_of[
-    # This object is not represented on the GPU at all.
+@private state[of]: one_of
+[   # This object is not represented on the GPU at all.
     Cpu_only
     # This object is not represented on the CPU at all.
     Gpu_only: [Id: of]
@@ -260,24 +259,28 @@ vertices[of]: [
     Needs_cpu_update: [Id: of]
     # The GPU version of this object is in sync with the CPU version.
     Synced: [Id: of]
-
-    ::gpu_is_ahead_of_cpu(): bool
+]
+{   ::gpu_is_ahead_of_cpu(): bool
         what Me
             Cpu_only: $(False)
             Gpu_only: $(True)
             Needs_gpu_update: $(False)
             Needs_cpu_update: $(True)
             Synced: $(False)
-]
+}
 
-fragment: [
-    Vertex_indices[3]; u32
+fragment:
+[   Vertex_indices[3]; u32
 ]
 
 # Warning!  Ensure that any fields to `vertex_data` or `fragment_data`
 # don't use a `builtin` like `Vertex_index`, unless you actually want to use that built-in.
-shader[global_data: gpu_data = [], vertex_data: gpu_data = [], fragment_data: gpu_data = []]: [
-    # Vertex shader, which returns the position of the vertex
+shader
+[   global_data: gpu_data = []
+    vertex_data: gpu_data = []
+    fragment_data: gpu_data = []
+]:
+[   # Vertex shader, which returns the position of the vertex
     # plus any fragment data (for the fragment shader).
     # TODO: needs to be a pure function.
     # TODO: needs to have super-reflection so that we can parse this into shader language.
@@ -288,18 +291,20 @@ shader[global_data: gpu_data = [], vertex_data: gpu_data = [], fragment_data: gp
     # If returning null, the result is equivalent to a `discard`,
     # and can be used for 100% transparency.
     fragment(Global_data, Vertex_output_data)?: color4f
-] {
-    vertex_input_data: all_of[[Position: vector3f], vertex_data]
+]
+{   vertex_input_data: all_of[[Position: vector3f], vertex_data]
     vertex_output_data: all_of[[Position: vector4f], fragment_data]
 
     # Actually use this shader to draw to some GPU pixels.
     # E.g.,
-    #   Shader shade([
-    #       My: 12.3
-    #       Global: vector2f(X: 5.0)
-    #       Data: matrix4f(Translation: vector3f(X: 4.0, Y: 1.0, Z: 7.5))
-    #   ], draw(Shading;):
-    #       Pixels draw(Shading;, My_vertices, My_triangles)
+    #   Shader shade
+    #   (   Global_data:
+    #       [   My: 12.3
+    #           Global: vector2f(X: 5.0)
+    #           Data: matrix4f(Translation: vector3f(X: 4.0, Y: 1.0, Z: 7.5))
+    #       ]
+    #       draw(Shading;):
+    #           Pixels draw(Shading;, My_vertices, My_triangles)
     #   )
     ::shade(Global_data, draw(Shading;): null): null
 }
@@ -307,40 +312,34 @@ shader[global_data: gpu_data = [], vertex_data: gpu_data = [], fragment_data: gp
 # GPU data is any struct of fields that include these types.
 gpu_data: fields_of[u32, f32, vector2f, vector3f, vector4f, matrix3f, matrix4f]
 
-font: [
-
-] {
-    ;;renew(
-        # TODO: switch to Vertices
-        # textures that hold all the drawn runes (glyphs)
-        @private My Glyphs[font_style]: pixels
-        # vector for each rune in the pixels.
-        @private My Coordinates[rune]: vector2i
-        # size of each glyph in the texture.
-        @private My Glyph_size: size2
-    ): Null
-}
+font:
+[   @private @
+    {   Vertices[[Opacity: f32]];
+        Glyph_size: size2
+        Glyphs: lot[of: array[fragment], at: rune]
+    }
+]
 
 # Where the next bit of text will be added.
-caret: [
-    Top; vector2i
+caret:
+[   Top; vector2i
     Height; i32
-] {
-    ;;move_up(): null
+]
+{   ;;move_up(): null
     ;;move_down(): null
 }
 
-font_options: [
-    Foreground; color
+font_options:
+[   Foreground; color
     Background; color
     Style; font_style
-] {
-    @alias Foreground_color: Foreground
+]
+{   @alias Foreground_color: Foreground
     @alias Background_color: Background
 }
 
-font_style: any_or_none_of[
-    Bold
+font_style: any_or_none_of
+[   Bold
     Italic
     Underlined
     Inverted # foreground/background color is inverted

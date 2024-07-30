@@ -7005,7 +7005,7 @@ example_class:
 }
 
 example_function(X: i64, A: dbl): [Y: i64, B: dbl]
-    {Y: X - 1, B: A * X}
+    [Y: X - 1, B: A * X]
 ```
 
 ## C API
