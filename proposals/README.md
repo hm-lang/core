@@ -3094,9 +3094,46 @@ e.g., `copy[of: my_type_constraints](Value: of): of`, which allows you to specif
 type constraints (`my_type_constraints` being optional).  Note that types defined with
 `~` are always "default named", but to get a default name in the type brackets
 you need to use `of`; see [default named generic types](#default-named-generic-types).
+To give some examples:
 
-TODO: probably need some discussion and examples, what about `copy[value](Value): value`?
-does this need to be passed by name `copy(Value: 1)`?
+```
+copy[of](Value: of): of
+    ...
+    of(Value)
+
+# can be called like this, which implicitly infers `of`:
+copy(Value: 3)  # will return the integer `3`
+
+# or explicitly typed like this:
+copy[dbl](Value: 3)     # will return `3.0`
+```
+
+You can also have named generic types, i.e., use a name instead of `of`:
+
+```
+copy[value](Value): value
+    ...
+    value(Value)
+
+# it can be called like this, which implicitly infers `value`:
+copy(Value: 3)  # returns the integer `3`
+
+# or explicitly typed like this:
+copy[value: dbl](Value: 3)  # will return `3.0`
+```
+
+TODO: i don't think we want this, we'd need `array[of]: ... {::[Index, fn(Of?)]}` to be
+specified as `{::[Index, fn(~Of?)]}` (or whatever other syntax).
+maybe we use `{::[Index, fn(Named Of)]}` when we want to require the use of
+the name, e.g., `fn(Of: 123)`.
+
+What's important to note: you still need to use an argument named `Value` here.
+Even though it looks like it's a default-named argument, it's not; you need to use a
+different syntax for that (see the next section).  This is so that if you have
+two different generics...
+
+
+TODO: make sure we're not relying on this anywhere else.
 
 ### argument *name* generics: with associated generic type
 
@@ -4285,6 +4322,7 @@ to avoid confusion when passing in two types that are the same like `lot[at: int
 Internally, if we store a list of `[Id, Value]` objects, there could be a name collision
 (e.g., `[Int, Int]`), and we don't want to expose that internal detail to consumers of
 the generic class.
+TODO: this might actually be fine since `[Int, Int]` could be considered a tuple (ordered array).
 
 This is one minor inconsistency with argument name generics for functions, but exposing
 internal details isn't desired at all.
