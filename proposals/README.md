@@ -3210,7 +3210,7 @@ to refer to the current class instance type.  E.g.,
 
 ```
 # classes can enclose their body in `{}`, which is recommended for long class definitions.
-# for short classes, we can leave braces out.
+# for short classes, it's ok to leave braces out.
 my_class: [Variable_x: int]
     ::copy(): me    # OK
         print("logging a copy")
@@ -3221,6 +3221,9 @@ Inside a class method, you must use `Me/My/I` to refer to any other instance var
 e.g., `My X` or `I do_stuff_method()`, so that we can disambiguate calling a global function
 that might have the same name as our class instance method, or using a global variable that
 might have the same name as a class instance variable.
+TODO: is this really necessary?  it'd be nice to assume `My` and then try `me` and then finally
+try global methods, for concision.  if we don't allow shadowing variables, we probably can
+avoid shadowing method/function names.
 
 Note that when returning a newly-declared type from a function (e.g., `my_fn(Int): [X: int, Y: dbl]`),
 we do not allow building out the class body; any indented block will be assumed
@@ -3293,15 +3296,17 @@ example_class:
     ;;add_something(Int): null
         My X += Int
 
-    # this reassignable method is defined on a per-instance basis. changing it on one class instance
-    # will be isolated from any changes on another class instance.
-    ::reassignable_method(Int); string
-        # this is the default implementation that all instances will start with.
+    # TODO: do we really want `virtual` methods explicit?  i'd probably
+    #       prefer to allow all methods to be virtual.  but we don't have
+    #       a good need for `my_fun(X); type` besides being virtual.
+    # this method is "virtual", i.e., it can be changed in child classes;
+    # but it can't be changed to mutate the child instance, it must always
+    # keep the instance constant.
+    ::virtual_method(Int); string
         return string(My X + Int)
 
-    # same as the other reassignable method above, but with a writable instance.
-    ;;reassignable_mutable_method(Int); null
-        # this is the default implementation that all instances will start with.
+    # this method is "virtual" and can mutate the instance.
+    ;;virtual_mutable_method(Int); null
         My X -= Int
 
     # some examples of class functions:
@@ -6797,41 +6802,6 @@ wow(Input fn(): string): fn(): int
     return (): int
         return Input fn() count_bytes()
 ```
-
-## the "no pointers" rule
-
-TODO: is this applicable anymore now that we have argument objects?
-i think so, because we can't hide implementation details in argument objects;
-e.g., we can't make an argument object into a struct with public/private methods.
-or do we want to allow that?
-
-To modify a value that is held by another class instance, e.g., the element of
-an array, we can use references (i.e., via passing in with `;`).  However, we
-are not allowed to grab a hold of the reference for longer than the
-duration of the function call/scope.  We use some syntax sugar in order
-to make this not look clumsy.
-
-```
-Array_array; array[array[int]] = [[1,2,3], [5]]
-# to modify the array held inside the array, we can use this syntax:
-Array_array[0] append(4)     # now Array_array == [[1,2,3,4], [5]]
-# but under the hood, this is converted to something like this:
-Array_array[0, (Nested Array[int];): null
-    Nested Array append(4)
-]
-```
-
-This function approach avoids lifetime issues that can arise with pointers,
-because the function cannot escape with a reference to the element held
-by the class instance.  In languages with pointers, like C++, you could
-e.g. get a pointer to an element of an array, and later try to modify
-the element via the pointer.  The element might not exist anymore
-(e.g., the array was shrunk), and in the worst case, the array
-might not even exist (e.g., the array was descoped).
-
-TODO: we probably actually want pointers for interfacing with C/C++ code.
-but they should be hidden behind a type that requires an `@unsafe` label,
-e.g., `ptr u64`.
 
 ## handling system callbacks
 
