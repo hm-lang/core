@@ -3209,8 +3209,7 @@ We cannot define an argument name and an argument type to both be
 generic and different.  `my_function(~My_name: ~another_type)` (COMPILE ERROR)
 is needlessly verbose; if the type should be generic, just rely on what
 is passed in: `my_function(~My_name: my_name)` or `my_function(~My_name) for short.
-TODO: this actually might make sense, where we're doing `my_function(Some_value: 3)`
-or `my_function(Other_value: "asdf")`.
+
 
 # classes
 
@@ -4013,6 +4012,8 @@ like this: `my_single_generic_class[int] my_class_function(...)` or
 `my_multi_generic_class[type1: int, type2: str] other_class_function()`.
 
 ```
+# TODO: either use `[Use Id]` or `[@use Id]` or change discussion in
+# "default field names with generics" back to what it was.
 # create a class with two generic types, `id` and `value`:
 generic_class[id, value]: [Id, Value]
 {   ;;renew(My Id: id, My Value: value): Null
