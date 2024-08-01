@@ -332,15 +332,42 @@ vector3: [X: dbl, Y: dbl, Z: dbl]
 
 # declaring a "complicated" class.  the braces `{}` are optional.
 my_class: [X: int]
-{   # methods which mutate the class use a `;;` prefix
-    ;;renew(My X: int): Null
+{   # here's a class function that's a constructor
+    i(X. int): me
+        ++my Count
+        [X]
+
+    ;;descope(): null
+        --my Count
+
+    # here's a class variable (not defined per instance)
+    @private
+    Count; 0
+
+    # here's a class function (not defined per instance)
+    # which can be called via `my_class count()` outside this class
+    # or `my count()` inside it.
+    count(): count
+        Count
+    # for short, `count(): Count`
 
     # methods which keep the class readonly use a `::` prefix
     ::do_something(Y: int): int
         My X * Y
     # inline: `::do_something(Y: int): int(My X * Y)`
+
+    # methods which mutate the class use a `;;` prefix
+    ;;update(Y: int): null
+        My X = I do_something(Y)
+        # also ok, and more specific since we're requiring `I` readonly:
+        # `My X = ::do_something(Y)` or `My X = do_something(Y, Me)`
 }
 ```
+
+Note that we always use `My` (or `I` or `Me`) to scope instance variables/functions
+and `my` (or `i` or `me`) to scope class variables/functions so that we can distinguish
+between "shadowed" functions like `my_class count()` (which returns the number of
+`my_class` instances) and `count()` (which constructs an instance of the `count` type).
 
 ```
 # combining two classes
@@ -713,8 +740,8 @@ scaled8:
     @private
     Scale: 32_u8
 
-    new(Flt): hm[ok: me, uh: one_of[Negative, Too_big]]
-        Scaled_value: round(Flt * my Scale)
+    i(Flt): hm[ok: me, uh: one_of[Negative, Too_big]]
+        Scaled_value: round(Flt * Scale)
         if Scaled_value < 0
             return Negative
         if Scaled_value > u8 max() flt()
@@ -744,10 +771,10 @@ dbl(Scaled8): dbl
 
 # global function which returns a result, can be called like `Scaled8 u16()`
 u[Bits: count](Scaled8): hm[ok: u[Bits], Number_conversion uh]
-    if My Scaled_value % my Scale != 0
+    if Scaled8 Scaled_value % scaled8 Scale != 0
         Number_conversion Not_an_integer
     else
-        My Scaled_value // my Scale
+        Scaled8 Scaled_value // scaled8 Scale
 ```
 
 ## types of types
@@ -988,8 +1015,8 @@ my_class: [X; dbl]
     ;;do_something(New X. dbl): dbl
         # this is what `;;x(X. dbl): dbl` might be internally.
         # defines a variable `X` in the namespace `Old`:
-        Old X: My X!
-        My X = New X
+        Old X: X!
+        X = New X
         Old X
 }
 ```
@@ -1046,6 +1073,9 @@ readonly/writable `I/Me/My` as an argument.
 ```
 example_class: [X: int, Y: dbl]
 {   # this `;;` prefix is shorthand for `renew(Me;, ...): null`:
+    # TODO: `renew` should probably just be `;;new` but not callable by itself.
+    #       we should do something like `;;descope()` + `;;new()` when calling `;;renew()`
+    #       maybe use `enscope()` instead of `new()`.
     ;;renew(My X: int, My Y: dbl): null
         print("X ${X} Y ${Y}")
 
@@ -1057,25 +1087,25 @@ example_class: [X: int, Y: dbl]
 
 
 ```
-some_class: [X: dbl, Y: dbl, I; array[str]]
-Some_class; some_class(X: 1, Y: 2.3, I: ["hello", "world"])
-print(Some_class::I)     # equivalent to `print(Some_class I)`.  prints ["hello", "world"]
-print(Some_class::I[1])  # prints "world"
-print(Some_class I[1])   # also prints "world", using ` ` (member access)
-Some_class;;I[4] = "love"    # the fifth element is love.
-Some_class::I[7] = "oops"    # COMPILE ERROR, `::` means the array should be readonly.
-Some_class;;I[7] = "no problem"
+some_class: [X: dbl, Y: dbl, A; array[str]]
+Some_class; some_class(X: 1, Y: 2.3, A: ["hello", "world"])
+print(Some_class::A)     # equivalent to `print(Some_class A)`.  prints ["hello", "world"]
+print(Some_class::A[1])  # prints "world"
+print(Some_class A[1])   # also prints "world", using ` ` (member access)
+Some_class;;A[4] = "love"    # the fifth element is love.
+Some_class::A[7] = "oops"    # COMPILE ERROR, `::` means the array should be readonly.
+Some_class;;A[7] = "no problem"
 
 Nested_class; array[some_class]
 Nested_class[1] X = 1.234        # creates a default [0] and [1], sets [1]'s X to 1.234
-Nested_class[3] I[4] = "oops"    # creates a default [2] and [3], sets [3]'s I to ["", "", "", "", "oops"]
+Nested_class[3] A[4] = "oops"    # creates a default [2] and [3], sets [3]'s A to ["", "", "", "", "oops"]
 ```
 
 For class methods, `;;` (`::`) selects the overload with a writable (readonly) class
 instance, respectively.  For example, the `array` class has overloads for sorting, (1) which
 does not change the instance but returns a sorted copy of the array (`::sort(): me`), and
 (2) one which sorts in place (`;;sort(): null`).  The ` ` (member access) operator will use
-`I:` if the LHS is a readonly variable or `I;` if the LHS is writable.  Some examples in code:
+`A:` if the LHS is a readonly variable or `A;` if the LHS is writable.  Some examples in code:
 
 ```
 # there are better ways to get a median, but just to showcase member access:
@@ -2006,9 +2036,9 @@ vector3: [X; dbl, Y; dbl, Z; dbl]
     # defined in the class body, we do it like this:
     ::cross(You): vector3
     (   # you can use `You` or `Your` in this block:
-        X: My Y * Your Z - My Z * Your Y
-        Y: My Z * Your X - My X * Your Z
-        Z: My X * Your Y - My Y * Your X
+        X. My Y * Your Z - My Z * Your Y
+        Y. My Z * Your X - My X * Your Z
+        Z. My X * Your Y - My Y * Your X
     )
 }
 
@@ -2814,7 +2844,7 @@ call:
 
     # adds a single-value return type
     ;;output(Any): null
-        assert My Output == Null
+        assert(My Output count() == 0)
         # TODO: a better way to refer to the class name.
         # can we just do `Any ClassName`?
         My Output[Any is() ClassName] = Any
@@ -3251,7 +3281,9 @@ my_fn(Int): x_and_y(X: 5, Y: 3.0)
 ## example class definition
 
 ```
-example_class:
+parent_class: [Name: str]
+
+example_class: parent_class
 [   # instance variables can be defined in this `[...]` block.
     # if they are public, a public constructor like `example_class(X;:. int)` will be created.
     X; int
@@ -3261,6 +3293,9 @@ example_class:
     # which is shared.
     # we define a default for this function but you could change its definition in a constructor.
     # NOTE: instance functions can use `Me`/`My`/`I` as necessary.
+    #       even though we could use the notation `::instance_function()` here,
+    #       we prefer to keep that for methods, to make it more clear that
+    #       this is different in principle.
     instance_function(Me): null
         print("hello ${My X}!")
 
@@ -3276,10 +3311,12 @@ example_class:
     # `example_class(X: int)` based on the public variable definition of `X`, but
     # we include it as an example in case you want to do extra work in the constructor
     # (although avoid doing work if possible).
-    ;;renew(X; int): null
+    ;;renew(X. int): null
+        Parent_class renew(Name: "Example")
         My X = X!
-    # or short-hand: `;;renew(My X; int): Null`
+    # or short-hand: `;;renew(My X. int): Parent_class renew(Name: "Example")`
     # adding `My` to the arg name will automatically set `My X` to the passed in `X`.
+    # TODO: we probably can infer the type as well, e.g., `;;renew(My X.)`
 
     # create a different constructor.  constructors use the class reference `i` and must
     # return either an `i` or a `hm[ok: i, uh]` for any error type `uh`.
@@ -3290,6 +3327,7 @@ example_class:
     # prefix `::` (`;;`) is shorthand for adding `My: my` (`My; my`) as an argument.
     # this one does not change the underlying instance:
     ::do_something(Int): int
+        print("My name is ${My Name}")
         return My X + Int
 
     # this method mutates the class instance, so it uses `My; my` instead of `My:`:
@@ -3443,13 +3481,18 @@ They cannot be overridden by child classes but they can be overwritten.  I.e.,
 if a child class defines the instance function of a parent class, it overwrites the parent's
 instance function; calling one calls the other.
 
-Class constructors are methods which are defined using `;;renew(Args...): null`,
-which also allow you to renew the class instance as long as the variable is writable.
-The first `renew` method defined in the class is also the default constructor,
+Class constructors can be defined in two ways, either as a method or as a class function.
+Class *method* constructors are defined with the function signature (a) `;;renew(Args...): null`
+or (b) `;;renew(Args...): hm[ok: null, uh: ...]`, and these methods also allow you to renew an
+existing class instance as long as the variable is writable.  Class *function* constructors
+are defined like (c) `i(Args...): me` or (d) `i(Args...): hm[ok: me, uh: ...]`.  In both
+(a) and (c) cases, you can use them like `MyVar: myClass(Args...)`, and for (b) and (d)
+you use them like `MyVar: myClass(Args...) assert()`.
+
+The first constructor defined in the class is also the default constructor,
 which will be called with default-constructed arguments (if any) if a default
-instance of the class is needed.  It is a compiler error if a `;;renew()` method
-(with no arguments besides `Me/My/I;`) is defined after other `renew` methods (with arguments).
-Note that `renew` should be a class instance method.
+instance of the class is needed.  It is a compiler error if a constructor with
+zero arguments is defined after another constructor with arguments.
 
 ## localization support
 
@@ -3551,6 +3594,9 @@ example:
 ]
 {   # getter: calls an external function with X, which can
     #         avoid a copy if the function argument is readonly.
+    # TODO: without MMR, do no-copy getters/swappers/modifiers
+    #       even make sense to retain?
+    #       i like them for "check data after modified"...
     @visibility
     ::x(fn(Str): ~t): fn(My X)
 
@@ -4051,12 +4097,12 @@ Generic; generic[string]
 Generic Value = "3"
 print(Generic method(i32(2)))    # prints "3333335" which is i32("3" * (2 + 5)) + 2
 
-specific[of]: generic[of]
+specific[of: number]: all_of[generic[of], [Scale; of]]
 {   ;;renew(My Scale; of = 1): Null
 
     ::method(~U): u
-        Parent_result: generic[of]::method(U)
-        return Parent_result * My Scale 
+        Parent_result: Generic::method(U)
+        return Parent_result * Scale 
 }
 ```
 
@@ -4276,9 +4322,11 @@ by using `Variable_case` when defining it.  Optionally you can use trailing `()`
 (which may include arguments you need to instantiate):
 
 ```
-Awesome_service: all_of[parent_class1, parent_class2, #(etc.)#]
-{   Url_base: "http://my/website/address.bazinga"
-    ::get(Id: string): awesome_data 
+Awesome_service: all_of
+[   parent_class1, parent_class2, #(etc.)#,
+    [Url_base: "http://my/website/address.bazinga"]
+]
+{   ::get(Id: string): awesome_data 
         Json: Http get("${My Url_base}/awesome/${Id}") 
         return awesome_data(Json)
 }
@@ -4485,9 +4533,8 @@ Aliases can also be used for more complicated logic and even deprecating code.
 
 ```
 my_class: [X; int]
-{   # TODO: we probably want to support `My` working here as well:
-    # explicit constructor:
-    i(My X; int): i()
+{   # explicit constructor:
+    i(X; int): [X]
 
     # implicit constructor:
     ;;renew(My X; int): null
