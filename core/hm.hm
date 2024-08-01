@@ -78,32 +78,29 @@ hm[ok, uh]: one_of[ok, uh]
             Uh: $(In_case_of_error Ok)
 
     # maps an `Ok` result to a different type of `ok`, consuming `Me`.
-    # TODO: in case `ok` and `uh` are the same type, we need to make sure that `fn(Ok): ok2`
-    #       requires passing in by name (i.e., `fn(Ok. 123)`) so that we can distinguish the overloads
-    #       for this versus `map(fn(Uh.): ~x): ~y`
-    ..map(fn(Ok.): A~ok): hm[A ok, uh]
+    ..map(fn(Use Ok.): A~ok): hm[A ok, uh]
 
     # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `Me`.
-    ..map(fn(Ok.): hm[A~ok, uh]): hm[A ok, uh]
+    ..map(fn(Use Ok.): hm[A~ok, uh]): hm[A ok, uh]
 
     # passes through any `Ok` result, but maps an `Uh` to the desired `ok` result
     # via the passed-in function.
-    ..map(fn(Uh.): ok): ok
+    ..map(fn(Use Uh.): ok): ok
 
     # maps an `Uh` result to a different type of `uh`.
-    ..map(fn(Uh.): O~uh): hm[ok, O uh]
+    ..map(fn(Use Uh.): O~uh): hm[ok, O uh]
 
     # maps `ok` and `uh` separately.
-    ..map(fn(Ok.): ~t, fn(Uh.): t): t
+    ..map(fn(Use Ok.): ~t, fn(Uh.): t): t
 
     # runs a callback if OK but returns self
-    ..check(fn(Ok): null): me
+    ..check(fn(Use Ok): null): me
 
     # runs a callback if not OK but returns self
-    ..check(fn(Uh): null): me
+    ..check(fn(Use Uh): null): me
 
     # runs different callbacks based on OK/not-OK but returns self
-    ..check(Ok_fn fn(Ok): null, Uh_fn fn(Uh): null): me
+    ..check(Ok_fn fn(Use Ok): null, Uh_fn fn(Use Uh): null): me
 
     # TODO: should we use `to` here or is there a better way to indicate casting?
     # it's technically something like `one_of[ok, null](Result: hm[ok, uh]): one_of[ok, null]`

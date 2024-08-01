@@ -432,7 +432,7 @@ There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
 which are function-like but may consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
-`Unused`, `Argument`,
+`Unused`, `Argument`, `Use`,
 and variables cannot be defined with these names.  Variables can be defined
 using these namespaces, e.g., as `Old Int`, `New X`, `Other Class_type`, or `Unused Z`.
 In particular, `First` and `Second`
@@ -3108,12 +3108,15 @@ copy(Value: 3)  # will return the integer `3`
 copy[dbl](Value: 3)     # will return `3.0`
 ```
 
-You can also have named generic types, i.e., use a name instead of `of`:
+You can also have named generic types, i.e., use a name instead of `of`.
+Note that for the function argument to remain `Value: XYZ`, then we need
+to explicitly tell the compiler that we don't want default names to apply,
+which we do using the `Use` namespace.
 
 ```
-copy[value](Value): value
+copy[value](Use Value): value
     ...
-    value(Value)
+    value(Use Value)
 
 # it can be called like this, which implicitly infers `value`:
 copy(Value: 3)  # returns the integer `3`
@@ -3122,35 +3125,19 @@ copy(Value: 3)  # returns the integer `3`
 copy[value: dbl](Value: 3)  # will return `3.0`
 ```
 
-TODO: i don't think we want this, we'd need `array[of]: ... {::[Index, fn(Of?)]}` to be
-specified as `{::[Index, fn(~Of?)]}` (or whatever other syntax).
-maybe we use `{::[Index, fn(Named Of)]}` when we want to require the use of
-the name, e.g., `fn(Of: 123)`.
-
-What's important to note: you still need to use an argument named `Value` here.
-Even though it looks like it's a default-named argument, it's not; you need to use a
-different syntax for that (see the next section).  This is so that if you have
-two different generics...
-
-
-TODO: make sure we're not relying on this anywhere else.
+If you want default-named arguments with generics, see the next section.
 
 ### argument *name* generics: with associated generic type
 
 TODO: restrictions here, do we need to only have a single argument, so that
 argument names are unique?  it's probably ok if we have an `@order_independent`
 or use `First ~T` and `Second ~U` to indicate order is ok.
+maybe we see if there's an issue when compiling the generics and then complain at compile time.
 
-To avoid needing an argument name when calling the function, we can use
-name and type generics.  This differs from named generics where the `type_case`
-type doesn't match the `Variable_case` identifier (like the example
-`copy(Value: ~t): t` which requires naming the argument `Value` in function calls
-like `copy(Value: My_variable)`).
-
-If the `Variable_case` identifier matches the `type_case` type of a generic,
-then it's a default-named argument, e.g., `My_type; ~my_type` or `T: ~t`.  There
-is a shorthand for this which is more idiomatic: `~My_type;` or `~T`.  Here
-is a complete example:
+Similar to the non-generic case, if the `Variable_case` identifier
+matches the `type_case` type of a generic, then it's a default-named argument.
+For example, `My_type; ~my_type` or `T: ~t`.  There is a shorthand for this
+which is more idiomatic: `~My_type;` or `~T`.  Here is a complete example:
 
 ```
 logger(~T): t
@@ -3170,6 +3157,35 @@ Dbl_result: logger(dbl(4))   # prints "got 4.0" and returns 4.0
 ```
 
 Note that you can use `my_function(~T;)` for a writable argument.
+Default naming also works if we specify the generics ahead of the function arguments
+like this:
+
+```
+logger[of](Of): of
+    print("got ${Of}")
+    Of
+
+# can be called like this, which implicitly infers `of`:
+logger(3)   # returns the integer `3`
+
+# or explicitly typed like this:
+logger[dbl](3)     # will return `3.0`
+```
+
+If we have a named generic type, we simply do not include a `Use` namespace
+on the argument, so default names can apply.
+
+```
+logger[value](Value): value
+    print("got ${Value}")
+    Value
+
+# it can be called like this, which implicitly infers `value`:
+logger(3)   # returns the integer `3`
+
+# or explicitly typed like this:
+logger[value: dbl](3)   # will return `3.0`
+```
 
 ### argument name generics: with different type
 
@@ -4315,17 +4331,19 @@ If you want to return a single constructor, use the [`new[any]` syntax](#returni
 
 ### default field names with generics
 
-Note that generic classes like `generic[of]: [Of]` will always have a field named `Of`
-regardless of the specified type.  We don't make this like a generic name; `generic[int]`
-would *not* be equivalent to `[Int: int]`; `generic[int]` is `[Of: int]`.  This is mostly
-to avoid confusion when passing in two types that are the same like `lot[at: int, int]`.
-Internally, if we store a list of `[Id, Value]` objects, there could be a name collision
-(e.g., `[Int, Int]`), and we don't want to expose that internal detail to consumers of
-the generic class.
-TODO: this might actually be fine since `[Int, Int]` could be considered a tuple (ordered array).
+Note that generic classes like `generic[of]: [Of]` will have the field named based on
+whatever the specified type is, so that `generic[int]` will be equivalent to `[Int: int]`.
+While it looks like there could be some internal confusion, e.g., if a `lot[at: int, int]`
+stores a list of `[At, Of]` objects, we always know how to refer to them inside the
+generic class as `My_object At` and `My_object Of`.
 
-This is one minor inconsistency with argument name generics for functions, but exposing
-internal details isn't desired at all.
+If you want to make sure that the name of the type remains, use the namespace `Use` like
+this: `generic[of]: [Use Of]`, which will make `generic[int]` equivalent to `[Of: int]`.
+This may also be helpful with internals for a `lot[of, at]`, like `[Use At, Use Of]`,
+in case they ever leave the class and could be consumed by someone else.
+
+TODO: are we sure about this?  inconsistency here isn't the worst thing
+if there's some confusion about how this works.
 
 ## common class methods
 
