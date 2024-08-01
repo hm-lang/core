@@ -1,5 +1,5 @@
-uh: one_of[
-    Invalid_count
+uh: one_of
+[   Invalid_count
     Invalid_index
     Out_of_memory
 ]
@@ -14,16 +14,17 @@ size: @cc(size_t)
 # which elements are initialized *must be known* by the class instance which
 # uses the allocation.  E.g., a stack is initialized in the range [0, `Stack size()`).
 @final
-allocation[of]: [
-    @protected
+allocation[of]:
+[   @protected
     Count; count = 0
 
-    @cc(
+    @cc
+    (
     private:
         @hm(of) *Memory = Null;
     )
-] {
-    ::count(): My Count
+]
+{   ::count(): My Count
 
     # returns the old count if successful.
     # make sure to construct any new elements that are available to callers
@@ -34,17 +35,17 @@ allocation[of]: [
         if New Count == Old Count
             return ok(Old Count)
         Bytes: I count_bytes(New Count)
-        @cc(
-            @hm(of) *New_memory = (@hm(of) *)realloc(Memory, @hm(Bytes));
-            if (New_memory == Null) {
-                return @hm(uh Out_of_memory);
+        @cc
+        (   @hm(of) *New_memory = (@hm(of) *)realloc(Memory, @hm(Bytes));
+            if (New_memory == Null)
+            {   return @hm(uh Out_of_memory);
             }
             Memory = New_memory;
         )
         My Count = New Count
         ok(Old Count)
 
-    ;;reset(): null
+    ;;descope(): null
         @cc(
         free(Memory);
         Memory = Null;
@@ -61,11 +62,10 @@ allocation[of]: [
                 # TODO: do we need this `uh()` wrapper?
                 uh(Uh)
 
-    @cc(
+    @cc
+    (
     public:
-        ~@hm(allocation) {
-            reset();
-        }
+        ~@hm(allocation) { descope(); }
 
         // no copy constructor:
         @hm(allocation)(const @hm(allocation) &Allocation) = delete;
@@ -74,21 +74,21 @@ allocation[of]: [
         @hm(allocation) &operator = (const @hm(allocation) &Allocation) = delete;
 
         // move constructor:
-        @hm(allocation)(@hm(allocation) &&Allocation) {
-            take(std::move(Allocation));
+        @hm(allocation)(@hm(allocation) &&Allocation)
+        {   take(std::move(Allocation));
         }
 
         // move assignment:
-        @hm(allocation) &operator = (@hm(allocation) &&Allocation) {
-            if (&Allocation != this) {
-                take(std::move(Allocation));
+        @hm(allocation) &operator = (@hm(allocation) &&Allocation)
+        {   if (&Allocation != this)
+            {   take(std::move(Allocation));
             }
             return *this;
         }
 
     private:
-        inline void take(@hm(allocation) &&Allocation) {
-            reset();
+        inline void take(@hm(allocation) &&Allocation)
+        {   descope();
             std::swap(@hm(Count), Allocation.@hm(Count));
             std::swap(Memory, Allocation.Memory);
         }
@@ -100,41 +100,41 @@ allocation[of]: [
         # We can't verify if the index has been constructed without more bookkeeping,
         # but in debug mode we can verify that we're at least in bounds.
         debug assert(In_bounds_and_constructed >= 0 and In_bounds_and_constructed < My count())
-        @cc(
-            return Memory[@hm(In_bounds_and_constructed)];
+        @cc
+        (   return Memory[@hm(In_bounds_and_constructed)];
         )
 
     ;:[In_bounds_and_constructed: in_bounds, fn(Of;:): ~u]: u
         debug assert(In_bounds_and_constructed >= 0 and In_bounds_and_constructed < My count())
-        @cc(
-            return @hm(fn)(&Memory[@hm(In_bounds_and_constructed)]);
+        @cc
+        (   return @hm(fn)(&Memory[@hm(In_bounds_and_constructed)]);
         )
 
     ;;default_construct(In_bounds): null
         debug assert(In_bounds >= 0 and In_bounds < Count)
-        @cc(
-            new (Memory + @hm(In_bounds)) @hm(of)();
+        @cc
+        (   new (Memory + @hm(In_bounds)) @hm(of)();
         )
         # pure C? `hm(of)_default(Memory + @hm(In_bounds))`
 
     ;;move_construct(In_bounds, Of.): null
         debug assert(In_bounds >= 0 and In_bounds < Count)
-        @cc(
-            new (Memory + @hm(In_bounds)) @hm(of)(std::move(@hm(Of)));
+        @cc
+        (   new (Memory + @hm(In_bounds)) @hm(of)(std::move(@hm(Of)));
         )
         # pure C? `hm(of)_moot(Memory + @hm(In_bounds), @hm(Of))`
 
     ;;copy_construct(In_bounds, Of): null
         debug assert(In_bounds >= 0 and In_bounds < Count)
-        @cc(
-            new (Memory + @hm(In_bounds)) @hm(of)(@hm(Of));
+        @cc
+        (   new (Memory + @hm(In_bounds)) @hm(of)(@hm(Of));
         )
         # pure C? `hm(of)_copy(Memory + @hm(In_bounds))`
 
     ;;deconstruct(In_bounds_and_constructed: in_bounds): null
         debug assert(In_bounds_and_constructed >= 0 and In_bounds_and_constructed < Count)
-        @cc(
-            (Memory + @hm(In_bounds_and_constructed)) ~@hm(of)();
+        @cc
+        (   (Memory + @hm(In_bounds_and_constructed)) ~@hm(of)();
         )
         # pure C? `hm(of)_descope(Memory + @hm(In_bounds))`
 
@@ -144,8 +144,8 @@ allocation[of]: [
             return 0
         assert(Count > 0, Uh: Invalid_count)
         Max_bytes: size(-1)
-        @cc(
-        Of_bytes: sizeof(@hm(of))
+        @cc
+        (   Of_bytes: sizeof(@hm(of))
         )
         multiply(Count, Of_bytes) map((Uh.): Out_of_memory)
 }

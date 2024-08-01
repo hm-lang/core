@@ -1,32 +1,34 @@
-uh: oneOf[
-    # TODO: this might be hard to do correctly since each `uh` indexes from 0.
+uh: one_of
+[   # TODO: this might be hard to do correctly since each `uh` indexes from 0.
     #       and any values of `indexable uh` need to be increased to come after `allocation`
     #       we could get around some of the downsides here by ensuring we always
     #       compare to real values and not just `X == 0`.
+    #       could borrow from Zig that each error (token/tag) is unique (and non-zero).
     # TODO: maybe ideally we do `indexable: { uh: oneOf[IndexTooNegative] }` and then
     #       `array: { uh: extend(indexable uh)[ ArrayUh1, ArrayUh2 ] }`.
     #       but the following notation is pretty clear (no extra `extend` keyword necessary)
     # TODO: ideally there is an easy way to say that a `oneOf` extends another `oneOf`,
     #       even if the number offsets would be different.
+    #       maybe `contains`.  e.g., `some_uh: contains(my_other_uh)`
     ...\/allocation uh
     ...\/indexable uh
 ]
 hm[ok]: hm[ok, uh]
 
-array[of]: indexable {
-    @private
+array[of]: indexable
+[   @private
     Allocation; allocation
-
-    ;;reset(Arguments[of].):
-        Allocation count(Arguments count()) orPanic()
-        while My Count < Arguments count()
-            Allocation moveConstruct(InBounds: Arguments[My Count++]!)
 
     # TODO: convert this into a deque, add `Start: count`
     #       however, this will make resizing more complicated.
 
     @private
     Count; count = 0
+]
+{   ;;enscope(Arguments[of].):
+        Allocation count(Arguments count()) orPanic()
+        while My Count < Arguments count()
+            Allocation moveConstruct(InBounds: Arguments[My Count++]!)
 
     ::count(): My Count
 
