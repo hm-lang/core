@@ -1057,6 +1057,8 @@ There are some reserved namespaces which cannot be used as variable names, e.g.,
 * `First` - for the first operand in a binary operation (where order matters)
 * `Second` - for the second operand in a binary operation (where order matters)
 * `Unused` - for variables that aren't used in this block
+* `Use` - for identifiers that should be explicitly named in [generic arguments](#argument-type-generics)
+    or kept for field names in [generic objects](#default-field-names-with-generics).
 
 
 ## member access operators `::`, `;;`, and ` `
@@ -3127,7 +3129,7 @@ copy[value: dbl](Value: 3)  # will return `3.0`
 
 If you want default-named arguments with generics, see the next section.
 
-### argument *name* generics: with associated generic type
+### default-named generic arguments
 
 TODO: restrictions here, do we need to only have a single argument, so that
 argument names are unique?  it's probably ok if we have an `@order_independent`
@@ -3184,7 +3186,7 @@ logger[value](Value): value
 logger(3)   # returns the integer `3`
 
 # or explicitly typed like this:
-logger[value: dbl](3)   # will return `3.0`
+logger[value: dbl](3)  # will return `3.0`
 ```
 
 ### argument name generics: with different type
