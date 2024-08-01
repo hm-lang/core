@@ -1,29 +1,30 @@
-hm[ok, uh]: oneOf[ok, uh] {
-    # The API is `Ok: Hm assert()`, which will bubble up this `uh`
+hm[ok, uh]: one_of[ok, uh]
+{   # The API is `Ok: Hm assert()`, which will bubble up this `uh`
     # if the result was an error.  Note that we use the `block` API
     # which normally is implicit but can be used explicitly if needed.
     #   ```
-    #   doSomething(Dbl): hm[ok: dbl, uh: str]
+    #   do_something(Dbl): hm[ok: dbl, uh: str]
     #       if Dbl < 0
     #           uh("Invalid Dbl: $(Dbl)")
     #       else
     #           ok(Dbl sqrt())
     #
     #   # example with implicit `block` (like a guard/control flow):
-    #   implicitBlock(): hm[ok: null, uh: str]
+    #   implicit_block(): hm[ok: null, uh: str]
     #       # will return early if an invalid type.
-    #       Result: doSomething(1.234) assert()
+    #       Result: do_something(1.234) assert()
     #       print(Result)
     #
     #   # example with explicit `block` that does the same thing as implicit:
-    #   explicitBlock(): hm[ok: null, uh: str]
-    #       indent((Block: block[hm[ok: null, uh: str]]):
-    #           Result: doSomething(1.234) assert(Block)
-    #           print(Result)
-    #           Block exit(null)
+    #   explicit_block(): hm[ok: null, uh: str]
+    #       indent
+    #       (   (Block[hm[ok: null, uh: str]]):
+    #               Result: do_something(1.234) assert(Block)
+    #               print(Result)
+    #               Block exit(null)
     #       )
     #   ```
-    ..assert[of: oneOf[uh]](Block: block[of]): ok
+    ..assert[of: contains[uh]](Block[of]): ok
         what Me
             Ok: $(Ok)
             Uh: $(debug error(Uh), Block exit(Uh))
@@ -32,26 +33,35 @@ hm[ok, uh]: oneOf[ok, uh] {
     # This will moot `Me` and shortcircuit a failure (i.e., if `Hm`
     # is `uh`) to the calling block.  For example,
     #   ```
-    #   doSomething(Dbl): hm[ok: dbl, uh: str]
+    #   do_something(Dbl): hm[ok: dbl, uh: str]
     #       if Dbl < 0
     #           uh("Invalid Dbl: $(Dbl)")
     #       else
     #           ok(Dbl sqrt())
     #
-    #   implicitBlock(): hm[ok: null, uh: oneOf[InvalidDoSomething, OtherError]]
+    #   # example with implicit `block` (like a guard/control flow):
+    #   implicit_block(): hm[ok: null, uh: one_of[Invalid_do_something, Other_error]]
     #       # will return early if an invalid type.
-    #       Result: doSomething(1.234) assert(Uh: InvalidDoSomething)
+    #       Result: do_something(1.234) assert(Uh: Invalid_do_something)
     #       print(Result)
+    #
+    #   # example with explicit `block` that does the same thing as implicit:
+    #   explicit_block(): hm[ok: null, uh: one_of[Invalid_do_something, Other_error]]
+    #       indent
+    #       (   (Block[hm[ok: null, uh: str]]):
+    #               Result: do_something(1.234) assert(Block, Uh: Invalid_do_something)
+    #               print(Result)
+    #               Block exit(null)
+    #       )
     #   ```
-    # TODO: is there a shorter version of this to infer the `blockOf` type?
-    ..assert[of, blockOf: oneOf[of]](New Uh: of, Block: block[blockOf]): ok
+    ..assert[of](New Uh: of, Block[contains[of]]): ok
         what Me
             Ok: $(Ok)
             Uh:
                 debug error(Uh)
                 Block exit(New Uh)
 
-    ..orPanic(String: ""): ok
+    ..or_panic(String: ""): ok
         what Me
             Ok: $(Ok)
             Uh:
@@ -61,19 +71,17 @@ hm[ok, uh]: oneOf[ok, uh] {
 
     # If ok, returns the `Ok` value; otherwise returns the passed-in value.
     # If it is expensive to create the in-case-of-error `ok` value, use 
-    # `Hm map((Uh.): myExpensiveOkConstruction())` to create it only as necessary.
-    ..okOr(InCaseOfError Ok.): ok
+    # `Hm map((Uh.): my_expensive_ok_construction())` to create it only as necessary.
+    ..ok_or(In_case_of_error Ok.): ok
         what Me
             Ok: $(Ok)
-            Uh: $(InCaseOfError Ok)
+            Uh: $(In_case_of_error Ok)
 
     # maps an `Ok` result to a different type of `ok`, consuming `Me`.
-    # we can also use namespaces like this to avoid renaming `ok` in the `hm[...]` specification:
-    # ..map(fn(Ok.): A~ok): hm[A ok, uh].
     # TODO: in case `ok` and `uh` are the same type, we need to make sure that `fn(Ok): ok2`
     #       requires passing in by name (i.e., `fn(Ok. 123)`) so that we can distinguish the overloads
     #       for this versus `map(fn(Uh.): ~x): ~y`
-    ..map(fn(Ok.): ~ok2): hm[ok: ok2, uh]
+    ..map(fn(Ok.): A~ok): hm[A ok, uh]
 
     # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `Me`.
     ..map(fn(Ok.): hm[A~ok, uh]): hm[A ok, uh]
@@ -86,7 +94,7 @@ hm[ok, uh]: oneOf[ok, uh] {
     ..map(fn(Uh.): O~uh): hm[ok, O uh]
 
     # maps `ok` and `uh` separately.
-    ..map(fn(Ok.): t, fn(Uh.): t): t
+    ..map(fn(Ok.): ~t, fn(Uh.): t): t
 
     # runs a callback if OK but returns self
     ..check(fn(Ok): null): me
@@ -95,11 +103,11 @@ hm[ok, uh]: oneOf[ok, uh] {
     ..check(fn(Uh): null): me
 
     # runs different callbacks based on OK/not-OK but returns self
-    ..check(OkFn fn(Ok): null, UhFn fn(Uh): null): me
+    ..check(Ok_fn fn(Ok): null, Uh_fn fn(Uh): null): me
 
     # TODO: should we use `to` here or is there a better way to indicate casting?
-    # it's technically something like `oneOf[ok, null](Result: hm[ok, uh]): oneOf[ok, null]`
-    # which is pretty verbose.  could use `(Me.): oneOf[ok, null]` for implicit conversion
-    ..to(): oneOf[ok, null]
+    # it's technically something like `one_of[ok, null](Result: hm[ok, uh]): one_of[ok, null]`
+    # which is pretty verbose.  could use `(Me.): one_of[ok, null]` for implicit conversion
+    ..to(): one_of[ok, null]
 }
 
