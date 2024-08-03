@@ -78,6 +78,9 @@ hm[ok, uh]: one_of[ok, uh]
             Uh: $(In_case_of_error Ok)
 
     # maps an `Ok` result to a different type of `ok`, consuming `Me`.
+    # since this is a `Use` namespace, we need to use `My_hm map((Ok.): Ok + 3)`
+    # instead of whatever type `ok` is, e.g., `My_hm map((Int.): Int + 3)` would not work.
+    # TODO: maybe use `As` instead of `Use`, or maybe `@as`.
     ..map(fn(Use Ok.): A~ok): hm[A ok, uh]
 
     # maps an `Ok` result to a different type of `ok`, with possibly an error, consuming `Me`.
