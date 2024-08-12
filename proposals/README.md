@@ -168,6 +168,7 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * `"My String Interpolation is $(X, Y: Z)"` to add `(X: *value-of-X*, Y: *value-of-Z*)` to the string.
     * `A @(x(), Y)` to call `A x()` then `A Y` with [sequence building](#sequence-building)
         and return them in an argument object with fields `X` and `Y`, i.e., `(X: A x(), Y: A Y)`.
+        This allows `X` and `Y` to be references.
 * `[]` are for types, containers (including objects), and generics
     * `[X: dbl, Y: dbl]` to declare a class with two double-precision fields, `X` and `Y`
     * `[X: 1.2, Y: 3.4]` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
@@ -181,8 +182,12 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         see [destructuring](#destructuring).
     * `A @[x(), Y]` to call `A x()` then `A Y` with [sequence building](#sequence-building)
         and return them in an object with fields `X` and `Y`, i.e., `[X: A x(), Y: A Y]`.
+        If all values are the same type, you can also consider them as ordered, e.g.,
+        `Results: A @[x(), Y], print("${Results[0]}, ${Results[1]})`.
 * `{}` for blocks and sequence building
     * `{...}` to effectively indent `...`, e.g., `if Condition {do_thing()} else {do_other_thing(), 5}`
+        * Note that braces `{}` are *optional* if you actually go to the next line and indent,
+            but they are recommended for long blocks.
     * `A @{x(), Y}` with [sequence building](#sequence-building), 
         calling `A x()` and `A Y`, returning `A` if it's a temporary otherwise `A Y`
     * `"My String Interpolation is ${missing(), X}"` to add `X` to the string.
@@ -635,7 +640,7 @@ multiline comment), although this is not recommended.  To qualify as a multiline
 (besides spaces), otherwise a compiler error is thrown.  All characters on all lines in between
 the multiline comment symbols (e.g., `#(#` to `#)#`) are ignored.
 
-Note that `#@` is an end-of-line comment reserved for the compiler, so if you use
+Note that the prefix `#@` signifies an end-of-line comment from the compiler, so if you use
 them they may be deleted/updated in unexpected ways.
 
 TODO: discuss `# comment comment @O(N^2)` as a way to declare a method's asymptotic time
@@ -646,9 +651,10 @@ with big O notation.
 Standard types whose instances can take up an arbitrary amount of memory:
 
 * `int`: signed big-integer
-* `rtl`: rational number (e.g. an `int` over an `int`)
-* `str`: array/sequence of utf8 bytes, but note that `string` is preferred in code
-    since it includes other containers which deterministically provide utf8 bytes.
+* `rtl`: rational number (e.g. an `int` divided by a positive, non-zero `int`)
+* `str`: array/sequence of utf8 bytes, but note that `string` is preferred for
+    function arguments since it includes other containers which deterministically
+    provide utf8 bytes.
 
 Other types which have a fixed amount of memory:
 
@@ -656,6 +662,14 @@ Other types which have a fixed amount of memory:
 * `flt`: single-precision floating-point number, AKA `f32`
 * `dbl`: double-precision floating-point number, AKA `f64`
 * `bool`: can hold a True or False value
+    TODO: consider trying to have the same number of characters.
+    `my_function(Do_something: False, Do_something_else: True)`
+    `my_function(Do_something: No, Do_something_else: Ya)`
+    `my_function(Do_something: Not, Do_something_else: Got)`
+    `my_function(Do_something: No, Do_something_else: Do)`
+    `my_function(Do_something: Nay, Do_something_else: Yea)`
+    `my_function(Do_something: Moot, Do_something_else: Sure)`
+    `what Result {Sure {do_something_for_ya()}, Moot {do_something_for_no()}}`
 * `rune`: a utf8 character, presumably held within an `i32`
 * `u8`: unsigned byte (can hold values from 0 to 255, inclusive)
 * `u16` : unsigned integer which can hold values from 0 to 65535, inclusive
@@ -817,16 +831,9 @@ print(my_vector3)                # prints `vector3`
 print(vector3 == my_vector3)     # this prints true
 ```
 
-```
-# we'll define `some_type` as vector3, but it could become
-# different than vector3 in the future.
-some_type; any(my_vector3)
-
-... # other logic that could change `some_type`
-
-# creates a dynamical instance; could be vector3 or something else.
-Some_thing: some_type(X: 5, Y: 6, Z: -7)
-```
+Variables that refer to types cannot be mutable, so something
+like `some_type; vector3` is not allowed.  This is to make it
+easier to reason about types.
 
 TODO: types of functions, shouldn't really have `new`.
 TODO: we should discuss the things functions do have, like `my_function Inputs`
@@ -1075,9 +1082,6 @@ readonly/writable `I/Me/My` as an argument.
 ```
 example_class: [X: int, Y: dbl]
 {   # this `;;` prefix is shorthand for `renew(Me;, ...): null`:
-    # TODO: `renew` should probably just be `;;new` but not callable by itself.
-    #       we should do something like `;;descope()` + `;;new()` when calling `;;renew()`
-    #       maybe use `enscope()` instead of `new()`.
     ;;renew(My X: int, My Y: dbl): null
         print("X ${X} Y ${Y}")
 
@@ -3413,6 +3417,45 @@ are self descriptive and don't require named static functions for readability.
 E.g., instead of `My_date: date_class from_iso_string("2020-05-04")`, just use
 `My_date: date_class(Iso_string: "2020-05-04")` and define the
 `;;renew(Iso_string: string)` method accordingly.
+
+## destructors
+
+The `;;renew(Args...): null` (or `: hm[ok: me, uh: ...]`) constructors
+are technically resetters.  If you have a custom destructor, i.e., code
+that needs to run when your class goes out of scope, you shouldn't define
+`;;renew` but instead `;;new(Args...): null` and `;;descope(): null`.
+It will be a compile error if you try to define both `;;new` and `;;renew`
+methods.  Outside of a class, it's not idiomatic to use `;;new`; it
+should be `@protected` (or `@private`), so it's a compile error if
+
+```
+destructor_class: [X: int]
+{   @protected
+    ;;new(Debug X. int): null
+        print("X ${Debug X}")
+        My X = Debug X!
+    # `;;new` will also add methods like this,
+    # with a step-up in visibility from whatever `;;new` was.
+    #       i(Debug X. int): me 
+    #           I;
+    #           I new(Debug X!)
+    #           I!
+    #       ;;renew(Debug X. int): null
+    #           I descope()
+    #           I new(Debug X!)
+
+    # you should define the destructor:
+    ;;descope(): null
+        print("going out of scope, had X ${Debug X}")
+        # note that destructors of instance variables (e.g., `My X`)
+        # will automatically be called, in reverse order of definition.
+}
+```
+
+Destructors are called before instance variables are descoped.
+Child class destructors only need to clean up their own instance variables;
+they will be called before the parent class destructor (which will automatically
+be called).
 
 ## instance functions, class functions, and methods
 
@@ -5959,7 +6002,7 @@ Iterating_index; 3
 for Iterating_index < 7
     print(Iterating_index)
 # prints 3, 4, 5, 6 each on new lines.
-assert Iterating_index == 7      # you can keep Iterating_index for use outside the for loop.
+assert(Iterating_index == 7)    # you can keep Iterating_index for use outside the for loop.
 
 # you can also inline the variable's starting value,
 # but this means you don't have access to the variable outside the for loop (probably for the best).
@@ -5969,6 +6012,17 @@ for Other_index: index(3), Other_index < 7
 
 # TODO: consider if we want to add `Other_index += 2` logic; i'm not the biggest fan of it.
 #       i'd prefer it go in the middle, but that would probably confuse people
+#       we also could do something like `for Index <= 7, $Index += 2` where we define updates
+#       via a function so that we can distinguish...  what would be the best "named" way to do things?
+#       probably `for Index;, update(Index;): Index += 2, while(Index): Index < 7`.
+#       this is probably too verbose, though.
+#       if we want to go Zig-like, we could do `for Iterator, Element: { ... }`.
+#       e.g., `for range(7), Index: { ... }`, or maybe `in range(7), Index: {...}`,
+#       or maybe even `range(7), Index: {...}`.
+#       not sure i like this because it introduces "captures" that we don't use in other places,
+#       e.g., `if Nullable, Non_null: ...` which is zig-like but we're using `if condition, Then:`...
+#       i suppose we can distinguish based on the type (e.g., `non_null` vs. `then`).
+#       the alternative is to embrace `range(7) iterate((Index): do_stuff(Index))`
 
 # for-loop iterating over non-number elements:
 vector2: [X: dbl, Y: dbl]
@@ -7070,7 +7124,7 @@ If your code compiles, we will also format it.
 
 If there are any compile errors, the compiler will add some special
 comments to the code that will be removed on next compile, e.g.,
-`#@!$ ^ there's a syntax problem`
+`#@! ^ there's a syntax problem`
 
 ## metaprogramming
 
