@@ -201,6 +201,7 @@ memory, these safe functions are a bit more verbose than the unchecked functions
             `Array: if Some_condition $[1, 2, 3] else $[4, 5]`
         * `$(...)` as shorthand for a new block defining `(...)`, e.g., an argument object:
             `Result: if X > Y $(Max: X, Min: Y) else $(Min: X, Max: Y)`
+        * note that (outside of a string) `${...}` is functionally the same as `{...}`.
     * `My_array map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
         which will iterate over e.g., `My_array: [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
         * Lambda arguments need to specify which scope they attach to, by increasing
@@ -214,6 +215,11 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         i.e., eliding duplicate entries like `(X: X, Y: Y)`.
 * [Horstmann indentation](https://en.wikipedia.org/wiki/Indentation_style#Horstmann) to guide
     the eye when navigating multiline braces/brackets/parentheses
+* operators:
+    * `**` and `^` for exponentiation
+    * `&|` at the start of each text slice to create a multiline string.
+    * `<>` for bit flips on integer types
+    * `><` for bitwise xor
 
 ```
 # declaring a variable:
@@ -329,6 +335,32 @@ do_something(X: int, Y: int): [W: int, Z: int]
     W = 123
     # option B:
     [Z: \\math atan(X, Y), W: 123]
+```
+
+```
+# declaring a string:
+Name: "Barnabus"
+
+# using interpolation in a string:
+Greeting: "hello, ${Name}!"
+
+# declaring a multiline string
+Important_items:
+        &|Fridge
+        &|Pancakes and syrup
+        &|Cheese
+# this is the same as `Important_items: "Fridge\nPancakes and syrup\nCheese\n"`
+
+# TODO: consider making the last line not have a newline.
+# a single-line multiline string includes a newline at the end.
+Just_one_line: &|This is a line
+# this is equivalent to `Just_one_line: "This is a line\n"
+
+# declaring a multiline string with interpolation
+Multiline_interpolation:
+        &|Special delivery for ${Name}:
+        &|You will receive ${Important_items} and more.
+# becomes "Special delivery for Barnabus\nYou will receive Fridge\nPancakes and syrup\nCheese\n and more."
 ```
 
 ```
