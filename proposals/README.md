@@ -32,8 +32,10 @@ defining a variable works the same outside of a function: `X: 5`.
 
 In some languages, e.g., JavaScript, objects are passed by reference and primitives
 are passed by value when calling a function with these arguments.  In hm-lang,
-arguments are passed by reference by default, for consistency.
-See [passing by reference and by value](#pass-by-reference-or-pass-by-value). 
+arguments are passed by reference by default, for consistency.  I.e., on the left
+hand side of an expression like `X = 5`, we know that we're referring to `X` as a reference,
+and we extend that to function calls like `do_something(X)`.  Note that it's possible
+to pass by value as well; see [passing by reference or by value](#pass-by-reference-or-pass-by-value). 
 However, to avoid most surprises, arguments are passed by *readonly* reference.
 See [passing by reference gotchas](#passing-by-reference-gotchas)) for the edge cases.
 
