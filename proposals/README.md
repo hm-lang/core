@@ -353,14 +353,28 @@ Important_items:
 
 # TODO: consider making the last line not have a newline.
 # a single-line multiline string includes a newline at the end.
-Just_one_line: &|This is a line
-# this is equivalent to `Just_one_line: "This is a line\n"
+Just_one_line: &|This is a 'line' "you know"
+# this is equivalent to `Just_one_line: "This is a 'line' \"you know\"\n"
 
 # declaring a multiline string with interpolation
 Multiline_interpolation:
         &|Special delivery for ${Name}:
         &|You will receive ${Important_items} and more.
 # becomes "Special delivery for Barnabus\nYou will receive Fridge\nPancakes and syrup\nCheese\n and more."
+
+# interpolation over multiple file lines.
+# WARNING: this does not comply with Horstmann indenting,
+# and it's hard to know what the indent should be on the second line.
+Evil_long_line: "this is going to be a long discussion ${
+        Name}, can you confirm your availability?"
+# INSTEAD, use string concatenation:
+Good_long_line: "this is going to be a long discussion "
+        "${Name}, can you confirm your availability?"
+
+# TODO: should this be a more general principle, e.g., `123 456 == 123456`?
+
+# you can also nest interpolation logic, although this isn't recommended:
+Nested_interpolation: "hello, ${if (Condition) {Name} else 'World${"!" * 5}'}!"
 ```
 
 ```
