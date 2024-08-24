@@ -110,6 +110,9 @@ including in methods that only declare one of them in the function arguments.
 We recommend using `My` for field access (e.g., `My X`) as well as getters/setters
 `My x()` or `My x(New_x_value)`, `Me` for returning a copy/clone (e.g., `return Me`),
 and `I` for methods that start with a verb, e.g., `I draw()`.
+TODO: can we get rid of the need for `My`/`Me`/`I` and just use `::my_method` or `;;other_method`
+inside function calls?  that way we wouldn't need to prefix `My X` for instance variables either.
+parent variables would still need to be referenced via `Parent X`.
 
 Class getters/setters do not use `::get_x(): dbl` or `;;set_x(Dbl): null`, but rather
 just `::x(): dbl` and `;;x(Dbl;.): null` for a private variable `X; dbl`.  This is one
@@ -930,6 +933,7 @@ e.g., `my_function(A: 3, B: 2, ...My_object)` will call `my_function(A: 3, B: 4,
 |           |   ` []`   | parenthetical subscript   | binary: `A[B]`    |               |
 |           |   `!`     | postfix moot = move+renew | unary:  `A!`      |               |
 |           |   `?`     | postfix nullable          | unary:  `A?`/`a?` |               |
+|           |   `??`    | nullish OR                | binary: `A??B`    |               |
 |   3       |   `^`     | superscript/power         | binary: `A^B`     | RTL           |
 |           |   `**`    | also superscript/power    | binary: `A**B`    |               |
 |           |   `--`    | unary decrement           | unary:  `--A`     |               |
@@ -939,7 +943,6 @@ e.g., `my_function(A: 3, B: 2, ...My_object)` will call `my_function(A: 3, B: 4,
 |           |   `-`     | unary minus               | unary:  `-A`      |               |
 |           |   `+`     | unary plus                | unary:  `+A`      |               |
 |           |   `!`     | prefix boolean not        | unary:  `!A`      |               |
-|           |  `not`    | prefix boolean not        | unary:  `not A`   |               |
 |   5       |   `>>`    | bitwise right shift       | binary: `A>>B`    | LTR           |
 |           |   `<<`    | bitwise left shift        | binary: `A<<B`    |               |
 |   6       |   `*`     | multiply                  | binary: `A*B`     | LTR           |
@@ -949,16 +952,14 @@ e.g., `my_function(A: 3, B: 2, ...My_object)` will call `my_function(A: 3, B: 4,
 |           |   `%%`    | remainder after //        | binary: `A%%B`    |               |
 |   7       |   `+`     | add                       | binary: `A+B`     | LTR           |
 |           |   `-`     | subtract                  | binary: `A-B`     |               |
-|           |   `&`     | bitwise AND               | binary: `A&B`     |               |
+|   8       |   `&`     | bitwise AND               | binary: `A&B`     |               |
 |           |   `\|`    | bitwise OR                | binary: `A\|B`    |               |
 |           |   `><`    | bitwise XOR               | binary: `A><B`    |               |
-|           |   `??`    | nullish OR                | binary: `A??B`    |               |
-|   8       |   `==`    | equality                  | binary: `A==B`    | LTR           |
+|   9       |   `==`    | equality                  | binary: `A==B`    | LTR           |
 |           |   `!=`    | inequality                | binary: `A!=B`    |               |
-|   9       |  `and`    | logical AND               | binary: `A and B` | LTR           |
-|           |   `or`    | logical OR                | binary: `A or B`  |               |
-|           |  `xor`    | logical XOR               | binary: `A xor B` |               |
-|   10      |  `{ }`    | block parentheses         | grouping: `{A}`   | ??            |
+|   10      |   `&&`    | logical AND               | binary: `A && B`  | LTR           |
+|           |  `\|\|`   | logical OR                | binary: `A \|\| B`|               |
+|           |  `!\|`    | logical XOR               | binary: `A !\| B` |               |
 |   11      |   `=`     | assignment                | binary: `A = B`   | LTR           |
 |           |  `???=`   | compound assignment       | binary: `A += B`  |               |
 |           |   `<->`   | swap                      | binary: `A <-> B` |               |
@@ -1208,6 +1209,9 @@ we'll simply return `Null`.  E.g., `do_something(?X: My_value_for_x)` is equival
 to `if My_value_for_x == Null {Null} else {do_something(X: My_value_for_x)}`.
 In this case `X` is already in scope, it becomes `do_something(?X)` to elide the
 variable name.
+
+There's also an infix `??` type which is a nullish or.
+`X Y ?? Z` will choose `X Y` if it is non-null, otherwise `Z`.
 
 ## prefix and postfix exclamation points `!`
 
