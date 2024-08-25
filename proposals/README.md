@@ -4140,11 +4140,9 @@ Other_instance: generic_class[id: dbl, value: string](Id: 3, Value: "4")
 ### generic class type mutability
 
 It may be useful to create a generic class that whose specified type
-can have writeable or readonly fields.  This can be done using `Variable_name@ generic_type`
+can have writeable or readonly fields.  This can be done using `Variable_name\` generic_type`
 inside the generic class definition to define variables, and then specifying
 the class with `[type1: specified_readonly_type, type2; specified_writeable_type]`.
-Note that a space must follow `@` otherwise since `@whatever_type` might be a valid annotation.
-For example:
 
 ```
 mutable_types[x, y, z]:
@@ -4156,15 +4154,15 @@ mutable_types[x, y, z]:
     W_x; x
     W_y; y
     W_z; z
-    # these fields are readonly/writeable based on what is passed
-    # in to `mutable_types`.
-    V_x@ x
-    V_y@ y
-    V_z@ z
-
-    # you can also use these in method/function definitions:
-    ::some_method(Whatever_x@ x, Whatever_y@ y): null
+    # these fields are readonly/writeable based on what is passed in
+    # to `mutable_types` for each of `x`, `y`, and `z`, respectively.
+    V_x` x
+    V_y` y
+    V_z` z
 ]
+{   # you can also use these in method/function definitions:
+    ::some_method(Whatever_x` x, Whatever_y` y): null
+}
 
 # the following specification will make `V_x` and `V_z` writeable
 # and `V_y` readonly:
@@ -4176,7 +4174,7 @@ to reinterpret a generic class declaration of a variable declared using `:`
 as writeable in a specification with a `;`.
 
 TODO: we probably want a compiler warning if a generic class declaration
-has no `@` for  type, and the user supplies the type as `;`.
+has no backtick for the type, and the user supplies the type as `;`.
 
 ### virtual generic methods
 
@@ -6154,7 +6152,7 @@ indent(~Declaring., fn(Block[~t, declaring]): never): t
 block[of, declaring: null]:
 [   # variables defined only for the lifetime of this block's scope.
     # TODO: give examples, or maybe remove, if this breaks cleanup with the `jump` ability
-    Declaring@ declaring
+    Declaring` declaring
 ]
 {   # exits the `indent` with the corresponding `of` value.  example:
     #   Value; 0
@@ -7200,12 +7198,12 @@ e.g., `whenever Q {...}`.  probably the best way here is to use `Block`, e.g.,
 of `block`, via, e.g., `check Nullable, NonNull: do_something(NonNull)`, where
 we have 
 ```
-check(T?@ ~t, Blockable[~u, declaring@ t])?: u
+check(T?` ~t, Blockable[~u, declaring` t])?: u
     what T
         # TODO: i think we should be able to support inline definitions in `what`
-        #       e.g., this should also work: `T@ PreBlock block(T@)`
-        T@
-            Blockable block(T@)
+        #       e.g., this should also work: T` Blockable block(T`)
+        T`
+            Blockable block(T`)
         Null: Null
 ```
 without some deep programming, we won't be able to have the option of doing things like
