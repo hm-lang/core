@@ -174,7 +174,7 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * `A @(x(), Y)` to call `A x()` then `A Y` with [sequence building](#sequence-building)
         and return them in an argument object with fields `X` and `Y`, i.e., `(X: A x(), Y: A Y)`.
         This allows `X` and `Y` to be references.
-* `[]` are for types, containers (including objects), and generics
+* `[]` are for types, containers (including objects, arrays, and lots), and generics
     * `[X: dbl, Y: dbl]` to declare a class with two double-precision fields, `X` and `Y`
     * `[X: 1.2, Y: 3.4]` to instantiate a plain-old-data class with two double-precision fields, `X` and `Y`
     * `"My String interpolation is $[X, Y]"` to add `[*value-of-X*, *value-of-Y*]` to the string.
@@ -259,11 +259,25 @@ Array_var; array[int](1, 2, 3, 4)
 # We can also infer types implicitly via one of the following:
 #   * `Array_var; array([1, 2, 3, 4])`
 #   * `Array_var; [1, 2, 3, 4]`
-Array_var[5] = 5     # Array_var == [1, 2, 3, 4, 0, 5]
-++Array_var[6]       # Array_var == [1, 2, 3, 4, 0, 5, 1]
-Array_var[0] += 100  # Array_var == [101, 2, 3, 4, 0, 5, 1]
-Array_var[1]!        # returns 2, zeroes out Array_var[1]:
+Array_var[5] = 5    # Array_var == [1, 2, 3, 4, 0, 5]
+++Array_var[6]      # Array_var == [1, 2, 3, 4, 0, 5, 1]
+Array_var[0] += 100 # Array_var == [101, 2, 3, 4, 0, 5, 1]
+Array_var[1]!       # returns 2, zeroes out Array_var[1]:
                     # Array_var == [101, 0, 3, 4, 0, 5, 1]
+
+# declaring a long array (note the Horstmann indent):
+Long_implicitly_typed:
+[   4   # commas aren't needed here.
+    5
+    6
+]
+
+# declaring a long array that's typed:
+Long_explicitly_typed: array[int]
+(   5   # commas aren't needed here.
+    6
+    7
+)
 ```
 
 ```
@@ -6026,6 +6040,8 @@ TODO: Can we write other conditionals/loops/etc. in terms of `indent/block` to m
 from fewer primitives?  E.g., `while Condition, Do: {... Do exit(3) ...}`, where
 `do` is a thin wrapper over `block`?  or maybe `do, Loop: {... Loop exit(3) ...}`
 
+TODO: i think i like zig-like `for Iterator, Index:`-like syntax.
+
 ```
 # for-loop with counter that is readonly inside the for-loop's block:
 for Value: int < 10
@@ -6176,16 +6192,14 @@ TODO: can we use an `um` internally inside `block`?
 
 ### blocks to define a variable
 
-TODO: i don't think this makes much sense to do explicitly, e.g.,
 ```
-My_int, Block[int]:
-    if some_condition()
-        Block exit(3)
-    Block loop()
+My_int: indent
+(   Block[int]:
+        if some_condition()
+            Block exit(3)
+        Block loop()
+)
 ```
-
-Mostly because we can't type `My_int` as `;` or `:` in this way.
-
 
 ### then with blocks
 
@@ -7181,7 +7195,23 @@ comments to the code that will be removed on next compile, e.g.,
 ## metaprogramming
 
 TODO: we'd like to provide ways to define custom block functions like `if X {...}`,
-e.g., `whenever Q {...}`.
+e.g., `whenever Q {...}`.  probably the best way here is to use `Block`, e.g.,
+`if(Bool, Block[~t]): t`.  but it'd be also good to support the `declaring` part
+of `block`, via, e.g., `check Nullable, NonNull: do_something(NonNull)`, where
+we have 
+```
+check(T?@ ~t, Blockable[~u, declaring@ t])?: u
+    what T
+        # TODO: i think we should be able to support inline definitions in `what`
+        #       e.g., this should also work: `T@ PreBlock block(T@)`
+        T@
+            Blockable block(T@)
+        Null: Null
+```
+without some deep programming, we won't be able to have the option of doing things like
+`return X + Y`, since `return` breaks order of operations.
+but that does raise a consistency issue: should we use parentheses everywhere, e.g., 
+`if(X)` and `return(X + Y)`?
 
 # implementation
 
