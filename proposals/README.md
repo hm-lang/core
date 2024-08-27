@@ -7251,7 +7251,7 @@ my_function(X: int, Y: int): int
 
 There's probably some even crazier continuation-passing way to define a function
 ```
-declare(My_function: block[return_type], Arguments: arguments_object):
+declare(My_function: block[return_type], Arguments: arguments_object): never
     Result: if
     (   Arguments X + Arguments Y
         ():
@@ -7263,14 +7263,15 @@ declare(My_function: block[return_type], Arguments: arguments_object):
 ```
 where we could use a `resumable` instead of a `block` to define a generator/iterator.
 ```
-declare(Range: resumable[int], Arguments: (Start: int, End: int)):
+declare(Range: resumable[int], Arguments: (Start: int, End: int)): never
     Current; Start
     while
     (   Current < End
-        ():
+        do():
             Range give(Current)
             Current += 1
     )
+    Range exit()
 ```
 
 # implementation
