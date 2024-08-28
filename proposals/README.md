@@ -134,8 +134,11 @@ use `map` for everything, with function overloading helping us out.
 
 We also don't use a different concept for interfaces and inheritance.
 The equivalent of an interface in hm-lang is simply an abstract class.  This way
-we don't need two different keywords to `extend` or `implement` a class or interface,
-we simply always `extend` the class.
+we don't need two different keywords to `extend` or `implement` a class or interface.
+In fact, we don't use keywords at all; to just add methods (or class functions/variables),
+we use this syntax, `childClass: parentClass { ::extraMethods(): int, ... }`,
+and to add instance variables to the child class we use this notation:
+`childClass: all_of[parentClass, [ChildX: int, ChildY: str]] { ... methods }`.
 
 ## safety
 
@@ -5533,9 +5536,6 @@ TODO: make it easy to pass in a set as an argument and return a lot with e.g. th
   maybe this isn't as important as it would be if we had a dedicated object type.
 
 ```
-fn(Fields: [~k], Pick_from: ~t[~q extends k]): t[k]
-    return Fields map((Field: str): lot_element(Field, Pick_from[Field]))
-
 fn(Pick_from: ~o, Ids: ~k from ids(o)): pick(o, k)
     return pick(Pick_from, Ids)
 ```
