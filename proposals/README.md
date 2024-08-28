@@ -25,8 +25,8 @@ with the `_x` equals `X` rule).  For the remainder of this document, we'll use `
 
 Another change is that hm-lang uses `:` (or `;`) for declarations and `=` for reassignment,
 so that declaring a variable and specifying a variable will work the same inside and outside
-function arguments.  For example, declaring a function that takes an integer named `X`
-`my_function(X: int): null` and declaring an integer variable named `X` uses the same syntax:
+function arguments.  For example, declaring a function that takes an integer named `X`,
+`my_function(X: int): null`, and declaring an integer variable named `X` uses the same syntax:
 `X: int`.  Similarly, calling a function with arguments specified as `my_function(X: 5)` and
 defining a variable works the same outside of a function: `X: 5`.
 
@@ -36,7 +36,7 @@ arguments are passed by reference by default, for consistency.  I.e., on the lef
 hand side of an expression like `X = 5`, we know that we're referring to `X` as a reference,
 and we extend that to function calls like `do_something(X)`.  Note that it's possible
 to pass by value as well; see [passing by reference or by value](#pass-by-reference-or-pass-by-value). 
-However, to avoid most surprises, arguments are passed by *readonly* reference.
+However, to avoid most surprises, by default arguments are passed by *readonly* reference.
 See [passing by reference gotchas](#passing-by-reference-gotchas)) for the edge cases.
 
 In hm-lang, determining the number of elements in a container uses the same
@@ -2409,12 +2409,12 @@ being able to resolve the overload at run-time.
 
 ### pass-by-reference or pass-by-value
 
-Functions can be defined with arguments that are passed-by-value, e.g., via
+Functions can be defined with arguments that are passed-by-value using `.`, e.g., via
 `Temporary_value. type_of_the_temporary`.  This argument type can be called with
-temporaries, e.g., `fn(Arg_name. "my temp string")`, or with easily-copyable
-types like `dbl` or `i32` like `My_i32: i32 = 5, fn(My_arg. My_i32)`, or
-with larger-allocation types like `int` or `str` with an explicit copy:
-`My_str: "asdf...", fn(Tmp_arg. str(My_str))`.  In any case, the passed-by-value
+temporaries, e.g., `fn(Arg_name. "my temp string")`, or with easily-copyable types
+like `dbl` or `i32` like `My_i32: i32 = 5, fn(My_arg. My_i32)`, or with larger-allocation
+types like `int` or `str` with an explicit copy or move: `My_str: "asdf..."` with
+`fn(Tmp_arg. str(My_str))` or `fn(Tmp_arg. My_str!)`.  In any case, the passed-by-value
 argument, if changed inside the function block, will have no effect on the
 things outside the function block.  Inside the function block, pass-by-value
 arguments are mutable, and can be reassigned or modified as desired.
