@@ -283,6 +283,9 @@ Long_explicitly_typed: array[int]
 )
 ```
 
+Note there are some special rules that allow line continuations for parentheses
+as shown above.  See [line continuations](#line-continuations) for more details.
+
 ```
 # declaring a readonly lot
 My_lot: lot[at: id_type, value_type]
@@ -538,12 +541,60 @@ If you need more indents, refactor your code.
 
 ### line continuations
 
-Lines can be continued at a +2 indent from the originating line, though there are some
-special rules here when parentheses are involved.  If an open bracket is encountered at
-the end of the line, and the next lines are only at +1 indent, then we assume a container
-is being constructed.  Note that operators besides parentheses *are ignored* for determining
+Lines can be continued at a +2 indent from the originating line, and all
+subsequent lines can stay there at that indent (without indenting more).
+Note that operators (including parentheses) *are ignored* for determining
 the indent, so typical practice is to tab to the operator then tab to the number/symbol
-you need for continuing a line.
+you need for continuing a line.  There are some special rules with parentheses;
+if an opening brace/bracket/paren starts a line, and its insides are indented,
+we try to pair it with the previous line, so it's not necessary to indent +2.
+Also note, if there is no operator between two lines at the same indent,
+we'll assume we should add a comma.
+
+```
+# the following are equivalent to `My_array: [5, 6, 7]`.
+
+# this follows the line continuation rule (that we should indent at +2),
+My_array:   # OK, but...
+    [   5
+        6
+        7
+    ]
+# but note it's unnecessary because we also allow opening brackets
+# to get attached to the previous line.
+My_array:   # better!
+[   5
+    6
+    7
+]
+
+# the parentheses trick only works if the inside is indented.
+Not_defined_correctly:
+[5, 6, 7]       # not attached to the previous line.
+```
+
+Because of this, some care must be taken when returning a bracket
+from a function, since we may try to pair it with the previous line.
+
+```
+my_function(Int): [X: int, Y: int]
+    do_something(Int)
+    return
+    [   X: 5 - Int
+        Y: 5 + Int
+    ]
+    # the `return` is necessary otherwise it would parse as
+    # `do_something(Int)[X: 5 - Int, Y: 5 + Int]`
+
+# this is also ok:
+my_function(Int): [X: int, Y: int]
+    do_something(Int)
+    [X: 5 - Int, Y: 5 + Int]
+```
+
+When it comes to parentheses, you are welcome to use
+[one-true-brace style](https://en.wikipedia.org/wiki/Indentation_style#:~:text=One%20True%20Brace),
+which will be converted into Horstmann style.
 
 ```
 Some_variable: some_very_long_function_name_because_it_is_good_to_be_specific(10)
@@ -551,11 +602,13 @@ Some_variable: some_very_long_function_name_because_it_is_good_to_be_specific(10
     -   Other_variable # don't keep adding more indents, keep at +2 from original.
 
 Array_variable:
-[   1
-    2
-    3
-    4
-    5
+[   1   # we insert commas
+    2   # between each newline
+    3   # as long as the indent is the same.
+    Other_array # here we don't insert a comma after `Other_array`
+    [   3       # because the indent changes
+    ]           # so we parse this as `Other_array[3],`
+    5           # and this gets a comma before it.
 ]
 
 # this is inferred to be a `lot` with a string ID and a `one_of[int, str]` value.
@@ -592,6 +645,15 @@ Another_line_continuation_variable: Can_optionally_start_up_here
         (       Keep_going_if_you_like
             -   However_long
         ) + (70 - 30) * 3
+
+# note that the formatter will take care of converting indents like this:
+Non_horstmann_indent: (
+    20 + some_function(45)
+)
+# into this:
+Non_horstmann_indent:   # FIXME: update name :)
+(   20 + some_function(45)
+)
 ```
 
 Note that line continuations must be at least +2 indent, but can be more if desired.
@@ -607,7 +669,8 @@ Example_plus_three_indent
         -   Continuing
 ```
 
-Arguments supplied to functions are similar to lots and only require +1 indent.
+Arguments supplied to functions are similar to arrays/lots and only require +1 indent
+if they are multiline.
 
 ```
 if some_function_call
@@ -616,35 +679,44 @@ if some_function_call
 )
     do_something()
 
-declaring_a_function_with_multiline_arguments
+defining_a_function_with_multiline_arguments
 (   Times: int
     Greeting: string
     Name: string("World")   # argument with a default
-): string
+):  string                  # indent here is optional/aesthetic
     # "return" is optional for the last line of the block:
     "${Greeting}, ${Name}! " * Times
+
+defining_a_function_with_multiline_return_values
+(   Argument0: int
+):  [   Value0: int
+        Value1: str
+    ]
+    return [Value0: Argument0 + 3, Value1: str(Argument0)]
+
+# if you're returning a multiline generic, be careful to indent at +1
+# from its starting identifier (`some_generic_type` here).
+defining_another_function_that_returns_a_generic
+(   Argument0: str
+):  some_generic_type
+    [   type0: int
+        type1: str
+    ]
+    print("got argument ${Argument0}")
+    return ...
 ```
 
-You can call or declare functions with arguments at +2 indent, but then you must use commas at the end
-of each argument line because +2 indent is the same as a line continuation.  The last argument's comma
-is optional but recommended.
+Putting it all together in one big example:
 
 ```
-declaring_a_function_with_plus_two_indent_arguments
-(       Times: int,
-        Greeting: string,
-        Name: string = "World",
-): string
-    return "${Greeting}, ${Name}! " * Times
-
 Some_line_continuation_example_variable:
         Optional_expression_explicitly_at_plus_two_indent
     +   5 - some_function
         (       Another_optional_expression
             +   Next_variable
             -   Can_keep_going
-            /   Indefinitely,
-                R: 123.4,
+            /   Indefinitely
+                R: 123.4
         )
 ```
 
