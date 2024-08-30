@@ -30,6 +30,23 @@ function arguments.  For example, declaring a function that takes an integer nam
 `X: int`.  Similarly, calling a function with arguments specified as `my_function(X: 5)` and
 defining a variable works the same outside of a function: `X: 5`.
 
+For consistency, hm-lang doesn't have dedicated `if` statements; there are simply overloads
+of an `if` function which usually takes two or three arguments of the expected sort:
+`if(Bool, fn(): null, else(): null): null`, where `fn()` is executed if the condition `Bool`
+is true, and where `else()` is executed otherwise.  Similarly for `what`, which is hm-lang's
+version of `switch` or `match`.  `what(~T, lot[at: t, ~u]): u`.
+TODO: is this really what we want? this seems a bit cumbersome here.
+
+```
+Value; one_of[int, str] = ...
+what
+(   Value
+    [   10: print("Value was 10")
+        "hello": print("world!")
+    ]
+)
+```
+
 In some languages, e.g., JavaScript, objects are passed by reference and primitives
 are passed by value when calling a function with these arguments.  In hm-lang,
 arguments are passed by reference by default, for consistency.  I.e., on the left
@@ -65,8 +82,8 @@ if the array is not already at least size 4.
 
 Similarly, when referencing `Array[10]` or `Lot["At"]`, a default will be provided
 if necessary, so that e.g. `++Array[10]` and `++Lot["At"]` don't need to be guarded
-as `Array[10] = if count(Array) > 10 {Array[10] + 1} else {Array count(11), 1}` or
-`Lot["At"] = if Lot["At"] != Null {Lot["At"] + 1} else {1}`.
+as `Array[10] = if(count(Array) > 10, (): Array[10] + 1, else(): {Array count(11), 1})` or
+`Lot["At"] = if(Lot["At"] != Null, {Lot["At"] + 1}, else(): 1)`.
 
 ## clarity
 
@@ -166,7 +183,9 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     * use `a: y` to declare `a` as a constructor that builds instances of type `y`
     * while declaring *and defining* something, you can avoid the type if you want the compiler to infer it,
         e.g., `A: some_expression()`
-* when not declaring things, `:` is not used; e.g., `if` statements do not require a trailing `:` like python
+* when not declaring things, `:` is not used
+* `if` statements and `what` statements (like a `switch` or `match` statement) are functions, to
+    be consistent in parsing.  `if(Condition, (Then): do_something(), else(): do_something_else())`.
 * `()` for organization and function calls
     * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object type, `W` is an optional field
         passed by readonly reference, `X` is a readonly reference, `Y` is a writable reference,
@@ -193,7 +212,9 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         If all values are the same type, you can also consider them as ordered, e.g.,
         `Results: A @[x(), Y], print("${Results[0]}, ${Results[1]})`.
 * `{}` for blocks and sequence building
-    * `{...}` to effectively indent `...`, e.g., `if Condition {do_thing()} else {do_other_thing(), 5}`
+    * TODO: maybe support `else: ${do_other_thing(), 5}`, `else ${do_other_thing(), 5}`,
+        or even `else {do_other_thing(), 5}` to define `else(): {do_other_thing(), 5}`.
+    * `{...}` to effectively indent `...`, e.g., `if(Condition, {do_thing()}, else(): {do_other_thing(), 5})`
         * Note that braces `{}` are *optional* if you actually go to the next line and indent,
             but they are recommended for long blocks.
     * `A @{x(), Y}` with [sequence building](#sequence-building), 
@@ -206,9 +227,9 @@ memory, these safe functions are a bit more verbose than the unchecked functions
 * `$` for inline block and lambda arguments
     * [inline blocks](#block-parentheses-and-commas) include:
         * `$[...]` as shorthand for a new block defining `[...]`, e.g., for a return value:
-            `Array: if Some_condition $[1, 2, 3] else $[4, 5]`
+            `Array: if(Some_condition, $[1, 2, 3], else: $[4, 5])`
         * `$(...)` as shorthand for a new block defining `(...)`, e.g., an argument object:
-            `Result: if X > Y $(Max: X, Min: Y) else $(Min: X, Max: Y)`
+            `Result: if(X > Y, $(Max: X, Min: Y), else: $(Min: X, Max: Y))`
         * note that (outside of a string) `${...}` is functionally the same as `{...}`.
     * `My_array map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
         which will iterate over e.g., `My_array: [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
@@ -396,7 +417,7 @@ Good_long_line: "this is going to be a long discussion "
 # TODO: should this be a more general principle, e.g., `123 456 == 123456`?
 
 # you can also nest interpolation logic, although this isn't recommended:
-Nested_interpolation: "hello, ${if (Condition) {Name} else 'World${"!" * 5}'}!"
+Nested_interpolation: "hello, ${if(Condition, {Name}, else(): 'World${"!" * 5}')}!"
 ```
 
 ```
@@ -478,7 +499,7 @@ print(counter())    # 124
 # defining a function that takes two type constructors as arguments,
 # one of them being named, and returns a type constructor:
 do_something(~x, named_new: ~y): one_of[new[x], new[y]]
-    if random(dbl) < 0.5 {x} else {named_new}
+    if(random(dbl) < 0.5, {x}, else {named_new})
 
 some_type: do_something(int, named_new: dbl) # int or dbl with 50-50 probability
 ```
@@ -500,9 +521,9 @@ act more functions than variables; e.g., you can convert one class instance into
 another class's instance, like `int(My_number_string)` which converts `My_number_string`
 (presumably a `string` type) into a big integer.
 
-There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
-`what`, `in`,
-which are function-like but may consume the rest of the statement.
+TODO: double check!????!
+TODO: make `return` always `return(X + 5)` or `Then exit(X + 5)`.
+There are *no* reserved keywords.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
 `Unused`, `Argument`, `Use`,
@@ -563,7 +584,7 @@ Lot_variable;
 [   "Some_value": 100
     "Other_value": "hi"
 ]
-Lot_variable["Some_other_value"] = if Condition {543} else {"hello"}
+Lot_variable["Some_other_value"] = if(Condition, {543}, else ${"hello"})
 
 # This is different than the `Lot_variable` because it
 # is an instance of a `[Some_value: int, Other_value: str]` type,
@@ -610,11 +631,10 @@ Example_plus_three_indent
 Arguments supplied to functions are similar to lots and only require +1 indent.
 
 ```
-if some_function_call
+some_function_call
 (   X
     Y: 3 + sin(Z)
 )
-    do_something()
 
 declaring_a_function_with_multiline_arguments
 (   Times: int
@@ -652,7 +672,7 @@ Some_line_continuation_example_variable:
 
 You can use `{` ... `}` to define a block inline.  The braces block is grammatically
 the same as a standard block, i.e., going to a new line and indenting to +1.
-This is useful for short `if` statements, e.g., `if Some_condition {do_something()}`.
+This is useful for short `if` statements, e.g., `if(Some_condition, {do_something()})`.
 Similarly, you can return containers/objects or argument objects in blocks via
 `$[...]` or `$(...)`, respectively.
 
@@ -662,18 +682,23 @@ in any block, by using commas.  E.g.,
 
 ```
 # standard version:
-if Some_condition
-    print("toggling shutoff")
-    shutdown()
+if
+(   Some_condition
+    {   print("toggling shutoff")
+        shutdown()
+    }
+)
 
 # comma version:
-if Some_condition
+if
+(   Some_condition
     # WARNING: NOT RECOMMENDED, since it's easy to accidentally skip reading
     # the statements that aren't first:
-    print("toggling shutoff"), shutdown()
+    {print("toggling shutoff"), shutdown()}
+)
 
 # block parentheses version
-if Some_condition { print("toggling shutoff"), shutdown() }
+if(Some_condition, { print("toggling shutoff"), shutdown() })
 ```
 
 If the block parentheses encapsulate content over multiple lines, note that
@@ -683,12 +708,14 @@ begin and end, which helps some editors navigate more quickly to the beginning/e
 
 ```
 # multiline block parentheses via an optional `{`
-if Some_condition
-{   print("toggling shutdown")
-    print("waiting one more tick")
-    print("almost..."), print("it's a bit weird to use comma statements")
-    shutdown()
-}
+if
+(   Some_condition
+    {   print("toggling shutdown")
+        print("waiting one more tick")
+        print("almost..."), print("it's a bit weird to use comma statements")
+        shutdown()
+    }
+)
 ```
 
 ## comments
@@ -824,11 +851,13 @@ scaled8:
 
     i(Flt): hm[ok: me, uh: one_of[Negative, Too_big]]
         Scaled_value: round(Flt * Scale)
-        if Scaled_value < 0
-            return Negative
-        if Scaled_value > u8 max() flt()
-            return Too_big
-        scaled8(Scaled_value u8() or_panic())
+        if
+        (   Scaled_value < 0
+            {Negative}
+            Scaled_value > u8 max() flt()
+            {Too_big}
+            else: {scaled8(Scaled_value u8() or_panic())}
+        )
 
     # if there are no representability issues, you can create
     # a direct method to convert to `flt`;
@@ -839,10 +868,11 @@ scaled8:
 
     # if you have representability issues, you can return a result instead.
     ::int(): hm[ok: int, Number_conversion uh]
-        if My Scaled_value % my Scale != 0
-            Number_conversion Not_an_integer
-        else
-            My Scaled_value // my Scale
+        if
+        (   My Scaled_value % my Scale != 0
+            {Number_conversion Not_an_integer}
+            else: {My Scaled_value // my Scale}
+        )
 }
 
 # global function; can also be called like `Scaled8 dbl()`.
@@ -853,10 +883,12 @@ dbl(Scaled8): dbl
 
 # global function which returns a result, can be called like `Scaled8 u16()`
 u[Bits: count](Scaled8): hm[ok: u[Bits], Number_conversion uh]
-    if Scaled8 Scaled_value % scaled8 Scale != 0
-        Number_conversion Not_an_integer
-    else
-        Scaled8 Scaled_value // scaled8 Scale
+    if
+    (   Scaled8 Scaled_value % scaled8 Scale != 0
+        (): Number_conversion Not_an_integer
+        else(): Scaled8 Scaled_value // scaled8 Scale
+    )
+        
 ```
 
 ## types of types
@@ -872,9 +904,11 @@ internal types, see
 # `dbl` will eat up many values that are integers, including `4`.
 X; one_of[int, dbl] = 4
 ...
-if x == int
-    print("X is an integer")
-elif x == dbl
+if
+(   x == int
+    {print("X is an integer")}
+)
+elif x == dbl ????
     print("X is a double")
 ```
 
