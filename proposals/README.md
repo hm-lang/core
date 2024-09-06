@@ -275,8 +275,8 @@ Long_implicitly_typed:
     6
 ]
 
-# declaring a long array that's typed:
-Long_explicitly_typed: array[int]
+# declaring a long array with an explicit type:
+Long_explicitly_typed: array[i32]
 (   5   # commas aren't needed here.
     6
     7
@@ -394,9 +394,13 @@ Evil_long_line: "this is going to be a long discussion ${
         Name}, can you confirm your availability?"
 # INSTEAD, use string concatenation:
 Good_long_line: "this is going to be a long discussion "
-        "${Name}, can you confirm your availability?"
+    +   "${Name}, can you confirm your availability?"
 
 # TODO: should this be a more general principle, e.g., `123 456 == 123456`?
+#       probably not, it breaks with named identifiers, e.g., `X: 123, Y: 456, X Y`
+#       tries to use implicit member access `X::Y`, and i don't want to overload.
+#       probably should just use `"string" + "concatenation"` as that's already
+#       a common idiom.
 
 # you can also nest interpolation logic, although this isn't recommended:
 Nested_interpolation: "hello, ${if (Condition) {Name} else 'World${"!" * 5}'}!"
@@ -561,7 +565,7 @@ My_array:   # OK, but...
         7
     ]
 # but note it's unnecessary because we also allow opening brackets
-# to get attached to the previous line.
+# to get attached to the previous line if the internals are indented.
 My_array:   # better!
 [   5
     6
@@ -618,8 +622,8 @@ Lot_variable;
 ]
 Lot_variable["Some_other_value"] = if Condition {543} else {"hello"}
 
-# This is different than the `Lot_variable` because it
-# is an instance of a `[Some_value: int, Other_value: str]` type,
+# This is different than the `Lot_variable` because it is an instance
+# of a `[Some_value: int, Other_value: str]` plain-old-data type,
 # which cannot have new fields added, even if it was mutable.
 Object_variable:
 [   Some_value: 100
@@ -634,7 +638,7 @@ line as an open parenthesis.
 ```
 Some_value:
 (       (20 + 45)
-    *   Continuing + The + Line + At_plus2Indent -
+    *   Continuing + The + Line + At_plus_2_indent -
         (       Nested * Parentheses / Are + Ok
             -   Too
         )
@@ -675,7 +679,14 @@ if they are multiline.
 ```
 if some_function_call
 (   X
-    Y: 3 + sin(Z)
+    Y: 3 + sin(X)   # default given for Y, can be given in terms of other arguments.
+    Available_digits:
+    [   1
+        3
+        5
+        7
+        9
+    ]
 )
     do_something()
 
@@ -684,15 +695,29 @@ defining_a_function_with_multiline_arguments
     Greeting: string
     Name: string("World")   # argument with a default
 ):  string                  # indent here is optional/aesthetic
-    # "return" is optional for the last line of the block:
+    # "return" is optional for the last line of the block,
+    # unless you're returning a multiline array/object.
     "${Greeting}, ${Name}! " * Times
 
 defining_a_function_with_multiline_return_values
 (   Argument0: int
-):  [   Value0: int
-        Value1: str
+):
+[   Value0: int     # you may need to add comments because
+    Value1: str     # the formatter may 1-line these otherwise
+]
+    # here we can avoid the `return` since the internal
+    # part of this object is not indented.
+    [Value0: Argument0 + 3, Value1: str(Argument0)]
+
+# ALTERNATIVE: multiline return statement
+defining_a_function_with_multiline_return_values
+(   Argument0: int
+):  [Value0: int, Value1: str]
+    # this needs to `return` since it looks like an indented block.
+    return
+    [   Value0: Argument0 + 3
+        Value1: str(Argument0)
     ]
-    return [Value0: Argument0 + 3, Value1: str(Argument0)]
 
 # if you're returning a multiline generic, be careful to indent at +1
 # from its starting identifier (`some_generic_type` here).
@@ -3404,10 +3429,10 @@ class first.
 
 ```
 x_and_y: [X: int, Y: dbl]
-{   ::my_method(): My X + int(round(My Y))
+{   ::my_method(): My X + round(My Y) Int
 }
 
-my_fn(Int): x_and_y(X: 5, Y: 3.0)
+my_fn(Int): x_and_y(X: Int + 5, Y: 3.0)
 ```
 
 ## example class definition
@@ -3415,6 +3440,7 @@ my_fn(Int): x_and_y(X: 5, Y: 3.0)
 ```
 parent_class: [Name: str]
 
+# example class definition
 example_class: parent_class
 [   # instance variables can be defined in this `[...]` block.
     # if they are public, a public constructor like `example_class(X;:. int)` will be created.
@@ -4760,8 +4786,8 @@ vector2: [X: dbl, Y: dbl]
 }
 
 # main.hm
-Vector2Module: \/vector2    # .hm extension must be left off.
-Vector2: Vector2Module vector2(X: 3, Y: 4)
+Vector2_module: \/vector2    # .hm extension must be left off.
+Vector2: Vector2_module vector2(X: 3, Y: 4)
 print(Vector2)
 # you can also destructure imports like this:
 {vector2}: \/vector2
@@ -5317,7 +5343,7 @@ Employee_ids: lot[at: int, str]
     # option 2.C
     [Jim1, 203]
     # WARNING! not a good option for 2; no equivalent of option 1.D here.
-    # Jim1: Jim1Id # WARNING, looks like option 1.C, which would define "Jim1" instead of "Jim C"
+    # Jim1: Jim1_id # WARNING, looks like option 1.C, which would define "Jim1" instead of "Jim C"
     # option 3: `X` syntax where `X` is a known variable, essentially equal to `@@X: X`
     Jim
 )
@@ -7280,6 +7306,16 @@ check(T?` ~t, Blockable[~u, declaring` t])?: u
 ```
 without some deep programming, we won't be able to have the option of doing things like
 `return X + Y`, since `return` breaks order of operations.
+
+TODO: to be consistent, should `function_case` do what `return` does always?  this
+would really change the syntax.
+```
+(min, ~T, Other T):
+    if T <= Other T {T} else {Other T}
+Min: (min Value_1, Value_2)
+```
+Not a big fan of this notation, since it would require getting rid of static variables
+(e.g., `min Value_1` looks like a static variable).
 
 # implementation
 
