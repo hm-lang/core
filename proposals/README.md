@@ -396,14 +396,15 @@ Evil_long_line: "this is going to be a long discussion ${
 Good_long_line: "this is going to be a long discussion "
     +   "${Name}, can you confirm your availability?"
 
-# TODO: should this be a more general principle, e.g., `123 456 == 123456`?
-#       probably not, it breaks with named identifiers, e.g., `X: 123, Y: 456, X Y`
-#       tries to use implicit member access `X::Y`, and i don't want to overload.
-#       probably should just use `"string" + "concatenation"` as that's already
-#       a common idiom.
+# TODO: do we want an operator like `'123' & '456'` which creates '123 456' (i.e., adds a space?)
+#       the operator could check both left and right strings for spaces and ensure only one is present
+#       in the end result, e.g., `'123   ' & ' 456'` is still '123 456'.
+#       this could also strip newlines, e.g., `'123\n \n' & '\n456'` is again '123 456'.
+#       it could also be used as a postfix or prefix operator, e.g., `&'   hi'` is 'hi'
+#       and `'hey\n  '&` is 'hey'.  not sure this is better than `'   hi' strip()` though.
 
 # you can also nest interpolation logic, although this isn't recommended:
-Nested_interpolation: "hello, ${if (Condition) {Name} else 'World${"!" * 5}'}!"
+Nested_interpolation: "hello, ${if Condition {Name} else {'World${"!" * 5}'}}!"
 ```
 
 ```
