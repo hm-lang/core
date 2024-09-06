@@ -93,12 +93,13 @@ window_event: one_of
     Timeout
 ]
 
-modifiers:
-[   Control: bool
-    Shift: bool
-    Meta: bool
-    Alt: bool
+modifiers[of]:
+[   Control: of
+    Shift: of
+    Meta: of
+    Alt: of
 ]
+modifiers: modifiers[bool]
 
 @referenceable_as(cpu_pixels, gpu_pixels)
 pixels: []
@@ -194,14 +195,14 @@ draw(From: (Pixels;, Rectangle), To: (Pixels;, Rectangle)): null
 # so that we copy from the other side of `From Pixels`.
 # similarly for `To` pixels.
 # Using `R` for Rectangle and `W` for `Wrap_within`:
-#   *---------------*   *---------------*
-#   |               |   |               |
-#   | R-----R       |   | DDDCCC        |       
-#   | |  W--+---W   |-->| BBBAAA        |       W------W   AAA*BBB
-#   | R--+--R   |   |   |               | where |      | = *******      
-#   |    |      |   |   |               |       |      |   CCC*DDD
-#   |    W------W   |   |               |       W------W
-#   *---------------*   *---------------*
+#   *---------------*   *---------------*                   *---------------*
+#   |               |   |               |                   |               |
+#   | R-----R       |   | DDDCCC        |                   |               |
+#   | |  W--+---W   | = | BBBAAA        |       W------W    |    AAA*BBB    |
+#   | R--+--R   |   |   |               | into  |      | =  |    *******    |
+#   |    |      |   |   |               |       |      |    |    CCC*DDD    |
+#   |    W------W   |   |               |       W------W    |               |
+#   *---------------*   *---------------*                   *---------------*
 draw
 (   From: (Pixels; Rectangle, Wrap_within: rectangle)
     To: (Pixels; Rectangle, Wrap_within: rectangle)
