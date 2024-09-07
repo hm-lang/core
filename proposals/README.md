@@ -514,7 +514,7 @@ another class's instance, like `int(My_number_string)` which converts `My_number
 (presumably a `string` type) into a big integer.
 
 There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
-`what`, `in`,
+`what`, `in`, `each`, `for`, `while`,
 which are function-like but may consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
@@ -5707,7 +5707,7 @@ range[of: number]: iterator[of]
         Null
 }
 
-for Index: in range(Less_than: index(10))
+for range(Less_than: index(10)) each Index:
     print(Index)
 # prints "0" to "9"
 ```
@@ -5966,7 +5966,7 @@ like `if` statements in hm-lang.
 ```
 Air_quality_forecast: ["good", "bad", "really bad", "bad", "ok"]
 Meh_days; 0
-for Quality: in Air_quality_forecast
+for Air_quality_forecast each Quality:
     what Quality
         "really bad"
             print("it's going to be really bad!")
@@ -6180,6 +6180,24 @@ from fewer primitives?  E.g., `while Condition, Do: {... Do exit(3) ...}`, where
 `do` is a thin wrapper over `block`?  or maybe `do, Loop: {... Loop exit(3) ...}`
 
 TODO: i think i like zig-like `for Iterator, Index:`-like syntax.
+but maybe to avoid overloading comma too much, let's do `for Iterator each Index:`.
+however there's not a good way to do this for `if Condition, Then[x]: {...}`.
+i'm not a big fan of `for Iterator, Index:` because that implies this is also fine:
+```
+for Iterator
+Index:
+    do_something(Index)
+```
+but i think this is ok:
+```
+if Condition
+Then[x]:
+    do_something()
+    Then exit(3)
+```
+I think there's not too much inconsistency here because `Iterator each` will probably
+be an overridable method, but `Condition Then` is almost never valid.
+
 
 ```
 # for-loop with counter that is readonly inside the for-loop's block:
@@ -6208,6 +6226,7 @@ for Special; int < 4
 Iterating_index; 3
 for Iterating_index < 7
     print(Iterating_index)
+    # the `for Iterating_index < N` logic will always increment `Iterating_index` on a `continue`.
 # prints 3, 4, 5, 6 each on new lines.
 assert(Iterating_index == 7)    # you can keep Iterating_index for use outside the for loop.
 
@@ -6224,23 +6243,20 @@ for Other_index: index(3), Other_index < 7
 #       probably `for Index;, update(Index;): Index += 2, while(Index): Index < 7`.
 #       this is probably too verbose, though.
 #       if we want to go Zig-like, we could do `for Iterator, Element: { ... }`.
-#       e.g., `for range(7), Index: { ... }`, or maybe `in range(7), Index: {...}`,
-#       or maybe even `range(7), Index: {...}`.
-#       not sure i like this because it introduces "captures" that we don't use in other places,
-#       e.g., `if Nullable, Non_null: ...` which is zig-like but we're using `if condition, Then:`...
-#       i suppose we can distinguish based on the type (e.g., `non_null` vs. `then`).
-#       the alternative is to embrace `range(7) iterate((Index): do_stuff(Index))`
+#       e.g., `for range(7, Skip: 2), Index: { ... }`, or maybe `in range(7, Skip: 2), Index: {...}`.
+# i think i really like this syntax: `for Array each Vector2:` which mirrors `if X is Y:`
 
 # for-loop iterating over non-number elements:
 vector2: [X: dbl, Y: dbl]
 Array[vector2]: [[X: 5, Y: 3], [X: 10, Y: 17]]
-for Vector2: in Array       # `for (Vector2:) in Array` also works.
+
+for Array each Vector2:
     print(Vector2)
 
 # if the variable is already declared, you avoid the declaration `:` or `;`:
 # NOTE the variable should be writable!
 Iterating_vector; vector2
-for Iterating_vector in Array
+for Array each Iterating_vector
     print(Iterating_vector)
 # this is useful if you want to keep the result of the last element outside the for-loop.
 ```
@@ -6458,7 +6474,7 @@ countdown: co[int]
 }
 
 # implicit usage
-for Int: in countdown(20)
+for countdown(20) each Int:
     print(Int)      # prints 19, 18, ..., 0
 
 # explicit usage
