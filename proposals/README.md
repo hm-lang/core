@@ -99,7 +99,8 @@ or `my_function(Int.): str` for a function which takes a temporary integer.
 This also works for generic classes like `my_generic[of]` where `of` is a template type;
 `my_function(My_generic[int];)` is short for `my_function(My_generic; my_generic[int])`.
 
-Class methods technically take an argument for `Me/My/I` everywhere, but instead of
+Class methods technically take an argument for `Me/My/I` everywhere, which is somewhat
+equivalent to `this` in C++ or JavaScript or `self` in python, but instead of
 writing `my_method(Me, X: int): str`, we can write `::my_method(X: int): str`.
 This parallels `my_class::my_method` in C++, but in hm-lang we can analogously use
 `my_class;;my_mutating_method` for a method that can mutate `Me`, i.e.,
@@ -129,16 +130,20 @@ If the `ok` and `uh` types are distinct, you don't need to wrap a return value i
 ## simplicity
 
 We don't require a different function name for each method to convert a result class
-into a new one, e.g., to transform the `ok` result or the `uh` error.  We simply
-use `map` for everything, with function overloading helping us out.
+into a new one, e.g., to transform the `ok` result or the `uh` error.  In hm-lang, we
+allow overloading, so converting a result from one type to another, or extracting a
+default value for an error, all use an overloaded `map` method, so there's no mental
+overhead here.  Since overloads are not possible in Rust, there is an abundance of methods, e.g.,
+[`Result::map_*` documentation](https://doc.rust-lang.org/std/result/enum.Result.html#method.map),
+which can be challenging to remember.  
 
 We also don't use a different concept for interfaces and inheritance.
 The equivalent of an interface in hm-lang is simply an abstract class.  This way
 we don't need two different keywords to `extend` or `implement` a class or interface.
 In fact, we don't use keywords at all; to just add methods (or class functions/variables),
-we use this syntax, `childClass: parentClass { ::extraMethods(): int, ... }`,
+we use this syntax, `child_class: parent_class { ::extra_methods(): int, ... }`,
 and to add instance variables to the child class we use this notation:
-`childClass: all_of[parentClass, [ChildX: int, ChildY: str]] { ... methods }`.
+`child_class: all_of[parentClass, [Child_x: int, Child_y: str]] { ... methods }`.
 
 ## safety
 
@@ -4960,12 +4965,51 @@ Result: if X { ok(3) } else { uh("oh no") }
 if Result is_ok()
     print("ok")
 
-# but it'd be nice to transform `Result` into the `Ok` value along the way.
+# but it'd be nice to transform `Result` into the `Ok` (or `Uh`) value along the way.
 Result is((Ok): print("Ok: ", Ok))
 Result is((Uh): print("Uh: ", Uh))
 
 # or if you're sure it's that thing, or want the program to terminate if not:
 Ok: Result or_panic("for sure")
+```
+
+We also allow this syntactic sugar for `is(fn(Ok): void): bool`:
+
+```
+Result is Ok:
+    print("Ok: ", Ok)
+```
+
+TODO: it might be nice to support this syntax for a bunch of things where we have
+`:.;some_method(fn(Value): ~t): t`, where we can use `X some_method Value: {...}`.
+However we may need to restrict it to a few keywords because `is Ok` looks like a
+static variable `Ok` on the `is` class (and `some_method Value` looks like
+a static variable `Value` on the `some_method` class).
+maybe restrict it to if `if` is at the start.
+
+```
+if Result is Ok:
+    print("Ok: ", Ok)
+
+example_class: [Value: int]
+{   ;:.large(fn(Int): ~t): t
+        if My Value > 999
+            return fn(My Value)
+        # if `fn` never triggers then can't return `t`
+        ...???
+
+    ;:.is(fn(Large): ~t): bool
+        # this "returns true" after we run `fn`,
+        # but ideally we'd do it before.
+        if My Value > 999
+            fn(Large)
+            return True
+        return False
+
+    # TODO: how do we do it with blocks?
+    #       or some other method that easily converts to a block?
+}
+
 ```
 
 ## assert
