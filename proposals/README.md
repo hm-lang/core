@@ -4992,22 +4992,20 @@ if Result is Ok:
     print("Ok: ", Ok)
 
 example_class: [Value: int]
-{   ;:.large(fn(Int): ~t): t
-        if My Value > 999
-            return fn(My Value)
-        # if `fn` never triggers then can't return `t`
-        ...???
-
-    ;:.is(fn(Large): ~t): bool
+{   :;.is(fn(Large:;.): ~t): bool
         # this "returns true" after we run `fn`,
         # but ideally we'd do it before.
         if My Value > 999
-            fn(Large)
+            fn(Large` My Value)
             return True
         return False
 
-    # TODO: how do we do it with blocks?
-    #       or some other method that easily converts to a block?
+    # `If` is probably a wrapper around `Block`.
+    :;.is(If[declaring: (Large:;. int), ~t]): t
+        if My Value > 999
+            If then(Declaring: (Large` My Value))
+        else
+            If else()
 }
 
 ```
