@@ -187,11 +187,9 @@ pixels: []
 # Copies from one set of pixels to another.
 # Note that the source pixels `From` must be modifiable in case they
 # need to be moved from/to the GPU, based on `To` being CPU/GPU pixels.
+# Because of the nested `From`/`To` fields, you can call this like
+# `draw(From Pixels; Source_pixels, From Rectangle: rectangle(...), ...)`
 draw(From: (Pixels;, Rectangle), To: (Pixels;, Rectangle)): null
-# TODO: we probably want to support Namespaces being used like this:
-#       `draw(From Pixels; Source_pixels, From Rectangle: rectangle(1,2,3,4), ...)`
-#       so we may want to rethink how shadowing works and being able to
-#       create any random namespace.  maybe use a different notation to prevent shadowing.
 
 # Copies from one set of pixels to another, with wrapping.
 # E.g., if `From Rectangle` is outside `From Wrap_within`,

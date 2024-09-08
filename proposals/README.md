@@ -517,14 +517,11 @@ There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
 `what`, `in`, `each`, `for`, `while`,
 which are function-like but may consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
-There are some reserved namespaces like `Old`, `New`, `Other`, `First`, `Second`,
-`Unused`, `Argument`, `Use`,
-and variables cannot be defined with these names.  Variables can be defined
-using these namespaces, e.g., as `Old Int`, `New X`, `Other Class_type`, or `Unused Z`.
-In particular, `First` and `Second`
-are reserved for binary operations like `&&` and `*`.
-See [namespaces](#namespaces) for more details.
-Other reserved keywords:
+There are some reserved namespaces with side effects like `@First`, `@Second`,
+`@Unused`, `@Named`,
+which should be used for their side effects.  For example, `@First` and `@Second`
+are reserved for binary operations like `&&` and `*`.  See [namespaces](#namespaces)
+for more details.  Other reserved keywords:
 * `new` for returning a class constructor, e.g., `my_function(): new[one_of[int, dbl]]`
 for returning either an `int` or `dbl` constructor.
 
@@ -539,7 +536,7 @@ e.g., `1_000_000` is the same as `1000000`, but highly recommended for large num
 Underscores in identifiers will automatically capitalize the next letter, so
 `my_function` is the same as `my_function`, and `_count` is the same as `Count`.
 Numbers are ignored, so `x_1` is the same as `x1`.  Trailing underscores are not allowed;
-if you want to annotate a variable as unused, use the `Unused` namespace.
+if you want to annotate a variable as unused, use the `@Unused` namespace.
 
 ## blocks
 
@@ -1150,28 +1147,34 @@ my_function(X: int): int
 ```
 
 The way to get around this is to use a namespace for one or both conflicts.
-Namespaces look like objects with field names, e.g., `My_namespace My_variable_name`,
-but where `My_namespace` isn't an existing variable name.  hm-lang will infer that
-it's a namespace if it's in the arguments of a function declaration.
+Namespaces look like `Variable_case` annotations with a field name, e.g.,
+`@My_namespace My_variable_name`, where `My_namespace` doesn't already need
+to be defined.  You normally use these in function arguments, but they can
+annotate any variable that you're declaring.  Any future references to the
+variable require using the namespace as well.  It is recommended to namespace
+the "outer" variable so you don't accidentally use it in the inner scope.
 
 ```
-my_function(X: int): int
+my_function(@Outer X: int): int
     # nested function is OK due to namespace:
-    do_stuff(Other X: int): null
-        print(Other X)
-    do_stuff(X)
-    do_stuff(X: X // 2)
-    do_stuff(X: X // 4)
+    do_stuff(X: int): null
+        # inner scope, any usage of `@Outer X` would be clearly intentional.
+        print(X)
+    do_stuff(@Outer X)
+    do_stuff(X: @Outer X // 2)
+    do_stuff(X: @Outer X // 4)
     X // 8
 ```
 
-While shadowing is not allowed, you can use `@hide` to ensure you don't use the
+If it's difficult to namespace the outer variable (e.g., because you don't
+want to delta many lines), you can use `@hide` to ensure you don't use the
 other value accidentally.
 
 ```
 my_function(X: int): int
     # nested function is OK due to namespace:
-    do_stuff(Other X: int): null
+    do_stuff(@Other X: int): null
+        # inner scope, usage of `X` might be accidental, so let's hide:
         @hide X
         ...
         print(X)    # COMPILE ERROR, `X` was hidden from this scope.
@@ -1188,52 +1191,47 @@ in the current space.  This might be useful in a class method like this:
 ```
 my_class: [X; dbl]
 {   # this is a situation where you might like to use namespaces.
-    ;;do_something(New X. dbl): dbl
+    ;;do_something(@New X. dbl): dbl
         # this is what `;;x(X. dbl): dbl` might be internally.
-        # defines a variable `X` in the namespace `Old`:
-        Old X: X!
-        X = New X
-        Old X
+        # defines a variable `X` in the namespace `@Old`:
+        @Old X: X!
+        X = @New X
+        @Old X
 }
 ```
 
 One of the most convenient uses for namespaces is the ability to use elide argument
 names when calling functions.  E.g., if you have a function which takes a variable named `X`,
 but you already have a different one in scope, you can create a new variable with a namespace
-`Example_namespace X: My_new_x_value` and then pass it into the function as
-`my_function(Example_namespace X)` instead of `my_function(X: Example_namespace_x)`.
+`@Example_namespace X: My_new_x_value` and then pass it into the function as
+`my_function(@Example_namespace X)` instead of `my_function(X: @Example_namespace_x)`.
 This also works with default-named variables.
 
 ```
-some_function(Input Index): null
-    # `Input Index` is a default-named variable of type `index`, but we refer to it
-    # within this scope using `Input Index`.
+some_function(@Input Index): null
+    # `@Input Index` is a default-named variable of type `index`, but we refer to it
+    # within this scope using `@Input Index`.
     even(Index): bool
         Index % 2 == 0
-    # you can define other namespaces inline as well, like `Another` here:
-    for Another Index: index < Input Index
-        if even(Another Index)
-            print(Another Index)
+    # you can define other namespaces inline as well, like `@Another` here:
+    for @Another Index: index < @Input Index
+        if even(@Another Index)
+            print(@Another Index)
         
 X: index = 100
 some_function(X)     # note that we don't need to call as `some_function(Index: X)` or `some_function(Input Index: X)`.
 ```
 
-You can use the same namespace for multiple variables, e.g., `Input Rune` and `Input String`,
+You can use the same namespace for multiple variables, e.g., `@Input Rune` and `@Input String`,
 as long as the variable names don't overlap.  Like the member access operators below, the
 namespace operator binds left to right.
 
-There are some reserved namespaces which cannot be used as variable names, e.g., `Old`, `New`,
-`Other`, `Unused`.
-
 ### full list of reserved namespaces
 
-* `New`
-* `Old`
-* `First` - for the first operand in a binary operation (where order matters)
-* `Second` - for the second operand in a binary operation (where order matters)
-* `Unused` - for variables that aren't used in this block
-* `Use` - for identifiers that should be explicitly named in [generic arguments](#argument-type-generics)
+* `@First` - for the first operand in a binary operation (where order matters)
+* `@Second` - for the second operand in a binary operation (where order matters)
+* `@Unused` - for variables that aren't used in this block
+* `@Named` - for identifiers that should be explicitly named in [generic arguments](#argument-type-generics)
     or kept for field names in [generic objects](#default-field-names-with-generics).
 
 
@@ -2971,18 +2969,19 @@ The danger is that your overload may change based on your return variable
 name; but this is usually desired, e.g., `Old Count: Array count(1000) assert()`
 if you care to get the old count of an array.
 
-IMPLEMENTATION NOTE: `Old_count: ... assert()` will require passing through
-the `[Old_count: count]` return value through the result `hm[ok: [Old_count: count], ...]`
+IMPLEMENTATION NOTE: `Old Count: ... assert()` will require passing through
+the `[Old: [Count: count]]` return value through the result `hm[ok: [Old: [Count]], ...]`
 via `assert()`.  This is probably difficult!
 
 SFO effectively makes any `x` return type into a `[X: x]` object.  This means
 that overloads like `patterns(): i32` and `patterns(): [I32]` would actually
 conflict; trying to define both would be a compile error.
 
-TODO: we probably can have `x(New: x): null` overloads where we don't need
-to always swap out the old value (e.g., `x(New X: x): x`.  If we want to readopt
+TODO: we probably can have `x(@New X: x): null` overloads where we don't need
+to always swap out the old value (e.g., `x(@New X: x): x`.  If we want to readopt
 SFO, we should make it clear by requiring setters to return the old value only
-if `x(New X: x): [Old_x: x]` is used.
+if `x(@New X: x): [Old X]` is used.  Here no annotation on `Old` is desired, since
+we mean `[Old: [X: x]]` for `[Old X]`.
 
 ### `arguments` class
 
@@ -3289,12 +3288,12 @@ copy[dbl](Value: 3)     # will return `3.0`
 You can also have named generic types, i.e., use a name instead of `of`.
 Note that for the function argument to remain `Value: XYZ`, then we need
 to explicitly tell the compiler that we don't want default names to apply,
-which we do using the `Use` namespace.
+which we do using the `@Named` namespace.
 
 ```
-copy[value](Use Value): value
+copy[value](@Named Value): value
     ...
-    value(Use Value)
+    value(@Named Value)
 
 # it can be called like this, which implicitly infers `value`:
 copy(Value: 3)  # returns the integer `3`
@@ -3350,7 +3349,7 @@ logger(3)   # returns the integer `3`
 logger[dbl](3)     # will return `3.0`
 ```
 
-If we have a named generic type, we simply do not include a `Use` namespace
+If we have a named generic type, we simply do not include a `@Named` namespace
 on the argument, so default names can apply.
 
 ```
@@ -3921,14 +3920,14 @@ just_moddable: [@invisible Some_var; int]
     #(#
     # the following swapper becomes automatically defined:
     ;;some_var(Int;.): null
-        My some_var((Old Int;): null
-            Int <-> Old Int
+        My some_var((@Old Int;): null
+            Int <-> @Old Int
         )
 
     # the following temp modifier becomes automatically defined:
     ;;some_var(Int.): null
-        My some_var((Old Int;): null
-            Old Int = Int!
+        My some_var((@Old Int;): null
+            @Old Int = Int!
         )
 
     # and the following move+reset method becomes automatically defined:
@@ -4228,7 +4227,7 @@ like this: `my_single_generic_class[int] my_class_function(...)` or
 `my_multi_generic_class[type1: int, type2: str] other_class_function()`.
 
 ```
-# TODO: either use `[Use Id]` or `[@use Id]` or change discussion in
+# TODO: either use `[@Named Id]` or `[@use Id]` or change discussion in
 # "default field names with generics" back to what it was.
 # create a class with two generic types, `id` and `value`:
 generic_class[id, value]: [Id, Value]
@@ -4487,9 +4486,9 @@ While it looks like there could be some internal confusion, e.g., if a `lot[at: 
 stores a list of `[At, Of]` objects, we always know how to refer to them inside the
 generic class as `My_object At` and `My_object Of`.
 
-If you want to make sure that the name of the type remains, use the namespace `Use` like
-this: `generic[of]: [Use Of]`, which will make `generic[int]` equivalent to `[Of: int]`.
-This may also be helpful with internals for a `lot[of, at]`, like `[Use At, Use Of]`,
+If you want to make sure that the name of the type remains, use the namespace `@Named` like
+this: `generic[of]: [@Named Of]`, which will make `generic[int]` equivalent to `[Of: int]`.
+This may also be helpful with internals for a `lot[of, at]`, like `[@Named At, @Named Of]`,
 in case they ever leave the class and could be consumed by someone else.
 
 TODO: are we sure about this?  inconsistency here isn't the worst thing
@@ -6311,11 +6310,11 @@ block[of, declaring: null]:
 {   # exits the `indent` with the corresponding `of` value.  example:
     #   Value; 0
     #   what indent((Block[str]): never
-    #       Old Value: Value
+    #       @Old Value: Value
     #       Value = Value // 2 + 9
     #       # sequence should be: 0, 9, 4+9=13, 6+9=15, 7+9=16, 8+9=17
-    #       if Old Value == Value
-    #           Block exit("exited at ${Old Value}")
+    #       if @Old Value == Value
+    #           Block exit("exited at ${@Old Value}")
     #       # note we need to `loop` otherwise we won't satisfy the `never`
     #       # part of the indent function.
     #       Block loop()
@@ -6507,9 +6506,9 @@ before the function name.
 ```
 some_very_long_running_function(Int): string
     Result; ""
-    for New Int < Int
-        sleep(Seconds: New Int)
-        Result += str(New Int)
+    for @New Int < Int
+        sleep(Seconds: @New Int)
+        Result += str(@New Int)
     Result
 
 # this uses the default `string` return value:
