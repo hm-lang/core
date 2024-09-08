@@ -228,7 +228,7 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         i.e., eliding duplicate entries like `(X: X, Y: Y)`.
 * [Horstmann indentation](https://en.wikipedia.org/wiki/Indentation_style#Horstmann) to guide
     the eye when navigating multiline braces/brackets/parentheses
-* operators:
+* operators that diverge from some common languages:
     * `**` and `^` for exponentiation
     * `&|` at the start of each text slice to create a multiline string.
     * `<>` for bit flips on integer types
@@ -300,11 +300,11 @@ Votes_lot; lot[at: str, int]("Cake": 5, "Donuts": 10, "Cupcakes": 3)
 # We can also infer types implicitly via one of the following:
 #   * `Votes_lot; lot(["Cake": 5, ...])`
 #   * `Votes_lot; ["Cake": 5, ...]`
-Votes_lot["Cake"]        # 5
-++Votes_lot["Donuts"]    # 11
-++Votes_lot["Ice Cream"] # inserts "Ice Cream" with default value, then increments
-Votes_lot["Cupcakes"]!   # deletes from the Lot (but returns `3`)
-Votes_lot::["Cupcakes"]  # Null
+Votes_lot["Cake"]           # 5
+++Votes_lot["Donuts"]       # 11
+++Votes_lot["Ice Cream"]    # inserts "Ice Cream" with default value, then increments
+Votes_lot["Cupcakes"]!      # deletes from the Lot (but returns `3`)
+Votes_lot::["Cupcakes"]     # Null
 # now Votes_lot == ["Cake": 5, "Donuts": 11, "Ice Cream": 1]
 ```
 
@@ -315,13 +315,13 @@ My_set: set[element_type]
 # defining a writable set:
 Some_set; set[str]("friends", "family", "fatigue")
 # We can also infer types implicitly via the following:
-#   * `Some_set; set(["friends", ...])`
-Some_set::["friends"]    # `True`
-Some_set::["enemies"]    # Null (falsy)
-Some_set["fatigue"]!     # removes "fatigue", returns `True` since it was present.
-                        # Some_set == [str]["friends", "family"].
-Some_set["spools"]       # adds "spools", returns Null (wasn't in the set)
-                        # Some_set == [str]["friends", "family", "spools"]
+#   * `Some_set; set("friends", ...)`
+Some_set::["friends"]   # `True`
+Some_set::["enemies"]   # Null (falsy)
+Some_set["fatigue"]!    # removes "fatigue", returns `True` since it was present.
+                        # Some_set == set("friends", "family")
+Some_set["spools"]      # adds "spools", returns Null (wasn't in the set)
+                        # Some_set == set("friends", "family", "spools")
 ```
 
 ```
@@ -5669,9 +5669,6 @@ Like the IDs in lots, items added to a set become deeply constant,
 even if the set variable is writable.
 
 TODO: discussion on `insertion_ordered_set` and `unordered_set`, if we want them.
-
-To define a set quickly, use the notation `[str]["hello", "world"]`, where the
-initial `[str]` should be the type of whatever element is in the set.
 
 TODO: make it easy to pass in a set as an argument and return a lot with e.g. those IDs.
   maybe this isn't as important as it would be if we had a dedicated object type.
