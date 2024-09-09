@@ -5008,13 +5008,23 @@ if Result is Ok:
     print("Ok: ", Ok)
 
 example_class: [Value: int]
-{   :;.is(fn(Large:;.): ~t): bool
-        # this "returns true" after we run `fn`,
-        # but ideally we'd do it before.
+{   # the standard way to use this method uses syntax sugar:
+    #   if Example_class is Large:
+    #       print("was large: ${Large}")
+    #
+    # but you can also call this directly:
+    #   (Large)?; Example_class is()
+    #   what Large
+    #       Null
+    #           print("not large")
+    #       Int:
+    #           print("Large: ${Int}")
+    #
+    # the method uses return overloading.
+    :;.is()?: (Large:;.)
         if My Value > 999
-            fn(Large` My Value)
-            return True
-        return False
+            return (Large` My Value)
+        return Null
 
     # `If` is probably a wrapper around `Block`.
     :;.is(If[declaring: (Large:;. int), ~t]): t
