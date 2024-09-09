@@ -5569,21 +5569,14 @@ insertion_ordered_lot[at, of]: lot[at, of]
         else
             fn(Null)
     
-    ::for_each(Loop fn(At, Of): loop): null
+    ::each(@Loop fn(At, Of): loop): bool
         Index; My Indexed_lot[0] Next
         while Index != 0
-            {Of:, At:} = My Indexed_lot[Index] or_panic("broken invariant!")
-            For_loop: Loop fn(At, Of)
-            if For_loop == loop Break
-                break
+            [Of, At]: My Indexed_lot[Index] or_panic("broken invariant!")
+            if @Loop fn(At, Of) == Break
+                return True
             Index = My Indexed_lot[Index] Next
-        # mostly equivalent to using nested functions to avoid copies:
-        #   For_loop: My Indexed_lot[Index, (Indexed_lot_element?):
-        #       if Indexed_lot_element == Null
-        #           error("insertion-ordered Lot invariant was broken")
-        #       Index = Indexed_lot_element Next
-        #       return Loop fn(Indexed_lot_element At, Indexed_lot_element Of)
-        #   ]
+        return False
 
     # modifier for a ID'd value not yet in the lot, need to insert a default first:
     @private
