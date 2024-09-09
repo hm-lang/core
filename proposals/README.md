@@ -1214,7 +1214,7 @@ some_function(@Input Index): null
     even(Index): bool
         Index % 2 == 0
     # you can define other namespaces inline as well, like `@Another` here:
-    for @Another Index: index < @Input Index
+    range(@Input Index) each @Another Index:
         if even(@Another Index)
             print(@Another Index)
         
@@ -2035,9 +2035,9 @@ an inline function to pass into the other function.
 # finds the integer input that produces "hello, world!" from the passed-in function, or -1
 # if it can't find it.
 detect(greet(Int): string): int
-    for Check: int < 100
-        if greet(Check) == "hello, world!"
-            return Check
+    range(100) each @Check Int:
+        if greet(@Check Int) == "hello, world!"
+            return @Check Int
     return -1
 
 # if your function is named the same as the function argument, you can use it directly:
@@ -2247,7 +2247,8 @@ greet(Say: string, To: string): null
     print("${Say}, ${To}!")
 
 greet(Say: string, To: string, Times: int): null
-    for Count: int < Times
+    # TODO: maybe `range(Times) each {greet(Say, To)}`?
+    range(Times) each @Unused Int:
         greet(Say, To)
 
 # so you call this in different ways:
@@ -2272,7 +2273,7 @@ Name modifiers (i.e., `;`, `:`, and `?`) also count as different overloads.
 fibonacci(Times: int): int
     Previous; 1
     Current; 0
-    for Count: int < Times
+    range(Times) each Int:
         Next_previous: Current
         Current += Previous
         Previous = Next_previous
@@ -2969,9 +2970,9 @@ The danger is that your overload may change based on your return variable
 name; but this is usually desired, e.g., `Old Count: Array count(1000) assert()`
 if you care to get the old count of an array.
 
-IMPLEMENTATION NOTE: `Old Count: ... assert()` will require passing through
+IMPLEMENTATION NOTE: `Old Count: ... assert()` will require inferring through
 the `[Old: [Count: count]]` return value through the result `hm[ok: [Old: [Count]], ...]`
-via `assert()`.  This is probably difficult!
+via `assert()`.  This may be difficult for more complicated expressions.
 
 SFO effectively makes any `x` return type into a `[X: x]` object.  This means
 that overloads like `patterns(): i32` and `patterns(): [I32]` would actually
@@ -2985,7 +2986,23 @@ we mean `[Old: [X: x]]` for `[Old X]`.
 
 ### `arguments` class
 
-TODO: `arguments[of]` has methods like `count()` and `[Index]` and `[Index]!`
+Variadic functions are possible in hm-lang using the `arguments[of]` class.
+We recommend only one class type, e.g., `arguments[int]` for a variable number
+of integers, but you can allow multiple classes via e.g. `arguments[one_of[x, y, z]]`
+for classes `x`, `y`, and `z`.  hm-lang disallows mixing `arguments` with any
+other arguments.  The `arguments` class has methods like `::count()`, `;:[Index]`,
+and `;;[Index]!`.  Thus, `arguments` is effectively a fixed-length array, but you
+can modify the contents if you pass as `Arguments[type];`.  It is guaranteed that
+there is at least one argument, so `Arguments[0]` is always defined.
+
+```
+max(Arguments[int]): int
+    Max; Arguments[0]
+    range(1, Arguments count()) each Index:
+        if Arguments[Index] > Max
+            Max = Arguments[Index]
+    Max  
+```
 
 ### dynamically determining arguments for a function
 
@@ -4047,7 +4064,7 @@ you can make it simpler like this instead:
 horse: all_of[animal, [Owner: str]]
 {   # this passes `Name` to the `animal` constructor and sets `Owner` on self:
     ;;renew(Animal Name: str, My Owner: str, Neigh_times: int = 0)
-        for Int: int < Neigh_times
+        range(Neigh_times) each @Unused Int:
             This speak()
 
     ::speak(): null
@@ -5313,13 +5330,13 @@ count is unknown at compile time, the fixed-count array will be defined on the h
 ```
 # note you can use an input argument to define the return type's
 # fixed-array count, which is something like a generic:
-range(Count): array[int, Count]
+count_up(Count): array[int, Count]
     Result; array[int, Count]
-    for I: index < Count
+    range(Count) each I:
         Result[I] = I
     return Result
 
-print(range(10))    # prints [0,1,2,3,4,5,6,7,8,9]
+print(count_up(10))    # prints [0,1,2,3,4,5,6,7,8,9]
 ```
 
 ### possible implementation
@@ -5685,7 +5702,7 @@ and `from` selects multiple (or no) IDs from the set (`k from ids(o)`).
 For example, here is a way to create an iterator over some incrementing values:
 
 ```
-range[of: number]: iterator[of]
+my_range[of: number]: iterator[of]
 {   @private
     Next_value: of = 0
 
@@ -5703,7 +5720,7 @@ range[of: number]: iterator[of]
         Null
 }
 
-for range(Less_than: index(10)) each Index:
+my_range(Less_than: index(10)) each Index:
     print(Index)
 # prints "0" to "9"
 ```
@@ -5763,38 +5780,36 @@ array_iterator[of]: iterator[of]
 ```
 
 We can also directly define iterators on the container itself.
-We shouldn't need to define both the `iterator` version and the `for_each` version;
-we should be able to translate one into the other.
-TODO: think of a good mechanism for this.
+We don't need to define both the `iterator` version and the `each` version;
+the compiler can infer one from the other.  We write the `each` option
+as a method called `each`.
 
 ```
 array[of]: []
-{   # const iteration, with no-copy if possible:
-    ::for_each(fn(Of): loop): null
-        for Index: index < My count()
-            # use the no-copy getter, here:
-            # explicit:
-            For_loop: My[Index, fn]
-            # implicit:
-            For_loop: fn(My[Index];)
-            if For_loop == loop Break
+{   # TODO: technically this should be a `Block`, right?
+    ::each(fn(Of): loop): null
+        # TODO: not excited by `range` but it's pretty accepted.
+        #       is `over` or `in` any better? `in(3) each Index:`
+        #       `over(5) each Index`
+        #       i think as soon as we start adding named values it doesn't work.
+        #       `over(StartAt: 3, LessThan: 5)`; here `range` is better.
+        #       `range(StartAt: 3, LessThan: 5)`
+        #   can we just make `Count` have an `each`?
+        #   e.g., `count::each()` just goes from 0 to Count-1 ?
+        My count() each Index:
+            if fn(My[Index]) == Break
                 break
 
     # no-copy iteration, but can mutate the array.
-    ;;for_each(fn(Of;): loop): null
-        for Index: index < My count()
-            # do a swap on the value based on the passed in function:
-            # explicit:
-            For_loop: My[Index, fn]
-            # implicit:
-            For_loop: fn(My[Index];)
-            if For_loop == loop Break
+    ;;each(fn(Of;): loop): null
+        My count() each Index:
+            if fn(My[Index];) == Break
                 break
 
     # mutability template for both of the above:
-    ;:for_each(fn(Of;:): loop): bool
-        for Index: index < My count()
-            if My[Index, fn] == Break
+    ;:each(fn(Of;:): loop): bool
+        My count() each Index:
+            if fn(My[Index];:) == Break
                 return True
         return False
 }
@@ -5962,7 +5977,7 @@ like `if` statements in hm-lang.
 ```
 Air_quality_forecast: ["good", "bad", "really bad", "bad", "ok"]
 Meh_days; 0
-for Air_quality_forecast each Quality:
+Air_quality_forecast each Quality:
     what Quality
         "really bad"
             print("it's going to be really bad!")
@@ -6169,92 +6184,72 @@ Arrays have order-dependent hashes, since `[1, 2]` should be considered differen
 but the lot `["hi": 1, "hey": 2]` should be the same as `["hey": 2, "hi": 1]` (different
 insertion order, but same contents).
 
-## for loops
+## for-each loops
 
 TODO: Can we write other conditionals/loops/etc. in terms of `indent/block` to make it easier to compile
 from fewer primitives?  E.g., `while Condition, Do: {... Do exit(3) ...}`, where
 `do` is a thin wrapper over `block`?  or maybe `do, Loop: {... Loop exit(3) ...}`
 
-TODO: i think i like zig-like `for Iterator, Index:`-like syntax.
-but maybe to avoid overloading comma too much, let's do `for Iterator each Index:`.
-however there's not a good way to do this for `if Condition, Then[x]: {...}`.
-i'm not a big fan of `for Iterator, Index:` because that implies this is also fine:
-```
-for Iterator
-Index:
-    do_something(Index)
-```
-but i think this is ok:
-```
-if Condition
-Then[x]:
-    do_something()
-    Then exit(3)
-```
-I think there's not too much inconsistency here because `Iterator each` will probably
-be an overridable method, but `Condition Then` is almost never valid.
-
+hm-lang doesn't have `for` loops but instead uses `each` syntax on an iterator.
+The usual syntax is `Iterator each Iterand;:. {do_something(Iterand)}`.  If your
+iterand variable is already defined, you should use `Iterator each Iterand {...}`.
+Note that all container classes have an `each` method defined, and some
+"primitive" classes like the `count` class do as well.
 
 ```
-# for-loop with counter that is readonly inside the for-loop's block:
-for Value: int < 10
-    # Value goes from 0 to 9 by 1;
-    # Value is not allowed to be mutated (defined with `:`).
-    # trying to mutate it throws a compiler error.
-    print(Value)
-# prints "0" to "9" on separate newlines.
+# iterating from 0 to `Count - 1`:
+Count: 5
+Count each Int:
+    print(Int)  # prints 0 to 4 on successive lines
 
-# for-loop whose counter can be modified inside the block.
-# not recommended, since it's a bit harder to reason about.
-for Special; int < 4
-    print("A:${Special}")
-    ++Special
-    print("B:${Special}")
-    ++Special
-# prints "A:0", "B:1", "A:3", "B:4"     # notice skip from B:1 to A:3 as `Special`
-# increments on its own because of the for-loop iteration logic.  Note also the
-# possibly undesired behavior that `Special` becomes >= 4 inside the for-loop block.
-# Prefer while loops here to be explicit about when/how the incrementing occurs.
+# iterating over a range:
+range(1, 10) each Int:
+    print(Int)  # prints 1 to 9 on successive lines.
 
-# you can do a for-loop with an existing variable.
-# this allows you to start at a different value, and keep the last value from the for loop.
-# NOTE the variable should be writable!
-Iterating_index; 3
-for Iterating_index < 7
-    print(Iterating_index)
-    # the `for Iterating_index < N` logic will always increment `Iterating_index` on a `continue`.
-# prints 3, 4, 5, 6 each on new lines.
-assert(Iterating_index == 7)    # you can keep Iterating_index for use outside the for loop.
-
-# you can also inline the variable's starting value,
-# but this means you don't have access to the variable outside the for loop (probably for the best).
-for Other_index: index(3), Other_index < 7
-    # note that `Other_index` is readonly inside this block, but will be updated by the for loop.
-    print(Other_index)
-
-# TODO: consider if we want to add `Other_index += 2` logic; i'm not the biggest fan of it.
-#       i'd prefer it go in the middle, but that would probably confuse people
-#       we also could do something like `for Index <= 7, $Index += 2` where we define updates
-#       via a function so that we can distinguish...  what would be the best "named" way to do things?
-#       probably `for Index;, update(Index;): Index += 2, while(Index): Index < 7`.
-#       this is probably too verbose, though.
-#       if we want to go Zig-like, we could do `for Iterator, Element: { ... }`.
-#       e.g., `for range(7, Skip: 2), Index: { ... }`, or maybe `in range(7, Skip: 2), Index: {...}`.
-# i think i really like this syntax: `for Array each Vector2:` which mirrors `if X is Y:`
-
-# for-loop iterating over non-number elements:
+# iterating over non-number elements:
 vector2: [X: dbl, Y: dbl]
 Array[vector2]: [[X: 5, Y: 3], [X: 10, Y: 17]]
 
-for Array each Vector2:
+Array each Vector2:
     print(Vector2)
 
 # if the variable is already declared, you avoid the declaration `:` or `;`:
 # NOTE the variable should be writable!
 Iterating_vector; vector2
-for Array each Iterating_vector
+Array each Iterating_vector
     print(Iterating_vector)
 # this is useful if you want to keep the result of the last element outside the for-loop.
+```
+
+You can get the result of an `each` operation but this only really
+makes sense if the `each` block has a `break` command in it.
+Like `return`, `break` can pass a value back.
+
+```
+# Result needs to be nullable in case the iteration doesn't break anything.
+Result?: range(123) each Int:
+    if Int == 120
+        break Int
+
+# you can use an `else` which will fire if the iterator doesn't have
+# any values *or* if the iteration never hit a `break` command.
+# in this case, `Result` can be non-null.
+Result: range(123) each Int:
+    if Int == 137
+        break Int
+else
+    44
+```
+
+Of course, you can use the `else` block even if you don't capture a result.
+
+```
+range(123) each Int:
+    print(Int)
+    if Int == 500
+        break
+else
+    print("only fires if `break` never occurs")
 ```
 
 # printing and echoing output
@@ -6271,7 +6266,7 @@ array[of]: []
             return print("[]")
         print("[")
         with indent():
-            for Of: in Me
+            Me each Of:
                 print(Of)
         print("]")
 }
@@ -6406,7 +6401,7 @@ my_function(X: int, Block[str]): never
         if Y == 123
             Block exit("123")    # early return from `my_function`
         Y dbl() or_panic()
-    for Y: int < X
+    range(X) each Y:
         inner_function(Y)
     Block exit("normal exit")
 
@@ -6416,7 +6411,7 @@ my_function(X: int), Block[str]:
         if Y == 123
             Block exit("123")    # early return from `my_function`
         Y dbl() or_panic()
-    for Y: int < X
+    range(X) each Y:
         inner_function(Y)
     "normal exit"
 ```
@@ -6470,7 +6465,7 @@ countdown: co[int]
 }
 
 # implicit usage
-for countdown(20) each Int:
+countdown(20) each Int:
     print(Int)      # prints 19, 18, ..., 0
 
 # explicit usage
@@ -6506,7 +6501,7 @@ before the function name.
 ```
 some_very_long_running_function(Int): string
     Result; ""
-    for @New Int < Int
+    range(Int) each @New Int:
         sleep(Seconds: @New Int)
         Result += str(@New Int)
     Result
