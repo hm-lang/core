@@ -191,7 +191,7 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         of strings mapped to integers.  See [generic/template classes](#generictemplate-classes).
     * For generic/template functions with type constraints, e.g., `my_function[of: non_null](X: of, Y: int): of`
         where `of` is the generic type.  See [generic/template functions](#generictemplate-functions) for more.
-    * `[Greeting: str, Times: int] destructure_me()` to do destructuring of a return value
+    * `[Greeting: str, Times: int] = destructure_me()` to do destructuring of a return value
         see [destructuring](#destructuring).
     * `A @[x(), Y]` to call `A x()` then `A Y` with [sequence building](#sequence-building)
         and return them in an object with fields `X` and `Y`, i.e., `[X: A x(), Y: A Y]`.
@@ -215,6 +215,9 @@ memory, these safe functions are a bit more verbose than the unchecked functions
         * `$(...)` as shorthand for a new block defining `(...)`, e.g., an argument object:
             `Result: if X > Y $(Max: X, Min: Y) else $(Min: X, Max: Y)`
         * note that (outside of a string) `${...}` is functionally the same as `{...}`.
+            TODO: we could make this become a zero-argument lambda function body declaration.
+            e.g., `do_something(${print(X), return 5})`.  or maybe we can assume that anyway
+            with `do_something({print(X), return 5})`.
     * `My_array map($Int * 2 + 1)` to create a [lambda function](#functions-as-arguments)
         which will iterate over e.g., `My_array: [1, 2, 3, 4]` as `[3, 5, 7, 9]`.
         * Lambda arguments need to specify which scope they attach to, by increasing
@@ -1333,7 +1336,7 @@ so that operations like `A B[C]^3` mean `((A::B)[C])^3`.
 
 Note that `something() Nested_field` becomes `(something())::Nested_field` due to
 the function call having higher precedence.  (You can also use destructuring if you want
-to keep a variable for multiple uses: `{Nested_field}: something()`.)
+to keep a variable for multiple uses: `[Nested_field]: something()`.)
 
 ## prefix and postfix question marks `?`
 
@@ -2516,10 +2519,10 @@ that's happening.
 
 If there are multiple return arguments, i.e., via an output type data class,
 e.g., `[X: dbl, Y: str]`, then we support [destructuring](#destructuring)
-to figure out which overload should be used.  E.g., `{X, Y}: my_overload()` will
+to figure out which overload should be used.  E.g., `[X, Y]: my_overload()` will
 look for an overload with outputs named `X` and `Y`.  Due to
 [single field objects](#single-field-objects) (SFO), `X: my_overload()` is
-equivalent to `{X}: my_overload()`.  You can also explicitly type the return value,
+equivalent to `[X]: my_overload()`.  You can also explicitly type the return value,
 e.g., `Some Int: my_overload()` or `R: my_overload() Dbl`,
 which will look for an overload with an `int` or `dbl` return type, respectively.
 
@@ -2861,21 +2864,28 @@ so we can never pass a temporary argument (e.g., `Arg. str`) into `next_generato
 ### destructuring
 
 If the return type from a function has multiple fields, we can grab them
-using the notation `{Field1:, Field2;, Field3=} do_stuff()`, where `do_stuff` has
+using the notation `[Field1:, Field2;, Field3] = do_stuff()`, where `do_stuff` has
 a function signature of `(): [Field1: field1, Field2: field2, Field3: field3, ...]`,
 and `...` are optional ignored return fields.  In the example, we're declaring
 `Field1` as readonly, `Field2` as writable, and `Field3` is an existing variable
 that we're updating (which should be writeable), but any combination of `;`, `:`,
 and `=` are possible.  The standard case, however, is to declare (or reassign) all
-variables at the same time, which can be done with `{Field1, Field2}: do_stuff()`
-(`{Field1, Field2}; do_stuff()`) for readonly (writeable) declaration + assignment,
-or `{Field1, Field2} = do_stuff()` for reassignment.
+variables at the same time, which can be done with `[Field1, Field2]: do_stuff()`
+(`[Field1, Field2]; do_stuff()`) for readonly (writeable) declaration + assignment,
+or `[Field1, Field2] = do_stuff()` for reassignment.
+
+If the returned fields are references (and we don't want to copy them into local variables),
+we can use parentheses in an analogous way:  `(Ref1:, Ref2;, Ref3) = do_stuff()`,
+or `(Ref1, Ref2);: do_stuff()` for writable (`;`) or readonly (`:`) references.
+TODO: this doesn't work with lambdas; i want to keep `(X): do_something(X, Y)` for lambdas.
+Note that destructuring looks different than defining a lambda function because lambdas
+require a prefix `fn`, e.g., `fn(Arg1, ...): FunctionBody`.  So for example,
+`(X: int, Y: str) = some_function(Z)` is destructuring, while
+`fn(X: int, Y: str): some_function(Z)` is defining a lambda.
 
 You can also use destructuring to specify return types explicitly.
-The notation is `{Field1: type1, Field2; type2} do_stuff()`.  This can be used
-to grab even a single field and explicitly type it, e.g., `{X: str} whatever()`,
-although this may not be preferred in case there is a more complicated expression
-on the RHS, where we'd prefer, e.g., `X: str = whatever() + "world"`.
+The notation is `[Field1: type1, Field2; type2] = do_stuff()`.  This can be used
+to grab even a single field and explicitly type it, e.g., `[X: str] = whatever()`.
 
 This notation is a bit more flexible than JavaScript, since we're
 allowed to reassign existing variables while destructuring.  In JavaScript,
@@ -2894,14 +2904,14 @@ fraction(In: string, Io; dbl): [Round_down: int, Round_up: int]
 
 # destructuring
 Io; 1.234
-{Round_down}: fraction(In: "hello", Io;)
+[Round_down]: fraction(In: "hello", Io;)
 
 # === calling the function with variable renaming ===
 Greeting: "hello!"
 Input_output; 1.234      # note `;` so it's writable.
 # just like when we define an argument for a function, the newly scoped variable goes on the left,
 # so too for destructuring return arguments.  this one uses the default type of `Round_down`:
-{Integer_part; round_down} fraction(In: Greeting, Io; Input_output)
+[Integer_part; round_down] = fraction(In: Greeting, Io; Input_output)
 
 # here's an example without destructuring.
 Io; 1.234
@@ -2924,11 +2934,6 @@ countdown(Count): all_of[iterator[count], [Count]]
 
 My_array: array[count] = countdown(5)
 ```
-
-Note that destructuring looks different than defining a lambda function due
-to the difference in parentheses type and an extra `:` with lambda functions.
-E.g., `{X: int, Y: str} some_function(Z)` is destructuring,
-but `(X: int, Y: str): some_function(Z)` is defining a lambda.
 
 Note, you can also have nullable output arguments.  These will be discussed
 more in the function overload section, but here are some examples.
