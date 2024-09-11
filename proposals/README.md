@@ -514,7 +514,7 @@ another class's instance, like `int(My_number_string)` which converts `My_number
 (presumably a `string` type) into a big integer.
 
 There are a few reserved keywords, like `if`, `elif`, `else`, `with`, `return`,
-`what`, `in`, `each`, `for`, `while`,
+`what`, `in`, `each`, `for`, `while`, `pass`,
 which are function-like but may consume the rest of the statement.
 E.g., `return X + 5` will return the value `(X + 5)` from the enclosing function.
 There are some reserved namespaces with side effects like `@First`, `@Second`,
@@ -582,6 +582,7 @@ Not_defined_correctly:
 
 Because of this, some care must be taken when returning a bracket
 from a function, since we may try to pair it with the previous line.
+If you *don't* want to pair a block with the previous line, use `pass` or `return`.  
 
 ```
 my_function(Int): [X: int, Y: int]
@@ -597,6 +598,22 @@ my_function(Int): [X: int, Y: int]
 my_function(Int): [X: int, Y: int]
     do_something(Int)
     [X: 5 - Int, Y: 5 + Int]
+```
+
+The keyword `pass` is useful in blocks where you don't want to return
+from the function just yet.
+
+```
+my_function(Str): int
+    Results: if Str == "hello"
+        do_something(Str)
+        pass
+        [   X: Str + ", world!"
+            Y: Str count()
+        ]
+    else $[X: "oh no", Y: 3]
+    print(Results X)
+    return Results Y
 ```
 
 When it comes to parentheses, you are welcome to use
@@ -708,6 +725,7 @@ defining_a_function_with_multiline_return_values
 [   Value0: int     # you may need to add comments because
     Value1: str     # the formatter may 1-line these otherwise
 ]
+    do_something(Argument0)
     # here we can avoid the `return` since the internal
     # part of this object is not indented.
     [Value0: Argument0 + 3, Value1: str(Argument0)]
@@ -715,22 +733,29 @@ defining_a_function_with_multiline_return_values
 # ALTERNATIVE: multiline return statement
 defining_a_function_with_multiline_return_values
 (   Argument0: int
+    Argument1: str
 ):  [Value0: int, Value1: str]
-    # this needs to `return` since it looks like an indented block.
+    do_something(Argument0)
+    # this needs to `return` or `pass` since it looks like an indented block
+    # otherwise, which would attach to the previous line like
+    # `do_something(Argument0)[Value0: ...]`
     return
     [   Value0: Argument0 + 3
-        Value1: str(Argument0)
+        Value1: Argument1 + str(Argument0)
     ]
+    # if you are in a situation where you can't return -- e.g., inside
+    # an if-block where you want to pass a value back without returning --
+    # use `pass`.
 
-# if you're returning a multiline generic, be careful to indent at +1
-# from its starting identifier (`some_generic_type` here).
 defining_another_function_that_returns_a_generic
 (   Argument0: str
+    Argument1: int
 ):  some_generic_type
     [   type0: int
         type1: str
     ]
-    print("got argument ${Argument0}")
+    do_something(Argument0)
+    print("got arguments ${Argument0}, ${Argument1}")
     return ...
 ```
 
