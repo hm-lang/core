@@ -167,15 +167,16 @@ memory, these safe functions are a bit more verbose than the unchecked functions
     (i.e., passed by value), see [pass-by-reference or pass-by-value](#pass-by-reference-or-pass-by-value)
 * use `:` to declare readonly things, `;` to declare writable things.
     * use `A: x` to declare `A` as an instance of type `x`, see [variables](#variables)
-    * use `fn(): x` to declare `fn` as returning an instance of type `x`, see [functions](#functions)
+    * use `fn(): x` to declare `fn` as a function returning an instance of type `x`, see [functions](#functions)
     * use `a: y` to declare `a` as a constructor that builds instances of type `y`
     * while declaring *and defining* something, you can avoid the type if you want the compiler to infer it,
         e.g., `A: some_expression()`
 * when not declaring things, `:` is not used; e.g., `if` statements do not require a trailing `:` like python
-* `()` for organization and function calls
+* `()` for argument objects, organization, and function calls
     * `(W: str = "hello", X: dbl, Y; dbl, Z. dbl)` to declare an argument object type, `W` is an optional field
         passed by readonly reference, `X` is a readonly reference, `Y` is a writable reference,
         and `Z` is passed by value.  See [argument objects](#argument-objects) for more details.
+    * `My_str: "hi", (X: str) = My_str` to create a [reference](#references) to `My_str` in the variable `X`.
     * `(Some_instance x(), Some_instance Y;, W: "hi", Z. 1.23)` to instantiate an argument object instance
         with `X` and `W` as readonly references, `Y` as mutable reference, and `Z` as a temporary.
     * `"My String Interpolation is $(X, Y: Z)"` to add `(X: *value-of-X*, Y: *value-of-Z*)` to the string.
@@ -1945,6 +1946,43 @@ out of units of time like `Seconds`, `Minutes`, `Hours`, etc., so we can do some
 you'd use `run(After: (Seconds: 6, Minutes: 1), (): print("hello world!"))` or to be explicit
 you'd use `run(After: duration(Seconds: 6, Minutes: 1), (): print("hello world!"))`.
 
+### references
+
+We can create references using [argument objects](#argument-objects) in the following way.
+Note that you can use all the same methods on a reference as the original type.
+
+```
+My_value: int(1234567890)
+(My_ref; int) = My_value
+
+# NOTE: `My_ref` needs to be writable (`(My_ref; int)`) for this to work.
+My_ref = 12345
+
+# This is true; `My_value` was updated via the reference `My_ref`
+My_value == 12345
+
+# There is no need to "dereference" the pointer
+print(My_ref multiply(77) assert())
+```
+
+Unlike in C++, there's also an easy way to change the reference to point to
+another instance.
+
+```
+My_value1: int(1234)
+My_value2: int(765)
+(My_ref: int) = My_value1
+# This works for both `My_ref;` and `My_ref:` declarations.
+(My_ref) = My_value2
+
+# TODO: consider locking down being able to change the reference only
+#       if you do something like this.  this is probably less surprising.
+#       however, it would break destructuring like `(Ref1:, Ref2;, Ref3) = my_references()`.
+Nested; (My_ref: My_value1)
+Nested = (My_ref: My_value2)
+```
+
+See also [destructuring](#destructuring).
 
 ### default-name arguments in functions
 
@@ -2876,12 +2914,11 @@ or `[Field1, Field2] = do_stuff()` for reassignment.
 
 If the returned fields are references (and we don't want to copy them into local variables),
 we can use parentheses in an analogous way:  `(Ref1:, Ref2;, Ref3) = do_stuff()`,
-or `(Ref1, Ref2);: do_stuff()` for writable (`;`) or readonly (`:`) references.
-TODO: this doesn't work with lambdas; i want to keep `(X): do_something(X, Y)` for lambdas.
-Note that destructuring looks different than defining a lambda function because lambdas
-require a prefix `fn`, e.g., `fn(Arg1, ...): FunctionBody`.  So for example,
+but note that `(Ref1, Ref2): do_stuff()` is *not* available because that clashes with
+the shorthand for defining lambdas;
 `(X: int, Y: str) = some_function(Z)` is destructuring, while
-`fn(X: int, Y: str): some_function(Z)` is defining a lambda.
+`(X: int, Y: str): some_function(Z)` is defining a lambda.
+TODO: think if there's a better, more-consistent resolution here.
 
 You can also use destructuring to specify return types explicitly.
 The notation is `[Field1: type1, Field2; type2] = do_stuff()`.  This can be used
