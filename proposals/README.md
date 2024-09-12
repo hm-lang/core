@@ -579,6 +579,15 @@ My_array:   # better!
     7
 ]
 
+# if you want to one-line it on a second line it's also possible with a +2 indent.
+My_array:
+        [5, 6, 7]
+
+My_array:
+    # this actually is ok because it looks like a block-definition
+    # of a variable.
+    [5, 6, 7]
+
 # the parentheses trick only works if the inside is indented.
 Not_defined_correctly:
 [5, 6, 7]       # not attached to the previous line.
